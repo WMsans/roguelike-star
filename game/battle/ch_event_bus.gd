@@ -13,6 +13,7 @@ var subscriptions: Array = []  # of {"listener": Object, "type": StringName, "ca
 var queued: Array = []  # ChEvents emitted during a delivery, waiting for their turn
 var running: bool = false  # an emit is already delivering, so a nested emit must queue
 var deliveries: int = 0  # callbacks called by the outer emit in flight
+var capped: bool = false  # the outer emit ran out of budget, so part of its delivery was dropped
 
 
 func subscribe(listener: Object, type: StringName, callback: Callable, proximity_of: Object = null,
@@ -44,32 +45,47 @@ func emit(event: ChEvent) -> void:
 	# The budget belongs to the outer emit, so it resets here and not per queued event.
 	# shortcut: nested emits reuse the outer event's ChEvent object if a caller hands the same one
 	# twice; the bus never copies an event, so a listener that mutates one sees it elsewhere.
+	# `capped` remembers that the budget ran out anywhere in this emit — emit warns on it once, at
+	# the end, because the drops happen in two places (this queue and _deliver's subscriber loop),
+	# and a warning at either one alone misses a chain whose last callback did not re-emit.
+	capped = false
 	deliveries = 0
 	_deliver(event)
 	while not queued.is_empty():
-		# A chain that will not end stops here: the whole rest of the queue is dropped with one
-		# warning, so the emit that opened the chain is the one blamed.
+		# A chain that will not end stops here: the whole rest of the queue is dropped, and `capped`
+		# tells the warning below to name this emit as the one that opened the chain.
 		if deliveries >= MAX_DELIVERIES:
-			push_warning("ChEventBus: delivery cap %d reached, dropping the queued events" % MAX_DELIVERIES)
+			capped = true
 			queued.clear()
 			break
 		_deliver(queued.pop_front())
 	running = false
+	# One warning per outer emit, and only when a callback that would have fired got dropped: _deliver
+	# flags that itself, so a chain that ended on its own under the cap stays silent.
+	if capped:
+		# The brief's rule: dropped events get a push_warning.
+		push_warning("ChEventBus: delivery cap %d reached, dropping the rest of the delivery" % MAX_DELIVERIES)
 
 
 func _deliver(event: ChEvent) -> void:
-	for subscription in subscriptions:
-		# shortcut: the list is read live here, so a callback that subscribes or unsubscribes
-		# during this delivery is not re-visited; upgrade to iterate a copy if a behaviour needs it.
+	# Snapshot at delivery time: `for x in subscriptions` re-reads the live array by index, so a
+	# callback that subscribes during this delivery WOULD be heard, and one that unsubscribes ahead
+	# of the cursor would skip the subscriber behind it. The copy makes the guarantee explicit: a
+	# delivery hears exactly the subscribers that existed when it started.
+	# shortcut: the copy is shallow, so a subscription dict edited in place mid-delivery is still
+	# read through; upgrade to a deep copy if a behaviour ever mutates the dicts.
+	for subscription in subscriptions.duplicate():
 		# StringName compare: an event type nobody subscribed to is simply dropped.
 		if subscription["type"] != event.type:
 			continue
-		# emit above already refused the queued events; this keeps the cap hard for the subscribers
-		# of one event, so a delivery never overruns it.
-		if deliveries >= MAX_DELIVERIES:
-			return
 		if not _in_range(subscription["proximity_of"], subscription["range"], event):
 			continue
+		# emit above already refused the queued events; this keeps the cap hard for the subscribers of
+		# one event, so a delivery never overruns it. The eligibility checks run first so `capped`
+		# only trips when a callback that would have fired is the one being dropped.
+		if deliveries >= MAX_DELIVERIES:
+			capped = true
+			return
 		# Only a subscription that will fire spends the budget, so a chain of no-op event types
 		# still costs nothing and cannot burn the cap.
 		deliveries += 1

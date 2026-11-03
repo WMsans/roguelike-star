@@ -107,6 +107,30 @@ func test_chain_cap() -> void:
 	_complete()
 
 
+func test_mid_delivery_subscription() -> void:
+	var bus := ChEventBus.new()
+	var heard: Array[String] = []
+	var src := _source(0, Vector2.ZERO)
+	var opener := _listener()
+	var late := _listener()
+	# _deliver walks a snapshot taken when the delivery starts, so a subscription made by a callback
+	# is not heard by that same delivery. Verified on Godot 4.7: `for x in Array` re-reads the live
+	# array by index, so an append mid-loop is heard and a removal ahead of the cursor skips the
+	# subscriber behind it — the copy is what makes that a guarantee instead of luck.
+	bus.subscribe(opener, ChEvent.HIT, func(event: ChEvent): heard.append("opener"); bus.subscribe(late, ChEvent.HIT, func(other: ChEvent): heard.append("late")))
+	bus.emit(_event(ChEvent.HIT, src))
+	assert_eq(heard, ["opener"], "the delivery only hears who it started with")
+	# `late` is registered now, so the next delivery hears it. Unsubscribing `opener` first keeps its
+	# callback from registering `late` again on every emit (a listener may subscribe to a type twice
+	# and hear twice, per subscribe's shortcut).
+	bus.unsubscribe_all(opener)
+	bus.emit(_event(ChEvent.HIT, src))
+	assert_eq(heard, ["opener", "late"], "the subscription made mid-delivery hears from the next emit on")
+	# The callbacks capture the bus, so unsubscribing breaks that reference cycle.
+	bus.unsubscribe_all(late)
+	_complete()
+
+
 func test_unsubscribe_all() -> void:
 	var bus := ChEventBus.new()
 	var heard: Array[String] = []
