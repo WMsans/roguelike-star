@@ -10,3 +10,7 @@ conductivity = 1.0
 fixed_temperature = true
 base_temperature = -60
 lifetime = 40
+# shortcut: conductivity 1.0 is tuned, not the default 0.1. exchange_heat (chemistry.cpp) then moves
+# water by round(-80 * min(1.0, 0.6) * 0.5) = -24 per exchange, one step past water's low_temperature 0;
+# at the default 0.1 one exchange is only -4. Comment sits last: the parser drops the property that
+# follows a # line, which is why no material file here carries a comment before its values.

@@ -46,11 +46,17 @@ func make_world(arena := Rect2i(0, 0, 480, 180)) -> PixelWorld:
 	# concrete is the indestructible wall, so blasts in later tests cannot open the arena.
 	# shortcut: fixed here; add a border parameter if a test ever needs another wall.
 	world.arena_border_material = &"concrete"
-	# The arena path loads a window of chunks around the follow target (no target here, so the
-	# origin), and the default (6, 4) radius stops at chunk column 6: a 480-wide arena from x 0
-	# needs column 7, so is_area_ready would never turn true.
-	# shortcut: sized for this arena from the origin; recompute it if a test moves the arena.
-	world.load_radius = Vector2i(8, 4)
+	# The arena path streams a window of chunks around target_cell() (the origin while follow_target
+	# stays unset) and a chunk is 64 cells (addons/noita_engine/engine/core/coords.h: CHUNK), so the
+	# radius has to reach the chunk holding the arena's far corner or is_area_ready(arena) never
+	# turns true. floori matches chunk_of()'s floor_div: GDScript int division truncates towards zero,
+	# which would read the wrong chunk for a negative arena start.
+	# shortcut: the window is centred on chunk (0, 0), which holds while make_world leaves follow_target
+	# unset; a test that follows a node has to widen around that chunk instead.
+	var near_chunk := Vector2i(floori(arena.position.x / 64.0), floori(arena.position.y / 64.0))
+	var far_chunk := Vector2i(floori((arena.end.x - 1) / 64.0), floori((arena.end.y - 1) / 64.0))
+	world.load_radius = Vector2i(maxi(absi(near_chunk.x), absi(far_chunk.x)),
+		maxi(absi(near_chunk.y), absi(far_chunk.y)))
 	# The runner's main loop is a SceneTree script, so nodes go under its root viewport.
 	main_loop.get_root().add_child(world)
 	# _ready() bails out when material_set is missing or does not compile, and then
