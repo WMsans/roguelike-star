@@ -6,6 +6,9 @@ extends ChTest
 # The counts dicts stand in for PixelWorld.count_materials over sample_rect (Task 10's tick).
 # shortcut: thresholds/numbers are literals per test; the tuning lives in ChPartDef and the
 # behaviours (Tasks 12-14), not here.
+# One 60 fps frame: the delta the live game ticks at, and what ChBattleContext.tick (Task 10)
+# hands apply_sample each frame.
+const LAVA_TICK := 1.0 / 60.0
 
 
 class FakeBody:
@@ -80,9 +83,9 @@ func test_catches_fire_emits_once() -> void:
 	assert_eq(heard.size(), 1, "an already burning part does not re-emit")
 	assert_true(part.burning, "fire keeps the part burning")
 	# sample_rect and facing are the other accessors the later tasks hang on; no listed test names
-	# them, so this pins the fake-body fallback: no shape means a 1-cell box at the anchor, grown by
-	# 2 cells. Task 9's real PixelRigidBody takes the shape path instead.
-	assert_eq(part.sample_rect(), Rect2i(8, 18, 5, 5), "the 1-cell fallback box grown by 2 cells")
+	# them, so this pins the box for a 1-cell part: the body's box is def.size cells centred on its
+	# position, grown by 2 cells. The wheel-sized footprint is the next test's job.
+	assert_eq(part.sample_rect(), Rect2i(7, 17, 6, 6), "the 1-cell box centred on the anchor, grown by 2 cells")
 	assert_eq(part.facing(), Vector2.RIGHT, "unflipped at rotation 0 faces +x")
 	# A flipped slot faces back (spec §5.4 facing), and a body rotation turns that direction. The
 	# quarter turn is only near exact: cos(PI/2) leaves a float residue in x.
@@ -187,6 +190,69 @@ func test_frozen_pauses_cooldown() -> void:
 	var passive := _runtime(0, 0.0, Vector2(0, 0), 100)
 	assert_eq(passive.tick_cooldown(1.0), false, "a part with cooldown 0 never becomes ready")
 	assert_eq(passive.cooldown_left, 0.0, "a passive part has no cooldown to count down")
+	_complete()
+
+
+func test_sample_rect_covers_a_wheel() -> void:
+	# The reviewer's finding: a wheel-sized def (game/data/parts/wheel.tres is 12x12 cells) sampled
+	# with a box anchored at the anchor sits up to 11 cells off the body. The body's box is def.size
+	# cells centred on its position, turned by its rotation and mirrored by the slot flip.
+	# The real wheel def (game/data/parts/wheel.tres is 12x12 cells), handed to a part instead of the
+	# 1x1 default ChPartDef._runtime builds.
+	var wheel: ChPartDef = load("res://game/data/parts/wheel.tres")
+	assert_eq(wheel.size, Vector2i(12, 12), "the wheel is 12 cells across")
+	var part := _runtime(0, 0.0, Vector2(100, 200), 100)
+	part.def = wheel
+	var rect := part.sample_rect()
+	# Unrotated: x covers cells 94..105, y covers 194..205, so grown by 2 cells the rect is
+	# (92, 192, 16, 16). It covers the anchor cell itself, which an anchor-cornered box does not.
+	assert_eq(rect, Rect2i(92, 192, 16, 16), "the 12-cell box centred on the anchor, grown by 2 cells")
+	assert_true(rect.has_point(Vector2i(100, 200)), "the rect covers the part's own anchor cell")
+	# A quarter turn: the box swaps its axes, so the footprint stays the same size and still covers
+	# the body.
+	var turned := _runtime(0, 0.0, Vector2(100, 200), 100)
+	turned.def = wheel
+	turned.body = _body(Vector2(100, 200), PI / 2.0)
+	# The quarter turn's box edges land exactly on cell borders, where a float residue could move
+	# the rect one cell, so this pins the cells the rect covers rather than its numbers.
+	assert_true(turned.sample_rect().has_point(Vector2i(100, 200)), "the turned rect covers the anchor")
+	assert_true(turned.sample_rect().has_point(Vector2i(93, 200))
+		and turned.sample_rect().has_point(Vector2i(106, 200)),
+		"the turned rect reaches the body's own cells at both ends")
+	# A diagonal turn is where the AABB grows: an unrotated box would stay 12 cells wide and miss the
+	# corners the body actually reaches.
+	var angled := _runtime(0, 0.0, Vector2(100, 200), 100)
+	angled.def = wheel
+	angled.body = _body(Vector2(100, 200), PI / 4.0)
+	# 12 * sqrt(2) ~= 16.97 cells across, which touches cells 91..108 (18 cells), grown to 22.
+	assert_eq(angled.sample_rect(), Rect2i(89, 189, 22, 22), "a 45° turn grows the AABB to 18 cells")
+	assert_true(angled.sample_rect().has_point(Vector2i(100, 200)), "the angled rect still covers the anchor")
+	# A flip mirrors the footprint's x axis; a square centred on the anchor lands back on itself, so
+	# the rect stays where the unflipped part put it.
+	var flipped := _runtime(0, 0.0, Vector2(100, 200), 100, true)
+	flipped.def = wheel
+	assert_eq(flipped.sample_rect(), rect, "a flip leaves the centred square footprint on the same cells")
+	_complete()
+
+
+func test_lava_wears_at_a_live_delta():
+	# The reviewer's finding: at the real 60 fps delta one lava tick is 20 * 0.0167 = 0.33 integrity,
+	# which used to round to nothing, so lava never wore anything. Wear accrues in a float instead.
+	var bus := ChEventBus.new()
+	var part := _runtime(0, 0.0, Vector2(20, 150), 100)
+	# 3 lava cells is also the burning threshold, so this shows both rules the brief puts in one method.
+	part.apply_sample({&"lava": 3}, LAVA_TICK, bus)
+	assert_true(part.burning, "3 lava cells still catch the part alight")
+	assert_eq(part.integrity, 100, "one 60 fps tick pays no whole point yet")
+	assert_near(part.lava_wear_left, 20.0 * LAVA_TICK, 0.0001, "the tick's 0.33 integrity is held back")
+	# One 60 fps tick wears nothing on its own, which is why this test has to repeat the tick: 60 more
+	# of them are 1.0167 s of lava = 20.33 integrity, so 20 points get paid and a third of a point
+	# stays held back. The old round-per-tick rule paid 0 for every one of these 61 ticks.
+	for _tick in 60:
+		part.apply_sample({&"lava": 3}, LAVA_TICK, bus)
+	assert_eq(part.integrity, 80, "61 ticks of 60 fps lava paid 20 whole integrity points")
+	assert_near(part.lava_wear_left, 20.0 * LAVA_TICK, 0.01, "the unpaid fraction stays for the next tick")
+	assert_true(part.burning, "the part has stayed burning throughout")
 	_complete()
 
 

@@ -14,6 +14,7 @@ const FREEZE_BUILD := 0.6  # freeze built per second per group of 4 frost/ice ce
 const FREEZE_GROUPS := 4  # frost/ice cells that count as one group
 const FREEZE_DECAY := 0.25  # freeze lost per second when nothing cold is in reach
 const LAVA_WEAR := 20.0  # integrity worn per second of lava contact
+const LAVA_WEAR_SECONDS := 0.1  # this many seconds of lava held back, so a broken part loses nothing
 const SAMPLE_MARGIN := 2  # cells sample_rect grows beyond the part's own footprint
 
 
@@ -22,6 +23,7 @@ var side: int = 0  # 0 = the player's chariot, 1 = the enemy's (the ChariotLayou
 var path: Array[int] = []  # the slot/extension indices this part sits at
 var flipped: bool = false  # the slot's left/right flip (ChariotLayout.toggle_flip)
 var integrity: int = 0  # wear left; the builder (Task 9) seeds it from def.integrity
+var lava_wear_left: float = 0.0  # lava wear held back until it adds up to a whole integrity point
 var cooldown_left: float = 0.0  # seconds until ready; 0 means ready
 var charges_left: int = -1  # fires before the part runs out; -1 = unlimited (def.charges)
 var burning: bool = false
@@ -57,19 +59,33 @@ func is_frozen() -> bool:
 
 
 func sample_rect() -> Rect2i:
-	# The cells a tick's status comes from: the part's footprint grown by the margin. The battle
-	# loop samples it with PixelWorld.count_materials (Task 10's tick).
-	# shortcut: the footprint is a 1-cell box at the anchor because a body here may be a test fake
-	# carrying position and rotation only; ask the body's collision shape once PixelRigidBody is
-	# attached in Task 9.
+	# The cells a tick's status comes from: the part's world AABB (spec §5.7 "cells in a margin
+	# around its body") grown by the margin. The battle loop samples it with PixelWorld.count_materials
+	# (Task 10's tick).
+	# The body's box is def.size cells centred on its position, which is what the engine joins: PhysicsWorld::add_body
+	# builds b2MakeBox(w/2, h/2) about bd.position and offsets every other shape by the same half.
+	# So the footprint is that box turned by the body's rotation and mirrored by the slot's flip.
+	# shortcut: the footprint is that def.size box, not the shape a stamped body actually joins: PixelRigidBody
+	# binds no bounds getter, so a texture-stamped body (SHAPE_HULL/SHAPE_BOXES in Task 9) samples its
+	# def.size AABB rather than the hull its pixels make.
 	var anchor := anchor_world()
-	# Vector2i() truncates towards zero, so floor the world position to the cell it sits in.
-	var cell := Vector2i(floori(anchor.x), floori(anchor.y))
-	var size := Vector2i(1, 1)
+	var size := Vector2.ONE
 	if def != null:
 		# def.size is in cells; a 0-wide def would give an empty box, so clamp at one cell.
-		size = Vector2i(maxi(1, def.size.x), maxi(1, def.size.y))
-	var box := Rect2i(cell, size)
+		size = Vector2(maxi(1, def.size.x), maxi(1, def.size.y))
+	# The footprint's axes: facing() is the body's x axis already (rotation read from the body, negated
+	# when flipped), so the y axis is its perpendicular. An AABB needs only the axes' absolute spans,
+	# which is why a mirror or a turn past 90° cannot shrink the box here.
+	var fx := facing()
+	var fy := Vector2(-fx.y, fx.x)
+	var half := size * 0.5
+	var span := Vector2(half.x * absf(fx.x) + half.y * absf(fy.x),
+		half.x * absf(fx.y) + half.y * absf(fy.y))
+	# A cell at integer (x, y) covers the world span x .. x + 1, so the box covers floor(min) up to
+	# ceil(max) exclusive: a part whose edge lands mid-cell counts that cell.
+	var min_cell := Vector2i(floori(anchor.x - span.x), floori(anchor.y - span.y))
+	var max_cell := Vector2i(ceilf(anchor.x + span.x), ceilf(anchor.y + span.y))
+	var box := Rect2i(min_cell, max_cell - min_cell)
 	return Rect2i(box.position - Vector2i(SAMPLE_MARGIN, SAMPLE_MARGIN),
 		box.size + Vector2i(2 * SAMPLE_MARGIN, 2 * SAMPLE_MARGIN))
 
@@ -124,12 +140,17 @@ func apply_sample(counts: Dictionary, delta: float, bus: ChEventBus) -> void:
 	# Lava wears integrity here rather than through ChDamage, whose rules cover hit wear only: this
 	# per-tick environmental wear is the brief's own 20 * delta.
 	if counts.get(&"lava", 0) > 0:
-		# round(), half away from zero, as ChDamage documents. shortcut: wear is whole integrity per
-		# tick, so a tick shorter than 0.025 s of lava wears nothing; a float accumulator would fix
-		# that if a caller ever ticks that finely.
+		# Wear accrues in a float, as ChEnergy keeps energy: at the live 60 fps delta one lava tick is
+		# 20 * 0.0167 = 0.33 integrity, which rounds to nothing, so the fraction is kept and paid once
+		# it adds up to a whole point. int() truncates towards zero, and the wear is never negative.
+		var worn := lava_wear_left + LAVA_WEAR * delta
+		var points := int(worn)
+		lava_wear_left = worn - points
+		# Cap what is held back so lava cannot bank wear forever on a part already at 0 integrity.
+		lava_wear_left = minf(lava_wear_left, LAVA_WEAR_SECONDS * LAVA_WEAR)
 		# maxi at 0: integrity never goes negative. Reaching 0 breaks the part, which is Task 10's
 		# break_part rule, so nothing here marks `broken`.
-		integrity = maxi(0, integrity - int(round(LAVA_WEAR * delta)))
+		integrity = maxi(0, integrity - points)
 	# The transitions, not the states: an already burning or already frozen part stays quiet. These
 	# are the chain events spec §5.5 asks for.
 	if not was_burning and burning:
