@@ -63,3 +63,14 @@ func test_count_materials() -> void:
 	assert_eq(counts.get(&"sand", 0), 16, "sand cells in the rect")
 	assert_eq(counts.get(&"burning", 0), 0, "burning cells in the rect")
 	_complete()
+
+
+func test_count_materials_without_grid() -> void:
+	# A world that never finished _ready has no grid; the header still promises the burning key,
+	# which is how the per-tick status sample reads counts[&"burning"].
+	var world := PixelWorld.new()  # never added to the tree, so _ready never ran and there is no grid
+	var counts: Dictionary = world.count_materials(Rect2i(0, 0, 8, 8))
+	world.free()
+	assert_true(&"burning" in counts, "the burning key is present")
+	assert_eq(counts[&"burning"], 0, "no grid means nothing is burning")
+	_complete()

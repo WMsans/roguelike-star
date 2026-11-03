@@ -1154,7 +1154,10 @@ int PixelWorld::fill_circle(const Vector2i &p_center, int p_radius, const String
 
 Dictionary PixelWorld::count_materials(const Rect2i &p_rect) const {
 	Dictionary counts;
-	if (!grid) return counts;
+	if (!grid) {
+		counts[StringName("burning")] = 0;  // the header promises the burning key even with no grid
+		return counts;
+	}
 	std::vector<int> by_mat(table.size(), 0);
 	int burning = 0;
 	for (int y = p_rect.position.y; y < p_rect.position.y + p_rect.size.y; ++y)
@@ -1168,6 +1171,8 @@ Dictionary PixelWorld::count_materials(const Rect2i &p_rect) const {
 		}
 	for (size_t i = 1; i < by_mat.size(); ++i)
 		if (by_mat[i] > 0) counts[StringName(table.name_of((MatId)i).c_str())] = by_mat[i];
+	// shortcut: a material literally named "burning" is overwritten here by the burning count,
+	// upgrade to a nested shape if the battle slice ever names one.
 	counts[StringName("burning")] = burning;
 	return counts;
 }
