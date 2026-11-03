@@ -154,13 +154,25 @@ func swap_body(new_body: ChBodyDef, catalog: ChCatalog) -> Array[ChSlotNode]:
 	# body's own frame; a body needing an off-centre swap would want an offset field in ChBodyDef.
 	# shortcut: an equal distance keeps the lower old index (pairs are built old-major and sort is
 	# stable); the design doc states no tie-break, and the test bodies avoid ties.
-	# shortcut: a missing old def returns the parts whole and leaves the layout untouched, so a
-	# caller that fixes its catalog can retry rather than repair what the swap did.
+	# Every body this method reads goes through the catalog, because every later read of the layout
+	# does the same: anchor_of and the next swap look body_id up. So the new body is resolved first.
+	# shortcut: an id the catalog cannot resolve refuses with the layout untouched — a swap onto it
+	# would set body_id to a def nothing can place, so every anchor reads ZERO. The caller is the
+	# only one who can register the def it wants, and [] here means "nothing applied", not "no fit".
+	var new_body_def: ChBodyDef = catalog.body(new_body.id)
+	if new_body_def == null:
+		return []
+	# shortcut: a missing old def has no position to measure from, so nothing can be reseeded: the
+	# swap still completes, the layout ends up empty on the new body and every subtree comes back
+	# whole, which is how a caller that re-buys those parts avoids holding them mounted and in its
+	# inventory at the same time.
 	var old_body: ChBodyDef = catalog.body(body_id)
 	if old_body == null:
 		var whole: Array[ChSlotNode] = []
 		for index in slots.keys():
 			whole.append(slots[index])
+		slots.clear()
+		body_id = new_body_def.id
 		return whole
 	# An index the old def has no slot for has no position to measure, so it comes back whole.
 	var pairs: Array = []
@@ -168,8 +180,8 @@ func swap_body(new_body: ChBodyDef, catalog: ChCatalog) -> Array[ChSlotNode]:
 		if index < 0 or index >= old_body.slots.size():
 			continue
 		var old_at := Vector2(old_body.slots[index])
-		for new_index in new_body.slots.size():
-			pairs.append([old_at.distance_to(Vector2(new_body.slots[new_index])), index, new_index])
+		for new_index in new_body_def.slots.size():
+			pairs.append([old_at.distance_to(Vector2(new_body_def.slots[new_index])), index, new_index])
 	# sort() compares element by element, so a distance carries its two indices with it.
 	pairs.sort()
 	var seat_of: Dictionary[int, int] = {}
@@ -196,7 +208,7 @@ func swap_body(new_body: ChBodyDef, catalog: ChCatalog) -> Array[ChSlotNode]:
 	slots = seats
 	# Every later anchor then reads the new def, and an anchor is body-local, so a swap needs no
 	# world position anywhere in this class.
-	body_id = new_body.id
+	body_id = new_body_def.id
 	return leftovers
 
 

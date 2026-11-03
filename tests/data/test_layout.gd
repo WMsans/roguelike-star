@@ -113,6 +113,31 @@ func test_swap_to_smaller_body_returns_leftovers_whole() -> void:
 	_complete()
 
 
+# Pins the two swap_body branches a caller can be handed the wrong catalog for. Not part of the
+# brief's 7-test list, so the `layout` filter counts 8 here.
+func test_swap_body_catalog_consistent() -> void:
+	var catalog := _catalog()
+	var layout := _layout(&"A")
+	assert_true(layout.place([0], &"strut"), "a part mounted before the swap")
+	# A body the catalog never registered: seating onto it would set body_id to an id with no def,
+	# so every anchor_of afterwards reads ZERO for a position no caller can reproduce.
+	var refused: Array[ChSlotNode] = layout.swap_body(_mk_body(&"Z", [Vector2(3, 0)]), catalog)
+	assert_eq(refused.size(), 0, "an unresolved new body is refused, so nothing is handed over")
+	assert_eq(layout.body_id, &"A", "the refusal leaves the layout on its old body")
+	assert_eq(layout.anchor_of([0], catalog), Vector2(-10, 0), "the mount still sits where A places it")
+	# The other branch: the old body has no def, so no subtree has a position to measure from. The
+	# swap still completes, handing every subtree back whole, so a caller that re-buys those parts
+	# cannot end up holding them mounted and in inventory at once.
+	var orphan := _layout(&"Z")
+	assert_true(orphan.place([0], &"strut"), "mounted with nothing to measure it")
+	assert_true(orphan.place([1], &"mace"), "a second mounted part")
+	var whole: Array[ChSlotNode] = orphan.swap_body(catalog.body(&"B"), catalog)
+	assert_eq(whole.size(), 2, "every subtree comes back: none had a position to move to")
+	assert_eq(orphan.slots.size(), 0, "the swap cleared its slots, so nothing is double counted")
+	assert_eq(orphan.body_id, &"B", "the swap finished on the new body")
+	_complete()
+
+
 func test_mirrored_inverts_flips() -> void:
 	var layout := _layout(&"A")
 	assert_true(layout.place([0], &"strut"), "mount the parent")
