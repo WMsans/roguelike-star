@@ -93,6 +93,7 @@ void PixelWorld::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_color_at", "pos"), &PixelWorld::get_color_at);
 	ClassDB::bind_method(D_METHOD("fill_rect", "rect", "material"), &PixelWorld::fill_rect);
 	ClassDB::bind_method(D_METHOD("fill_circle", "center", "radius", "material"), &PixelWorld::fill_circle);
+	ClassDB::bind_method(D_METHOD("count_materials", "rect"), &PixelWorld::count_materials);
 	ClassDB::bind_method(D_METHOD("step", "ticks"), &PixelWorld::step);
 	ClassDB::bind_method(D_METHOD("is_chunk_loaded", "chunk"), &PixelWorld::is_chunk_loaded);
 	ClassDB::bind_method(D_METHOD("is_area_ready", "rect"), &PixelWorld::is_area_ready);
@@ -144,6 +145,8 @@ void PixelWorld::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_load_radius"), &PixelWorld::get_load_radius);
 	ClassDB::bind_method(D_METHOD("set_arena", "value"), &PixelWorld::set_arena);
 	ClassDB::bind_method(D_METHOD("get_arena"), &PixelWorld::get_arena);
+	ClassDB::bind_method(D_METHOD("set_arena_border_material", "value"), &PixelWorld::set_arena_border_material);
+	ClassDB::bind_method(D_METHOD("get_arena_border_material"), &PixelWorld::get_arena_border_material);
 	ClassDB::bind_method(D_METHOD("set_simulating", "value"), &PixelWorld::set_simulating);
 	ClassDB::bind_method(D_METHOD("get_simulating"), &PixelWorld::get_simulating);
 	ClassDB::bind_method(D_METHOD("set_max_particles", "value"), &PixelWorld::set_max_particles);
@@ -163,6 +166,7 @@ void PixelWorld::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "follow_target"), "set_follow_target", "get_follow_target");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "load_radius"), "set_load_radius", "get_load_radius");
 	ADD_PROPERTY(PropertyInfo(Variant::RECT2I, "arena"), "set_arena", "get_arena");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "arena_border_material"), "set_arena_border_material", "get_arena_border_material");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "simulating"), "set_simulating", "get_simulating");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "max_particles"), "set_max_particles", "get_max_particles");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "body_gravity"), "set_body_gravity", "get_body_gravity");
@@ -240,14 +244,14 @@ void PixelWorld::_ready() {
 			return;
 		}
 	} else {
-		const MatId rock = table.id_of("rock");
-		if (rock == NO_MAT) {
-			UtilityFunctions::push_error("PixelWorld: material set has no 'rock' material for the arena border");
+		const MatId border_mat = table.id_of(String(arena_border_material).utf8().get_data());
+		if (border_mat == NO_MAT) {
+			UtilityFunctions::push_error(vformat("PixelWorld: material set has no '%s' material for the arena border", String(arena_border_material)));
 			return;
 		}
 		arena_generator = std::make_unique<BoxGenerator>(arena.position.x, arena.position.y,
 		                                                 arena.position.x + arena.size.x,
-		                                                 arena.position.y + arena.size.y, rock, table);
+		                                                 arena.position.y + arena.size.y, border_mat, table);
 	}
 
 	palette.resize(table.size());
@@ -1146,6 +1150,26 @@ int PixelWorld::fill_circle(const Vector2i &p_center, int p_radius, const String
 		for (int dx = -p_radius; dx <= p_radius; ++dx)
 			if (dx * dx + dy * dy <= radius_squared && grid->set(p_center.x + dx, p_center.y + dy, id)) ++written;
 	return written;
+}
+
+Dictionary PixelWorld::count_materials(const Rect2i &p_rect) const {
+	Dictionary counts;
+	if (!grid) return counts;
+	std::vector<int> by_mat(table.size(), 0);
+	int burning = 0;
+	for (int y = p_rect.position.y; y < p_rect.position.y + p_rect.size.y; ++y)
+		for (int x = p_rect.position.x; x < p_rect.position.x + p_rect.size.x; ++x) {
+			Cell cell{};
+			if (!grid->get(x, y, cell)) continue;  // off loaded chunks: nothing to count
+			if (cell.mat == MAT_AIR || cell.mat >= table.size()) continue;
+			++by_mat[cell.mat];
+			// burning counts the cell again under its own key: what burns is the material.
+			if (cell.flags & FLAG_BURNING) ++burning;
+		}
+	for (size_t i = 1; i < by_mat.size(); ++i)
+		if (by_mat[i] > 0) counts[StringName(table.name_of((MatId)i).c_str())] = by_mat[i];
+	counts[StringName("burning")] = burning;
+	return counts;
 }
 
 void PixelWorld::step(int p_ticks) {

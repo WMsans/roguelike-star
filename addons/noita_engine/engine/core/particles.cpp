@@ -178,7 +178,7 @@ ExplodeResult explode(WorldGrid& grid, ParticlePool& pool, int cx, int cy, int r
 			if (!inside(dx, dy)) continue;
 			const int x = cx + dx, y = cy + dy;
 			Cell c{};
-			if (!grid.get(x, y, c) || c.mat == MAT_AIR || (c.flags & FLAG_BODY)) continue;
+			if (!grid.get(x, y, c) || c.mat == MAT_AIR || (c.flags & FLAG_BODY) || mt.get(c.mat).indestructible) continue;
 			++result.removed;
 			grid.set(x, y, MAT_AIR);
 			cleared.push_back({dx, dy});

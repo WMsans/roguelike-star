@@ -38,6 +38,7 @@ struct MaterialDef {
 	std::string low_into;
 	uint8_t lifetime = 0;  // 0 = permanent
 	std::string decays_into;
+	bool indestructible = false;  // blasts leave these cells alone
 };
 
 struct ReactionDef {
@@ -71,6 +72,7 @@ struct CompiledMaterial {
 	MatId low_into;
 	uint8_t lifetime;
 	MatId decays_into;
+	bool indestructible;
 	bool has_reactions;
 };
 

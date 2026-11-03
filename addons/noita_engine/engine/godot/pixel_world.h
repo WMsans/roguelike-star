@@ -92,11 +92,12 @@ class PixelWorld : public Node2D {
 	NodePath follow_target;
 	Vector2i load_radius = Vector2i(6, 4);
 	Rect2i arena = Rect2i(-512, -256, 1024, 512);
+	StringName arena_border_material = "rock";
 	bool simulating = true;
 	int max_particles = DEFAULT_PARTICLE_CAPACITY;
 	float body_gravity = 600.0f;  // cells/s^2
 	// material_set, generator, world_seed, worker_threads, generator_threads,
-	// max_inserts_per_frame, max_particles, body_gravity and arena are read once in _ready (set them before adding the node
+	// max_inserts_per_frame, max_particles, body_gravity, arena and arena_border_material are read once in _ready (set them before adding the node
 	// to the tree); load_radius, follow_target, simulating, active_radius, loaded_margin and
 	// discard_hysteresis are live.
 
@@ -244,6 +245,9 @@ public:
 	void set_arena(const Rect2i &p_value) { arena = p_value; }
 	Rect2i get_arena() const { return arena; }
 
+	void set_arena_border_material(const StringName &p_value) { arena_border_material = p_value; }
+	StringName get_arena_border_material() const { return arena_border_material; }
+
 	void set_simulating(bool p_value) { simulating = p_value; }
 	bool get_simulating() const { return simulating; }
 
@@ -333,6 +337,9 @@ public:
 	bool is_area_ready(const Rect2i &p_rect) const;
 	int fill_rect(const Rect2i &p_rect, const StringName &p_material);
 	int fill_circle(const Vector2i &p_center, int p_radius, const StringName &p_material);
+	// {material_name: count} over the non-air cells of p_rect that sit on loaded chunks (off-chunk
+	// cells are skipped), plus &"burning" for the cells carrying FLAG_BURNING.
+	Dictionary count_materials(const Rect2i &p_rect) const;
 	// Ticks `p_ticks` times regardless of `simulating`: calling this while simulating is true
 	// double-ticks (the physics frame ticks too).
 	void step(int p_ticks);
