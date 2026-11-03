@@ -45,11 +45,24 @@ func test_spec_numbers() -> void:
 	assert_eq(corsair.hp, 600, "Corsair HP 600")
 	assert_eq(corsair.energy_cap, 24, "Corsair energy cap 24")
 	# Costs follow the CATS rule in Global Constraints: power 5 -> 1 energy, power 10 -> 2.
-	assert_eq(catalog.part(&"ice_cream_mace").energy_cost, 1, "mace costs 1")
-	assert_eq(catalog.part(&"cutter_chainsaw").energy_cost, 2, "chainsaw costs 2")
-	assert_eq(catalog.part(&"ring_of_fire").energy_cost, 4, "Ring of Fire costs 4")
-	assert_eq(catalog.part(&"firebolt_launcher").charges, 5, "Firebolt has 5 charges per fight")
-	assert_eq(catalog.part(&"strut").extension_slots.size(), 2, "the Strut carries 2 extension slots")
+	# part() answers null for an id the catalog does not hold, so each def is bound and asserted
+	# before its properties are read: chaining onto null aborts the body with a null-access error
+	# that names no def, which is what the Dozer/Corsair guards above already do.
+	var mace: ChPartDef = catalog.part(&"ice_cream_mace")
+	assert_true(mace != null, "the mace def loads")
+	assert_eq(mace.energy_cost, 1, "mace costs 1")
+	var chainsaw: ChPartDef = catalog.part(&"cutter_chainsaw")
+	assert_true(chainsaw != null, "the chainsaw def loads")
+	assert_eq(chainsaw.energy_cost, 2, "chainsaw costs 2")
+	var ring: ChPartDef = catalog.part(&"ring_of_fire")
+	assert_true(ring != null, "the Ring of Fire def loads")
+	assert_eq(ring.energy_cost, 4, "Ring of Fire costs 4")
+	var firebolt: ChPartDef = catalog.part(&"firebolt_launcher")
+	assert_true(firebolt != null, "the Firebolt launcher def loads")
+	assert_eq(firebolt.charges, 5, "Firebolt has 5 charges per fight")
+	var strut: ChPartDef = catalog.part(&"strut")
+	assert_true(strut != null, "the strut def loads")
+	assert_eq(strut.extension_slots.size(), 2, "the Strut carries 2 extension slots")
 	_complete()
 
 
@@ -71,7 +84,21 @@ func test_enemy_layout_valid() -> void:
 	assert_true(layout != null, "the enemy layout loads")
 	assert_eq(layout.body_id, &"dozer", "the enemy sits on the Dozer")
 	# anchor_of reads the body def, so an id the catalog cannot place is a broken build.
-	assert_true(catalog.body(layout.body_id) != null, "and the catalog can place that body")
+	var body_def: ChBodyDef = catalog.body(layout.body_id)
+	assert_true(body_def != null, "and the catalog can place that body")
+	# The assert above recorded why; stop before reading the def's slots so the run reports the
+	# failure instead of dying on a null access.
+	if body_def == null:
+		return
+	# ChBodyDef.slots are body-local cells with +y down, so the largest y is the lowest slot and
+	# the wheels have to sit there. Read off the def rather than a literal, so a re-tuned body
+	# still has to keep its wheels on whatever slots sit lowest.
+	# shortcut: -INF seeds the scan; a body with no slots leaves it, so every wheel anchor below
+	# fails and says why. No slice body has an empty slot table.
+	var lowest_slot_y: float = -INF
+	for slot in body_def.slots:
+		if slot.y > lowest_slot_y:
+			lowest_slot_y = slot.y
 	var paths := layout.all_paths()
 	assert_eq(paths.size(), 5, "2 wheels + hearth + harpoon + mace are mounted")
 	var wheels := 0
@@ -84,9 +111,18 @@ func test_enemy_layout_valid() -> void:
 		if node == null:
 			continue
 		assert_true(catalog.part(node.part_id) != null, "%s resolves to a def" % node.part_id)
+		var anchor := layout.anchor_of(steps, catalog)
 		# A path whose indices no def owns has no position: the anchor reads ZERO.
-		assert_true(layout.anchor_of(steps, catalog) != Vector2.ZERO, "%s lands on a real slot" % [steps])
+		assert_true(anchor != Vector2.ZERO, "%s lands on a real slot" % [steps])
 		if node.part_id == &"wheel":
 			wheels += 1
+			# The wheels sit low and exposed: their anchor y matches the Dozer's lowest slots, so
+			# moving a wheel to a higher slot index fails here instead of only counting wheels.
+			assert_near(anchor.y, lowest_slot_y, 0.001,
+				"%s sits on one of the Dozer's lowest slots" % steps)
+		elif node.part_id == &"corsair_harpoon" or node.part_id == &"ice_cream_mace":
+			# ChBodyDef.slots say +x is forward, so these two sit on the front half of the hull;
+			# the hearth stays behind them and gets no assertion.
+			assert_true(anchor.x > 0.0, "%s mounts facing forward" % node.part_id)
 	assert_eq(wheels, 2, "the build has exactly 2 wheels, low and exposed")
 	_complete()

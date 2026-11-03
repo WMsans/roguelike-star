@@ -54,11 +54,12 @@ static func load_default() -> ChCatalog:
 	# shortcut: an absent folder is skipped rather than reported, so the suite still runs and the id
 	# tests name what is missing.
 	# shortcut: untyped load() cannot enforce the def class, so a def whose `id` holds the wrong type
-	# is skipped here and reported by the tests that read the ids.
+	# is skipped here and reported by the tests that read the ids; the skip names the file.
 	# shortcut: the class is checked because a typed table raises on a value of the wrong class,
 	# which would end the scan and lose every def after it; a def filed under the other folder is
-	# a filing mistake with no reader, so it is skipped rather than raised.
-	# shortcut: a duplicate id overwrites silently, as from_defs does; the slice files one def per id.
+	# a filing mistake with no reader, so it is skipped rather than raised, with the file named.
+	# shortcut: a duplicate id keeps the later file and warns naming both paths; the slice files one
+	# def per id, so the warning is the only way a clash shows without a name list.
 	for entry in tables:
 		var folder: String = entry[0]
 		var dir := DirAccess.open(folder)
@@ -70,15 +71,26 @@ static func load_default() -> ChCatalog:
 			if not file_name.ends_with(".tres"):
 				continue
 			# shortcut: an unparseable .tres has already printed why; keep scanning so one bad file cannot
-			# hide the defs after it.
-			var def = ResourceLoader.load(folder.path_join(file_name))
+			# hide the defs after it. The warnings below name the file so a mistyped data file leaves
+			# a trace in the run instead of becoming a null def later.
+			var def_path := folder.path_join(file_name)
+			var def = ResourceLoader.load(def_path)
 			if def == null:
+				push_warning("catalog: %s is not loadable, so it adds no def" % def_path)
 				continue
 			var def_id = def.get("id")
 			# A file with no `id` property holds no def (see the note above the method).
 			if def_id == null or String(def_id) == "":
+				push_warning("catalog: %s has no id, so it adds no def" % def_path)
 				continue
 			if (def is ChPartDef) != entry[1]:
+				push_warning("catalog: %s is not a %s under %s, so it adds no def"
+					% [def_path, "ChPartDef" if entry[1] else "ChBodyDef", folder])
 				continue
+			# A hand-authored resource can pass the id and class checks and still carry an id another
+			# file owns: the name it already holds is the only evidence of the clash.
+			if table.has(StringName(def_id)):
+				push_warning("catalog: %s replaces the def already filed as id %s"
+					% [def_path, String(def_id)])
 			table[StringName(def_id)] = def
 	return catalog
