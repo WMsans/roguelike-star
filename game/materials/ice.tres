@@ -1,0 +1,11 @@
+[gd_resource type="PixelMaterial" format=3]
+
+[resource]
+name = &"ice"
+material_class = 1
+density = 1.2
+color = Color(0.7, 0.82, 0.95, 1)
+collision_solid = true
+conductivity = 0.4
+high_temperature = 1
+high_into = &"water"

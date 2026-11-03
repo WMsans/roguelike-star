@@ -43,6 +43,14 @@ func make_world(arena := Rect2i(0, 0, 480, 180)) -> PixelWorld:
 	var world: PixelWorld = PixelWorld.new()
 	world.material_set = load("res://game/materials/game_set.tres")
 	world.arena = arena
+	# concrete is the indestructible wall, so blasts in later tests cannot open the arena.
+	# shortcut: fixed here; add a border parameter if a test ever needs another wall.
+	world.arena_border_material = &"concrete"
+	# The arena path loads a window of chunks around the follow target (no target here, so the
+	# origin), and the default (6, 4) radius stops at chunk column 6: a 480-wide arena from x 0
+	# needs column 7, so is_area_ready would never turn true.
+	# shortcut: sized for this arena from the origin; recompute it if a test moves the arena.
+	world.load_radius = Vector2i(8, 4)
 	# The runner's main loop is a SceneTree script, so nodes go under its root viewport.
 	main_loop.get_root().add_child(world)
 	# _ready() bails out when material_set is missing or does not compile, and then
