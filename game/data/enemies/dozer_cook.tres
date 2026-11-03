@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_classes=1 load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_chariot_layout.gd" id="1_layout"]
+[ext_resource type="Script" path="res://game/data/ch_slot_node.gd" id="1_slot"]
+
+[sub_resource type="Resource" id="ChSlotNode_0"]
+script = ExtResource("1_slot")
+part_id = &"wheel"
+flipped = false
+
+[sub_resource type="Resource" id="ChSlotNode_1"]
+script = ExtResource("1_slot")
+part_id = &"wheel"
+flipped = false
+
+[sub_resource type="Resource" id="ChSlotNode_2"]
+script = ExtResource("1_slot")
+part_id = &"hearth"
+flipped = false
+
+[sub_resource type="Resource" id="ChSlotNode_3"]
+script = ExtResource("1_slot")
+part_id = &"corsair_harpoon"
+flipped = false
+
+[sub_resource type="Resource" id="ChSlotNode_5"]
+script = ExtResource("1_slot")
+part_id = &"ice_cream_mace"
+flipped = false
+
+[resource]
+script = ExtResource("1_layout")
+body_id = &"dozer"
+slots = { 0: SubResource("ChSlotNode_0"), 1: SubResource("ChSlotNode_1"), 2: SubResource("ChSlotNode_2"), 3: SubResource("ChSlotNode_3"), 5: SubResource("ChSlotNode_5") }

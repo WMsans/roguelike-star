@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"cutter_rocket"
+display_name = "Cutter Rocket"
+hook_text = "Ignition: whenever anything catches fire, its next shot charges faster"
+energy_cost = 2
+cooldown = 1.0
+damage = 30
+color = Color(0.85, 0.35, 0.3, 1)

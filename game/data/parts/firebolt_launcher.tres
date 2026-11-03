@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"firebolt_launcher"
+display_name = "Firebolt Launcher"
+energy_cost = 1
+cooldown = 2.0
+damage = 25
+charges = 5
+color = Color(0.9, 0.5, 0.2, 1)

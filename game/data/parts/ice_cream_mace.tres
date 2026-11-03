@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"ice_cream_mace"
+display_name = "Ice Cream Mace"
+hook_text = "Shatter: hitting a frozen part deals x3 damage and ends its freeze"
+energy_cost = 1
+cooldown = 1.0
+damage = 20
+proximity_range = 6.0
+color = Color(0.95, 0.75, 0.8, 1)

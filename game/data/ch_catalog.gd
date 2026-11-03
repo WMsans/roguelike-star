@@ -13,7 +13,7 @@ static func from_defs(part_defs: Array[ChPartDef], body_defs: Array[ChBodyDef]) 
 	# static function has no `self`, so it constructs the instance it returns.
 	var catalog: ChCatalog = ChCatalog.new()
 	# id is the key, which is how a layout's part_id finds its def.
-	# shortcut: a duplicate id overwrites silently; load_default should warn when it scans files.
+	# shortcut: a duplicate id overwrites silently, as load_default does.
 	# The tests hand in unique ids, so from_defs does not validate anything here.
 	for part_def in part_defs:
 		catalog.parts[part_def.id] = part_def
@@ -33,3 +33,52 @@ func part(id: StringName) -> ChPartDef:
 func body(id: StringName) -> ChBodyDef:
 	# body reads null the same way part does, so an unmounted body choice still measures.
 	return bodies.get(id)
+
+
+static func load_default() -> ChCatalog:
+# The slice's content on disk: one .tres per def. A file counts as a def when it carries a
+# non-empty `id`, which keeps a hand-authored resource out of the catalog without a name list.
+# Keying on the def's own id is how a layout's part_id finds its def.
+# shortcut: a missing or empty def folder is not an error here - the tables stay empty, so
+# every later read answers null and the catalog tests report the ids they looked for.
+	var catalog: ChCatalog = ChCatalog.new()
+	# Each folder holds one def class; the pair below says which class goes in which table.
+	var part_folder := "res://game/data/parts"
+	var body_folder := "res://game/data/bodies"
+	# shortcut: the list stays untyped, so the folder's flag is read as a bool at runtime rather than
+	# checked at parse time; a wrong flag here fails the id tests rather than raising the load.
+	var tables := [[part_folder, true], [body_folder, false]]
+	# The folder picks the table; the def's own id picks the key.
+	# shortcut: defs live one level deep, so there is no recursion; the .tres check skips a .uid sidecar.
+	# shortcut: DirAccess.open wants the folder with no trailing slash; String.path_join adds the separator.
+	# shortcut: an absent folder is skipped rather than reported, so the suite still runs and the id
+	# tests name what is missing.
+	# shortcut: untyped load() cannot enforce the def class, so a def whose `id` holds the wrong type
+	# is skipped here and reported by the tests that read the ids.
+	# shortcut: the class is checked because a typed table raises on a value of the wrong class,
+	# which would end the scan and lose every def after it; a def filed under the other folder is
+	# a filing mistake with no reader, so it is skipped rather than raised.
+	# shortcut: a duplicate id overwrites silently, as from_defs does; the slice files one def per id.
+	for entry in tables:
+		var folder: String = entry[0]
+		var dir := DirAccess.open(folder)
+		if dir == null:
+			continue
+		# `table` aliases the catalog's dict, so the write below reaches it.
+		var table: Dictionary = catalog.parts if entry[1] else catalog.bodies
+		for file_name in dir.get_files():
+			if not file_name.ends_with(".tres"):
+				continue
+			# shortcut: an unparseable .tres has already printed why; keep scanning so one bad file cannot
+			# hide the defs after it.
+			var def = ResourceLoader.load(folder.path_join(file_name))
+			if def == null:
+				continue
+			var def_id = def.get("id")
+			# A file with no `id` property holds no def (see the note above the method).
+			if def_id == null or String(def_id) == "":
+				continue
+			if (def is ChPartDef) != entry[1]:
+				continue
+			table[StringName(def_id)] = def
+	return catalog

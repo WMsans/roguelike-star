@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"ring_of_fire"
+display_name = "Ring of Fire"
+energy_cost = 4
+cooldown = 6.0
+damage = 10
+proximity_range = 24.0
+color = Color(0.95, 0.35, 0.15, 1)
