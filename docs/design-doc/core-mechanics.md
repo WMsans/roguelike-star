@@ -53,7 +53,8 @@ References:
 - Driving is paid first. While the player holds a direction, driving takes energy before any
   waiting part gets paid. Moving visibly costs firepower, and that trade-off is the main decision
   the player makes during a battle.
-- Driving costs a flat amount per second (for instance, 2/s) regardless of the number of wheels.
+- Driving costs energy per second for each wheel, set by the wheel (for instance, 1/s for a
+  plain wheel). More wheels make driving more expensive.
 - Trigger effects usually cost energy and passive effects usually don't. More powerful parts
   cost more energy.
 - The body sets energy capacity and regen per second.
@@ -225,8 +226,8 @@ Each theme can appear as a shop or as a pack:
 | Reward for a normal battle | 5 |
 | Reward for an elite | 10 |
 | Common item | 2 |
-| Uncommon item | 3 |
-| Rare item | 4 |
+| Uncommon item | 6 |
+| Rare item | 12 |
 | Pack entry | 3 |
 
 - Stage 1 of the shop phase (the fixed gold stage) pays the reward for the battle just won.
