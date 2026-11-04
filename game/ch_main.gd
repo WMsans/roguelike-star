@@ -26,6 +26,7 @@ var inventory: ChInventory = null
 var layout: ChChariotLayout = null  # the build the garage shows and the next fight takes
 var garage: ChGarage = null
 var battle: ChBattle = null
+var retiring: Array[ChBattle] = []  # fights a newer one replaced, still running their own loop
 var label: Label = null
 var screen: StringName = &"garage"  # what this node is showing: garage, fight or result
 var shown: ChChariotLayout = null  # the copy a fight is running, never the garage's own
@@ -100,6 +101,7 @@ func _start_battle() -> void:
 	# One ChBattle scene per fight, the same reason the garage is instantiated: start() builds
 	# its arena, HUD and markers from scratch, and a second call would write the first fight's
 	# nodes. The coroutine is awaited here, so the fight's ticks run on this node's frames.
+	_retire_current()
 	var next: ChBattle = ResourceLoader.load(BATTLE).instantiate()
 	battle = next
 	announced = false
@@ -141,6 +143,9 @@ func _process(delta: float) -> void:
 	# What runs on the two screens this node can be stuck on: a fight that has not handed the loop
 	# back, then the result window's two seconds. The fight's ticks and the garage's pointer handling
 	# run their own nodes, so nothing else here needs a frame.
+	# A retired fight goes the frame its own loop ends, whatever screen is up: this runs ahead of the
+	# screen branches so a newer fight holding the screen cannot keep an idle one in the tree.
+	_release_retiring()
 	if screen == &"fight":
 		_hold_fight()
 		return
@@ -158,6 +163,38 @@ func _process(delta: float) -> void:
 		_release_battle()
 
 
+func _retire_current() -> void:
+	# The fight this node was showing, dealt with before a new one takes `battle`: gone now if its own
+	# loop is over, otherwise handed to `retiring`, where _process frees it the frame that loop ends.
+	# Dropping it instead would leave it in the tree with nothing able to reach it - never freed, still
+	# simulating its whole 3600-tick budget, still making HUD pips each tick and polling ui_left and
+	# ui_right, all off screen.
+	# shortcut: only a fight whose own loop can still end goes here; one still streaming its arena
+	# (ChBattle.started false) could be one whose start() already returned on an `aborted` leg, which
+	# would sit in `retiring` for ever, and no flag ChMain may read tells the two apart. Reaching that
+	# needs a second request_fight inside the frames start() spends building its arena, which the
+	# hidden, unprocessed garage does not offer; upgrade when ChBattle reports its own end.
+	if battle == null or not is_instance_valid(battle):
+		return
+	if battle.started and not battle.ticking:
+		_release_battle()
+	else:
+		retiring.append(battle)
+
+
+func _release_retiring() -> void:
+	# One reverse pass over the retiring fights: each goes the frame ChBattle's contract allows it, so
+	# erase cannot shift an entry past the cursor. `started` is the same never-free-a-live-coroutine
+	# rule _release_battle waits on.
+	for at in range(retiring.size() - 1, -1, -1):
+		var fought: ChBattle = retiring[at]
+		if fought == null or not is_instance_valid(fought):
+			retiring.remove_at(at)
+		elif fought.started and not fought.ticking:
+			retiring.remove_at(at)
+			fought.free()
+
+
 func _return_to_garage() -> void:
 	# The brief's hand-back - the garage, whatever the fight is still doing. ChBattle runs its loop
 	# to FIGHT_TICKS whatever the result and offers no stop, and a caller may free it only while
@@ -165,9 +202,8 @@ func _return_to_garage() -> void:
 	# coroutine is suspended mid-loop) nor left on screen. It goes hidden instead, and _process
 	# frees it once its loop returns.
 	# shortcut: the cost is up to ~60 s of hidden simulation per fight; upgrade when ChBattle can
-	# end a fight on the caller's say-so. `battle` names one fight at a time, so asking for a second
-	# one while a hidden fight is still ticking leaves that hidden fight in the tree until ChMain
-	# itself leaves - it cannot be freed mid-loop, and its own `finished` is ignored by _on_finished.
+	# end a fight on the caller's say-so. A fight hidden here is still retired rather than dropped if a
+	# later fight replaces it, so it leaves the tree the frame its own loop ends; see _retire_current.
 	if battle != null and is_instance_valid(battle):
 		if battle.ticking:
 			battle.hide()
