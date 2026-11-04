@@ -165,8 +165,19 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	# because ending a fight on someone else's say-so is not part of ChBattle's contract.
 	started = true
 	ticking = true
+	# A fight ChMain has hidden (its _return_to_garage keeps a still-ticking fight off screen) stops
+	# simulating: the HUD, the drives, the off-screen ui_left/ui_right poll and the sand would all be
+	# working for nobody. Only the sim stops - the loop still runs its FIGHT_TICKS frames, so the fight
+	# still ends on its own budget and `ticking` still says when it is safe to free; and no HP moves
+	# while paused, so a pause can never decide a result. The world's own `simulating` is the engine's
+	# switch (pixel_world.cpp:331 gates the sim step, physics included).
+	var shown := true
 	for _tick in FIGHT_TICKS:
-		_step(TICK)
+		if visible != shown:
+			shown = visible
+			world.simulating = shown
+		if shown:
+			_step(TICK)
 		await get_tree().process_frame
 	ticking = false
 
@@ -223,9 +234,20 @@ func _step(delta: float) -> void:
 	# One fight tick: both sides' drives, the loop, the sim, the HUD and the win/lose check.
 	# The drive decision is ChEnemyAI's, paid by ChEnergy inside ChBattleContext.tick exactly like
 	# the player's, which is the spec's "it pays the same energy rules".
+	if not _alive(player) or not _alive(enemy):
+		# A side whose hull is gone has no position to aim from, no hull to drive and nothing to frame.
+		# Nothing under game/ frees a chassis (break_part leaves a broken part's body in the world),
+		# but the branch's own seam queue_frees one mid-fight, so the per-tick path uses the same
+		# liveness check the rest of the fight uses instead of reading it blind. The frames still run,
+		# so a fight that lost a hull ends on its budget: only HP reaching 0 names a result.
+		return
+	# Half a hull each along the axis the fight lines the two chariots up on: the centre-to-centre gap
+	# that keeps the two boxes apart. ChEnemyAI holds at least this far out, so an enemy whose shortest
+	# reach is the Mace's 6 cells (measured from a part on the hull's edge) still stops outside the
+	# player's hull instead of grinding into it.
 	var drives: Array[float] = [_player_drive(),
 		ai.decide(enemy.chassis.global_position.x, player.chassis.global_position.x,
-			ai.reach(enemy))]
+			ai.reach(enemy), _half_width(enemy), _half_width(player))]
 	ctx.tick(delta, drives)
 	# The world runs its own simulation steps on the physics frames this tick awaited, which is the
 	# seam ChProjectile flies on (Task 13's ruling): adding world.step here would run the sim twice
@@ -313,6 +335,10 @@ func _camera_at() -> void:
 	# into the arena so the camera never shows the world outside the pit.
 	# shortcut: the zoom is uniform, so the arena's own extent caps how far it pulls back; a fight
 	# that wants the whole pit at once wants the viewport sized to the arena.
+	if not _alive(player) or not _alive(enemy):
+		# The frame a hull went missing: the camera keeps the last frame it could compose rather than
+		# reading a freed position.
+		return
 	var a := player.chassis.global_position
 	var b := enemy.chassis.global_position
 	# The box the camera has to show: both hulls end to end plus the margin, so a Dozer and a Cutter
@@ -338,6 +364,19 @@ func _camera_at() -> void:
 	camera.position = at
 
 
+func _alive(chariot: ChChariotRuntime) -> bool:
+	# The fight's own liveness check: the same is_instance_valid that ChBehaviour._bodies,
+	# ChChariotRuntime.drive and ChHarpoon.process already use. The per-tick path read both chassis
+	# unguarded, which is the inconsistency the review named: a freed hull is a freed read that stops
+	# the fight mid-body instead of letting it run out.
+	return chariot != null and chariot.chassis != null and is_instance_valid(chariot.chassis)
+
+
+func _half_width(chariot: ChChariotRuntime) -> float:
+	# Half the hull along x, the axis the two chariots face each other on.
+	return maxi(1, chariot.body_def.size.x) * 0.5
+
+
 func _hull_box(chariot: ChChariotRuntime) -> Rect2:
 	# The chassis box in arena cells, the same reading ChBehaviour's _hull_box takes.
 	var size := Vector2(maxi(1, chariot.body_def.size.x), maxi(1, chariot.body_def.size.y))
@@ -351,10 +390,13 @@ func _draw_markers() -> void:
 		return
 	var onto := marks.get_global_transform().affine_inverse() * world.get_global_transform()
 	for rig in [player, enemy]:
-		if rig == null:
+		if rig == null or not _alive(rig):
 			continue
 		for part in rig.parts:
 			if part.def == null:
+				continue
+			if part.body == null or not is_instance_valid(part.body):
+				# A part whose body left the world has no place to mark.
 				continue
 			if not (part.broken or part.burning or part.is_frozen()):
 				continue
@@ -372,7 +414,7 @@ func _draw_markers() -> void:
 					Color(1.0, 1.0, 1.0))
 	for pulse in pulses:
 		var part: ChPartRuntime = pulse["part"]
-		if part == null or part.broken:
+		if part == null or part.broken or part.body == null or not is_instance_valid(part.body):
 			continue
 		# The 0.2 s pulse: a ring that grows out from the part over the window it has left.
 		var left := maxf(0.0, float(pulse["left"]))

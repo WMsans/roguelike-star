@@ -37,19 +37,32 @@ var parent: ChPartRuntime = null  # the part this one is mounted on, null for a 
 var children: Array[ChPartRuntime] = []  # the parts mounted on this one
 var behaviour: Object = null  # the ChBehaviour Task 10 declares (Task 9 instantiates def.behaviour
 # into it); loose because ChBehaviour does not exist yet, so annotating it would not parse here
+# The last body reading, kept so anchor_world()/facing() answer after the body has left the tree.
+var last_anchor: Vector2 = Vector2.ZERO
+var last_facing: float = 0.0
 
 
 func anchor_world() -> Vector2:
 	# The part's own world position. ChEventBus's proximity filter measures from here.
-	# A part always has a body: the builder (Task 9) mounts the PixelRigidBody before anything
-	# samples or emits.
-	return body.global_position
+	# A part always has a body while it is in the fight: the builder (Task 9) mounts the
+	# PixelRigidBody before anything samples or emits. The body goes away only when the chariot's
+	# nodes leave the tree (a battle freed mid-loop, a teardown) while a listener still holds this
+	# RefCounted, and then `body` is a freed object: reading it is the crash, not a null check.
+	# The last position read is kept for exactly that case, so a stray listener measures from where
+	# the part last stood instead of reading a dead object.
+	if body != null and is_instance_valid(body):
+		last_anchor = Vector2(body.global_position.x, body.global_position.y)
+	return last_anchor
 
 
 func facing() -> Vector2:
 	# The direction this part fires: its body's +x turned by its rotation, mirrored when the slot
 	# is flipped (spec §5.4 facing: a part fires the way its slot faces, no auto-aim).
-	var dir := Vector2.RIGHT.rotated(body.global_rotation)
+	# Same liveness rule as anchor_world(): a body that has left the tree keeps the last facing that
+	# was read while it was alive, which sample_rect() and any late listener then use.
+	if body != null and is_instance_valid(body):
+		last_facing = body.global_rotation
+	var dir := Vector2.RIGHT.rotated(last_facing)
 	return -dir if flipped else dir
 
 
