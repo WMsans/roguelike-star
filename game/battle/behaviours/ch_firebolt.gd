@@ -15,12 +15,10 @@ const BLAST_POWER := 300.0
 const FIRE_RADIUS := 4
 
 func fire(ctx: ChBattleContext) -> void:
-	# Out of charges there is nothing to fire. ChBattleContext asked for this part's energy first,
-	# so process drops that entry below.
+	# Out of charges there is nothing to fire. process parks the countdown below, so the loop should
+	# never have asked this part; the guard stays as the part's own answer, not the fix.
 	if part.charges_left == 0:
 		return
-	# shortcut: an affordable request at 0 charges is still paid by the pool and fires nothing,
-	# because the loop pays before it asks; a pool that cannot pay it leaves the entry queued.
 	if ctx.world == null:
 		return
 	var dir := part.facing()
@@ -32,14 +30,16 @@ func fire(ctx: ChBattleContext) -> void:
 	bolt.setup(ctx, part, dir.rotated(up) * SPEED, GRAVITY, func(shot: Dictionary): _impact(ctx, shot))
 
 func process(ctx: ChBattleContext, delta: float) -> void:
-	# At zero charges the launcher stops requesting: the loop asks a ready part every tick, so the
-	# part's answer is to cancel its own entry the moment the pool has ticked.
-	# shortcut: this cancels once per tick rather than gating the request itself, since ChBattleContext
-	# owns the request call and gives a behaviour no hook before it.
+	# At zero charges the launcher stops requesting. ChBattleContext asks the parts whose countdown
+	# reached 0, so the part's answer is to stop being ready: it parks its countdown at a value that
+	# can never count down, so no request is made for it, the pool pays nothing, and no PART_FIRED
+	# announces a shot that never happened. The fire that spent the last charge already reset the
+	# countdown to def.cooldown in this same tick, so this parks that reset rather than fighting it.
+	# shortcut: parked here rather than as a charges_left > 0 test at the request site, which is the
+	# rule ChBattleContext's own comment left to the behaviour; a part that gains charges (a refill,
+	# Task 14) would need its countdown handed back here.
 	if part.charges_left == 0:
-		var chariot: ChChariotRuntime = ctx.own(part)
-		if chariot != null:
-			chariot.energy.cancel(part)
+		part.cooldown_left = INF
 
 func _impact(ctx: ChBattleContext, shot: Dictionary) -> void:
 	# The bolt lands: it breaks, and the pool of fire it leaves is what sets the next parts alight.

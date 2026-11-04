@@ -195,10 +195,10 @@ func test_rocket_ignition_halves_cooldown() -> void:
 	_complete()
 
 # The Firebolt is the charge-limited part: charges_left counts down once per fire (the battle loop
-# owns that), and at 0 the behaviour stops asking for energy: ChBattleContext still requests for a
-# ready part, so the part cancels that entry in process. The queue is where "no request" reads.
-# shortcut: an affordable request at 0 charges still gets paid and fires nothing, which is what the
-# loop's own comment says; a pool that cannot pay it would leave it queued instead.
+# owns that), and at 0 the behaviour stops asking for energy. ChBattleContext asks every ready part,
+# so the part's answer is to stop being ready: it parks its countdown at something that never runs
+# out, so no request is made, nothing is paid and no PART_FIRED announces a shot that never happened.
+# The queue, the pool's value and the PART_FIRED count are the three reads of that rule.
 func test_firebolt_charges_run_out() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
@@ -221,11 +221,16 @@ func test_firebolt_charges_run_out() -> void:
 	assert_eq(bolt.charges_left, 0, "the charges ran out after five fires")
 	assert_eq(at.energy.queue_size(), 0, "nothing left waiting in the pool")
 	assert_eq(at.energy.value, at.energy.cap - float(shots) * bolt.def.energy_cost, "five costs went out of the pool")
-	# The 6th ready tick: the part is ready and the loop asks it, but the behaviour answers by
-	# cancelling, so the queue stays empty and the charges stay 0 rather than stepping to -1.
-	for _tick in int(1.0 / TICK):
+	# The 6th ready tick: the part is out of charges, so the loop must not ask it again. Two seconds
+	# of clock past the 5th fire is where the reset 2 s cooldown goes ready again; the queue being
+	# empty is not enough on its own, since an entry can be requested, paid and popped inside one
+	# tick, so the pool's value and the PART_FIRED count are the evidence that no 6th cycle ran.
+	for _tick in int(2.0 / TICK):
 		ctx.tick(TICK, [0.0, 0.0])
 	assert_eq(at.energy.queue_size(), 0, "the 6th ready tick left nothing queued")
+	assert_eq(at.energy.value, at.energy.cap - float(shots) * bolt.def.energy_cost,
+		"and the 6th cycle paid nothing out of the pool")
+	assert_eq(fired.size(), shots, "and no PART_FIRED announced a shot that never happened")
 	assert_eq(bolt.charges_left, 0, "and the charges never go past 0 into the unlimited sentinel")
 	_complete()
 
@@ -330,4 +335,42 @@ func test_harpoon_misses_out_of_range() -> void:
 	assert_eq(foe.hp, foe_hp, "and the hull paid no damage")
 	var gap_after := at.chassis.global_position.distance_to(foe.chassis.global_position)
 	assert_near(gap_after, gap_before, 1.0, "and neither hull moved toward the other")
+	_complete()
+
+# A hooked hull that goes inside the attach window (a wrecked rig, a body freed for any other
+# reason): the reel must stop with the body rather than read a freed position, and the rope must
+# stop pointing at it. The hull goes the frame the line shows up, so ~1.4 s of the 1.5 s window is
+# still to run -- a line still in the tree after a few frames is the rope on a dead hook, and the
+# old code also prints an access-to-freed error here.
+func test_harpoon_line_ends_when_the_hook_goes() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[2], &"corsair_harpoon"]]), catalog, 0, ORIGIN, false)
+	var foe: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([]), catalog, 1, ORIGIN + Vector2(APART, 0), false)
+	var harpoon := _part_of(at, [2])
+	assert_true(harpoon != null and harpoon.behaviour != null, "the harpoon mounted and behaves")
+	var rigs: Array[ChChariotRuntime] = [at, foe]
+	var ctx: ChBattleContext = _battle(world, catalog, rigs)
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+	var hull: PixelRigidBody = foe.chassis
+	var freed := false
+	var since_free := 0
+	var still_drawn := false
+	for _frame in HUNT_FRAMES:
+		await Engine.get_main_loop().process_frame
+		if ctx.time < (HOOK_TICKS + PULL_TICKS) * TICK:
+			ctx.tick(TICK, [0.0, 0.0])
+		if not freed and _attached(ctx):
+			# The line is hooked, so the hull goes mid-window: queue_free lands at the frame's end.
+			foe.chassis.queue_free()
+			freed = true
+		if freed:
+			since_free += 1
+			if since_free > 4:
+				still_drawn = still_drawn or _attached(ctx)
+	assert_true(freed, "the line hooked a hull, so there was an attach to end")
+	assert_true(not is_instance_valid(hull), "the hooked hull left the tree")
+	assert_true(not still_drawn, "the rope went with the hook rather than keeping its far end on it")
 	_complete()

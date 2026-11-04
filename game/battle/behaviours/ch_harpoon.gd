@@ -49,6 +49,14 @@ func process(ctx: ChBattleContext, delta: float) -> void:
 	# The reel belongs to the fight's clock, so it runs once per tick while the line is attached.
 	if attach_left <= 0.0:
 		return
+	# The hooked body can go inside the window (a wrecked rig, a body freed for any other reason):
+	# reading its position would be an access to freed, so the reel and the rope both end with it.
+	# shortcut: the attach ends rather than re-hooks; a harpoon that wanted to retarget mid-reel
+	# would need a raycast here, which the brief's rule does not ask for.
+	if not is_instance_valid(hook):
+		attach_left = 0.0
+		_end_line()
+		return
 	attach_left = maxf(0.0, attach_left - delta)
 	var anchor := part.anchor_world()
 	# The impulse goes at the body's own centre so Box2D reads a push rather than a twist: an
