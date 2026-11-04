@@ -24,6 +24,7 @@ const PULSE_SECONDS := 0.2  # the HUD's pulse on a part the player just fired
 const TICKER_LINES := 4  # events the ticker keeps
 const BAR := 64.0  # HP/energy bar width in pixels
 const BAR_H := 5.0  # and height
+const MARKER_Z := 10  # the marker layer's z_index: above every body, which all sit at 0
 
 var ctx: ChBattleContext = null
 var world: PixelWorld = null
@@ -32,7 +33,7 @@ var enemy: ChChariotRuntime = null  # side 1
 var ai: ChEnemyAI = null  # the enemy's drive decision
 var camera: Camera2D = null
 var hud: CanvasLayer = null  # the HUD's root layer, at the viewport's 320x180
-var marks: Node2D = null  # the per-part markers, drawn in HUD space
+var marks: Node2D = null  # the per-part markers, drawn in the world layer
 var bars: Array[ColorRect] = []  # [player HP fill, enemy HP fill, player energy fill]
 var pips: Array[ColorRect] = []  # queue-size pips, made on demand
 var ticker_labels: Array[Label] = []
@@ -80,6 +81,9 @@ func _build_hud() -> void:
 	# layer, not this CanvasLayer, so the camera's position and zoom are what put the markers on the
 	# parts (a CanvasLayer would draw them at raw arena numbers, on nothing).
 	marks = Node2D.new()
+	# Draw order sorts by z_index before tree order, so the markers need a layer of their own or the
+	# hulls added later would bury them; no body or node under game/ sets z_index, so MARKER_Z clears them.
+	marks.z_index = MARKER_Z
 	marks.draw.connect(_draw_markers)
 
 

@@ -138,6 +138,10 @@ func test_battle_finishes() -> void:
 	# The markers have to sit on the parts at whatever zoom/pan the camera ends at, so they live under
 	# the world's Node2D (the Camera2D's transform carries them) rather than the HUD CanvasLayer.
 	assert_true(battle.marks.get_parent() == battle.world, "markers are parented to the world layer")
+	# Same reason on the other axis: 2D draw order sorts by z_index before tree order, so a marker at
+	# the bodies' own z sits under whichever hull or pile drew later and cannot be seen. Nothing under
+	# game/ or the builders sets z_index, so the bodies answer 0 and the marker layer must beat them.
+	assert_true(battle.marks.z_index > battle.player.chassis.z_index, "markers draw above the hulls")
 	battle.free()
 	_complete()
 
@@ -149,6 +153,21 @@ func _battle_scene() -> Node2D:
 	var battle: Node2D = scene.instantiate()
 	Engine.get_main_loop().get_root().add_child(battle)
 	return battle
+
+
+# The &"aborted" contract, cheaply: a chariot whose body id the catalog has no def for cannot build,
+# so start() returns early — and an early return still has to announce a result, or a caller awaiting
+# `finished` hangs. This pays the world load and the arena fill only: the tick loop never starts, so
+# there is no 60 s fight here. The ERROR lines the run prints are the contract's own push_error calls.
+func test_aborted_battle_still_ends() -> void:
+	var battle := _battle_scene()
+	var broken := ChChariotLayout.new()
+	broken.body_id = &"no_such_body"
+	var results := await _fight(battle, broken, _enemy_layout(), ChCatalog.load_default(), 12345)
+	assert_eq(results.size(), 1, "the aborted battle announced exactly one result")
+	assert_eq(results, [&"aborted"], "a battle that cannot start ends with aborted")
+	battle.free()
+	_complete()
 
 
 # The end of a fight does not stop its ticks: ChBattle runs the fight to its tick budget whatever
