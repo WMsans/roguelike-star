@@ -7,10 +7,9 @@ Elements exist on two layers:
 - **Statuses** are stacking numbers on individual parts: 5 Acid on a wheel, 12 Flame on the
   body.
 
-This doc lists both layers and how they link: what a part gains from touching a material, what a
-status does to the cells around a part, and how materials and statuses react with each other.
-It is the vocabulary the parts list builds on. Every status here can be read, counted and
-triggered on by parts.
+The two layers link in both directions: a part touching a material gains a status, and a status
+changes the cells around the part. Materials and statuses also react with each other. Every status
+here can be read, counted and triggered on by parts.
 
 Markers follow `core-mechanics.md`: **Decided** was agreed in discussion, **Proposed** is a
 starting point to tune or replace, **Open** is unsettled. Numbers are all Proposed.
@@ -20,7 +19,7 @@ Research: [research/elements/noita-materials.md](research/elements/noita-materia
 ## 1. Statuses
 
 **Decided**
-- The set is kept tight: 9 statuses, each strong enough to anchor a build.
+- 9 statuses, each strong enough to anchor a build.
 - A status is a stack on one part. On an ordinary part it acts on that part's **integrity**. On
   the body it acts on chariot **HP**.
 - All effects are statuses. "Speed up 1s" means "gain 1 Speedup".
@@ -196,7 +195,7 @@ While a part has any stacks of the status, each second it affects the cells next
 
 ## 8. Theme index
 
-Where each shop theme from `core-mechanics.md` §6.3 finds its materials and statuses.
+The materials and statuses behind each shop theme in `core-mechanics.md` §6.3.
 
 | Theme | Materials | Statuses | Play |
 |---|---|---|---|
@@ -210,9 +209,9 @@ Where each shop theme from `core-mechanics.md` §6.3 finds its materials and sta
 **Decided**
 - Electric and Acid are shop themes of their own (`core-mechanics.md` §6.3).
 
-## 9. Events this doc creates
+## 9. Events parts can trigger on
 
-These feed the trigger discussion for the parts list. Each carries its part, position and side.
+Each event carries its part, position and side.
 
 - A part gains a status, loses its last stack of a status, or reaches N stacks.
 - Two statuses cancel on a part (for example "when Flame is put out").

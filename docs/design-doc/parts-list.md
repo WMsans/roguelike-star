@@ -3,9 +3,8 @@
 169 parts that mount in slots on a chariot body: 43 common, 88 uncommon and 38 rare. Bodies and
 relics are separate lists.
 
-Each part was made by running SCAMPER (Substitute, Combine, Adapt, Modify, Put to another use,
-Eliminate, Reverse) on an item from the research catalogs, or on an example from the design
-discussion. The last column records the method and the source.
+Each part is one SCAMPER move (Substitute, Combine, Adapt, Modify, Put to another use, Eliminate,
+Reverse) on an item from the research catalogs or an example from the design discussion.
 
 Related docs: [core-mechanics.md](core-mechanics.md) (rules),
 [elements-list.md](elements-list.md) (materials and statuses), research in
@@ -41,7 +40,7 @@ starting point. All numbers are Proposed.
 - **Wheels** pay their energy cost per second while the chariot is driving, so driving costs
   more the more wheels it has. Driving is still paid before any waiting part.
 - **Passive parts** have no cooldown and usually cost no energy. Some react to triggers.
-- Continuous is a firing mode, not a tag. It shows in the Cooldown column.
+- There is no Continuous tag; the mode shows in the Cooldown column.
 
 ### 1.3 Statuses and wording
 
@@ -90,8 +89,7 @@ starting point. All numbers are Proposed.
 
 ## 2. Target builds
 
-**Decided.** Each build has rare cores and uncommons that lean towards it. Commons are the glue
-every build uses.
+**Decided.** Every build has uncommons and rare cores made for it; commons work anywhere.
 
 | # | Build | Theme | Plan | Uncommons | Rares | Bridges to other builds |
 |---|---|---|---|---|---|---|
@@ -403,7 +401,7 @@ More powerful and leaning towards a build. Price 6 gold.
 
 ## 5. Rare parts (38)
 
-Extremely powerful, often the core of a build. Price 12 gold.
+Very strong, usually a build's core. Price 12 gold.
 
 ### 5.1 Inferno
 
