@@ -149,6 +149,51 @@ func test_wheelless_chariot_spawns_and_fires() -> void:
 	_complete()
 
 
+func test_off_ground_wheel_drives_nothing() -> void:
+	# Review Focus 1's other half: a wheel mounted off the ground still builds and still gets its
+	# motor, so driving must leave the chariot where it stands.
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	# Dozer slot 4 is body-local (-6, -9): after the settle the chassis rests on the rock (centre y 151)
+	# and this wheel's 12-cell disc hangs with its bottom at 148.8, 11 cells clear of the floor.
+	var runtime: ChChariotRuntime = ChChariotBuilder.build(
+		world, _parent(), _mount(&"dozer", [[[4], &"wheel"]]), ChCatalog.load_default(), 0, ORIGIN, false)
+	assert_true(runtime != null, "the build returns a runtime")
+	assert_eq(runtime.parts.size(), 1, "the hovering wheel is the only part")
+	var wheel := _part_of(runtime, [4])
+	assert_true(is_instance_of(wheel.joint, PixelWheelJoint), "the hovering wheel still gets its motor joint")
+	# Settle first with no input, so a fall under gravity cannot be read as drive.
+	for _tick in range(TICKS):
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	assert_true(runtime.chassis.global_position.y < GROUND_TOP, "the chassis still stands above the rock")
+	assert_true(wheel.body.get_mass() > 0.0, "and the hovering wheel joined the world")
+	var settled := runtime.chassis.global_position
+	for _tick in range(TICKS):
+		runtime.drive(1.0)
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	var driven := runtime.chassis.global_position
+	# The motor does run on a hovering wheel (ChariotRuntime.drive sets it, the joint spins it in air):
+	# pinning that keeps the position asserts below from passing when drive silently skips the wheel.
+	assert_true(wheel.joint.enable_motor, "the hovering wheel's motor is on under drive(+1)")
+	assert_near(wheel.joint.motor_speed, 12.0, 0.0001, "at the full drive speed")
+	# Measured: the hovering wheel spins at 12 rad/s while the chassis does not move, so the motor
+	# runs on it and only the physics has nothing to grip — the chariot, not the motor, does nothing.
+	assert_true(wheel.body.angular_velocity != 0.0, "and the hovering wheel really turns under it")
+	assert_near(driven.x, settled.x, 1.0, "drive(+1) left the hovering wheel spinning without moving the chassis")
+	assert_near(driven.y, settled.y, 1.0, "and nothing lifted or dragged it")
+	for _tick in range(TICKS):
+		runtime.drive(-1.0)
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	var reversed := runtime.chassis.global_position
+	assert_near(reversed.x, settled.x, 1.0, "drive(-1) is the same: the chassis stays put")
+	assert_near(reversed.y, settled.y, 1.0, "and so it stays above the rock")
+	world.free()
+	_complete()
+
+
 func test_mirror_x_flips_anchor() -> void:
 	# Corsair slot 1 is body-local (10, 3): a mirrored build sits at the far side of the hull, so the
 	# x anchor negates and y stays (a flip turns the build left/right, not upside down).
