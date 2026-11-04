@@ -1,10 +1,12 @@
-[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/ch_freeze_charge.gd" id="2_freeze"]
 
 [resource]
 script = ExtResource("1_part")
 id = &"freeze_charge"
+behaviour = ExtResource("2_freeze")
 display_name = "Freeze Charge"
 energy_cost = 0
 cooldown = 0.0

@@ -73,7 +73,11 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		if holder != null:
 			holder.children.append(part_runtime)
 		if def.behaviour != null:
-			part_runtime.behaviour = def.behaviour.new()
+			var behaviour = def.behaviour.new()
+			# ChBehaviour's own contract: the behaviour drives a part, and it is the listener its
+			# subscriptions key on, so the instance needs the part it drives before setup runs.
+			behaviour.part = part_runtime
+			part_runtime.behaviour = behaviour
 		runtime.parts.append(part_runtime)
 		mounted[steps] = part_runtime
 	return runtime

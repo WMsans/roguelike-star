@@ -1,10 +1,12 @@
-[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/ch_mace.gd" id="2_mace"]
 
 [resource]
 script = ExtResource("1_part")
 id = &"ice_cream_mace"
+behaviour = ExtResource("2_mace")
 display_name = "Ice Cream Mace"
 hook_text = "Shatter: hitting a frozen part deals x3 damage and ends its freeze"
 energy_cost = 1
