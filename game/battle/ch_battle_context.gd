@@ -41,6 +41,11 @@ func part_of_body(body: Object) -> ChPartRuntime:
 			continue
 		for part in chariot.parts:
 			# A part's body is the PixelRigidBody the builder mounted, so identity is the key.
+			# A broken part is out of the fight, so its body reads as nobody's: break_part leaves the
+			# joint gone but the body still on the ground, so this skip is what makes a later hit on
+			# that wreck resolve null instead of wearing the part again.
+			if part.broken:
+				continue
 			if part.body == body:
 				return part
 	return null
@@ -58,6 +63,10 @@ func chariot_of_body(body: Object) -> ChChariotRuntime:
 			return chariot
 		for part in chariot.parts:
 			# The same identity key part_of_body reads, so the two scans cannot disagree about a body.
+			# The same part.broken skip: a fallen wreck resolves through no chariot at all, which is
+			# the condition deal_hit drops the hit on, so a wreck can never pay chariot HP again.
+			if part.broken:
+				continue
 			if part.body == body:
 				return chariot
 	# A body nothing owns is out of the fight: a body that fell off a broken part is still a body,
@@ -204,11 +213,13 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float) ->
 		# fire twice on one payment: its countdown restarts here and ready is a countdown again.
 		if part.def != null:
 			part.cooldown_left = part.def.cooldown
-		if part.charges_left >= 0:
+		if part.charges_left > 0:
 			part.charges_left -= 1
 			# charges_left -1 is unlimited, so an unlimited part never enters this branch. A limited
-			# part at 0 charges is still ready and still asks for energy: stopping the request is what
-			# a limited behaviour does, in Task 13, rather than a rule this task adds here.
+			# part stops counting at its last charge rather than stepping from 0 into that sentinel,
+			# which would read as unlimited to Tasks 12-14 and to the HUD. A limited part at 0 charges
+			# is still ready and still asks for energy: stopping the request is what a limited
+			# behaviour does, in Task 13, rather than a rule this task adds here.
 		_emit_fired(part)
 	for part in chariot.parts:
 		if part.broken:

@@ -17,6 +17,7 @@ const TICK := 1.0 / 60.0  # one 60 fps frame: the delta the live game ticks at
 const READY_TICKS := 78  # over 1 s: a 1 s cooldown has gone ready and asked for energy
 const TWO_S_TICKS := 126  # 2.1 s: a 1 s cooldown gets two fires into this window
 const AFTER_BREAK_TICKS := 60  # the ticks a fight keeps running after something broke
+const THREE_S_TICKS := 186  # 3.1 s: a 1 s cooldown fires three times in this window
 const BODY_HP := 100  # every rig's HP, so a hit's arithmetic reads
 const DAMAGE := 20  # the damage every deal_hit below sends
 const MODIFIER_RANGE := 24.0  # the Freeze Charge's range, in cells
@@ -368,4 +369,70 @@ func test_burning_damages_hp_once() -> void:
 	# accumulator exists: a per-tick round would have left 0 behind and burned slower.
 	# shortcut: the field's name is ChChariotRuntime's own, so a rename wants this assert renamed.
 	assert_true(rig.burn_damage_left > 0.0 and rig.burn_damage_left < 1.0, "a partial point stays held back")
+	_complete()
+
+# Finding 1: ChPartRuntime.charges_left reads -1 as unlimited, so `>= 0` in the loop drove a part
+# that ran out of charges from 0 straight into that sentinel. The loop never gates a fire on the
+# counter (stopping the request is Task 13's limited behaviour, not a rule this task adds), so this
+# test pins the counter: it stops at 0 and never equals the unlimited sentinel.
+func test_charges_stop_at_zero_never_become_unlimited() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	# _part pins def.charges = -1, so this test moves the charge count onto its own def rather than
+	# widening a helper every other test below calls.
+	var limited := _part(&"gun", 1, 1.0, 100, 0)
+	limited.charges = 1
+	var catalog := ChCatalog.from_defs([limited], [_body(20)])
+	var layout := _mount([[[0], &"gun"]])
+	var rig: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), layout, catalog, 0, ORIGIN, false)
+	var gun := _part_of(rig, [0])
+	assert_true(gun != null, "the gun mounted")
+	assert_eq(gun.charges_left, 1, "the builder copied def.charges into the runtime")
+	var double := FireDouble.new()
+	gun.behaviour = double
+	var rigs: Array[ChChariotRuntime] = [rig]
+	var ctx: ChBattleContext = _battle(world, catalog, rigs)
+	for _tick in THREE_S_TICKS:
+		ctx.tick(TICK, [0.0])
+	# The pool starts at cap 20 and costs 1 a fire, so all three payments went through even though
+	# the part only had one charge: the counter is what has to hold, not the fire count.
+	assert_eq(double.fired, 3, "three payments in 3.1 s, one charge and two past it")
+	assert_eq(gun.charges_left, 0, "the counter stopped at the last charge rather than at -1")
+	assert_true(gun.charges_left != -1, "so it never reads as unlimited to Tasks 12-14 or the HUD")
+	_complete()
+
+# Finding 2: break_part leaves the part in chariot.parts with its body still in the world, so the
+# scans that resolve a body by identity used to find a fallen wreck, and deal_hit paid chariot HP
+# and re-wore integrity on it. The part.broken skip in both scans is what makes the comment true.
+func test_hit_on_a_fallen_wreck_pays_nothing() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog(20)
+	# A gun plus a 10-integrity target: one 20-damage hit wears the target's 10 integrity (ChDamage
+	# halves the damage for wear) down to 0, which is what makes deal_hit break it.
+	var layout := _mount([[[0], &"gun"], [[1], &"target"]])
+	var rig: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), layout, catalog, 0, ORIGIN, false)
+	var gun := _part_of(rig, [0])
+	var target := _part_of(rig, [1])
+	assert_true(gun != null and target != null, "the gun and the target mounted")
+	var ctx: ChBattleContext = _battle(world, catalog, [rig])
+	var hits: Array[StringName] = []
+	var sink := hits
+	(ctx.bus).subscribe(RefCounted.new(), ChEvent.HIT, func(event: ChEvent): sink.append(event.type))
+	var hp_before := rig.hp
+	ctx.deal_hit(gun, target.body, DAMAGE)
+	assert_eq(rig.hp, hp_before - DAMAGE, "a live part pays the chariot HP")
+	assert_eq(target.integrity, 0, "and wears its 10 integrity to 0")
+	assert_true(target.broken, "which is what deal_hit breaks it with")
+	assert_eq(hits.size(), 1, "the live hit announced one HIT")
+	# The same body, now a wreck hanging off the chariot by nothing: break_part freed the joint (this
+	# part is a body slot, so it never had one) but left the body in the world, so a second hit
+	# arrives at it. It must resolve to nobody and go nowhere.
+	var hp_after_wreck := rig.hp
+	ctx.deal_hit(gun, target.body, DAMAGE)
+	assert_eq(rig.hp, hp_after_wreck, "the wreck paid no HP, so the hit resolved through no chariot")
+	assert_eq(target.integrity, 0, "and wore no integrity again")
+	assert_true(ctx.part_of_body(target.body) == null, "a broken part resolves to no part")
+	assert_true(ctx.chariot_of_body(target.body) == null, "and to no chariot, so deal_hit drops the hit")
+	assert_eq(hits.size(), 1, "so no second HIT was announced for the wreck")
 	_complete()
