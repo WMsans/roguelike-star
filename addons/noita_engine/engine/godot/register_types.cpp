@@ -43,6 +43,9 @@ static void uninitialize_noita_engine_module(ModuleInitializationLevel p_level) 
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
+	// Objects are still alive at this level, so this is where the static texture cache lets go of
+	// its Ref<Image> images; see PixelRigidBody::clear_texture_cache.
+	PixelRigidBody::clear_texture_cache();
 }
 
 extern "C" {

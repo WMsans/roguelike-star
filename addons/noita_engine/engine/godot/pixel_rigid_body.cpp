@@ -41,6 +41,12 @@ Ref<Image> decoded_image(const Ref<Texture2D> &p_texture) {
 
 } // namespace
 
+// The decoded-texture cache above holds Ref<Image> against objects the engine owns, so it has to be
+// dropped while ObjectDB is still up. Left to the static destructor, the unrefs run after ObjectDB
+// cleanup: every texture a body decoded is reported as a leaked Image instance, and the run dies in
+// the cache's destructor instead of exiting with its own status.
+void PixelRigidBody::clear_texture_cache() { decoded_images.clear(); }
+
 void PixelRigidBody::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_texture", "value"), &PixelRigidBody::set_texture);
 	ClassDB::bind_method(D_METHOD("get_texture"), &PixelRigidBody::get_texture);
