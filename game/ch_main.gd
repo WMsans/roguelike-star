@@ -12,6 +12,8 @@ const GARAGE := "res://game/garage/garage.tscn"
 const BATTLE := "res://game/battle/battle.tscn"
 const ENEMY := "res://game/data/enemies/dozer_cook.tres"
 const RESULT_SECONDS := 2.0
+const FIGHT_WATCHDOG := 60.0  # ChBattle's own budget: FIGHT_TICKS 3600 at TICK 1/60 = 60 s of ticks
+const WATCHDOG_TEXT := "Rounds ran out: nobody died."  # what the watchdog's non-win reads as
 const SEED := 12345
 const START := &"cutter"
 const FIGHT_TEXT := "Fighting ..."
@@ -29,6 +31,7 @@ var label: Label = null
 var screen: StringName = &"garage"  # what this node is showing: garage, fight or result
 var shown: ChChariotLayout = null  # the copy a fight is running, never the garage's own
 var result_left := 0.0  # seconds of the result panel left
+var fight_left := 0.0  # seconds the current fight may run before it must hand the loop back
 
 
 func _init() -> void:
@@ -91,6 +94,7 @@ func _on_fight_requested(copy: ChChariotLayout) -> void:
 	# the result window ends: the fight draws over it, and a build cannot be edited mid-fight.
 	garage.set_process(false)
 	garage.hide()
+	fight_left = FIGHT_WATCHDOG
 	await _start_battle()
 
 
@@ -108,27 +112,44 @@ func _start_battle() -> void:
 	# screen to the result panel already; nothing is written after that await.
 
 
+func _open_result(text: String) -> void:
+	# One window for every outcome, so a real `finished` and the watchdog hand the loop back the
+	# same way: the battle node stays until the window ends, because start() may still be ticking.
+	screen = &"result"
+	result_left = RESULT_SECONDS
+	label.text = text
+
+
 func _on_finished(result: StringName) -> void:
 	# The result window. &"aborted" is a fight that could not build, so it reads as "no fight"
 	# next to &"loss": the brief makes anything that is not &"win" not a win, and the layout the
 	# garage holds was never handed to the fight, so it comes back unchanged either way.
 	# shortcut: one panel naming what happened, rather than three screens; to the player only a
 	# win is a win, and the brief asks for the result for 2 s then the garage.
-	# shortcut: a fight that ends with neither chariot dead emits no `finished` at all (Task
-	# 15's contract is win/loss/aborted), so the window never opens and the player keeps
-	# driving the fight. A tick-budget result belongs to ChBattle's result rule, not here.
-	screen = &"result"
-	result_left = RESULT_SECONDS
-	label.text = "You win!" if result == &"win" else \
-		"You lose." if result == &"loss" else "No fight: the battle could not start."
-	# The battle node stays in the tree until the window ends: start() is still ticking its
-	# budget, and freeing the node that owns a running coroutine is not a safe move.
+	_open_result("You win!" if result == &"win" else \
+		"You lose." if result == &"loss" else "No fight: the battle could not start.")
 
 
 func _process(delta: float) -> void:
-	# The only per-frame work is the result window: two seconds, then back to the garage with
-	# the layout untouched. The fight's ticks and the garage's pointer handling run their own
-	# nodes, so nothing else here needs a frame.
+	# The two countdowns, one per screen this node can be stuck on: a fight that has spent its
+	# budget without announcing, then the result window's two seconds back to the garage. The
+	# fight's ticks and the garage's pointer handling run their own nodes, so nothing else here
+	# needs a frame.
+	if screen == &"fight":
+		# The watchdog: ChBattle emits `finished` only when an HP reaches 0, so a fight that runs
+		# its whole tick budget with both hulls standing announces nothing, and this node is what
+		# gets the loop back. Same budget the fight and the tests give it, so the watchdog only
+		# speaks after a fight spent its own budget and stayed silent.
+		# shortcut: two limits, both because ChBattle's contract stays win/loss/aborted: the outcome
+		# is NAMED here rather than by the fight, and the budget is counted in real seconds while
+		# the fight counts ticks, so on a display faster than 60 fps the fight's own loop returns
+		# first and the panel waits out the rest of the countdown. Upgrade in ChBattle's result rule
+		# if the slice ever wants a fight that ends with both hulls standing named as its own result.
+		fight_left -= delta
+		if fight_left > 0.0:
+			return
+		_open_result(WATCHDOG_TEXT)
+		return
 	if screen != &"result":
 		return
 	# The window counts real frames rather than reading a clock, so a headless run that ticks
