@@ -12,7 +12,7 @@ const GARAGE := "res://game/garage/garage.tscn"
 const BATTLE := "res://game/battle/battle.tscn"
 const ENEMY := "res://game/data/enemies/dozer_cook.tres"
 const RESULT_SECONDS := 2.0
-const FIGHT_WATCHDOG := 60.0  # ChBattle's own budget: FIGHT_TICKS 3600 at TICK 1/60 = 60 s of ticks
+const FIGHT_WATCHDOG := ChBattle.FIGHT_TICKS  # the fight's own budget, counted in frames: see _hold_fight
 const WATCHDOG_TEXT := "Rounds ran out: nobody died."  # what the watchdog's non-win reads as
 const SEED := 12345
 const START := &"cutter"
@@ -136,19 +136,7 @@ func _process(delta: float) -> void:
 	# fight's ticks and the garage's pointer handling run their own nodes, so nothing else here
 	# needs a frame.
 	if screen == &"fight":
-		# The watchdog: ChBattle emits `finished` only when an HP reaches 0, so a fight that runs
-		# its whole tick budget with both hulls standing announces nothing, and this node is what
-		# gets the loop back. Same budget the fight and the tests give it, so the watchdog only
-		# speaks after a fight spent its own budget and stayed silent.
-		# shortcut: two limits, both because ChBattle's contract stays win/loss/aborted: the outcome
-		# is NAMED here rather than by the fight, and the budget is counted in real seconds while
-		# the fight counts ticks, so on a display faster than 60 fps the fight's own loop returns
-		# first and the panel waits out the rest of the countdown. Upgrade in ChBattle's result rule
-		# if the slice ever wants a fight that ends with both hulls standing named as its own result.
-		fight_left -= delta
-		if fight_left > 0.0:
-			return
-		_open_result(WATCHDOG_TEXT)
+		_hold_fight()
 		return
 	if screen != &"result":
 		return
@@ -157,8 +145,47 @@ func _process(delta: float) -> void:
 	result_left -= delta
 	if result_left > 0.0:
 		return
-	if battle != null and is_instance_valid(battle):
-		# The fight ran to its tick budget before this window ended, so its coroutine is done
-		# and the node is free to leave, which is the case Task 15's tests free on.
-		battle.free()
+	if battle != null and is_instance_valid(battle) and battle.ticking:
+		# The brief's two seconds are up but the fight is still running its own ticks, and ChBattle's
+		# contract is that a caller may free it only while its `ticking` flag is false. So the node
+		# stays in the tree, hidden under this panel, until its loop returns and _hold_fight lets it
+		# go - freeing it here, mid-loop, is the crash this used to have.
+		screen = &"fight"
+		return
+	_release_battle()
 	_show_garage()
+
+
+func _hold_fight() -> void:
+	# What this node does while a fight is on screen: the watchdog, then the hand-back.
+	# ChBattle emits `finished` only when an HP reaches 0, so a fight that runs its whole budget
+	# with both hulls standing announces nothing, and this is what gets the loop back. The budget is
+	# the fight's own, spent in the fight's own currency: its loop is `for _tick in FIGHT_TICKS:
+	# await get_tree().process_frame`, one frame per tick and no delta, so the countdown spends one
+	# frame per frame run. Counting real seconds cut fights off on any display under 60 fps, killing
+	# a win that HP reaching 0 was about to produce.
+	# shortcut: ChBattle now reports its own loop through `started` and `ticking`, and that is what
+	# ends the hold - a fight is never cut off for spending this countdown. It stays as the count of
+	# the fight's frames, the number a ChBattle cancel would cancel against if the slice grew one.
+	fight_left -= 1.0
+	if battle == null or not is_instance_valid(battle):
+		_show_garage()
+		return
+	if not battle.started or battle.ticking:
+		# Still starting up (start() streams its arena before its first tick) or still fighting: the
+		# node is neither freeable nor over, so hold the screen as it is.
+		return
+	# The fight's loop is over. If it stayed silent to the end this node names that non-win in the
+	# brief's 2 s window; if it already named a real result, that panel keeps its line and the loop
+	# simply goes back.
+	if label.text == FIGHT_TEXT:
+		_open_result(WATCHDOG_TEXT)
+		return
+	_release_battle()
+	_show_garage()
+
+
+func _release_battle() -> void:
+	# The battle node leaves the tree only once ChBattle.ticking is false, whatever screen we are on.
+	if battle != null and is_instance_valid(battle):
+		battle.free()

@@ -41,6 +41,8 @@ var ticker_text: Array[String] = []  # the ticker's lines, oldest first
 var pulses: Array = []  # of {"part": ChPartRuntime, "left": seconds}
 var hud_listener: RefCounted = null  # the key the HUD's subscriptions unsubscribe under
 var reported := false  # `finished` gets one emit per fight
+var started := false  # read-only: start() has passed its arena build and may still be ticking
+var ticking := false  # read-only: start()'s tick loop is running now (see the contract below)
 
 
 func _init() -> void:
@@ -155,9 +157,18 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 			if part.behaviour != null:
 				part.behaviour.setup(ctx)
 	_subscribe_hud()
+	# CONTRACT: a caller may free this node only once `started` is true and `ticking` is false. Both
+	# start() legs - streaming the arena, then the ticks - are a coroutine that resumes on the tree's
+	# own frames, so freeing it mid-await deletes the object it resumes into; `finished` says who won,
+	# not that the loop is over, because the ticks run to FIGHT_TICKS either way.
+	# shortcut: there is no stop: a caller that wants a fight over early has to wait for its loop,
+	# because ending a fight on someone else's say-so is not part of ChBattle's contract.
+	started = true
+	ticking = true
 	for _tick in FIGHT_TICKS:
 		_step(TICK)
 		await get_tree().process_frame
+	ticking = false
 
 static func result_for(player_dead: bool, enemy_dead: bool) -> StringName:
 	# Review Focus 4: both chariots reaching 0 HP on one tick is the player's loss. A Ring of Fire
