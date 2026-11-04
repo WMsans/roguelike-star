@@ -135,6 +135,9 @@ func test_battle_finishes() -> void:
 	var results := await _fight(battle, _player_layout(), _enemy_layout(), _catalog(ENEMY_HP), 12345)
 	assert_eq(results.size(), 1, "the fight announced exactly one result")
 	assert_eq(results, [&"win"], "the fight ended with a win inside the 60 s ceiling")
+	# The markers have to sit on the parts at whatever zoom/pan the camera ends at, so they live under
+	# the world's Node2D (the Camera2D's transform carries them) rather than the HUD CanvasLayer.
+	assert_true(battle.marks.get_parent() == battle.world, "markers are parented to the world layer")
 	battle.free()
 	_complete()
 

@@ -5,13 +5,14 @@ class_name ChBattle extends Node2D
 # / ChChariotBuilder / ChBattleContext stay its only parts. It is also the one place that calls
 # behaviour.setup(ctx) — without that call the subscribing behaviours (Ember Battery, Rocket
 # Ignition) are dead in a real fight, which is what Tasks 12-14 left a note about.
-# start() runs the fight as a coroutine, one world.step and one ctx.tick per awaited frame, so a
+# start() runs the fight as a coroutine, one ctx.tick per awaited frame (the world runs its own
+# sim steps on those frames, see _step), so a
 # headless test drives the same loop the game runs on screen: the fight's clock is the fixed TICK,
 # not the host's frame rate, which is what makes a 60 s fight deterministic.
 # HUD and camera follow the brief: HP bars both sides, the player's energy bar with queue-size pips,
 # the last 4 events as text, a marker per part, and a 0.2 s pulse on a part the player just fired.
 
-signal finished(result: StringName)
+signal finished(result: StringName)  # &"win" or &"loss" from the fight, &"aborted" if it could not start
 
 const ARENA := Rect2i(0, 0, 480, 180)
 const VIEW := Vector2(320, 180)  # project.godot's viewport: the HUD lays out in these pixels
@@ -62,6 +63,9 @@ func _build_hud() -> void:
 	# Bars, pips and ticker lines lay out in viewport pixels under the CanvasLayer, which ignores
 	# the camera: a 60-cell zoom cannot move the HUD.
 	hud = $HUD
+	# shortcut: this build's CanvasLayer exposes no writable size (get_property_list lists only
+	# layer/offset/rotation/scale/transform/canvas_items/...), so the layer's pixels are the viewport's
+	# by construction — project.godot sets 320x180 and every piece below lays out in VIEW.
 	_bar(hud, 0, 6.0, 6.0)  # player HP
 	_bar(hud, 1, VIEW.x - BAR - 6.0, 6.0)  # enemy HP
 	_bar(hud, 2, 6.0, 16.0)  # player energy
@@ -72,8 +76,10 @@ func _build_hud() -> void:
 		label.text = ""
 		hud.add_child(label)
 		ticker_labels.append(label)
+	# The marker container is made here and parented in _build_world: it belongs to the world's Node2D
+	# layer, not this CanvasLayer, so the camera's position and zoom are what put the markers on the
+	# parts (a CanvasLayer would draw them at raw arena numbers, on nothing).
 	marks = Node2D.new()
-	hud.add_child(marks)
 	marks.draw.connect(_draw_markers)
 
 
@@ -100,16 +106,26 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	# real ticks and `finished` is the one emit they cannot repeat.
 	# shortcut: one fight per scene — start() builds the HUD and the arena from scratch, so a caller
 	# that wants a second fight instantiates the scene again rather than reusing this node's nodes.
+	# The HUD collections are cleared here so a second call cannot write the first fight's nodes.
+	bars.clear()
+	pips.clear()
+	ticker_labels.clear()
+	ticker_text.clear()
+	pulses.clear()
 	reported = false
 	camera = $Camera
 	_build_hud()
+	# CONTRACT: every path that cannot run a fight emits `finished` with &"aborted" — the two fight
+	# results stay &"win"/&"loss" — so a caller awaiting the signal never hangs on a broken arena.
 	if not await _build_world(seed):
+		finished.emit(&"aborted")
 		return
 	var spawn: Dictionary = ChArenaBuilder.build(world, seed)
 	if not spawn.has("spawn_left") or not spawn.has("spawn_right") or not _arena_landed():
 		# fill_rect answers 0 cells for a grid that never loaded, so the counts are the arena's own
 		# evidence; a push_error alone would let the chariots fall through nothing.
 		push_error("battle: the arena holds no ground, so the fight cannot run")
+		finished.emit(&"aborted")
 		return
 	# The enemy is the same layout read the other way round: mirrored() inverts its flips and
 	# mirror_x negates its anchors, so its parts face the player (spec 5.9).
@@ -119,6 +135,7 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 		spawn["spawn_right"], true)
 	if player == null or enemy == null:
 		push_error("battle: a chariot did not build, so the fight cannot run")
+		finished.emit(&"aborted")
 		return
 	ctx = ChBattleContext.new()
 	ctx.world = world
@@ -167,6 +184,9 @@ func _build_world(seed: int) -> bool:
 	world.load_radius = Vector2i(maxi(absi(near_chunk.x), absi(far_chunk.x)),
 		maxi(absi(near_chunk.y), absi(far_chunk.y)))
 	add_child(world)
+	# The markers go under the world, so their arena numbers get the camera's transform like the parts
+	# do; under the HUD CanvasLayer they sat at raw world numbers, on nothing.
+	world.add_child(marks)
 	var frames := 0
 	while not world.is_area_ready(ARENA):
 		frames += 1
@@ -291,8 +311,14 @@ func _camera_at() -> void:
 	var zoom := maxf(maxf(box.size.x / VIEW.x, box.size.y / VIEW.y), 1.0)
 	var view := VIEW * zoom
 	var at := box.get_center()
-	at.x = clampf(at.x, ARENA.position.x + view.x * 0.5, ARENA.end.x - view.x * 0.5)
-	at.y = clampf(at.y, ARENA.position.y + view.y * 0.5, ARENA.end.y - view.y * 0.5)
+	# A zoom that makes the view wider or taller than the arena leaves clampf's min above its max, which
+	# pins the view to one bound and drifts the arena off frame; that axis parks on the arena's centre
+	# instead, which is the least lopsided place for a view larger than the pit.
+	var centre := ARENA.get_center()
+	at.x = clampf(at.x, ARENA.position.x + view.x * 0.5, ARENA.end.x - view.x * 0.5) \
+		if view.x <= ARENA.size.x else centre.x
+	at.y = clampf(at.y, ARENA.position.y + view.y * 0.5, ARENA.end.y - view.y * 0.5) \
+		if view.y <= ARENA.size.y else centre.y
 	camera.zoom = Vector2(zoom, zoom)
 	camera.position = at
 
@@ -304,8 +330,8 @@ func _hull_box(chariot: ChChariotRuntime) -> Rect2:
 
 
 func _draw_markers() -> void:
-	# The per-part markers, in HUD space: the world's global transform carries arena cells to
-	# screen, so the mapping is read off it rather than assumed to be identity.
+	# The per-part markers, drawn in the world layer: the mapping to the marker container is read off
+	# both global transforms, so the camera's position and zoom are what land a marker on its part.
 	if marks == null or world == null:
 		return
 	var onto := marks.get_global_transform().affine_inverse() * world.get_global_transform()
