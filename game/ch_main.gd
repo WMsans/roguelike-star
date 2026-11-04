@@ -12,8 +12,7 @@ const GARAGE := "res://game/garage/garage.tscn"
 const BATTLE := "res://game/battle/battle.tscn"
 const ENEMY := "res://game/data/enemies/dozer_cook.tres"
 const RESULT_SECONDS := 2.0
-const FIGHT_WATCHDOG := ChBattle.FIGHT_TICKS  # the fight's own budget, counted in frames: see _hold_fight
-const WATCHDOG_TEXT := "Rounds ran out: nobody died."  # what the watchdog's non-win reads as
+const WATCHDOG_TEXT := "Rounds ran out: nobody died."  # what a fight that never spoke reads as
 const SEED := 12345
 const START := &"cutter"
 const FIGHT_TEXT := "Fighting ..."
@@ -31,7 +30,7 @@ var label: Label = null
 var screen: StringName = &"garage"  # what this node is showing: garage, fight or result
 var shown: ChChariotLayout = null  # the copy a fight is running, never the garage's own
 var result_left := 0.0  # seconds of the result panel left
-var fight_left := 0.0  # seconds the current fight may run before it must hand the loop back
+var announced := false  # this fight's result window has already been shown: see _on_finished
 
 
 func _init() -> void:
@@ -94,7 +93,6 @@ func _on_fight_requested(copy: ChChariotLayout) -> void:
 	# the result window ends: the fight draws over it, and a build cannot be edited mid-fight.
 	garage.set_process(false)
 	garage.hide()
-	fight_left = FIGHT_WATCHDOG
 	await _start_battle()
 
 
@@ -104,7 +102,10 @@ func _start_battle() -> void:
 	# nodes. The coroutine is awaited here, so the fight's ticks run on this node's frames.
 	var next: ChBattle = ResourceLoader.load(BATTLE).instantiate()
 	battle = next
-	next.finished.connect(_on_finished)
+	announced = false
+	# The battle is named to the handler, so a late `finished` from a fight this node already handed
+	# back cannot speak for the one now on screen.
+	next.finished.connect(func(result: StringName) -> void: _on_finished(result, next))
 	add_child(next)
 	label.text = FIGHT_TEXT
 	await next.start(shown, ResourceLoader.load(ENEMY), catalog, SEED)
@@ -113,61 +114,79 @@ func _start_battle() -> void:
 
 
 func _open_result(text: String) -> void:
-	# One window for every outcome, so a real `finished` and the watchdog hand the loop back the
-	# same way: the battle node stays until the window ends, because start() may still be ticking.
+	# One window for every outcome, so a real `finished` and a fight that never spoke hand the loop
+	# back the same way: the battle node is only dealt with at the window's end, see _return_to_garage.
 	screen = &"result"
 	result_left = RESULT_SECONDS
 	label.text = text
+	announced = true
 
 
-func _on_finished(result: StringName) -> void:
+func _on_finished(result: StringName, from: ChBattle) -> void:
 	# The result window. &"aborted" is a fight that could not build, so it reads as "no fight"
 	# next to &"loss": the brief makes anything that is not &"win" not a win, and the layout the
 	# garage holds was never handed to the fight, so it comes back unchanged either way.
+	# The window is one-shot per fight: the loop is back at the garage while a won fight is still
+	# ticking, so a second outcome from it - or from a fight a later one replaced - must not open a
+	# panel over the garage or over that later fight.
 	# shortcut: one panel naming what happened, rather than three screens; to the player only a
 	# win is a win, and the brief asks for the result for 2 s then the garage.
+	if announced or from != battle:
+		return
 	_open_result("You win!" if result == &"win" else \
 		"You lose." if result == &"loss" else "No fight: the battle could not start.")
 
 
 func _process(delta: float) -> void:
-	# The two countdowns, one per screen this node can be stuck on: a fight that has spent its
-	# budget without announcing, then the result window's two seconds back to the garage. The
-	# fight's ticks and the garage's pointer handling run their own nodes, so nothing else here
-	# needs a frame.
+	# What runs on the two screens this node can be stuck on: a fight that has not handed the loop
+	# back, then the result window's two seconds. The fight's ticks and the garage's pointer handling
+	# run their own nodes, so nothing else here needs a frame.
 	if screen == &"fight":
 		_hold_fight()
 		return
-	if screen != &"result":
+	if screen == &"result":
+		# The window counts real frames rather than reading a clock, so a headless run that ticks
+		# faster than a display still waits the brief's two seconds.
+		result_left -= delta
+		if result_left > 0.0:
+			return
+		_return_to_garage()
 		return
-	# The window counts real frames rather than reading a clock, so a headless run that ticks
-	# faster than a display still waits the brief's two seconds.
-	result_left -= delta
-	if result_left > 0.0:
-		return
-	if battle != null and is_instance_valid(battle) and battle.ticking:
-		# The brief's two seconds are up but the fight is still running its own ticks, and ChBattle's
-		# contract is that a caller may free it only while its `ticking` flag is false. So the node
-		# stays in the tree, hidden under this panel, until its loop returns and _hold_fight lets it
-		# go - freeing it here, mid-loop, is the crash this used to have.
-		screen = &"fight"
-		return
-	_release_battle()
+	# Back at the garage over a fight that outran its window: all that is left is to let it go the
+	# frame its own loop ends.
+	if battle != null and is_instance_valid(battle) and battle.started and not battle.ticking:
+		_release_battle()
+
+
+func _return_to_garage() -> void:
+	# The brief's hand-back - the garage, whatever the fight is still doing. ChBattle runs its loop
+	# to FIGHT_TICKS whatever the result and offers no stop, and a caller may free it only while
+	# `ticking` is false, so a fight still ticking when the window ends can neither be freed (its
+	# coroutine is suspended mid-loop) nor left on screen. It goes hidden instead, and _process
+	# frees it once its loop returns.
+	# shortcut: the cost is up to ~60 s of hidden simulation per fight; upgrade when ChBattle can
+	# end a fight on the caller's say-so. `battle` names one fight at a time, so asking for a second
+	# one while a hidden fight is still ticking leaves that hidden fight in the tree until ChMain
+	# itself leaves - it cannot be freed mid-loop, and its own `finished` is ignored by _on_finished.
+	if battle != null and is_instance_valid(battle):
+		if battle.ticking:
+			battle.hide()
+			# hide() does not reach the HUD (a CanvasLayer child) or the current Camera2D, and both
+			# would still draw over the garage.
+			battle.hud.visible = false
+			battle.camera.enabled = false
+		else:
+			_release_battle()
 	_show_garage()
 
 
 func _hold_fight() -> void:
-	# What this node does while a fight is on screen: the watchdog, then the hand-back.
-	# ChBattle emits `finished` only when an HP reaches 0, so a fight that runs its whole budget
-	# with both hulls standing announces nothing, and this is what gets the loop back. The budget is
-	# the fight's own, spent in the fight's own currency: its loop is `for _tick in FIGHT_TICKS:
-	# await get_tree().process_frame`, one frame per tick and no delta, so the countdown spends one
-	# frame per frame run. Counting real seconds cut fights off on any display under 60 fps, killing
-	# a win that HP reaching 0 was about to produce.
-	# shortcut: ChBattle now reports its own loop through `started` and `ticking`, and that is what
-	# ends the hold - a fight is never cut off for spending this countdown. It stays as the count of
-	# the fight's frames, the number a ChBattle cancel would cancel against if the slice grew one.
-	fight_left -= 1.0
+	# What this node does while a fight is on screen: the hand-back, and the name for a fight that
+	# announced nothing. ChBattle emits `finished` only when an HP reaches 0, so a fight that runs its
+	# whole budget with both hulls standing never speaks, and this is what gets the loop back. Its own
+	# loop is `for _tick in FIGHT_TICKS: await get_tree().process_frame`, so `ticking` going false IS
+	# the fight's end; the countdown that used to sit beside it could only ever cut a running fight
+	# off, and there is no ChBattle stop for it to be worth anything, so it is gone.
 	if battle == null or not is_instance_valid(battle):
 		_show_garage()
 		return
@@ -175,17 +194,14 @@ func _hold_fight() -> void:
 		# Still starting up (start() streams its arena before its first tick) or still fighting: the
 		# node is neither freeable nor over, so hold the screen as it is.
 		return
-	# The fight's loop is over. If it stayed silent to the end this node names that non-win in the
-	# brief's 2 s window; if it already named a real result, that panel keeps its line and the loop
-	# simply goes back.
-	if label.text == FIGHT_TEXT:
-		_open_result(WATCHDOG_TEXT)
-		return
-	_release_battle()
-	_show_garage()
+	# The loop ended without announcing anything: nobody died. A real result never comes here, because
+	# _on_finished moved the screen to its own window first, so this only names the silent fight.
+	_open_result(WATCHDOG_TEXT)
 
 
 func _release_battle() -> void:
 	# The battle node leaves the tree only once ChBattle.ticking is false, whatever screen we are on.
+	# The reference goes with it, so `battle` only ever names a fight this node still holds.
 	if battle != null and is_instance_valid(battle):
 		battle.free()
+	battle = null
