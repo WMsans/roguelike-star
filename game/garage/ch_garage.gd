@@ -431,6 +431,12 @@ func _process(_delta: float) -> void:
 		return
 	var pointer := get_local_mouse_position()
 	_follow_pointer(pointer)
+	# The pit is drawn from the build and the hover, and both change from more than one place (a
+	# drop, a flip, a body cycle, the hover moving), so the redraw rides the frame that already
+	# reads the pointer rather than sitting in each mutator. Without it the pit is drawn once when
+	# the screen first appears and never again - measured on the display: a Corsair with six parts
+	# mounted showed an empty Cutter hull and no slot markers.
+	queue_redraw()
 	var held := Input.is_mouse_button_pressed(MouseButton.MOUSE_BUTTON_LEFT)
 	if held and not left_held:
 		_pick_up(pointer)

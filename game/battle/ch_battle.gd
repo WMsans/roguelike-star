@@ -74,7 +74,9 @@ func _build_hud() -> void:
 	_bar(hud, 2, 6.0, 16.0)  # player energy
 	for at in TICKER_LINES:
 		var label := Label.new()
-		label.position = Vector2(6.0, 156.0 + at * 6.0)
+		# 150 rather than 156: four 8px lines at a 6px pitch end at 174, and 156 put the fourth
+		# line's glyphs past the 180px viewport's bottom edge (measured on the display).
+		label.position = Vector2(6.0, 150.0 + at * 6.0)
 		label.add_theme_font_size_override("font_size", 8)
 		label.text = ""
 		hud.add_child(label)

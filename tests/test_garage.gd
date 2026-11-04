@@ -166,17 +166,17 @@ func test_click_flips() -> void:
 	var inventory := _inventory([&"strut", &"wheel", &"wheel"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, catalog)
-	assert_true(garage.drop_part(&"strut", [1]), "the strut takes cutter slot 1 at (6,3)")
+	assert_true(garage.drop_part(&"strut", [1]), "the strut takes cutter slot 1 at (6,5)")
 	assert_true(garage.drop_part(&"wheel", [1, 1]), "the wheel sits on the strut's extension 1 at (4,-6)")
-	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(10, -3), "unflipped parent: 6+4 across")
+	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(10, -1), "unflipped parent: 6+4 across, 5-6 up")
 	garage.click_part([1])
 	# A flip turns the mount the other way, so the child's extension x negates: the anchor moves,
 	# which is the only visible effect a flip has on a part that owns no range of its own.
 	assert_true(layout.get_node([1]).flipped, "the flag toggled")
-	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(2, -3), "flipped parent: 6-4 across")
+	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(2, -1), "flipped parent: 6-4 across")
 	garage.click_part([1])
 	assert_true(not layout.get_node([1]).flipped, "a second click toggles back")
-	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(10, -3), "and the child returns to its cell")
+	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(10, -1), "and the child returns to its cell")
 	# ChChariotLayout.toggle_flip answers silently for a path nothing holds; the garage does not
 	# add its own check, so a stray click changes nothing rather than losing a part.
 	garage.click_part([2])
@@ -186,8 +186,8 @@ func test_click_flips() -> void:
 
 
 func test_cycle_body_keeps_parts_and_returns_leftovers() -> void:
-	# Corsair slots sit at (-8,3),(10,3),(-18,-5),(-8,-5),(2,-5),... and the Cutter's four at
-	# (-4,3),(6,3),(-4,-3),(6,-3), so swap_body's greedy nearest pairing moves every mount except
+	# Corsair slots sit at (-8,5),(10,5),(-18,-5),(-8,-5),(2,-5),... and the Cutter's four at
+	# (-4,5),(6,5),(-4,-3),(6,-3), so swap_body's greedy nearest pairing moves every mount except
 	# the strut at Corsair slot 2 (-18,-5), which is 14 cells from the closest Cutter slot.
 	var inventory := _inventory([&"wheel", &"wheel", &"strut", &"wheel", &"ember_battery",
 	    &"cutter_rocket"])
@@ -399,6 +399,10 @@ func test_result_window_returns_over_a_still_ticking_fight() -> void:
 	var outcome := await _wait_outcome(main)
 	assert_eq(outcome, "You win!", "the panel named the win")
 	assert_true(main.battle.ticking, "the fight is still running its own loop at that moment")
+	# Review item 4's control reading, taken while the fight is still the screen: on screen the world
+	# simulates. Read here, because once the window closes the fight goes hidden and the sim goes off -
+	# reading it later would compare the paused state with itself.
+	var sim_on_screen: bool = main.battle.world.simulating
 	# The brief's 2 s, then what the player is left looking at.
 	var started := Time.get_ticks_msec()
 	while main.screen == &"result" and Time.get_ticks_msec() - started < MAIN_WAIT_MS:
@@ -413,6 +417,19 @@ func test_result_window_returns_over_a_still_ticking_fight() -> void:
 	# a current Camera2D transforms the whole canvas the garage then draws on.
 	assert_true(main.battle.camera != null and not main.battle.camera.enabled,
 		"and its camera is disabled, so it cannot move the garage")
+	# Review item 4: hidden means stopped, not just unseen. The fight's loop keeps running its 3600
+	# frames (pinned below), but nothing under game/ works while the fight is hidden: the world's own
+	# sim is off, so no tick runs, no drive is paid, no HP moves, and the off-screen player's keys are
+	# not polled. ctx.time is the fight's own clock, so a frozen clock says the ticks were skipped.
+	var clock: float = main.battle.ctx.time
+	var hull_at: Vector2 = main.battle.player.chassis.global_position
+	for _paused in range(90):
+		await Engine.get_main_loop().process_frame
+	assert_true(sim_on_screen, "the fight on screen was simulating before it went hidden")
+	assert_true(not main.battle.world.simulating, "the hidden fight's world is not simulating")
+	assert_near(main.battle.ctx.time, clock, 0.0001, "and no fight tick advanced its clock")
+	assert_near(main.battle.player.chassis.global_position.x, hull_at.x, 0.0001,
+		"the sand did not move either")
 	# One-shot for ChMain: this fight's panel already ran, so an outcome arriving later must not put a
 	# second window over the garage. The emit is made by calling the handler the battle is wired to -
 	# ChBattle's own `reported` flag lets one fight emit once, so it cannot be provoked twice from a

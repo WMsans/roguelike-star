@@ -58,10 +58,17 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 		push_error("ChArenaBuilder: %d of %d ground cells went unwritten, so the arena holds air caves" % [wanted - written, wanted])
 	# Wood and water sink into the surface in the middle of the pit, 60 cells clear of both spawn
 	# columns, so a chariot starts on plain ground.
+	# Water is one cell deep rather than the plan's 6: PhysicsWorld::apply_buoyancy (physics.cpp:521)
+	# floats a stamped body on the liquid it covers, so a chassis in a deep pool loses wheel contact
+	# with the ground and the pool becomes a wall. Measured with the plan's Step-5 build: the Corsair
+	# stopped dead at the first pool's near edge and never crossed, and the Dozer rolled onto its side
+	# in the second (both while their motors were on); at one cell the same build drives the whole
+	# arena. The pools keep their width and their reactions, and a wheel still reaches sand under the
+	# water.
 	_patch(world, surface, 130, 20, 6, &"wood")
 	_patch(world, surface, 322, 20, 6, &"wood")
-	_patch(world, surface, 196, 30, 6, &"water")
-	_patch(world, surface, 252, 30, 6, &"water")
+	_patch(world, surface, 196, 30, 1, &"water")
+	_patch(world, surface, 252, 30, 1, &"water")
 	# Two lava pools in the rock under the middle third, inside y 140-160.
 	_replace(world, Rect2i(172, 142, 24, 8), &"lava")
 	_replace(world, Rect2i(246, 148, 24, 8), &"lava")

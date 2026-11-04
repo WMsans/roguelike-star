@@ -205,7 +205,7 @@ func test_off_ground_wheel_drives_nothing() -> void:
 
 
 func test_mirror_x_flips_anchor() -> void:
-	# Corsair slot 1 is body-local (10, 3): a mirrored build sits at the far side of the hull, so the
+	# Corsair slot 1 is body-local (10, 5): a mirrored build sits at the far side of the hull, so the
 	# x anchor negates and y stays (a flip turns the build left/right, not upside down).
 	var world: PixelWorld = await make_world()
 	_ground(world)
@@ -213,6 +213,6 @@ func test_mirror_x_flips_anchor() -> void:
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), layout, ChCatalog.load_default(), 1, ORIGIN, true)
 	var part := _part_of(runtime, [1])
 	# Read before any physics tick: the builder put the body where the layout said it sits.
-	assert_eq(part.body.global_position, Vector2(ORIGIN.x - 10, ORIGIN.y + 3), "mirrored to origin.x - 10")
+	assert_eq(part.body.global_position, Vector2(ORIGIN.x - 10, ORIGIN.y + 5), "mirrored to origin.x - 10")
 	world.free()
 	_complete()
