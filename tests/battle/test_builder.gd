@@ -9,6 +9,8 @@ const GROUND_TOP := 160  # first rock row: the bottom 20 rows of ChTest's 480x18
 const ORIGIN := Vector2(120, 140)
 const TICKS := 120
 const WINDOW := 10
+# Review item 7: how long the wheelless test waits for its two bodies to join. See that test's note.
+const JOIN_WAIT_FRAMES := 240
 
 
 func _ground(world: PixelWorld) -> void:
@@ -128,16 +130,31 @@ func test_wheelless_chariot_spawns_and_fires() -> void:
 	assert_eq(runtime.parts.size(), 1, "the mace is the only part")
 	assert_eq(runtime.wheels(), [], "nothing to motorise")
 	# The chassis and the part still joined the world, so the chariot stands in the arena.
-	await Engine.get_main_loop().process_frame
+	# Review item 7 (the flake this used to be): a body joins on an internal physics tick
+	# (pixel_physics_node.cpp:27 NOTIFICATION_INTERNAL_PHYSICS_PROCESS -> try_join), and try_join
+	# refuses while the world owns no physics yet (pixel_physics_node.cpp:57). One awaited process
+	# frame is not one physics tick: the runner's frames are unpaced, so a frame can land between two
+	# ticks and get_mass() is still 0 there. Measured: this assert passed 5/5 running this file alone
+	# (frames ~4 ms) and failed inside the full suite (frames ~40 ms), which is what an unpaced-frame
+	# race looks like. Waiting for the join is the fixture; the assert below still fails a body that
+	# never joins, and now names the mass and the wait it needed.
+	var joined := 0
+	while joined < JOIN_WAIT_FRAMES and (runtime.chassis.get_mass() <= 0.0
+			or runtime.parts[0].body.get_mass() <= 0.0):
+		await Engine.get_main_loop().process_frame
+		joined += 1
 	world.step(1)
 	# get_mass reads 0 until a body has joined and Box2D has given it its mass.
-	assert_true(runtime.chassis.get_mass() > 0.0, "the chassis joined the world")
-	assert_true(runtime.parts[0].body.get_mass() > 0.0, "and so does the mace")
+	assert_true(runtime.chassis.get_mass() > 0.0,
+		"the chassis joined the world (mass %s after %d frames)" % [runtime.chassis.get_mass(), joined])
+	assert_true(runtime.parts[0].body.get_mass() > 0.0, "and so does the mace (mass %s)"
+		% [runtime.parts[0].body.get_mass()])
 	# drive() on a chariot with no wheels must not raise: a body that dies here never reaches
 	# _complete(), which the runner already counts as a failure.
 	runtime.drive(1.0)
 	runtime.drive(-1.0)
-	assert_true(runtime.chassis.global_position.y < GROUND_TOP, "it still stands above the rock")
+	assert_true(runtime.chassis.global_position.y < GROUND_TOP,
+		"it still stands above the rock (chassis y %s)" % [runtime.chassis.global_position.y])
 	world.free()
 	_complete()
 

@@ -110,6 +110,12 @@ const FLAME_TICKS := 272  # 3.03 s to the first fire (def.cooldown 3.0) plus 1.5
 # Where they land is gravity's, so the speed that reaches the brief's 30 cells is this file's and the
 # behaviour's, measured together: at the behaviour's PARTICLE_SPEED the 1 s burst writes fire cells
 # past 30 cells out, which is what the peak and the catch below read back.
+# Fix-wave item 7 measured how much room that pin has, running this shape with the rig gap varied and
+# reading the peak fire-cell count the target's own sample_rect sees: 7 cells at 20 apart, 6 at the 30
+# this test pins, 5 at 34, and 3 - ChPartRuntime's own threshold, no margin - at 38. So the jet stops
+# reaching somewhere past 34 cells part to part, and the brief's 30 sits inside it with a 3-cell
+# cushion rather than on the edge. Nothing here is weakened; the numbers are recorded so a future
+# tuning change to PARTICLE_SPEED knows what it is moving.
 func test_flamethrower_sets_target_burning() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
