@@ -140,7 +140,12 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 		target_part.integrity = part_result["integrity"]
 	# A passive's freeze reaches the part it was aimed at, capped where ChPartRuntime caps its own
 	# freeze build, so one full meter of freeze is one frozen part whatever the number of passives.
-	if target_part != null and hit["freeze"] > 0.0:
+	# A modifier that asked for a thaw answers after that: the Mace's Shatter ends the freeze it read
+	# "after the hit" (spec §5.6), so a Freeze Charge landing on the same shatter leaves the target at
+	# 0 rather than the 0.5 it added.
+	if target_part != null and hit.get("thaw", false):
+		target_part.freeze = 0.0
+	elif target_part != null and hit["freeze"] > 0.0:
 		target_part.freeze = clampf(target_part.freeze + hit["freeze"], 0.0, 1.0)
 	# HIT announces the hit after it landed, so a listener reads the HP already paid. The source is
 	# the part that dealt it, which is what a proximity listener measures, and the payload carries

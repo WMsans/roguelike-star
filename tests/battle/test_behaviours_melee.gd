@@ -172,6 +172,58 @@ func test_mace_shatters_frozen() -> void:
 	assert_eq(foe_part.integrity, foe_part.def.integrity - 10, "while the part wore the unmultiplied half")
 	_complete()
 
+# Review finding 2: deal_hit asks every same-side behaviour whose proximity_range covers the source,
+# so a mace mounted 5 cells from the weapon that swung hears that swing. The Shatter belongs to the
+# weapon that dealt the hit, so a mace only shatters hit["source"] == its own part: the saw's cut costs
+# its own 20 HP, pays no x3 and announces no THAWED.
+func test_mace_shatters_only_its_own_hit() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"cutter_chainsaw"], [[2], &"ice_cream_mace"]]), catalog, 0, ORIGIN, false)
+	var foe: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[0], &"strut"]]), catalog, 1, ORIGIN + Vector2(IN_REACH, 0), false)
+	var saw := _part_of(at, [1])
+	var mace := _part_of(at, [2])
+	var foe_part := _part_of(foe, [0])
+	assert_true(saw != null and mace != null and foe_part != null, "the saw, the mace and the foe's part mounted")
+	assert_near(mace.anchor_world().distance_to(saw.anchor_world()), 5.0, 0.001, "the mace sits inside its own 6-cell range of the saw, so deal_hit asks it about the cut")
+	foe_part.freeze = 1.0
+	var ctx: ChBattleContext = _battle(world, catalog, [at, foe])
+	var thawed: Array[ChEvent] = []
+	var sink := thawed
+	ctx.bus.subscribe(RefCounted.new(), ChEvent.THAWED, func(event: ChEvent): sink.append(event))
+	var foe_hp := foe.hp
+	saw.behaviour.fire(ctx)
+	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut pays its own 20 damage: no mace shatter on someone else's hit")
+	assert_eq(thawed, [], "and nothing thawed: the mace never shattered the saw's cut")
+	assert_near(foe_part.freeze, 1.0, 0.0001, "the target keeps the freeze it was built with")
+	assert_eq(foe_part.integrity, foe_part.def.integrity - 10, "while the part wore the unmultiplied half")
+	_complete()
+
+# Review finding 3: the Shatter ends the freeze it read "after the hit" (spec §5.6), and ChBattleContext
+# adds a pass's hit["freeze"] after the modifiers ran. A Freeze Charge inside 24 cells of the mace adds
+# 0.5 to the same hit, so the frozen target must land at 0 freeze, not 0.5: the shatter's thaw wins over
+# the charge's build-up whatever else the hit carried.
+func test_mace_shatter_thaws_freeze_charge_bonus() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"ice_cream_mace"], [[0], &"freeze_charge"]]), catalog, 0, ORIGIN, false)
+	var foe: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[0], &"strut"]]), catalog, 1, ORIGIN + Vector2(IN_REACH, 0), false)
+	var mace := _part_of(at, [1])
+	var charge := _part_of(at, [0])
+	var foe_part := _part_of(foe, [0])
+	assert_true(mace != null and charge != null and foe_part != null, "the mace, the charge and the foe's part mounted")
+	assert_near(charge.anchor_world().distance_to(mace.anchor_world()), 10.0, 0.001, "the charge sits inside its 24-cell reach, so it adds 0.5 to this hit")
+	foe_part.freeze = 1.0
+	var ctx: ChBattleContext = _battle(world, catalog, [at, foe])
+	var foe_hp := foe.hp
+	mace.behaviour.fire(ctx)
+	assert_eq(foe.hp, foe_hp - 3 * mace.def.damage, "the shatter still costs 60 HP")
+	assert_near(foe_part.freeze, 0.0, 0.0001, "so the meter ends at 0, not the charge's 0.5")
+	assert_true(not foe_part.is_frozen(), "and the target is thawed, not re-frozen next tick")
+	_complete()
+
 # The Freeze Charge is passive: it adds hit["freeze"] to a hit from a same-side part inside its 24
 # cells, and ChBattleContext puts that freeze on the part hit. Two hits of 0.5 fill the meter, so the
 # enemy's wheel freezes and ChChariotRuntime.drive takes its motor off.
