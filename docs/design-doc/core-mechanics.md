@@ -69,9 +69,13 @@ References:
     working for the rest of the fight and falls off, along with anything mounted on it.
 - Part damage lasts for one fight only, so every battle starts with the build intact. Lasting
   damage could be added later as a deliberate mechanic, for example a cursed relic.
-- Burning deals damage over time to chariot HP while any of its parts is burning.
-- Freezing locks a wheel's motor and pauses a weapon's cooldown. It wears off over time.
-- Water puts out a burning chariot, which gives driving a defensive use.
+- Burning, freezing, wetness and the other element effects are statuses: stacking numbers on
+  individual parts. On an ordinary part a status acts on that part's integrity; on the body it
+  acts on chariot HP. See [elements-list.md](elements-list.md).
+  - Flame wears down the part it sits on. Only Flame on the body burns HP.
+  - Freeze pauses a part's cooldown and locks a wheel's motor. It wears off over time.
+  - Water makes parts Wet, which puts out Flame, so driving has a defensive use. Oiled parts
+    can't get Wet.
 
 ### 3.5 Arena
 
@@ -116,9 +120,10 @@ References:
 - Each part has a trigger effect, a passive effect, or both.
 - Trigger effects usually cost energy and passive effects usually don't. More powerful parts cost
   more energy.
-- Parts never change. There are no upgrades or levels: a Chainsaw found at the start of a run is
-  identical to one bought near the end. A build gets stronger over a run through *which* parts the
-  player holds and how they combine them.
+- The shop always offers a part in its base state: a Chainsaw offered in the first shop is
+  identical to one offered in the last. There are no upgrades or levels to buy.
+- Parts the player owns can scale over a run, Balatro style. For example, "gains +5 damage each
+  time you sell a part" keeps that gain for the rest of the run.
 - A part's data: rarity, tags (element, kind), energy cost, cooldown, damage, integrity,
   proximity range, extension slots, charges (for limited-use parts), and its chain hook.
 - Tags drive shop themes. A fire shop offers parts tagged fire.
@@ -196,6 +201,8 @@ Each theme can appear as a shop or as a pack:
 | Ice | Ice-related items |
 | Wind | Wind-related items |
 | Earth | Terrain-related items |
+| Electric | Shock, battery and spark items |
+| Acid | Acid-related items |
 | Relics | Relics |
 | Stats | Basic stat boosts |
 | Passive | Parts with passive effects |
@@ -233,9 +240,12 @@ Each theme can appear as a shop or as a pack:
 ## 7. Elements and the sand sim
 
 - The falling-sand environment is part of the core fun, as in Noita.
-- Element themes named so far: fire, ice and wind.
+- The full list of materials, statuses and how they link is in
+  [elements-list.md](elements-list.md).
+- Element themes: fire, ice, wind, earth, electric and acid.
 - Materials in play: sand, wood, water, oil, rock, lava, fire, smoke, steam, frost, ice, concrete,
-  acid, gas, acid gas, coal, dirt, obsidian, steel, and many more.
+  acid, flammable gas, acid gas, coal, dirt, obsidian, steel, electric spark, gunpowder, TNT and
+  battery.
 - Fire ignites wood and oil and turns water into steam. Water puts it out.
 - Ice and frost freeze water into ice and freeze parts. Fire thaws them.
 - Explosions dig terrain (except concrete) and often start fires.
@@ -250,8 +260,9 @@ Each theme can appear as a shop or as a pack:
   outputs a layout.
 - The driving AI is simple: approach until in weapon range, then hold position. Enemies obey the
   same energy rules, but the player cannot see their energy.
-- Enemies get stronger over the run through rarer parts and more max HP. Because parts never
-  change (§4.2), the rarity mix, the builds and body max HP are the only difficulty curve.
+- Enemies get stronger over the run through rarer parts and more max HP. Because shop parts are
+  always offered in their base state (§4.2), the rarity mix, the builds and body max HP are the
+  only difficulty curve.
 - Elites and bosses follow the same rules, but each one also gets a "blind rule" that handicaps
   the player in a particular way, similar to Balatro.
 
