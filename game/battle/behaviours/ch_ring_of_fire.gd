@@ -39,8 +39,12 @@ func _expand(ctx: ChBattleContext) -> void:
 	# The ring is STEPS steps of RADIUS/STEPS, so the first step is 2.4 cells out and the last is 24.
 	# shortcut: the step at radius 0 has no circumference, so nothing is written at t = 0.
 	var r := RADIUS * float(STEPS - steps_left) / float(STEPS)
+	# ChBehaviour's one walk of the live bodies, taken before the fill: the cells this step writes
+	# cannot decide which bodies it crosses, and a part an earlier step broke left the walk already,
+	# so its wreck stops paying rather than resolving to bare HP (see ChBehaviour._bodies).
+	var bodies := _bodies(ctx)
 	_fill_ring(ctx, at, r)
-	_cross(ctx, at, r)
+	_cross(ctx, at, r, bodies)
 
 func _fill_ring(ctx: ChBattleContext, at: Vector2, r: float) -> void:
 	# Fire goes into air cells only, on the ring's own cell: within r of the anchor and not yet inside
@@ -61,32 +65,23 @@ func _fill_ring(ctx: ChBattleContext, at: Vector2, r: float) -> void:
 			if material == &"air" or material == &"":
 				ctx.world.set_cell(spot, &"fire")
 
-func _cross(ctx: ChBattleContext, at: Vector2, r: float) -> void:
+func _cross(ctx: ChBattleContext, at: Vector2, r: float, bodies: Array) -> void:
 	# The ring crosses a body once its radius reaches the body's nearest edge, measured against ChBehaviour's
-	# footprints. The scan takes every chariot whatever its side, which is the brief's "own chassis included".
-	for other in ctx.chariots:
-		if other == null:
+	# footprints. The walk is ChBehaviour._bodies, which takes every chariot whatever its side: that is
+	# the brief's "own chassis included".
+	for entry in bodies:
+		var body: Object = entry[1]
+		# The ring expands out from the part's own anchor, so the circumference never crosses the
+		# body it leaves from: the emitter pays itself nothing, and the hull it hangs on still pays.
+		if body == part.body:
 			continue
-		var bodies: Array = [[other.chassis, _hull_box(other)]]
-		for foe in other.parts:
-			if foe.broken or foe.def == null:
-				continue
-			bodies.append([foe.body, _part_box(foe)])
-		for entry in bodies:
-			var body: Object = entry[0]
-			if body == null or not is_instance_valid(body):
-				continue
-			if body == part.body:
-				# The ring expands out from the part's own anchor, so the circumference never crosses the
-				# body it leaves from: the emitter pays itself nothing, and the hull it hangs on still pays.
-				continue
-			if body in crossed:
-				# The ring pays a body once, so a later step that still covers it spends nothing.
-				# shortcut: identity is the key, so a body that fell off a broken part is out of the list.
-				continue
-			if _reaches(at, r, entry[1]):
-				crossed.append(body)
-				ctx.deal_hit(part, body, part.def.damage)
+		if body in crossed:
+			# The ring pays a body once, so a later step that still covers it spends nothing.
+			# shortcut: identity is the key, so a body that fell off a broken part is out of the list.
+			continue
+		if _reaches(at, r, entry[2]):
+			crossed.append(body)
+			ctx.deal_hit(part, body, part.def.damage)
 
 func _reaches(at: Vector2, r: float, box: Rect2) -> bool:
 	# The nearest point of the body's box to the ring's anchor: the ring crossed the body when the

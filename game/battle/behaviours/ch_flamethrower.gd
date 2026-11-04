@@ -6,10 +6,15 @@ extends ChBehaviour
 # The reach numbers live here, not on ChPartDef (Task 4b's ruling): proximity_range 0 on the def means
 # no proximity passives, and ChBehaviour._reach_box measures that range, so the box is grown out to this
 # part's own 40-cell reach on both sides, which is how _reach_box keeps its box symmetric about the anchor.
+# shortcut: the burn lands where the particles fall, not where the reach box ends, so PARTICLE_SPEED is
+# the burn's own reach. Measured with the nozzle at a settled rig's height (6 cells above the rock floor):
+# a 1 s burst reaches ~8 cells out at 90 cells/s and the test reads back >= 3 fire cells in a target 28
+# cells out at 240 cells/s; the landing extent is stochastic, so the test's peak is the evidence, not a
+# radius. Upgrade to a raised nozzle or an aimed shot if the burn has to reach the full 40-cell reach.
 
 const BURST_SECONDS := 1.0
 const NOZZLE := 2.0  # cells out from the anchor the flame leaves the barrel
-const PARTICLE_SPEED := 90.0  # cells per second out of the nozzle
+const PARTICLE_SPEED := 240.0  # cells per second out of the nozzle
 const PARTICLES_PER_TICK := 3
 const PARTICLE_SPREAD := 0.25  # radians, the cone the shot fans over
 const REACH := 40.0

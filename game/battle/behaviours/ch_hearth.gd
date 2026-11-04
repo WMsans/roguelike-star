@@ -60,13 +60,17 @@ func _ring(ctx: ChBattleContext) -> void:
 	var chariot: ChChariotRuntime = ctx.own(part)
 	if chariot == null or chariot.chassis == null:
 		return
+	# ChBehaviour's one walk of the live bodies, taken before the fill: the cells this pulse writes
+	# cannot decide which bodies it pays, and a part an earlier pulse broke has left the walk already,
+	# so its wreck stops paying rather than resolving to bare HP (see ChBehaviour._bodies).
+	var bodies := _bodies(ctx)
 	# ChBehaviour's own-hull box, the same footprint the melee scan measures.
 	var hull := _hull_box(chariot)
 	# A cell at (x, y) spans x .. x + 1, so floor/ceil is the cell box that touches the hull.
 	var hull_cells := Rect2i(Vector2i(floori(hull.position.x), floori(hull.position.y)),
 		Vector2i(ceilf(hull.end.x) - floori(hull.position.x), ceilf(hull.end.y) - floori(hull.position.y)))
 	_fill_ring(ctx, hull_cells)
-	_pulse(ctx, hull_cells)
+	_pulse(ctx, hull_cells, bodies)
 
 func _fill_ring(ctx: ChBattleContext, hull_cells: Rect2i) -> void:
 	# The ring is the cell box between the hull and the hull grown by RING cells; fire only goes into
@@ -85,25 +89,19 @@ func _fill_ring(ctx: ChBattleContext, hull_cells: Rect2i) -> void:
 			if cell == &"air" or cell == &"":
 				ctx.world.set_cell(at, &"fire")
 
-func _pulse(ctx: ChBattleContext, hull_cells: Rect2i) -> void:
+func _pulse(ctx: ChBattleContext, hull_cells: Rect2i, bodies: Array) -> void:
 	# The ring pays the bodies standing in the band: a body whose box overlaps the grown box and
 	# whose box is not fully inside the hull's own box. ChBehaviour's _part_box and _hull_box are the same
 	# footprints the melee scan measures, so a ring and a weapon agree about what a body covers.
-	for other in ctx.chariots:
-		if other == null or other.side == part.side:
+	for entry in bodies:
+		if entry[0].side == part.side:
 			# Only the other sides pay; the ring burns its own chariot's ground, not its HP.
 			# shortcut: own-side bodies are never deal_hit here, so chain 3 lands as a catch.
 			continue
-		var bodies: Array = [[other.chassis, _hull_box(other)]]
-		for foe in other.parts:
-			if foe.broken or foe.def == null:
-				continue
-			bodies.append([foe.body, _part_box(foe)])
-		for entry in bodies:
-			var box: Rect2 = entry[1]
-			if not Rect2(hull_cells.grow(RING)).intersects(box):
-				continue
-			if Rect2(hull_cells).encloses(box):
-				continue
-			if entry[0] != null and is_instance_valid(entry[0]):
-				ctx.deal_hit(part, entry[0], PULSE_DAMAGE)
+		# ChBehaviour._bodies already left out the broken parts and the bodies the engine freed.
+		var box: Rect2 = entry[2]
+		if not Rect2(hull_cells.grow(RING)).intersects(box):
+			continue
+		if Rect2(hull_cells).encloses(box):
+			continue
+		ctx.deal_hit(part, entry[1], PULSE_DAMAGE)

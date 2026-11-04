@@ -42,6 +42,33 @@ func _reach_box() -> Rect2:
 	var at := part.anchor_world()
 	return Rect2(at - span, span * 2)
 
+# The live bodies in the fight, as [chariot, body, box] entries: each chariot's chassis plus its
+# unbroken parts, measured with ChBehaviour's own footprints. The emitters (Tasks 12-14) and the
+# melee scan below all want this same walk, so it exists once here and the side filter stays with
+# the caller that has one.
+# A broken part is out of the walk for the same reason ChBattleContext.part_of_body and chariot_of_body
+# skip it: its body lies on the ground and belongs to no chariot, so deal_hit drops a hit on it rather
+# than paying bare HP. A step takes this walk before it writes any cell, so what a step fills cannot
+# decide which bodies that step pays; a part broken by an earlier step stops paying for the rest of the
+# window, which is why a pinned window total holds while the target cannot break inside that window.
+func _bodies(ctx: ChBattleContext) -> Array:
+	var bodies: Array = []
+	for chariot in ctx.chariots:
+		if chariot == null:
+			continue
+		if chariot.chassis != null and is_instance_valid(chariot.chassis):
+			bodies.append([chariot, chariot.chassis, _hull_box(chariot)])
+		for foe in chariot.parts:
+			if foe.broken or foe.def == null:
+				continue
+			# A part the builder never joined has no body to pay, so it never joins the walk.
+			# shortcut: is_instance_valid is the engine's own liveness check; a body freed later
+			# reads here once more per step rather than per caller.
+			if foe.body == null or not is_instance_valid(foe.body):
+				continue
+			bodies.append([chariot, foe.body, _part_box(foe)])
+	return bodies
+
 # The nearest enemy body whose box overlaps the reach box, as its body rather than a part: deal_hit
 # resolves a body to a part hit or a chassis hit, which is ChDamage's own split. A broken part's body
 # lies on the ground and belongs to no chariot, so deal_hit drops a hit on it; skipping it here keeps
@@ -50,25 +77,17 @@ func _nearest_enemy_body(ctx: ChBattleContext, box: Rect2) -> Object:
 	var at := part.anchor_world()
 	var best: Object = null
 	var best_at := INF
-	for chariot in ctx.chariots:
-		if chariot == null or chariot.side == part.side:
+	for entry in _bodies(ctx):
+		# The walk carries the chariot so the side filter stays here: a weapon hits the other sides.
+		if entry[0].side == part.side:
 			continue
-		var hulls: Array = []
-		if chariot.chassis != null:
-			hulls.append([chariot.chassis, _hull_box(chariot)])
-		for foe in chariot.parts:
-			if not foe.broken and foe.def != null:
-				hulls.append([foe.body, _part_box(foe)])
-		for entry in hulls:
-			if entry[0] == null or not is_instance_valid(entry[0]):
-				continue
-			var aabb: Rect2 = entry[1]
-			if not aabb.intersects(box):
-				continue
-			var near := aabb.get_center().distance_to(at)
-			if near < best_at:
-				best_at = near
-				best = entry[0]
+		var aabb: Rect2 = entry[2]
+		if not aabb.intersects(box):
+			continue
+		var near := aabb.get_center().distance_to(at)
+		if near < best_at:
+			best_at = near
+			best = entry[1]
 	return best
 
 # The box a body occupies: def.size cells about its position. PixelRigidBody binds no bounds getter,
