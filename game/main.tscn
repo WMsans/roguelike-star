@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/ch_main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://game/garage/garage.tscn" id="2_garage"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_main")
+
+[node name="Garage" parent="." instance=ExtResource("2_garage")]
