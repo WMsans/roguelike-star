@@ -5,14 +5,42 @@ class_name ChTest extends RefCounted
 # CONTRACT: every `test_*` method calls `_complete()` as its LAST statement. GDScript has
 # no exceptions, so a body that dies mid-way (runtime error) just stops; the runner treats
 # a missing `_complete()` bump as a FAIL instead of a silent PASS.
+# `_complete()` also frees what the test built (see _track), which is why it stays the last
+# statement: nothing may read a node after it.
 const WAIT_FRAMES = 600
 
 var failures: Array[String] = []
 var completed: int = 0
+# What this test instance added to the tree, freed by _complete(). The suite used to leave most
+# of it behind (38 make_world calls against 14 world.free(), and every _parent() Node2D plus the
+# bodies and joints under it never freed), which is what made Godot report 321 leaked ObjectDB
+# instances at exit and left the run's exit code useless as the plan's gate.
+var _tracked: Array[Node] = []
+
+
+func _track(node: Node) -> Node:
+	# One place to keep what a test had to put in the tree, so freeing it is not a per-test chore.
+	_tracked.append(node)
+	return node
 
 
 func _complete() -> void:
+	# Nodes are freed in the order they were made: a PixelRigidBody or joint leaves before the world
+	# it joined, so the body detaches from a Box2D world that is still alive (PixelWorld's own
+	# predelete detaches whatever is left, but only for a world that outlives its bodies).
+	for node in _tracked:
+		if is_instance_valid(node):
+			node.free()
+	_tracked.clear()
 	completed += 1
+
+
+func _parent() -> Node2D:
+	# The node a test hangs built bodies under; the arena lives in root space, so this goes under
+	# the runner's root viewport (the runner's main loop is a SceneTree script).
+	var parent := Node2D.new()
+	Engine.get_main_loop().get_root().add_child(parent)
+	return _track(parent)
 
 
 func _record(what: String, msg: String) -> void:
@@ -58,7 +86,7 @@ func make_world(arena := Rect2i(0, 0, 480, 180)) -> PixelWorld:
 	world.load_radius = Vector2i(maxi(absi(near_chunk.x), absi(far_chunk.x)),
 		maxi(absi(near_chunk.y), absi(far_chunk.y)))
 	# The runner's main loop is a SceneTree script, so nodes go under its root viewport.
-	main_loop.get_root().add_child(world)
+	main_loop.get_root().add_child(_track(world))
 	# _ready() bails out when material_set is missing or does not compile, and then
 	# is_area_ready() stays false forever, so the wait is capped: a broken world becomes
 	# a recorded failure instead of hanging the whole run (~4s at this cap).

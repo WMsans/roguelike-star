@@ -33,13 +33,6 @@ func _typed_path(path) -> Array[int]:
 	return steps
 
 
-func _parent() -> Node2D:
-	# The node the builder hangs the bodies under; the arena is in root space.
-	var parent := Node2D.new()
-	Engine.get_main_loop().get_root().add_child(parent)
-	return parent
-
-
 func _part_of(runtime: ChChariotRuntime, steps: Array[int]) -> ChPartRuntime:
 	# The part the builder put at a layout path; runtime.parts keeps every part's own path.
 	for part in runtime.parts:

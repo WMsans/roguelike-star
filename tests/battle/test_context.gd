@@ -146,13 +146,6 @@ func _catalog(cap: int) -> ChCatalog:
 func _ground(world: PixelWorld) -> void:
 	assert_eq(world.fill_rect(Rect2i(0, GROUND_TOP, 480, 20), &"rock"), 480 * 20, "rock floor laid")
 
-# The node a build hangs bodies under; the arena lives in root space.
-# shortcut: the node and its bodies leak at exit, as tests/battle/test_builder.gd's do.
-func _parent() -> Node2D:
-	var parent := Node2D.new()
-	Engine.get_main_loop().get_root().add_child(parent)
-	return parent
-
 # The part the builder put at a layout path; runtime.parts keeps every part's own path.
 func _part_of(runtime: ChChariotRuntime, steps: Array[int]) -> ChPartRuntime:
 	for part in runtime.parts:
