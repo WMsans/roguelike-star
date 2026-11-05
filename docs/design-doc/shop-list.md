@@ -16,7 +16,6 @@ starting point, **Open** is unsettled. All numbers are Proposed.
 
 ## 1. Rules for every option
 
-**Decided**
 - A rule option can change the standard numbers: how many items it shows, how many you pick,
   rerolls and their cost, entry cost.
 - Options can have real downsides. HP only resets after a battle, so HP lost in the shop carries
@@ -25,18 +24,14 @@ starting point, **Open** is unsettled. All numbers are Proposed.
   option or a relic may change sell value.
 - Parts are always offered in their base state. No cursed parts, and no stickers or markers on a
   part.
-- A relic is a Balatro-style voucher. It sits outside the chariot, takes no slot, and changes a
-  rule for the rest of the run.
+- A relic sits outside the chariot, takes no slot, and changes a rule for the rest of the run.
 - Some options are gated: they only appear after an elite or from a certain battle onward.
 
 ### 1.1 The standard frame
 
-Theme options use this frame unless their row says otherwise. Rule options state their own.
-
-**Proposed**
 - **Shop:** 3 items at their normal price (2 / 6 / 12 gold). One reroll for 2 gold (flat, as in
   The Bazaar). A reroll replaces every item you haven't bought.
-- **Pack:** 3 gold to enter. Shows 3 items and you take 1 free. You may leave without taking one.
+- **Pack:** 4 gold to enter. Shows 3 items and you take 1 free. You may leave without taking one.
   No reroll.
 - A theme option rolls as a shop 60% of the time and as a pack 40%.
 
@@ -99,7 +94,7 @@ whose tags match. Passive and Triggered read the part's effect, not a tag (`part
 | T08 | Wind | Wind tag | Act 1 | |
 | T09 | Earth | Earth tag | Act 1 | |
 | T10 | Electric | Electric tag | Act 1 | |
-| T11 | Acid | Acid tag | Act 1 | Acid has the fewest commons (2). It draws commons from Earth to fill if it must. |
+| T11 | Acid | Acid tag | Act 1 | Acid has the fewest commons (2). It is almost garrenteed to contain uncommon items. |
 | T12 | Relics | Relics | Act 2 | Shop: 2 relics at 10 gold each (the Balatro voucher price), no reroll. Pack: 5 gold, 1 of 2. |
 | T13 | Stats | Stats tag | Act 1 | |
 | T14 | Passive | Parts with a passive effect and no trigger cost | Act 1 | Picks up Wheel and Negative parts, which have no theme of their own. |
@@ -115,9 +110,8 @@ option rolls one theme from T01–T15 (not T04 or T12) and shows it on the optio
 | ID | Name | Form | Stock | Shown / pick | Cost | Rerolls | Downside | Rule | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
 | O01 | Scrapyard | Shop | Any theme, commons only | 6 / any | 1 gold each | None | Commons only | | A: Bazaar Curio (10 Bronze items) |
-| O02 | Overstock | Shop | One theme | 5 / any | Normal price | None | No reroll | | M: Balatro Overstock voucher (more slots) |
+| O02 | Overstock | Shop | Any theme | 5 / any | Normal price | None | No reroll | | M: Balatro Overstock voucher (more slots) |
 | O03 | Two-Theme Fair | Shop | Two themes, 2 items each | 4 / any | Normal price | 1 for 2 gold | | | C: two Bazaar merchants in one stall |
-| O04 | Echo Shop | Shop | Parts sharing a theme tag with a part you own (mounted or inventory) | 3 / any | Normal price | 1 for 2 gold | | Helps finish a build. | A: Bazaar duplicate hunting (no merging here, so it finds partners instead) |
 | O05 | Tire Yard | Shop | Wheel parts | 3 / any | Normal price | 3 free | | | A: Bazaar Aero (Vehicles merchant) |
 | O06 | Dig Site | Pack | Any theme | 3 / 1 | Free entry | Unlimited: 1 gold, +1 each | Rerolls get expensive fast | Counts as opening a pack. | A: Bazaar Pearl's Dig Site |
 | O07 | Rain Check | Coupon | Nothing now | — | Free | — | You get nothing this stage | The first item you buy in the next shop phase is free. A pack's entry counts as an item. | A: Balatro Coupon Tag (skip now, free later) |
@@ -159,7 +153,7 @@ last for that one fight.
 |---|---|---|---|---|---|
 | RS01 | Payday | Act 1 | Gain 4 gold. | | A: Balatro Blind reward |
 | RS02 | Revive Health | Act 1 | +80 max HP for the rest of the run. | | discussion example (`core-mechanics.md` §6.4) |
-| RS03 | Interest | Act 1 | Gain 1 gold per 5 gold you hold, max 5. | | A: Balatro interest |
+| RS03 | Interest | Act 1 | Gain 1 gold per 5 gold you hold. | | A: Balatro interest |
 | RS04 | Investment | Act 1 and 2 only | +1 gold at every later Stage 1 for the rest of the run. | Pays off slowly | A: Bazaar Income stat |
 | RS05 | Polish | Act 1 | Every part in your inventory gains +1 sell value permanently. | | A: Balatro Gift Card (one-off instead of each round) |
 | RS06 | Field Repair | Act 1 | Heal all HP lost in this shop phase. | Only useful after HP costs | R: Blood Bank (O09), undone |
@@ -184,12 +178,6 @@ last for that one fight.
 
 ## 6. Open
 
-- Whether there's a shop phase before battle 1 (the starting 20 gold suggests so) and which act
-  it counts as.
-- The body list, body prices, and what happens to the old body when you buy a new one.
-- The relic list. T12 only sets how relics are sold.
-- All weights and odds need playtesting, especially the HP prices in O09 and RS10 against a
-  starting body of about 800 HP.
 - Whether Loan Shark (O15) debt can stack across stages in one shop phase.
 - Whether Layaway parts (O14) can be declined for a refund.
 
