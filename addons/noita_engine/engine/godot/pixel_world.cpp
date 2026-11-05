@@ -179,6 +179,8 @@ void PixelWorld::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_ambient_tint"), &PixelWorld::get_ambient_tint);
 	ClassDB::bind_method(D_METHOD("set_light_exposure", "value"), &PixelWorld::set_light_exposure);
 	ClassDB::bind_method(D_METHOD("get_light_exposure"), &PixelWorld::get_light_exposure);
+	ClassDB::bind_method(D_METHOD("set_light_headroom", "value"), &PixelWorld::set_light_headroom);
+	ClassDB::bind_method(D_METHOD("get_light_headroom"), &PixelWorld::get_light_headroom);
 	ClassDB::bind_method(D_METHOD("set_light_margin", "value"), &PixelWorld::set_light_margin);
 	ClassDB::bind_method(D_METHOD("get_light_margin"), &PixelWorld::get_light_margin);
 	ClassDB::bind_method(D_METHOD("set_light_resolution", "value"), &PixelWorld::set_light_resolution);
@@ -210,6 +212,7 @@ void PixelWorld::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "ambient", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_ambient", "get_ambient");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "ambient_tint"), "set_ambient_tint", "get_ambient_tint");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "light_exposure", PROPERTY_HINT_RANGE, "0,8,0.01,or_greater"), "set_light_exposure", "get_light_exposure");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "light_headroom", PROPERTY_HINT_RANGE, "1,8,0.01,or_greater"), "set_light_headroom", "get_light_headroom");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "light_margin", PROPERTY_HINT_RANGE, "0,4096,1"), "set_light_margin", "get_light_margin");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "light_resolution", PROPERTY_HINT_RANGE, "1,4,1"), "set_light_resolution", "get_light_resolution");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "light_surface_depth", PROPERTY_HINT_RANGE, "0,96,1"), "set_light_surface_depth", "get_light_surface_depth");
@@ -926,6 +929,7 @@ void PixelWorld::update_light_overlay(const LightArea &p_area) {
 	rs->material_set_param(light_material, "ambient", ambient);
 	rs->material_set_param(light_material, "ambient_tint", ambient_tint);
 	rs->material_set_param(light_material, "light_exposure", light_exposure);
+	rs->material_set_param(light_material, "light_headroom", light_headroom);
 	rs->material_set_param(bloom_material, "bloom_strength", bloom_strength);
 	if (!light_overlay_visible) {
 		rs->canvas_item_set_visible(light_canvas_item, true);
