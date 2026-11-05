@@ -3,28 +3,122 @@
 [ext_resource type="Script" path="res://game/garage/ch_garage.gd" id="1_garage"]
 
 [node name="Garage" type="Control"]
-offset_right = 320.0
-offset_bottom = 180.0
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("1_garage")
 
-[node name="BodyButton" type="Button" parent="."]
-offset_left = 250.0
-offset_top = 136.0
-offset_right = 300.0
-offset_bottom = 154.0
-text = "Body ▶"
+[node name="TopBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 12.0
+offset_top = 8.0
+offset_right = -12.0
+offset_bottom = 68.0
+grow_horizontal = 2
+mouse_filter = 1
+theme_override_constants/separation = 12
 
-[node name="FightButton" type="Button" parent="."]
-offset_left = 250.0
-offset_top = 158.0
-offset_right = 300.0
-offset_bottom = 176.0
+[node name="PrevBody" type="Button" parent="TopBar"]
+layout_mode = 2
+text = "◀"
+
+[node name="BodyName" type="Label" parent="TopBar"]
+layout_mode = 2
+text = "Cutter"
+vertical_alignment = 1
+
+[node name="NextBody" type="Button" parent="TopBar"]
+layout_mode = 2
+text = "▶"
+
+[node name="Stats" type="Label" parent="TopBar"]
+layout_mode = 2
+text = "HP 0 · Energy 0"
+vertical_alignment = 1
+
+[node name="Spacer" type="Control" parent="TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="FightButton" type="Button" parent="TopBar"]
+layout_mode = 2
 text = "Fight"
 
-[node name="InfoLabel" type="Label" parent="."]
-offset_left = 148.0
-offset_top = 4.0
-offset_right = 314.0
-offset_bottom = 48.0
+[node name="Pit" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 60.0
+offset_bottom = -160.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="InfoPanel" type="PanelContainer" parent="Pit"]
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -332.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = 12.0
+grow_horizontal = 0
+mouse_filter = 2
+
+[node name="Rows" type="VBoxContainer" parent="Pit/InfoPanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="Name" type="Label" parent="Pit/InfoPanel/Rows"]
+layout_mode = 2
+mouse_filter = 2
+text = ""
+
+[node name="Line" type="Label" parent="Pit/InfoPanel/Rows"]
+layout_mode = 2
+mouse_filter = 2
+text = ""
+
+[node name="Hook" type="Label" parent="Pit/InfoPanel/Rows"]
+layout_mode = 2
+mouse_filter = 2
 text = ""
 autowrap_mode = 2
+
+[node name="Strip" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -160.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 1
+
+[node name="Scroll" type="ScrollContainer" parent="Strip"]
+layout_mode = 2
+mouse_filter = 1
+vertical_scroll_mode = 0
+
+[node name="Cards" type="HBoxContainer" parent="Strip/Scroll"]
+layout_mode = 2
+mouse_filter = 1
+
+[node name="HeldLayer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

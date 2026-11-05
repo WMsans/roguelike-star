@@ -4,7 +4,10 @@ extends ChTest
 # cycle and the copy `fight_requested` hands the battle. ChGarage.setup is what a scene calls
 # before any of these, so every test builds its own garage, inventory and layout: a garage owns
 # the references it was handed, so a shared one would carry an earlier test's mounts.
-# The UI is built on these same methods, so nothing below touches the mouse.
+# The UI is built on these same methods, so the click chain below drives the same rules a mouse does.
+# Task 7 replaced the drag with click-then-click, so the pointer rules are methods now and the tests
+# below follow the brief's own wording: `-- test_garage` runs them all, and the two scene tests plus
+# the input test at the end instance the shipped garage.tscn rather than a bare ChGarage.
 # ChMain end to end (review finding 3): the brief's headline deliverable is the round trip -
 # garage -> one battle -> result -> garage - and nothing above ever ran it. The seam is the
 # shipped scene rather than a copy of ChMain's loop, which is also where the scene's own nodes
@@ -16,6 +19,8 @@ extends ChTest
 # the result window - the watchdog hand-back, the hidden fight's release and ChMain's retiring list -
 # are gone with that machinery: Task 6 replaced them with the result panel and its back button.
 const MAIN_SCENE := "res://game/main.tscn"
+# The screen under test for the parts strip and the input path: ChMain instances this file too.
+const GARAGE_SCENE := "res://game/garage/garage.tscn"
 # A hull no fight ends: with both sides on this only the time limit can decide the fight, which is
 # how test_main_draw_panel reaches the draw panel (test_battle.gd spells the same value for its half).
 const TALL_HP := 100000
@@ -166,6 +171,147 @@ func test_click_flips() -> void:
 	# add its own check, so a stray click changes nothing rather than losing a part.
 	garage.click_part([2])
 	assert_true(layout.slots.has(1), "the mounted strut is untouched by a click on an empty slot")
+	garage.free()
+	_complete()
+
+
+# --- Task 7: the click chain ----------------------------------------------------------------------
+# Placing a part is click, then click, and there is no hold-to-drag any more: the strip's card is the
+# first click and the pit is the second. The rules the deleted pointer polling used to carry live in
+# pick_part / click_pit / right_click_pit now, and these drive them the way the screen does. Nothing
+# leaves the inventory until a drop lands, so a hold is only a reference the screen keeps.
+
+func test_pick_and_place() -> void:
+	var inventory := _inventory([&"wheel", &"wheel"])
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage(inventory, layout, _catalog())
+	assert_true(garage.pick_part(&"wheel"), "a carried wheel is picked up")
+	assert_eq(garage.held_id, &"wheel", "and it is the one in hand")
+	assert_eq(inventory.part_ids.size(), 2, "picking one up takes nothing out of the kit")
+	# The slot's own pixel: screen_of answers for a slot nothing is mounted in yet, which is what a
+	# click aimed at an empty marker needs.
+	garage.click_pit(garage.screen_of([0]))
+	assert_true(layout.get_node([0]) != null, "the second click mounted it in body slot 0")
+	assert_eq(layout.get_node([0]).part_id, &"wheel", "as the wheel that was in hand")
+	assert_eq(garage.card_counts()[&"wheel"], 1, "one wheel left carried")
+	assert_eq(garage.held_id, &"", "and nothing is held once it is down")
+	garage.free()
+	_complete()
+
+
+func test_pick_empty_refused() -> void:
+	# Carrying none of a part: its card is disabled, and the rule behind the card refuses too.
+	var garage: ChGarage = _garage(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
+	assert_true(not garage.pick_part(&"ice_cream_mace"), "a part the kit has none of is refused")
+	assert_eq(garage.held_id, &"", "and nothing is in hand")
+	# Picking what is already held puts it back, which is how a player changes their mind without
+	# a cancel button.
+	assert_true(garage.pick_part(&"wheel"), "the wheel is picked up")
+	assert_true(garage.pick_part(&"wheel"), "picking it again is allowed")
+	assert_eq(garage.held_id, &"", "and clears the hold")
+	garage.free()
+	_complete()
+
+
+func test_click_elsewhere_cancels() -> void:
+	var inventory := _inventory([&"wheel", &"wheel"])
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage(inventory, layout, _catalog())
+	assert_true(garage.pick_part(&"wheel"), "a wheel is in hand")
+	# (5,5) is the garage's top-left corner, nowhere near a marker.
+	garage.click_pit(Vector2(5, 5))
+	assert_eq(garage.held_id, &"", "a click away from every slot puts the part back")
+	assert_eq(garage.card_counts()[&"wheel"], 2, "and the kit is unchanged")
+	assert_eq(layout.slots.size(), 0, "with nothing mounted")
+	garage.free()
+	_complete()
+
+
+func test_click_mounted_lifts() -> void:
+	# A click with nothing in hand on a mounted part lifts it: the strut takes its wheel with it.
+	var inventory := _inventory([&"strut", &"wheel", &"wheel"])
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage(inventory, layout, _catalog())
+	assert_true(garage.drop_part(&"strut", [1]), "the strut mounts in slot 1")
+	assert_true(garage.drop_part(&"wheel", [1, 0]), "with a wheel on its extension 0")
+	garage.click_pit(garage.screen_of([1]))
+	assert_true(layout.get_node([1]) == null, "the strut came off the hull")
+	assert_eq(layout.slots.size(), 0, "and took its wheel with it")
+	assert_eq(inventory.part_ids.size(), 3, "both back in the kit, with the spare wheel")
+	assert_eq(garage.card_counts()[&"strut"], 1, "which the strip shows straight away")
+	garage.free()
+	_complete()
+
+
+func test_right_click_flips() -> void:
+	var inventory := _inventory([&"strut"])
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage(inventory, layout, _catalog())
+	assert_true(garage.drop_part(&"strut", [1]), "the strut mounts in slot 1")
+	garage.right_click_pit(garage.screen_of([1]))
+	assert_true(layout.get_node([1]).flipped, "a right click turned the part round")
+	garage.right_click_pit(garage.screen_of([1]))
+	assert_true(not layout.get_node([1]).flipped, "and a second turned it back")
+	# A right click on empty sand flips nothing at all rather than reaching for a part.
+	garage.right_click_pit(Vector2(5, 5))
+	assert_true(not layout.get_node([1]).flipped, "with nothing under the pointer, nothing flips")
+	garage.free()
+	_complete()
+
+
+func test_cycle_back() -> void:
+	# Cutter -> Corsair is one step backwards down BODIES, which is what the top bar's left button
+	# does; the forward direction is already pinned by the leftover test above.
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage(_inventory([]), layout, _catalog())
+	garage.cycle_body(-1)
+	assert_eq(layout.body_id, &"corsair", "a step of -1 walks the cycle backwards")
+	garage.cycle_body()
+	assert_eq(layout.body_id, &"cutter", "and the default step walks it forward again")
+	garage.free()
+	_complete()
+
+
+# Review focus for this task: a fight asked for, or a body swapped, while a part is in hand must not
+# lose or duplicate it. Nothing leaves the inventory until a drop, so the hold is the only thing that
+# can go wrong, and clearing it is the whole fix.
+func test_fight_while_holding_keeps_inventory() -> void:
+	var inventory := _inventory([&"wheel", &"wheel", &"cutter_rocket", &"strut"])
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage(inventory, layout, _catalog())
+	assert_true(garage.pick_part(&"wheel"), "a wheel is in hand")
+	var before := inventory.part_ids.duplicate()
+	var handed: Array = []
+	var sink := handed
+	garage.fight_requested.connect(func(copy: ChChariotLayout): sink.append(copy))
+	garage.request_fight()
+	assert_eq(handed.size(), 1, "the fight was still asked for")
+	assert_eq(garage.held_id, &"", "the click into a fight dropped the hold")
+	assert_eq(inventory.part_ids, before, "and the kit is exactly what it was")
+	assert_eq(handed[0].slots.size(), 0, "the copy holds nothing the hold might have dropped")
+	# The same for a body swap: the carried part is still carried, and the hold is gone.
+	assert_true(garage.pick_part(&"cutter_rocket"), "the rocket is in hand")
+	garage.cycle_body()
+	assert_eq(garage.held_id, &"", "a body swap drops the hold too")
+	assert_eq(inventory.part_ids, before, "with the kit untouched again")
+	assert_eq(layout.body_id, &"dozer", "and the swap itself happened")
+	garage.free()
+	_complete()
+
+
+func test_drop_onto_strut_extension() -> void:
+	# A free extension slot is a marker like any body slot, so the same click places into it: the
+	# strut at Cutter slot 2 (-4,-3) hangs its extension 0 one part up.
+	var inventory := _inventory([&"strut", &"cutter_chainsaw"])
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage(inventory, layout, _catalog())
+	assert_true(garage.drop_part(&"strut", [2]), "the strut mounts in slot 2")
+	assert_true(garage.pick_part(&"cutter_chainsaw"), "the chainsaw is in hand")
+	garage.click_pit(garage.screen_of([2, 0]))
+	assert_true(layout.get_node([2, 0]) != null, "the chainsaw bolted onto the strut's extension 0")
+	assert_eq(layout.get_node([2, 0]).part_id, &"cutter_chainsaw", "as the chainsaw")
+	assert_eq(garage.held_id, &"", "with the hold cleared")
+	assert_eq(garage.card_counts()[&"strut"], 0, "the strut is mounted, so the strip carries none")
 	garage.free()
 	_complete()
 
@@ -366,5 +512,174 @@ func test_back_twice_one_garage() -> void:
 	await Engine.get_main_loop().process_frame
 	assert_eq(main.find_children("*", "ChResultPanel", true, false).size(), 0,
 		"and the panel itself left the tree, not just the reference to it")
+	main.free()
+	_complete()
+
+
+# --- Task 7: the built screen ---------------------------------------------------------------------
+# The rebuild is a scene, so these three tests instance garage.tscn: the strip's cards and the
+# InfoPanel only exist once the scene does. Everything above stays a bare ChGarage because the logic
+# methods must work with no nodes at all (ChMain calls setup before add_child).
+
+func _garage_scene(inventory: ChInventory, layout: ChChariotLayout,
+	catalog: ChCatalog) -> ChGarage:
+	# setup() before add_child, the order ChMain uses, so _enter_tree builds the strip from the
+	# inventory it was handed.
+	var scene: PackedScene = ResourceLoader.load(GARAGE_SCENE)
+	assert_true(scene != null, "garage.tscn loads")
+	var garage: ChGarage = scene.instantiate()
+	garage.setup(inventory, layout, catalog)
+	Engine.get_main_loop().get_root().add_child(garage)
+	_track(garage)
+	return garage
+
+
+func _card_of(garage: ChGarage, id: StringName) -> ChPartCard:
+	var found: ChPartCard = null
+	for node in garage.find_children("*", "ChPartCard", true, false):
+		if node.part_id == id:
+			found = node
+	return found
+
+
+func _press(at: Vector2, button := MOUSE_BUTTON_LEFT) -> void:
+	# One real click through the viewport's own input path. in_local_coords is on purpose: the runner's
+	# window is 64x64 in headless while the canvas is 1280x720, so a non-local event would be scaled by
+	# 1/20 on its way in (measured); a local one arrives in the canvas pixels the screen is laid out in.
+	var root: Viewport = Engine.get_main_loop().get_root()
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = button
+		event.pressed = pressed
+		event.position = at
+		event.global_position = at
+		root.push_input(event, true)
+
+
+func _move(at: Vector2) -> void:
+	# A motion, the way the pit reads the pointer: the hover, the info panel and the marker nearest the
+	# pointer all come from these, so a test that only clicks would never drive them.
+	var motion := InputEventMouseMotion.new()
+	motion.position = at
+	motion.global_position = at
+	Engine.get_main_loop().get_root().push_input(motion, true)
+
+
+func test_strip_has_every_part() -> void:
+	# One wheel carried, so every other card reads 0 and the disabled pin has a card to check.
+	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
+	var cards: Array = garage.find_children("*", "ChPartCard", true, false)
+	assert_eq(cards.size(), garage.STRIP_ORDER.size(), "one card per part the strip lists")
+	var order: Array = []
+	for card in cards:
+		order.append(card.part_id)
+	assert_eq(order, garage.STRIP_ORDER, "in STRIP_ORDER's order")
+	var mace := _card_of(garage, &"ice_cream_mace")
+	assert_true(mace != null, "the mace has a card")
+	assert_eq(mace.count, 0, "carrying none")
+	assert_true(mace.disabled, "so it cannot be picked")
+	var wheel := _card_of(garage, &"wheel")
+	assert_eq(wheel.count, 1, "the carried wheel reads one")
+	assert_true(not wheel.disabled, "and its card is live")
+	assert_eq(garage.card_counts().size(), garage.STRIP_ORDER.size(),
+		"card_counts answers for every id the strip shows")
+	# A drop updates the strip without a rebuild, which is the only thing that keeps it honest.
+	assert_true(garage.drop_part(&"wheel", [0]), "the wheel mounts")
+	assert_eq(wheel.count, 0, "and its card reads none carried")
+	assert_true(wheel.disabled, "with nothing to pick")
+	_complete()
+
+
+func test_no_hint_labels() -> void:
+	# The brief's rule: no screen says how to play. The garage's only text is the top bar's and the
+	# InfoPanel's, and the InfoPanel is hidden until something is hovered.
+	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
+	var hints: Array = []
+	for node in garage.find_children("*", "Label", true, false):
+		var text: String = node.text
+		if text.begins_with("Click") or text.begins_with("Holding"):
+			hints.append(text)
+	assert_eq(hints, [], "no label tells the player what to click")
+	assert_eq(garage.get_node("TopBar/BodyName").text, "Cutter", "the bar names the hull")
+	assert_eq(garage.get_node("TopBar/Stats").text, "HP 500 · Energy 20", "and its fight stats")
+	assert_true(not garage.get_node("Pit/InfoPanel").is_visible_in_tree(),
+		"the info panel is away until something is hovered")
+	_complete()
+
+
+# Task 7 Step 7's evidence. A harness cannot put a human's mouse on a windowed game, so this drives the
+# chain the way the window does: real InputEventMouseButton presses through the viewport, the pit's own
+# gui_input converting them, the cards' own pressed signal picking a part up. Every step asserts what a
+# player would see, and the only thing called by hand is the forced ending of the fight, because a
+# Cutter carrying one wheel has nothing to shoot with (tools/screenshot.gd forces its win the same way).
+func test_mouse_chain_plays_a_round_trip() -> void:
+	var main: ChMain = _main_scene()
+	# Two frames: a Container sorts its children at the end of a frame, so the cards are only where a
+	# player sees them after that.
+	for _frame in 2:
+		await Engine.get_main_loop().process_frame
+	var garage: ChGarage = main.garage
+	var pit: Control = garage.get_node("Pit")
+	assert_eq(pit.get_global_rect(), Rect2(0, 60, 1280, 500), "the pit fills the middle of 1280x720")
+	# 1. pick a wheel off the strip, where its card is.
+	var card := _card_of(garage, &"wheel")
+	assert_true(card != null, "the strip has a wheel card")
+	_press(card.get_global_rect().get_center())
+	assert_eq(garage.held_id, &"wheel", "a click on the card took a wheel in hand")
+	# 2. place it: a click on the pit at the marker screen_of names.
+	_press(garage.get_global_position() + garage.screen_of([0]))
+	assert_true(main.layout.get_node([0]) != null, "the pit click mounted it in body slot 0")
+	assert_eq(main.layout.get_node([0]).part_id, &"wheel", "as a wheel")
+	assert_eq(garage.held_id, &"", "with nothing left in hand")
+	assert_eq(garage.card_counts()[&"wheel"], 3, "and one of the four wheels out of the kit")
+	# The hover: a motion over empty pit space leaves the panel away, a motion over the mounted wheel
+	# fills it from the def, which is the whole of what the panel says.
+	var panel: PanelContainer = garage.get_node("Pit/InfoPanel")
+	_move(Vector2(100, 500))
+	assert_true(not panel.visible, "moving off the hull puts the info panel away")
+	_move(garage.get_global_position() + garage.screen_of([0]))
+	assert_true(panel.visible, "hovering the mounted wheel filled it")
+	assert_eq(garage.get_node("Pit/InfoPanel/Rows/Name").text, "Wheel", "naming the part")
+	# 3. flip it: a right click on the mounted part.
+	_press(garage.get_global_position() + garage.screen_of([0]), MOUSE_BUTTON_RIGHT)
+	assert_true(main.layout.get_node([0]).flipped, "a right click turned the wheel round")
+	# A pick and a click on the root's own empty space - the band above the top bar - puts a part back,
+	# which is the one way out of a hold that is not a second click on its card.
+	_press(card.get_global_rect().get_center())
+	assert_eq(garage.held_id, &"wheel", "the card held a wheel again")
+	_press(Vector2(640, 3))
+	assert_eq(garage.held_id, &"", "a click on the empty root put it back")
+	assert_eq(main.layout.slots.size(), 1, "and mounted nothing extra")
+	# 4. swap the body: the top bar's next-body button.
+	_press(garage.get_node("TopBar/NextBody").get_global_rect().get_center())
+	assert_eq(main.layout.body_id, &"dozer", "the next-body button walked the cycle on")
+	assert_eq(garage.get_node("TopBar/BodyName").text, "Dozer", "and the bar named the new hull")
+	assert_eq(main.layout.slots.size(), 1, "the wheel came across with the hull")
+	# 5. ask for a fight, and watch it end.
+	_press(garage.get_node("TopBar/FightButton").get_global_rect().get_center())
+	assert_eq(main.screen, &"fight", "the fight button started a fight")
+	var frames := 0
+	while main.battle == null and frames < 60:
+		await Engine.get_main_loop().process_frame
+		frames += 1
+	if main.battle == null:
+		assert_true(false, "the fight reached the tree")
+		main.free()
+		_complete()
+		return
+	main.battle.enemy.hp = 0
+	await _wait_screen(main, &"result")
+	assert_eq(main.screen, &"result", "the win reached the result panel")
+	# 6. go back: the panel's own button, clicked where it is drawn.
+	_press(main.result_panel.back.get_global_rect().get_center())
+	assert_eq(main.screen, &"garage", "the back button put the garage up again")
+	for _frame in 2:
+		await Engine.get_main_loop().process_frame
+	# The end state a player sees: the same build facing the way it was left, and the strip still
+	# showing the three wheels that are not bolted on.
+	assert_eq(main.layout.slots.size(), 1, "the build came back as it was left")
+	assert_true(main.layout.get_node([0]).flipped, "the flip survived the fight")
+	assert_eq(main.garage.card_counts()[&"wheel"], 3, "the fresh garage shows three wheels to place")
+	assert_eq(_card_of(main.garage, &"wheel").count, 3, "and the strip's own card agrees")
 	main.free()
 	_complete()
