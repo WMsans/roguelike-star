@@ -1,0 +1,78 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/battle/background/ch_background.gd" id="1_script"]
+[ext_resource type="Shader" path="res://game/battle/background/bg_sky.gdshader" id="2_sky"]
+[ext_resource type="Shader" path="res://game/battle/background/bg_layer.gdshader" id="3_layer"]
+[ext_resource type="Texture2D" path="res://textures/background/bg0.png" id="4_bg0"]
+[ext_resource type="Texture2D" path="res://textures/background/bg1.png" id="5_bg1"]
+[ext_resource type="Texture2D" path="res://textures/background/bg2.png" id="6_bg2"]
+
+[sub_resource type="Gradient" id="Gradient_sky"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(0.3098, 0.7216, 1.0000, 1, 0.6235, 0.8863, 1.0000, 1, 1.0000, 0.8902, 0.6588, 1)
+
+[sub_resource type="GradientTexture1D" id="Tex_sky"]
+gradient = SubResource("Gradient_sky")
+
+[sub_resource type="Gradient" id="Gradient_mid"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(0.2431, 0.4353, 0.8471, 1, 0.6078, 0.7686, 1.0000, 1)
+
+[sub_resource type="GradientTexture1D" id="Tex_mid"]
+gradient = SubResource("Gradient_mid")
+
+[sub_resource type="Gradient" id="Gradient_front"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(0.1843, 0.3098, 0.6588, 1, 0.4980, 0.8157, 1.0000, 1)
+
+[sub_resource type="GradientTexture1D" id="Tex_front"]
+gradient = SubResource("Gradient_front")
+
+[sub_resource type="ShaderMaterial" id="Mat_sky"]
+shader = ExtResource("2_sky")
+shader_parameter/cloud_tex = ExtResource("4_bg0")
+shader_parameter/sky_gradient = SubResource("Tex_sky")
+
+[sub_resource type="ShaderMaterial" id="Mat_mid"]
+shader = ExtResource("3_layer")
+shader_parameter/layer_tex = ExtResource("5_bg1")
+shader_parameter/grade = SubResource("Tex_mid")
+
+[sub_resource type="ShaderMaterial" id="Mat_front"]
+shader = ExtResource("3_layer")
+shader_parameter/layer_tex = ExtResource("6_bg2")
+shader_parameter/grade = SubResource("Tex_front")
+
+[node name="Background" type="CanvasLayer"]
+layer = -10
+script = ExtResource("1_script")
+
+[node name="Sky" type="ColorRect" parent="."]
+material = SubResource("Mat_sky")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Mid" type="ColorRect" parent="."]
+material = SubResource("Mat_mid")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Front" type="ColorRect" parent="."]
+material = SubResource("Mat_front")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
