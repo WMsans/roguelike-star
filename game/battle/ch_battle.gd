@@ -12,8 +12,8 @@ class_name ChBattle extends Node2D
 # HUD and camera follow the brief: the HUD (ChBattleHud, on ChUi's shared theme) shows both sides'
 # names and HP, the player's energy as pips and the parts waiting behind it; the camera frames the two
 # chariots (the shot lives on the scene's PhantomCamera2D, `pcam`, which the Camera2D's host copies), a
-# marker sits on every part, and a 0.2 s pulse rings the part the player just fired. Feedback's screen
-# shake lands on the scene's own noise emitter while a fight runs.
+# marker sits on every part, and the bus's events are played by the battle's own ChBattleFeedback.
+# Feedback's screen shake lands on the scene's own noise emitter while a fight runs.
 # There is no event feed and no hint line anywhere: the screen shows the fight, not a log of it.
 
 # &"win", &"loss" or &"draw" from the fight, &"aborted" if it could not start
@@ -30,7 +30,6 @@ const ZOOM_WIDEST := 4.0  # the pull-back bound: its view is 320x180 cells, exac
 # 284x160-cell view rather than filling the screen with two hulls (8.0 here showed 160x90).
 const ZOOM_CLOSEST := 4.5
 const CAMERA_EASE := 0.15  # the share of the remaining gap the camera covers per fight tick
-const PULSE_SECONDS := 0.2  # the HUD's pulse on a part the player just fired
 const MARKER_Z := 10  # the marker layer's z_index: above every body, which all sit at 0
 
 var ctx: ChBattleContext = null
@@ -42,8 +41,7 @@ var camera: Camera2D = null
 var pcam: PhantomCamera2D = null  # the live shot: the host under $Camera drives it from here
 var hud: ChBattleHud = null  # the HUD itself, a Control under the $HUD CanvasLayer
 var marks: Node2D = null  # the per-part markers, drawn in the world layer
-var pulses: Array = []  # of {"part": ChPartRuntime, "left": seconds}
-var hud_listener: RefCounted = null  # the key the HUD's subscriptions unsubscribe under
+var feedback: ChBattleFeedback = null  # the bus listener that turns this fight's events into beats
 var outcome := &""  # what this fight decided, once _step names it; "" while neither hull is dead
 var _camera_primed := false  # the live camera has been put on a composed frame at least once
 var started := false  # read-only: start() has passed its arena build and may still be ticking
@@ -93,7 +91,6 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	# `finished` follows an ended fight rather than announcing a result mid-fight.
 	# shortcut: one fight per scene — start() builds the HUD and the arena from scratch, so a caller
 	# that wants a second fight instantiates the scene again rather than reusing this node's nodes.
-	pulses.clear()
 	outcome = &""
 	camera = $Camera
 	pcam = $PCam
@@ -139,7 +136,9 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 			# it a subscribing part (Rocket's Ignition, Ember Battery) is dead in a real fight.
 			if part.behaviour != null:
 				part.behaviour.setup(ctx)
-	_subscribe_hud()
+	# The bus's events, played: one listener key for the seven types, held here so the fight keeps it.
+	feedback = ChBattleFeedback.new(ctx, hud)
+	feedback.subscribe()
 	# CONTRACT: `finished` is the fight's end, not an announcement made while it runs. It fires once,
 	# from the last statement of start() on every leg, with `ticking` false - the loop has stopped, or
 	# never started - so a listener may free this node on any later frame: there is no suspended
@@ -249,7 +248,7 @@ func _step(delta: float) -> void:
 	# The world runs its own simulation steps on the physics frames this tick awaited, which is the
 	# seam ChProjectile flies on (Task 13's ruling): adding world.step here would run the sim twice
 	# per tick and double every chariot's movement against the fight's clock.
-	_hud_tick(delta)
+	_hud_tick()
 	_camera_at()
 	var result := result_for(player.is_dead(), enemy.is_dead())
 	if result != &"":
@@ -264,35 +263,9 @@ func _player_drive() -> float:
 	return left + (1.0 if Input.is_action_pressed(&"ui_right") else 0.0)
 
 
-func _subscribe_hud() -> void:
-	# The HUD hears the two events the pulse cares about through one listener key: the player's own
-	# fires. It subscribes to nothing else — the event feed this used to drive is gone (see _hear).
-	# The listener needs no unsubscribing: the bus belongs to this fight's context and dies with it.
-	hud_listener = RefCounted.new()
-	for type in [ChEvent.PART_FIRED, ChEvent.ENERGY_GAINED]:
-		ctx.bus.subscribe(hud_listener, type, _hear)
-
-
-func _hear(event: ChEvent) -> void:
-	# The pulse on the player's own fire, on the part that made it — the whole of what the HUD listens
-	# for. There is no event feed: the brief forbids hint and instruction lines, and a scrolling list of
-	# event names is exactly that (tests/battle/test_battle_hud.gd pins its absence).
-	if event.side == 0 and event.source != null and (event.type == ChEvent.PART_FIRED
-		or event.type == ChEvent.ENERGY_GAINED):
-		pulses.append({"part": event.source, "left": PULSE_SECONDS})
-
-
-func _hud_tick(delta: float) -> void:
-	# The HUD reads the fight's numbers, then the pulse countdown runs on the HUD's own clock and the
-	# markers redraw over the parts it marks.
+func _hud_tick() -> void:
+	# The HUD reads the fight's numbers, then the markers redraw over the parts they mark.
 	hud.show_state(player, enemy)
-	var at := 0
-	while at < pulses.size():
-		pulses[at]["left"] = float(pulses[at]["left"]) - delta
-		if pulses[at]["left"] <= 0.0:
-			pulses.remove_at(at)
-		else:
-			at += 1
 	marks.queue_redraw()
 
 
@@ -404,12 +377,3 @@ func _draw_markers() -> void:
 				marks.draw_line(box.position, box.end, Color(1.0, 1.0, 1.0))
 				marks.draw_line(Vector2(box.position.x, box.end.y), Vector2(box.end.x, box.position.y),
 					Color(1.0, 1.0, 1.0))
-	for pulse in pulses:
-		var part: ChPartRuntime = pulse["part"]
-		if part == null or part.broken or part.body == null or not is_instance_valid(part.body):
-			continue
-		# The 0.2 s pulse: a ring that grows out from the part over the window it has left.
-		var left := maxf(0.0, float(pulse["left"]))
-		var spot: Vector2 = onto * part.anchor_world()
-		var grow := 1.0 - left / PULSE_SECONDS
-		marks.draw_circle(spot, 4.0 + 10.0 * grow, Color(1.0, 0.9, 0.4, 1.0 - 0.8 * grow))
