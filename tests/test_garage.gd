@@ -698,3 +698,135 @@ func test_mouse_chain_plays_a_round_trip() -> void:
 	assert_eq(_card_of(main.garage, &"wheel").count, 3, "and the strip's own card agrees")
 	main.free()
 	_complete()
+
+
+# --- Task 9: the pit as nodes --------------------------------------------------------------------
+# The hull and every mounted part are nodes under $Pit now, in a PitView that undoes the pit's own
+# offset, so a part can be moved by a juice beat without repainting the screen. The markers and the
+# hover box keep their own draws between the parts, which is the same paint order the one `_draw`
+# used to give. These five pin the tree the garage's feedback task attaches to: where a piece sits,
+# that an unrelated change leaves it alone, that a lift takes its subtree's pieces with it, that the
+# hull follows the body, and that order.
+
+func test_pit_pieces_match_layout() -> void:
+	var catalog := _catalog()
+	var garage: ChGarage = _garage_scene(_inventory([&"wheel", &"wheel"]), _layout(&"cutter"), catalog)
+	assert_true(garage.drop_part(&"wheel", [0]), "body slot 0 takes a wheel")
+	assert_true(garage.drop_part(&"wheel", [1]), "as the other")
+	var wheel: ChPartDef = catalog.part(&"wheel")
+	for path in [[0], [1]]:
+		var typed := _typed_path(path)
+		var piece: ChPitPiece = garage.piece_at(typed)
+		assert_true(piece != null, "the part at %s has a piece" % [typed])
+		if piece == null:
+			continue
+		# The drawn box's centre is where the part was painted before the split, so a piece that
+		# sits anywhere else would have moved the whole pit.
+		assert_eq(piece.position, garage._box_at(garage.screen_of(typed), wheel).get_center(),
+			"the piece sits where the part's box is centred")
+	var parts: Node = garage.get_node("Pit/PitView/Parts")
+	assert_eq(parts.get_child_count(), 2, "one piece per mounted part, and nothing left behind")
+	_complete()
+
+
+func test_piece_survives_unrelated_change() -> void:
+	# A part that did not change keeps its node, and with it the spring state a kick left on it:
+	# a rebuild would silently drop a wobble that is still in flight.
+	var inventory := _inventory([&"wheel", &"wheel"])
+	var garage: ChGarage = _garage_scene(inventory, _layout(&"cutter"), _catalog())
+	assert_true(garage.drop_part(&"wheel", [0]), "the first wheel mounts")
+	var first: ChPitPiece = garage.piece_at(_typed_path([0]))
+	assert_true(first != null, "its piece exists")
+	if first == null:
+		_complete()
+		return
+	var juice := ChJuice.of(first)
+	assert_true(juice != null, "the piece carries a Juice child")
+	juice.kick(6.0, 3.0)
+	var velocity := juice.scale_spring.velocity
+	assert_true(garage.drop_part(&"wheel", [1]), "a second wheel lands in another slot")
+	assert_true(garage.piece_at(_typed_path([0])) == first,
+		"the first piece is the same instance after the second drop")
+	assert_eq(ChJuice.of(first).scale_spring.velocity, velocity,
+		"and its spring kept the kick, so nothing rebuilt the piece under it")
+	_complete()
+
+
+func test_lift_frees_subtree_pieces() -> void:
+	var inventory := _inventory([&"strut", &"wheel"])
+	var garage: ChGarage = _garage_scene(inventory, _layout(&"cutter"), _catalog())
+	assert_true(garage.drop_part(&"strut", [1]), "the strut mounts in slot 1")
+	assert_true(garage.drop_part(&"wheel", [1, 0]), "with a wheel on its extension 0")
+	var strut: ChPitPiece = garage.piece_at(_typed_path([1]))
+	var wheel: ChPitPiece = garage.piece_at(_typed_path([1, 0]))
+	assert_true(strut != null and wheel != null, "the branch has a piece per part")
+	if strut == null or wheel == null:
+		_complete()
+		return
+	# A kick still in flight when its piece is freed is the case the pieces have to survive: the
+	# juice node goes with the piece, so the frames after a lift must not move a freed target.
+	ChJuice.of(strut).kick(6.0, 3.0)
+	ChJuice.of(wheel).kick(6.0, 3.0)
+	assert_true(garage.lift([1]), "lifting the strut takes the whole branch")
+	assert_true(garage.piece_at(_typed_path([1])) == null, "the strut's piece is gone")
+	assert_true(garage.piece_at(_typed_path([1, 0])) == null, "and the wheel's with it")
+	assert_eq(garage.get_node("Pit/PitView/Parts").get_child_count(), 0, "nothing is left drawn")
+	for _frame in 3:
+		await Engine.get_main_loop().process_frame
+	_complete()
+
+
+func test_cycle_body_rebuilds_hull() -> void:
+	var catalog := _catalog()
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), layout, catalog)
+	var hull: ChPitPiece = garage.hull_piece()
+	assert_true(hull != null, "the pit has a hull piece")
+	if hull == null:
+		_complete()
+		return
+	assert_eq(hull.body_def.size, catalog.body(&"cutter").size, "drawing the Cutter's hull")
+	assert_true(garage.drop_part(&"wheel", [0]), "a wheel mounts in Cutter slot 0 at (-4,5)")
+	var before: Vector2 = garage.piece_at(_typed_path([0])).position
+	garage.cycle_body(1)
+	assert_eq(layout.body_id, &"dozer", "the cycle walked to the Dozer")
+	assert_true(garage.hull_piece() == hull, "the hull piece is reused, not rebuilt")
+	# Cutter 30x10 cells, Dozer 30x18: the piece has to show the new body, not the one it started on.
+	assert_eq(garage.hull_piece().body_def.size, catalog.body(&"dozer").size,
+		"and it shows the Dozer's taller hull")
+	# swap_body reseats the wheel on Dozer slot 0 at (-9,9), so its piece keeps its path and its part
+	# and still has to move: the position comes from the layout, never from where the piece was.
+	var piece: ChPitPiece = garage.piece_at(_typed_path([0]))
+	assert_true(piece != null, "the wheel kept a piece on the new hull")
+	if piece == null:
+		_complete()
+		return
+	assert_eq(piece.position,
+		garage._box_at(garage.screen_of(_typed_path([0])), catalog.part(&"wheel")).get_center(),
+		"and it sits on the Dozer's slot 0")
+	assert_true(piece.position != before, "which is not where the Cutter's slot 0 was")
+	_complete()
+
+
+func test_pit_draw_order() -> void:
+	# The order the one `_draw` painted in, now as siblings: hull, free-slot markers, parts, hover.
+	# Below the pit view sit the InfoPanel, the strip and the held layer, which stay on top.
+	var garage: ChGarage = _garage_scene(_inventory([]), _layout(&"cutter"), _catalog())
+	var pit: Control = garage.get_node("Pit")
+	var view: Node = pit.get_child(0)
+	assert_eq(view.name, &"PitView", "the pit's first child is the pit view")
+	if view.name != &"PitView":
+		_complete()
+		return
+	# The view undoes the pit's own offset, so a piece's position is a garage pixel - what
+	# screen_of and _box_at answer in - and the pit cannot drift 60 px down unnoticed.
+	assert_eq((view as Node2D).get_global_transform().origin, garage.get_global_transform().origin,
+		"the pit view sits at the garage's own origin")
+	var hull := view.get_node("Hull").get_index()
+	var markers := view.get_node("Markers").get_index()
+	var parts := view.get_node("Parts").get_index()
+	var hover := view.get_node("Hover").get_index()
+	assert_true(hull < markers, "the hull draws under the free-slot markers")
+	assert_true(markers < parts, "the markers draw under the mounted parts")
+	assert_true(parts < hover, "and the hover box draws over everything")
+	_complete()

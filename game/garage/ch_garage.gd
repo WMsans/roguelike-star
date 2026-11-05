@@ -40,6 +40,12 @@ var hover_path: Array[int] = []  # the mounted part under the pointer, empty whe
 
 var _cards: Array[ChPartCard] = []  # the strip's cards, in STRIP_ORDER
 var _pit: Control = null  # the input surface: a click here places, lifts or flips
+var _pit_view: Node2D = null  # the pit's nodes, offset so their positions are garage-local pixels
+var _hull: ChPitPiece = null  # the body the build sits on
+var _markers: Node2D = null  # the free slot markers, drawn between the hull and the parts
+var _parts: Node2D = null  # one ChPitPiece per mounted part
+var _hover: Node2D = null  # the hovered part's box and range, drawn over everything
+var _pieces := {}  # path string -> ChPitPiece: what _parts holds, and the way back from a path
 var _held_layer: Control = null  # the part in hand, drawn over everything at the pointer
 var _info_panel: PanelContainer = null
 var _info_name: Label = null
@@ -72,7 +78,7 @@ func setup(inventory_in: ChInventory, layout_in: ChChariotLayout,
 	catalog = catalog_in
 	_refresh_top()
 	_refresh_cards()
-	queue_redraw()
+	_sync_pit()
 
 
 func _typed(path) -> Array[int]:
@@ -94,7 +100,7 @@ func drop_part(part_id: StringName, path) -> bool:
 		return false
 	inventory.take(part_id)
 	_refresh_cards()
-	queue_redraw()
+	_sync_pit()
 	return true
 
 
@@ -109,7 +115,7 @@ func lift(path) -> bool:
 		return false
 	_lift_branches([branch])
 	_refresh_cards()
-	queue_redraw()
+	_sync_pit()
 	return true
 
 
@@ -165,7 +171,7 @@ func cancel_hold() -> void:
 	held_id = &""
 	if _held_layer != null:
 		_held_layer.queue_redraw()
-	queue_redraw()
+	_sync_pit()
 
 
 func cycle_body(step: int = 1) -> void:
@@ -192,7 +198,7 @@ func cycle_body(step: int = 1) -> void:
 	_fill_info({})
 	_refresh_top()
 	_refresh_cards()
-	queue_redraw()
+	_sync_pit()
 
 
 func _cycle_index() -> int:
@@ -351,7 +357,7 @@ func _follow_pointer(pointer: Vector2) -> void:
 	if next != hover_path:
 		hover_path = next
 		_fill_info(selected_info(hover_path))
-	queue_redraw()
+	_sync_pit()
 
 
 func _fill_info(info: Dictionary) -> void:
@@ -409,6 +415,7 @@ func _enter_tree() -> void:
 		push_error("ChGarage entered the tree before setup(): its strip stays empty")
 	_pit = $Pit
 	_pit.gui_input.connect(_on_pit_input)
+	_build_pit_nodes()
 	_held_layer = $HeldLayer
 	_held_layer.draw.connect(_draw_held)
 	_info_panel = $Pit/InfoPanel
@@ -434,7 +441,7 @@ func _enter_tree() -> void:
 	_build_strip()
 	_refresh_top()
 	_refresh_cards()
-	queue_redraw()
+	_sync_pit()
 
 
 func _build_strip() -> void:
@@ -514,40 +521,122 @@ func _input(event: InputEvent) -> void:
 		_held_layer.queue_redraw()
 
 
-func _draw() -> void:
-	# The pit, in garage-local pixels: the hull, the free slot markers, the mounted parts and the
-	# hovered part's range circle. CHARIOT_AT is the hull's centre and +x is forward, the arena's own
-	# axes, so the pit reads the way the fight will draw it.
-	if layout == null or catalog == null:
+func _build_pit_nodes() -> void:
+	# The pit's nodes, added first under $Pit so the InfoPanel and the held layer stay on top. PitView undoes the pit's own offset, so a child's position is a garage pixel - the same
+	# space screen_of, _box_at and _free_slots answer in - and the children keep the paint order the
+	# one _draw had: hull, markers, parts, hover.
+	_pit_view = Node2D.new()
+	_pit_view.name = "PitView"
+	_pit.add_child(_pit_view)
+	_pit.move_child(_pit_view, 0)
+	# The pit's rect is not final when this runs - this node enters the tree before its own child does -
+	# so the offset is taken again whenever the rect changes, which is before the first frame is drawn.
+	_pit.item_rect_changed.connect(_place_pit_view)
+	_hull = ChPitPiece.new()
+	_hull.name = "Hull"
+	_hull.position = CHARIOT_AT
+	_pit_view.add_child(_hull)
+	_markers = Node2D.new()
+	_markers.name = "Markers"
+	_markers.draw.connect(_draw_markers)
+	_pit_view.add_child(_markers)
+	_parts = Node2D.new()
+	_parts.name = "Parts"
+	_pit_view.add_child(_parts)
+	_hover = Node2D.new()
+	_hover.name = "Hover"
+	_hover.draw.connect(_draw_hover)
+	_pit_view.add_child(_hover)
+
+
+func _place_pit_view() -> void:
+	# The pit's offset undone, so a child of PitView sits at a garage pixel: the space screen_of,
+	# _box_at and _free_slots answer in.
+	if _pit_view != null:
+		_pit_view.position = -_pit.position
+
+
+func piece_at(path: Array[int]) -> ChPitPiece:
+	# The piece a path's part is drawn as, null when nothing is mounted there: the handle a feedback
+	# beat kicks, and how a test tells a reused piece from a rebuilt one.
+	return _pieces.get(str(path))
+
+
+func hull_piece() -> ChPitPiece:
+	# The hull's own node: what a body swap redraws.
+	return _hull
+
+
+func _sync_pit() -> void:
+	# The pit brought up to date: the hull, one piece per mounted part, and the two draws between
+	# them. A piece whose path and part are unchanged is reused, so a change elsewhere leaves its
+	# wobble in flight alone; a piece whose path is gone or whose part changed is freed here.
+	# Every layout and hover change lands here, which is why the pit needs no _draw of its own.
+	# shortcut: nothing is synced before _enter_tree builds the nodes, which is setup()'s order.
+	if _parts == null or layout == null or catalog == null:
 		return
+	_place_pit_view()
 	var body_def: ChBodyDef = catalog.body(layout.body_id)
-	if body_def == null:
-		return
-	var body_size := Vector2(maxi(1, body_def.size.x), maxi(1, body_def.size.y)) * ZOOM
-	draw_rect(Rect2(CHARIOT_AT - body_size * 0.5, body_size), body_def.color)
-	# A free slot is a dashed empty square; while a part is in hand, the one a click would drop into is
-	# filled, which is the only instruction the screen gives.
-	var near := _slot_near(_pointer) if held_id != &"" else []
-	for entry in _free_slots():
-		var marker := Rect2(CHARIOT_AT + entry[1] * ZOOM - Vector2(MARK_PX, MARK_PX) * 0.5,
-			Vector2(MARK_PX, MARK_PX))
-		if not near.is_empty() and entry[1] == near[1]:
-			draw_rect(marker, Color(ChUi.ACCENT, 0.2))
-		_dashed_rect(marker, MARK_COLOR)
+	if body_def != null and _hull.body_def != body_def:
+		_hull.show_hull(body_def)
+	var live := {}
 	for path in layout.all_paths():
 		var typed_path: Array[int] = _typed(path)
 		var node: ChSlotNode = layout.get_node(typed_path)
 		var def: ChPartDef = catalog.part(node.part_id)
 		if def == null:
 			continue
+		var key := str(typed_path)
+		live[key] = true
 		var box := _box_at(screen_of(typed_path), def)
-		ChPartCard.paint(self, box.get_center(), def, ZOOM)
-		if node.flipped:
-			# The facing edge, which is what a flip means: +x is forward and a flip negates the
-			# extension offsets, so the notch says which way the part and its children point.
-			draw_line(Vector2(box.position.x, box.get_center().y - 4.0),
-				Vector2(box.position.x, box.get_center().y + 4.0), HOVER_COLOR)
-	if hover_path.is_empty():
+		var piece: ChPitPiece = _pieces.get(key)
+		if piece != null and piece.part_def != null and piece.part_def.id == node.part_id:
+			# The slot can move under a part - a body swap reseats it, a flip moves what hangs off
+			# it - so the position follows the layout even when the piece itself is reused.
+			piece.position = box.get_center()
+			if piece.flipped != node.flipped:
+				piece.show_part(def, node.flipped)
+			continue
+		if piece != null:
+			_drop_piece(key)
+		var fresh := ChPitPiece.new()
+		fresh.show_part(def, node.flipped)
+		fresh.position = box.get_center()
+		_parts.add_child(fresh)
+		_pieces[key] = fresh
+	for key in _pieces.keys():
+		if not live.has(key):
+			_drop_piece(key)
+	_markers.queue_redraw()
+	_hover.queue_redraw()
+
+
+func _drop_piece(key: String) -> void:
+	# A piece leaves the tree now but frees at the end of the frame: the child count a test reads is
+	# already right, and a juice kick still in flight goes with the node instead of moving it.
+	var piece: ChPitPiece = _pieces[key]
+	_pieces.erase(key)
+	_parts.remove_child(piece)
+	piece.queue_free()
+
+
+func _draw_markers() -> void:
+	# The free slot markers, between the hull and the parts. A free slot is a dashed empty square;
+	# while a part is in hand, the one a click would drop into is filled, which is the only
+	# instruction the screen gives.
+	var near := _slot_near(_pointer) if held_id != &"" else []
+	for entry in _free_slots():
+		var marker := Rect2(CHARIOT_AT + entry[1] * ZOOM - Vector2(MARK_PX, MARK_PX) * 0.5,
+			Vector2(MARK_PX, MARK_PX))
+		if not near.is_empty() and entry[1] == near[1]:
+			_markers.draw_rect(marker, Color(ChUi.ACCENT, 0.2))
+		_dashed_rect(_markers, marker, MARK_COLOR)
+
+
+func _draw_hover() -> void:
+	# The hovered part's box and range circle, over everything, read from the layout rather than the
+	# piece, so a part's pop does not drag the outline with it.
+	if layout == null or catalog == null or hover_path.is_empty():
 		return
 	var hovered: ChSlotNode = layout.get_node(hover_path)
 	var hdef: ChPartDef = catalog.part(hovered.part_id) if hovered != null else null
@@ -556,20 +645,21 @@ func _draw() -> void:
 	var centre := screen_of(hover_path)
 	if hdef.proximity_range > 0.0:
 		# The brief's proximity outline: the def's range in cells, scaled onto the chariot.
-		draw_circle(centre, hdef.proximity_range * ZOOM,
+		_hover.draw_circle(centre, hdef.proximity_range * ZOOM,
 			Color(HOVER_COLOR.r, HOVER_COLOR.g, HOVER_COLOR.b, 0.12), true)
-	draw_rect(_box_at(centre, hdef), HOVER_COLOR, true)
+	_hover.draw_rect(_box_at(centre, hdef), HOVER_COLOR, true)
 
 
-func _dashed_rect(rect: Rect2, color: Color) -> void:
-	# A free slot's marker: dashed so it reads as an empty socket rather than a part.
+func _dashed_rect(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
+	# A free slot's marker: dashed so it reads as an empty socket rather than a part. The canvas is
+	# the node the draw signal is on, because a draw command lands on the item it is called on.
 	var corners := [rect.position, Vector2(rect.end.x, rect.position.y), rect.end,
 		Vector2(rect.position.x, rect.end.y)]
 	for at in 4:
-		_dashed_line(corners[at], corners[(at + 1) % 4], color)
+		_dashed_line(canvas, corners[at], corners[(at + 1) % 4], color)
 
 
-func _dashed_line(from: Vector2, to: Vector2, color: Color) -> void:
+func _dashed_line(canvas: CanvasItem, from: Vector2, to: Vector2, color: Color) -> void:
 	var span := to - from
 	var length := span.length()
 	if length <= 0.0:
@@ -577,7 +667,7 @@ func _dashed_line(from: Vector2, to: Vector2, color: Color) -> void:
 	var step := span / length
 	var at := 0.0
 	while at < length:
-		draw_line(from + step * at, from + step * minf(at + DASH, length), color)
+		canvas.draw_line(from + step * at, from + step * minf(at + DASH, length), color)
 		at += DASH + GAP
 
 
