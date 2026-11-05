@@ -62,3 +62,18 @@ func test_scene_shape() -> void:
 		names.append(String(child.name))
 	assert_eq(names, ["Sky", "Mid", "Front"])
 	_complete()
+
+
+# Review finding: battle.tscn's own Camera2D is current while the arena streams, parked at (0,0) and
+# zoom 1 until the first fight tick snaps it onto the shot. Read as a real camera it threw the Front
+# ridge 132 texels sideways, and the layers jumped at the first tick. Before the fight is framed the
+# layers have to hold their rest pose.
+func test_unprimed_battle_camera_holds_rest() -> void:
+	var battle: Node2D = _track(ResourceLoader.load("res://game/battle/battle.tscn").instantiate())
+	Engine.get_main_loop().get_root().add_child(battle)
+	await Engine.get_main_loop().process_frame
+	var bg := battle.get_node("Background") as ChBackground
+	var mat := (bg.get_node("Front") as ColorRect).material as ShaderMaterial
+	assert_eq(mat.get_shader_parameter("pan"), bg.shifts[&"Front"], "front holds its rest pose")
+	assert_near(mat.get_shader_parameter("view_zoom"), ChBattle.ZOOM_WIDEST)
+	_complete()

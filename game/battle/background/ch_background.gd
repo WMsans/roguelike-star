@@ -30,14 +30,15 @@ static func art_uv(screen_uv: Vector2, screen_size: Vector2, zoom: float, camera
 func _process(_delta: float) -> void:
 	# Before the battle hands its camera over (the arena is still streaming) the layers hold the
 	# rest pose at the widest zoom, which is the frame the fight opens on.
-	# The zoom never goes below the fight's widest: before the battle primes its camera it sits at
-	# zoom 1, which would flash the art at a quarter size for the frames the arena takes to stream.
+	# battle.tscn's camera is current from the start but parked at (0,0), zoom 1, until the first
+	# fight tick frames the shot; read as a real view it would throw the ridges off and jump them at
+	# that tick. A framed fight never zooms out past ZOOM_WIDEST, so a wider camera is an unframed one.
 	var camera := get_viewport().get_camera_2d()
 	var pos: Vector2 = REST
 	var zoom: float = ChBattle.ZOOM_WIDEST
-	if camera != null:
+	if camera != null and camera.zoom.x >= ChBattle.ZOOM_WIDEST:
 		pos = camera.get_screen_center_position()
-		zoom = maxf(camera.zoom.x, ChBattle.ZOOM_WIDEST)
+		zoom = camera.zoom.x
 	var size := get_viewport().get_visible_rect().size
 	for layer_name in speeds:
 		var rect := get_node_or_null(NodePath(layer_name)) as ColorRect
