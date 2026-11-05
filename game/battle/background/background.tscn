@@ -8,22 +8,22 @@
 [ext_resource type="Texture2D" path="res://textures/background/bg2.png" id="6_bg2"]
 
 [sub_resource type="Gradient" id="Gradient_sky"]
-offsets = PackedFloat32Array(0, 0.55, 1)
-colors = PackedColorArray(0.3098, 0.7216, 1.0000, 1, 0.6235, 0.8863, 1.0000, 1, 1.0000, 0.8902, 0.6588, 1)
+offsets = PackedFloat32Array(0, 0.6, 1)
+colors = PackedColorArray(0.1804, 0.6078, 1.0000, 1, 0.5569, 0.8471, 1.0000, 1, 1.0000, 0.8784, 0.6039, 1)
 
 [sub_resource type="GradientTexture1D" id="Tex_sky"]
 gradient = SubResource("Gradient_sky")
 
 [sub_resource type="Gradient" id="Gradient_mid"]
 offsets = PackedFloat32Array(0, 1)
-colors = PackedColorArray(0.2431, 0.4353, 0.8471, 1, 0.6078, 0.7686, 1.0000, 1)
+colors = PackedColorArray(0.4314, 0.6078, 0.9490, 1, 0.7490, 0.8902, 1.0000, 1)
 
 [sub_resource type="GradientTexture1D" id="Tex_mid"]
 gradient = SubResource("Gradient_mid")
 
 [sub_resource type="Gradient" id="Gradient_front"]
-offsets = PackedFloat32Array(0, 1)
-colors = PackedColorArray(0.1843, 0.3098, 0.6588, 1, 0.4980, 0.8157, 1.0000, 1)
+offsets = PackedFloat32Array(0, 0.5, 1)
+colors = PackedColorArray(0.1647, 0.1843, 0.6275, 1, 0.3098, 0.4353, 0.9098, 1, 0.5608, 0.8941, 1.0000, 1)
 
 [sub_resource type="GradientTexture1D" id="Tex_front"]
 gradient = SubResource("Gradient_front")

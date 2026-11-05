@@ -10,6 +10,9 @@ const REST := Vector2(240, 90)  # the arena centre: every layer shows its art ce
 
 ## The fraction of camera travel each layer follows: 0 is pinned to the screen, 1 moves with the world.
 @export var speeds := {&"Sky": 0.02, &"Mid": 0.25, &"Front": 0.55}
+## A fixed art shift per layer, in texels: negative y lowers a ridge toward the horizon so the sky
+## stays open above it.
+@export var shifts := {&"Sky": Vector2.ZERO, &"Mid": Vector2(0, -25), &"Front": Vector2(0, -55)}
 
 
 static func pan_for(camera: Vector2, speed: float) -> Vector2:
@@ -43,4 +46,4 @@ func _process(_delta: float) -> void:
 		var mat := rect.material as ShaderMaterial
 		mat.set_shader_parameter("view_size", size)
 		mat.set_shader_parameter("view_zoom", zoom)
-		mat.set_shader_parameter("pan", pan_for(pos, speeds[layer_name]))
+		mat.set_shader_parameter("pan", pan_for(pos, speeds[layer_name]) + shifts.get(layer_name, Vector2.ZERO))

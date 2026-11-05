@@ -12,7 +12,7 @@ uniform sampler2D sky_gradient : filter_linear;
 uniform float mask_lo = 0.36;
 uniform float mask_hi = 0.49;
 uniform vec3 cloud_color : source_color = vec3(1.0, 0.98, 0.94);
-uniform float cloud_strength = 0.55;
+uniform float cloud_strength = 0.75;
 
 uniform vec3 sun_color : source_color = vec3(1.0, 0.92, 0.62);
 uniform vec2 sun_uv = vec2(0.78, 0.22);
