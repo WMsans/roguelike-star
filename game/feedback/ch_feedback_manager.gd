@@ -2,7 +2,9 @@ class_name ChFeedbackManager extends Node
 
 # The one entry point for a feedback beat: Feedback.play(&"struck", node, {amount = 12}).
 # Profiles are data (game/feedback/profiles/<kind>.tres); play() kicks the target's juice, pops
-# its text and bursts its particles. Screen shake is a later task and belongs here too.
+# its text, bursts its particles and shakes the battle's camera. Screen shake is the one beat the
+# manager cannot get from the target: the camera belongs to the fight, so ChBattle binds its own
+# noise emitter here while a fight runs.
 # Nothing here writes fight state: feedback reads the fight, it never changes it.
 
 const KINDS := [&"fired", &"landed", &"struck", &"caught_fire", &"frozen", &"thawed",
@@ -19,6 +21,10 @@ var rng := RandomNumberGenerator.new()
 # bursts world particles at its cell position instead of using screen-space CPU particles.
 var _world: PixelWorld
 var _scope: Node
+
+# The battle's shake emitter, bound by ChBattle while a fight runs. The live pcam reads the noise it
+# emits; the manager only starts it, so a beat can shake a scene that has no emitter (a menu) harmlessly.
+var _shake: PhantomCameraNoiseEmitter2D
 
 # shortcut: kinds are cached for the life of the autoload; a .tres edited while the game runs
 # needs a restart. Fine while these are tuning values.
@@ -59,12 +65,12 @@ func play(kind: StringName, target, overrides := {}) -> void:
 	# Kicking a target that has no Juice is a no-op: the Juice child belongs to whoever owns
 	# the node (buttons, battle visuals, the garage), never to feedback itself.
 	var juice := ChJuice.of(target)
-	if juice == null:
-		return
-	var rotation_kick := deg_to_rad(beat.rotation_kick_deg)
-	if rng.randf() < 0.5:
-		rotation_kick = -rotation_kick
-	juice.kick(beat.scale_kick, rotation_kick)
+	if juice != null:
+		var rotation_kick := deg_to_rad(beat.rotation_kick_deg)
+		if rng.randf() < 0.5:
+			rotation_kick = -rotation_kick
+		juice.kick(beat.scale_kick, rotation_kick)
+	_shake_camera(beat)
 
 
 func _pop_text(beat: ChFeedbackProfile, target, overrides: Dictionary) -> void:
@@ -77,6 +83,32 @@ func _pop_text(beat: ChFeedbackProfile, target, overrides: Dictionary) -> void:
 	if not target is CanvasItem or popups == null:
 		return
 	popups.pop(text, beat.text_color, target.get_global_transform_with_canvas().origin)
+
+
+func bind_shake(emitter: PhantomCameraNoiseEmitter2D) -> void:
+	_shake = emitter
+
+
+func unbind_shake() -> void:
+	_shake = null
+
+
+func _shake_camera(beat: ChFeedbackProfile) -> void:
+	# The profile's shake is its strength: 12 cells of amplitude at 1.0, held for 0.08 s plus a
+	# quarter second per unit, so a broken hull jolts hard and a fired weapon barely stirs the shot.
+	if beat.shake <= 0.0 or _shake == null or not is_instance_valid(_shake):
+		return
+	var noise := _shake.noise
+	if noise == null:
+		return
+	var amplitude := 12.0 * beat.shake
+	# Overlapping beats: a weaker shake must not cut a stronger one short, so while the emitter is
+	# running only a louder amplitude takes over.
+	if _shake.is_emitting() and amplitude <= noise.amplitude:
+		return
+	noise.amplitude = amplitude
+	_shake.duration = 0.08 + 0.25 * beat.shake
+	_shake.emit()
 
 
 func bind_world(world: PixelWorld, scope: Node) -> void:

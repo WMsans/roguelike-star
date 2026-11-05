@@ -11,7 +11,9 @@ class_name ChBattle extends Node2D
 # not the host's frame rate, which is what makes a 60 s fight deterministic.
 # HUD and camera follow the brief: the HUD (ChBattleHud, on ChUi's shared theme) shows both sides'
 # names and HP, the player's energy as pips and the parts waiting behind it; the camera frames the two
-# chariots; a marker sits on every part, and a 0.2 s pulse rings the part the player just fired.
+# chariots (the shot lives on the scene's PhantomCamera2D, `pcam`, which the Camera2D's host copies), a
+# marker sits on every part, and a 0.2 s pulse rings the part the player just fired. Feedback's screen
+# shake lands on the scene's own noise emitter while a fight runs.
 # There is no event feed and no hint line anywhere: the screen shows the fight, not a log of it.
 
 # &"win", &"loss" or &"draw" from the fight, &"aborted" if it could not start
@@ -37,6 +39,7 @@ var player: ChChariotRuntime = null  # side 0
 var enemy: ChChariotRuntime = null  # side 1
 var ai: ChEnemyAI = null  # the enemy's drive decision
 var camera: Camera2D = null
+var pcam: PhantomCamera2D = null  # the live shot: the host under $Camera drives it from here
 var hud: ChBattleHud = null  # the HUD itself, a Control under the $HUD CanvasLayer
 var marks: Node2D = null  # the per-part markers, drawn in the world layer
 var pulses: Array = []  # of {"part": ChPartRuntime, "left": seconds}
@@ -93,6 +96,7 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	pulses.clear()
 	outcome = &""
 	camera = $Camera
+	pcam = $PCam
 	_camera_primed = false
 	_build_hud()
 	# CONTRACT: every path that cannot run a fight emits `finished` with &"aborted" — the two fight
@@ -100,6 +104,11 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	if not await _build_world(seed):
 		finished.emit(&"aborted")
 		return
+	# Feedback reads this fight's world and shakes this fight's camera. The scope is this battle, not the
+	# world: the chariot bodies are its children and the HUD's CanvasLayer sits here too, which is the
+	# routing Task 5's particle path reads. _exit_tree unbinds both.
+	Feedback.bind_shake($Shake)
+	Feedback.bind_world(world, self)
 	var spawn: Dictionary = ChArenaBuilder.build(world, seed)
 	if not spawn.has("spawn_left") or not spawn.has("spawn_right") or not _arena_landed():
 		# fill_rect answers 0 cells for a grid that never loaded, so the counts are the arena's own
@@ -201,6 +210,16 @@ func _build_world(seed: int) -> bool:
 	return true
 
 
+func _exit_tree() -> void:
+	# The manager holds nodes from this fight (the world for particle routing, the emitter for shake);
+	# a battle that leaves the tree must not leave them bound. Both are children of this node and go
+	# with it, which is why the unbind is the whole cleanup. The world is also the marker that this
+	# fight bound them at all: a scene freed before start() must not unbind another fight's world.
+	if world != null:
+		Feedback.unbind_shake()
+		Feedback.unbind_world()
+
+
 func _arena_landed() -> bool:
 	# The fill's own evidence, per the arena builder's note: an unloaded grid answers 0 cells, so
 	# a fight that found no sand and no rock has nothing to stand on.
@@ -278,10 +297,11 @@ func _hud_tick(delta: float) -> void:
 
 
 func _camera_at() -> void:
-	# Midpoint of both chassis framed close: camera_frame composes the shot and the live camera
-	# eases toward it from the second tick on, so a chase glides between ticks instead of jumping. The
-	# first tick takes the shot outright: the scene's camera is at (0,0) zoom 1, and easing from it
-	# would open every fight on the whole pit, tiny, with world outside ARENA in frame.
+	# Midpoint of both chassis framed close: camera_frame composes the shot and the live shot (the pcam)
+	# eases toward it from the second tick on, so a chase glides between ticks instead of jumping; the
+	# Camera2D only follows the pcam through its host. The first tick takes the shot outright: the scene's
+	# pcam starts at (0,0) zoom 1, and easing from it would open every fight on the whole pit, tiny, with
+	# world outside ARENA in frame.
 	if not _alive(player) or not _alive(enemy):
 		# The frame a hull went missing: the camera keeps the last frame it could compose rather than
 		# reading a freed position.
@@ -293,17 +313,17 @@ func _camera_at() -> void:
 	pad += Vector2(CAMERA_MARGIN, CAMERA_MARGIN)
 	var want: Dictionary = camera_frame(player.chassis.global_position,
 		enemy.chassis.global_position, pad)
-	var step: Dictionary = camera_eased(camera.position, camera.zoom.x, want, _camera_primed)
+	var step: Dictionary = camera_eased(pcam.global_position, pcam.zoom.x, want, _camera_primed)
 	_camera_primed = true
-	camera.position = step["at"]
+	pcam.global_position = step["at"]
 	# One number, put back on both axes, so the frame never goes anamorphic.
 	var zoom := float(step["zoom"])
-	camera.zoom = Vector2(zoom, zoom)
+	pcam.zoom = Vector2(zoom, zoom)
 
 
 static func camera_eased(from_at: Vector2, from_zoom: float, want: Dictionary,
 		primed: bool) -> Dictionary:
-	# The first tick has no frame behind it: battle.tscn's camera sits at (0,0) zoom 1, so easing from
+	# The first tick has no frame behind it: battle.tscn's pcam sits at (0,0) zoom 1, so easing from
 	# there would open every fight on the whole pit, tiny and off-centre, for the ~15 ticks the glide
 	# takes to climb to its shot - and show world outside ARENA while it did. Primed, the fight opens
 	# on the shot; every tick after that eases CAMERA_EASE of the remaining gap.
