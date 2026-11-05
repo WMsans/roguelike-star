@@ -14,6 +14,10 @@ const JOIN_WAIT_FRAMES := 240
 # Plan Review Focus 4: two wide parts sharing a strut's two extension slots. See that test's note.
 const STRUT_FRAMES := 180  # frames the strut-pair rig is given to settle
 const STRUT_WINDOW := 30  # the frames the chassis rotation is measured over
+const STRUT_MOUNTS: Array = [
+	[[0], &"wheel"], [[1], &"wheel"], [[2], &"strut"],
+	[[2, 0], &"cutter_chainsaw"], [[2, 1], &"flamethrower"]]
+const STRUT_HINGED: Array = [[2], [2, 0], [2, 1]]  # that build's parts, the wheels excepted
 
 
 func _ground(world: PixelWorld) -> void:
@@ -257,20 +261,48 @@ func test_chariot_shares_one_group() -> void:
 	_complete()
 
 
+# Each hinged part of a strut-pair build and how far its body sits from the anchor its layout gives
+# it, as [[path, cells]]. A helper rather than a test: the runner's test methods take no arguments,
+# and a helper that awaited frames would never resume (see tests/run_tests.gd).
+func _hinged_drift(runtime: ChChariotRuntime, layout: ChChariotLayout, catalog: ChCatalog) -> Array:
+	var drift: Array = []
+	for mount in STRUT_HINGED:
+		var steps: Array[int] = _typed_path(mount)
+		var part := _part_of(runtime, steps)
+		assert_true(part != null, "the part at %s mounted" % [steps])
+		if part == null:
+			continue
+		drift.append([steps, part.body.global_position.distance_to(
+			runtime.chassis.global_position + layout.anchor_of(steps, catalog))])
+	return drift
+
+
 func test_strut_pair_holds_still() -> void:
 	# Plan Review Focus 4, with real sizes: the strut's two extension slots are 4 cells apart, so the
 	# 10x4 Chainsaw and the 8x4 Flamethrower bolted to them overlap each other by 5 cells, and both
 	# overlap the hull the strut stands on. In one collision group that overlap costs nothing: the rig
 	# still holds its shape and settles rather than shoving its own parts off the hull.
+	# The control is the same build at the far end of the arena with every body put back in group 0, the
+	# way it was before build() wrote side + 1: that rig has no group to hide its own overlaps, and it
+	# comes apart. Same world, same 180 ticks, so the only difference is the group.
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var catalog := ChCatalog.load_default()
-	var layout: ChChariotLayout = _mount(&"cutter", [
-		[[0], &"wheel"], [[1], &"wheel"], [[2], &"strut"],
-		[[2, 0], &"cutter_chainsaw"], [[2, 1], &"flamethrower"]])
+	var layout: ChChariotLayout = _mount(&"cutter", STRUT_MOUNTS)
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(
 		world, _parent(), layout, catalog, 0, ORIGIN, false)
 	assert_true(runtime != null, "the build returns a runtime")
+	var loose_layout: ChChariotLayout = _mount(&"cutter", STRUT_MOUNTS)
+	var loose: ChChariotRuntime = ChChariotBuilder.build(
+		world, _parent(), loose_layout, catalog, 0, ORIGIN + Vector2(200, 0), false)
+	assert_true(loose != null, "the control build returns a runtime")
+	var loose_bodies: Array = [loose.chassis]
+	for part in loose.parts:
+		loose_bodies.append(part.body)
+	for body in loose_bodies:
+		# The control: every body of this rig back in group 0, the value before build() wrote side + 1.
+		body.collision_group = 0
+		assert_eq(body.collision_group, 0, "the control rig's body is back in group 0")
 	# simulating off: the world ticks once per awaited frame of its own too, and how many physics
 	# frames land between two process frames is headless-frame-rate dependent. Stepping by hand makes
 	# these STRUT_FRAMES exactly that many Box2D ticks, which is what makes the numbers below stable.
@@ -281,27 +313,22 @@ func test_strut_pair_holds_still() -> void:
 		world.step(1)
 		rotations.append(runtime.chassis.global_rotation)
 	# A hinged part (the builder limits its hinge to one angle) that has moved off its layout anchor was
-	# pushed out of the build. Measured at rest: strut 0.71, Chainsaw 1.37, Flamethrower 1.21 cells. Run
-	# on this same rig, sizes kept and only the group left at 0, they read 2.09, 3.28 and 3.43: the two
-	# wide parts shove each other, the strut and the hull until the build comes apart.
-	for mount in [[2], [2, 0], [2, 1]]:
-		var steps: Array[int] = _typed_path(mount)
-		var part := _part_of(runtime, steps)
-		assert_true(part != null, "the part at %s mounted" % [steps])
-		if part == null:
-			continue
-		var want := runtime.chassis.global_position + layout.anchor_of(steps, catalog)
-		assert_true(part.body.global_position.distance_to(want) < 1.5,
-			"%s still sits %.2f cells from its layout anchor" % [steps,
-				part.body.global_position.distance_to(want)])
+	# pushed out of the build. Measured at rest, in one group: strut 0.71, Chainsaw 1.37, Flamethrower
+	# 1.21 cells. The control rig's same three read 2.09, 3.28 and 3.43 once the group is off, so what
+	# the window below measures is the collision group, not just the sizes.
+	for pair in _hinged_drift(runtime, layout, catalog):
+		assert_true(pair[1] < 1.5,
+			"%s still sits %.2f cells from its layout anchor" % [pair[0], pair[1]])
+	for pair in _hinged_drift(loose, loose_layout, catalog):
+		assert_true(pair[1] > 1.5,
+			"%s left its layout anchor by %.2f cells with its bodies in group 0" % [pair[0], pair[1]])
 	# The wheels are the exception that 1.5-cell rule cannot carry: PixelWheelJoint is a spring
 	# (WHEEL_FREQUENCY 5), so the distance from the layout anchor is the suspension compressing under the
 	# build's own weight, and a 12-cell disc on this body cannot even reach its own anchor. Measured at
-	# rest: 1.78 and 1.81 cells. With the group left at 0 the pair reads 2.60 and 1.71, uneven because the
-	# hull is grinding on its own parts, and before any part had a footprint the wheels travelled 2.86 and
-	# 1.56 — a wheel's travel was never inside 1.5 cells, whatever the build. What this pin keeps is the
-	# pair compressing together: a build that rolled, threw a wheel or dragged its hull on the rock moves
-	# them apart.
+	# rest: 1.78 and 1.81 cells, which is what the 2.5-cell window and the 0.2-cell pairing below pin. A
+	# wheel's travel has never been inside 1.5 cells, whatever the build. What the pairing keeps is both
+	# springs compressing together: a build that rolled, threw a wheel or dragged its hull on the rock
+	# moves them apart.
 	var wheel_path: Array[int] = _typed_path([0])
 	var wheel_other_path: Array[int] = _typed_path([1])
 	var wheel := _part_of(runtime, wheel_path)
@@ -316,7 +343,7 @@ func test_strut_pair_holds_still() -> void:
 		assert_true(pressed[0] < 2.5 and pressed[1] < 2.5,
 			"both wheels stay under 2.5 cells of suspension travel (%.2f, %.2f)" % [pressed[0], pressed[1]])
 		assert_near(pressed[0], pressed[1], 0.2, "and both springs compressed by the same amount")
-	# Measured over those last 30 frames: 0.0006 rad, the rig holding a static lean of -0.138 rad.
+	# Measured over those last 30 frames: 0.00007 rad, the rig holding a static lean of -0.138 rad.
 	assert_true(absf(rotations[STRUT_FRAMES - 1] - rotations[STRUT_FRAMES - STRUT_WINDOW]) < 0.2,
 		"the chassis turned %.3f rad over the last %d frames"
 		% [absf(rotations[STRUT_FRAMES - 1] - rotations[STRUT_FRAMES - STRUT_WINDOW]), STRUT_WINDOW])

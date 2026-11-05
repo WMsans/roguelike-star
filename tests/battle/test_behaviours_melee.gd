@@ -11,7 +11,7 @@ const GROUND_TOP := 160  # first rock row: the bottom 20 rows of ChTest's 480x18
 const ORIGIN := Vector2(120, 140)  # near the floor: a drop faster than this tunnels the bodies (Task 9)
 const IN_REACH := 12  # origins this far apart put the enemy's front part inside a 6-cell reach
 const APART := 20  # the brief's setup: origins this far apart, which a Mace now reaches (see the far pair)
-const OUT_OF_REACH := 34  # origins this far apart put the foe clear of a 6-cell-reach box that stops at x = 135.5
+const OUT_OF_REACH := 25  # the tightest miss this rig shows: the foe's nearest body starts 3 cells clear of the box's x = 135.5 edge
 const TICK := 1.0 / 60.0
 const MACE_TICKS := 62  # 1.03 s: ChChariotBuilder starts a part at def.cooldown, so a 1 s cooldown goes ready here
 const SAW_TICKS := 40  # 0.66 s: the saw's 0.5 s cooldown gets one fire, not a second
@@ -92,9 +92,13 @@ func _ground(world: PixelWorld) -> void:
 # along facing() and as tall as the part: 10.5 cells either side of the anchor at (125, 137), so the box
 # spans x 114.5 .. 135.5 and y 135 .. 139. In reach: origins 12 apart, so the foe's body (x 125.5 ..
 # 128.5, the 3x8 strut) and its chassis (x 127 .. 137) both overlap the box and the nearer body takes
-# the hit. Out of reach: 34 apart, where the foe's body starts at 147.5. The brief's 20 apart is no
-# longer the miss case: with the def 8 cells wide (it was 1 before Task 2) the box reaches to 135.5 and
-# the foe's chassis at 135 is inside it, which is the pair that used to land nothing.
+# the hit. Out of reach: 25 apart, where the foe's nearest body (its 3x8 strut, x 138.5 .. 141.5) starts
+# exactly 3 cells clear of that 135.5 edge, and its chassis (x 140 .. 150) further clear. 25 is the
+# tightest miss this rig can show, and that is the point: the box's half-extent measures 10.5 cells now,
+# and past 13.5 this pair lands a hit, so a reach or a part width that grows by more than 3 cells reddens
+# the miss case. The brief's 20 apart is no longer the miss case: with the def 8 cells wide (it was 1
+# before Task 2) the box reaches to 135.5 and the foe's chassis at 135 is inside it, which is the pair
+# that used to land nothing.
 func test_mace_hits_in_reach_only() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
@@ -120,9 +124,10 @@ func test_mace_hits_in_reach_only() -> void:
 	assert_true(hits[0] == foe_part, "on the foe's part, the nearest body in the box")
 	assert_eq(foe.hp, foe_hp - mace.def.damage, "an unfrozen target takes the plain damage")
 	assert_eq(foe_part.integrity, foe_part.def.integrity - 10, "and the part wore ChDamage's half damage")
-	# The same rigs 34 apart: the box stops at x = 135.5 while the foe's chassis starts at 149, so the
-	# fire lands nothing. The energy went to the fire either way, which ChBattleContext's own tests
-	# cover, so what this test pins is that a swing out of reach pays no HP and announces no HIT.
+	# The same rigs 25 apart: the box stops at x = 135.5 while the foe's strut starts at 138.5 and its
+	# chassis at 140, so the fire lands nothing. The energy went to the fire either way, which
+	# ChBattleContext's own tests cover, so what this test pins is that a swing out of reach pays no HP
+	# and announces no HIT.
 	var far_at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"ice_cream_mace"]]), catalog, 0, ORIGIN, false)
 	var far_foe: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[0], &"strut"]]), catalog, 1, ORIGIN + Vector2(OUT_OF_REACH, 0), false)
 	var far_mace := _part_of(far_at, [1])

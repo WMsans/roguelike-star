@@ -110,13 +110,11 @@ const FLAME_TICKS := 272  # 3.03 s to the first fire (def.cooldown 3.0) plus 1.5
 # Where they land is gravity's, so the speed that reaches the brief's 30 cells is this file's and the
 # behaviour's, measured together: at the behaviour's PARTICLE_SPEED the 1 s burst writes fire cells
 # past 30 cells out, which is what the peak and the catch below read back.
-# Task 2 re-measured how much room that pin has, same method as fix-wave item 7 (the rig gap varied,
-# reading the peak fire-cell count the target's own sample_rect sees): 12 cells at 20 apart, 12 at the
-# 30 this test pins, 9 at 34, 7 at 38 and 6 at 42, against ChPartRuntime's 3-cell threshold. So the jet
-# now reaches past the behaviour's own 40-cell reach and the brief's 30 sits inside it. The counts went
-# up with the part sizes because the burst now leaves the barrel clear of the part's own body: an 8-cell
-# wide flamethrower with NOZZLE 2 wrote its fire onto its own hull (peak 0 here, 3 cells at the muzzle),
-# which is the other half of why NOZZLE is 5.
+# What this test pins about the jet is the peak fire-cell count inside the target's own sample_rect, 30
+# cells down the barrel: it has to reach the 3 cells ChPartRuntime samples into `burning`. Measured in the
+# fix round: put the behaviour's NOZZLE back at 2.0, which sits inside this part's own 8-cell body, and
+# that same assert reads peak 0 and the burst never leaves the chariot. So the nozzle clearing the body it
+# is mounted on is pinned by an assert, not by prose.
 func test_flamethrower_sets_target_burning() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)

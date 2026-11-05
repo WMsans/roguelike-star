@@ -8,10 +8,10 @@ extends ChBehaviour
 # part's own 40-cell reach on both sides, which is how _reach_box keeps its box symmetric about the anchor.
 # shortcut: the burn lands where the particles fall, not where the reach box ends, so PARTICLE_SPEED is
 # the burn's own reach. Measured with the nozzle at a settled rig's height (6 cells above the rock floor):
-# a 1 s burst reaches ~8 cells out at 90 cells/s and the test reads back >= 3 fire cells in a target 28
+# a 1 s burst reaches ~8 cells out at 90 cells/s and the test reads back >= 3 fire cells in a target 30
 # cells out at 240 cells/s; the landing extent is stochastic, so the test's peak is the evidence, not a
-# radius. The nozzle sits clear of the part's own body (see NOZZLE); how far the burst actually carries
-# with the part sizes is measured in tests/battle/test_behaviours_fire.gd's gap sweep.
+# radius. That same peak is what pins the nozzle clearing the body it is mounted on (see NOZZLE): a nozzle
+# left inside the part's own 8-cell footprint reads back 0 fire cells at that target.
 
 const BURST_SECONDS := 1.0
 # shortcut: cells out from the anchor the flame leaves the barrel, fixed at 5 for this part's 8-cell
