@@ -77,3 +77,36 @@ func test_richer_text_label_loads() -> void:
 		await ml.process_frame
 	assert_true(label.get_parsed_text().contains("-12"))
 	_complete()
+
+
+func test_jump_effect_processes_on_godot_4_7() -> void:
+	var layer := CanvasLayer.new()
+	Engine.get_main_loop().get_root().add_child(_track(layer))
+	var label := RicherTextLabel.new()
+	layer.add_child(label)
+	label.bbcode = "[jump]-12[]"
+	var ml = Engine.get_main_loop()
+	for i in 2:
+		await ml.process_frame
+	var effect: RichTextEffect = load("res://addons/richtext2/text_effects/effects/rte_jump.gd").new()
+	# The addon's effects read their label from this meta as an instance id (richer_text_label.gd
+	# _install_effect), so the test hands it the same value the addon would.
+	effect.set_meta(&"rt", label.get_instance_id())
+	var text := label.get_parsed_text()
+	var index := text.find("-12")
+	assert_true(index >= 0, "the parsed text still holds -12")
+	var c := CharFXTransform.new()
+	c.range = Vector2i(index, index + 1)
+	c.env = {}
+	var moved := false
+	# A single elapsed_time can land exactly on a zero of the effect's sine, and _w_char/_last are
+	# per-instance state, so one effect takes every sample with its offset reset per call.
+	for elapsed in [0.0, 0.25, 0.5]:
+		c.elapsed_time = elapsed
+		c.offset = Vector2.ZERO
+		assert_true(effect._process_custom_fx(c), "jump processed the character at %s" % elapsed)
+		assert_true(is_finite(c.offset.x) and is_finite(c.offset.y), "offset is finite at %s" % elapsed)
+		if c.offset != Vector2.ZERO:
+			moved = true
+	assert_true(moved, "the jump displaced the character")
+	_complete()
