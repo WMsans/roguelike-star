@@ -47,6 +47,13 @@ struct PhysicsStats {
 	int bodies = 0, awake = 0, terrain_bodies = 0, shape_builds = 0;
 	// Cells this tick's stamp() skipped because another body already holds them: the first holder
 	// keeps the cell, so the other body's pixels are absent from the grid there.
+	// Measured once (garage-battle-ui final review): over the 28 cells two same-group 10x4 hulls
+	// share, a frame-boundary count_materials read - the read ChPartRuntime.sample_rect feeds -
+	// returns the 28 underlying sand cells unchanged on frame 1 and frame 30, and no wood at all.
+	// Nothing can mis-report the skip: stamp()/unstamp() wrap the whole tick (pixel_world.cpp:337-350)
+	// so no GDScript read ever runs over a stamped cell, and the in-tick readers see the first
+	// holder's pixel, which is a body cell with FLAG_BODY either way (particles.cpp:181,
+	// grid_query.cpp:31/108/137 and outline.cpp:76/85 skip those outright).
 	int stamp_contests = 0;
 	double physics_ms = 0, shape_ms = 0, stamp_ms = 0;
 };
