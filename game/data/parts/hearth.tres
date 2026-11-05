@@ -11,4 +11,5 @@ display_name = "Hearth"
 energy_cost = 2
 cooldown = 4.0
 damage = 45
+size = Vector2i(6, 6)
 color = Color(0.75, 0.3, 0.2, 1)

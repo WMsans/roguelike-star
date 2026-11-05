@@ -11,4 +11,5 @@ display_name = "Corsair Harpoon"
 energy_cost = 1
 cooldown = 5.0
 damage = 5
+size = Vector2i(10, 3)
 color = Color(0.4, 0.6, 0.8, 1)

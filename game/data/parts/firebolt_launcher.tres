@@ -12,4 +12,5 @@ energy_cost = 1
 cooldown = 2.0
 damage = 25
 charges = 5
+size = Vector2i(8, 4)
 color = Color(0.9, 0.5, 0.2, 1)

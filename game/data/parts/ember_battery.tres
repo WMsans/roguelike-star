@@ -12,4 +12,5 @@ hook_text = "When anything catches fire, gain energy"
 energy_cost = 0
 cooldown = 0.0
 damage = 0
+size = Vector2i(5, 5)
 color = Color(0.95, 0.6, 0.25, 1)

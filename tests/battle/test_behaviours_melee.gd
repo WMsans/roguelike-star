@@ -10,7 +10,8 @@ extends ChTest
 const GROUND_TOP := 160  # first rock row: the bottom 20 rows of ChTest's 480x180 arena
 const ORIGIN := Vector2(120, 140)  # near the floor: a drop faster than this tunnels the bodies (Task 9)
 const IN_REACH := 12  # origins this far apart put the enemy's front part inside a 6-cell reach
-const APART := 20  # the brief's setup: a 6-cell mace cannot reach across this gap
+const APART := 20  # the brief's setup: origins this far apart, which a Mace now reaches (see the far pair)
+const OUT_OF_REACH := 34  # origins this far apart put the foe clear of a 6-cell-reach box that stops at x = 135.5
 const TICK := 1.0 / 60.0
 const MACE_TICKS := 62  # 1.03 s: ChChariotBuilder starts a part at def.cooldown, so a 1 s cooldown goes ready here
 const SAW_TICKS := 40  # 0.66 s: the saw's 0.5 s cooldown gets one fire, not a second
@@ -87,10 +88,13 @@ func _battle(world: PixelWorld, catalog: ChCatalog, rigs: Array[ChChariotRuntime
 func _ground(world: PixelWorld) -> void:
 	assert_eq(world.fill_rect(Rect2i(0, GROUND_TOP, 480, 20), &"rock"), 480 * 20, "rock floor laid")
 
-# The mace's reach box is the def's proximity_range (6 cells) x the part's height, out along facing()
-# from the part's edge. In reach: origins 12 apart, so the foe's body (x 136.5 .. 137.5) and its
-# chassis (x 127 .. 137) both overlap the box and the nearer body takes the hit. Out of reach: the
-# brief's 20 apart, where the box stops at x = 131.5 and nothing of the foe reaches it.
+# The mace's reach box is its def's proximity_range (6 cells) plus half the part's own 8-cell body, out
+# along facing() and as tall as the part: 10.5 cells either side of the anchor at (125, 137), so the box
+# spans x 114.5 .. 135.5 and y 135 .. 139. In reach: origins 12 apart, so the foe's body (x 125.5 ..
+# 128.5, the 3x8 strut) and its chassis (x 127 .. 137) both overlap the box and the nearer body takes
+# the hit. Out of reach: 34 apart, where the foe's body starts at 147.5. The brief's 20 apart is no
+# longer the miss case: with the def 8 cells wide (it was 1 before Task 2) the box reaches to 135.5 and
+# the foe's chassis at 135 is inside it, which is the pair that used to land nothing.
 func test_mace_hits_in_reach_only() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
@@ -116,11 +120,11 @@ func test_mace_hits_in_reach_only() -> void:
 	assert_true(hits[0] == foe_part, "on the foe's part, the nearest body in the box")
 	assert_eq(foe.hp, foe_hp - mace.def.damage, "an unfrozen target takes the plain damage")
 	assert_eq(foe_part.integrity, foe_part.def.integrity - 10, "and the part wore ChDamage's half damage")
-	# The same rigs 20 apart: the box stops at x = 131.5 while the foe's chassis starts at 135, so the
+	# The same rigs 34 apart: the box stops at x = 135.5 while the foe's chassis starts at 149, so the
 	# fire lands nothing. The energy went to the fire either way, which ChBattleContext's own tests
 	# cover, so what this test pins is that a swing out of reach pays no HP and announces no HIT.
 	var far_at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"ice_cream_mace"]]), catalog, 0, ORIGIN, false)
-	var far_foe: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[0], &"strut"]]), catalog, 1, ORIGIN + Vector2(APART, 0), false)
+	var far_foe: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[0], &"strut"]]), catalog, 1, ORIGIN + Vector2(OUT_OF_REACH, 0), false)
 	var far_mace := _part_of(far_at, [1])
 	var far_foe_part := _part_of(far_foe, [0])
 	assert_true(far_mace != null and far_foe_part != null, "the out-of-reach pair mounted")
@@ -339,8 +343,9 @@ func test_chainsaw_sparks_emit_cells_cut() -> void:
 	var saw := _part_of(at, [1])
 	var foe_part := _part_of(foe, [0])
 	assert_true(saw != null and foe_part != null and saw.behaviour != null, "the saw and the foe mounted, saw behaving")
-	# The saw sits at x = 125 and reaches 14 cells, so its box ends at x = 139.5 while the foe's body
-	# spans 134.5 .. 135.5: 20 cells apart, the Chainsaw cuts where a 6-cell Mace cannot.
+	# The saw sits at x = 125, and its box (14-cell reach plus half of its own 10-cell body) ends at
+	# x = 144.5 while the foe's strut body spans 133.5 .. 136.5: the Chainsaw cuts 9 cells past where
+	# the Mace's box stops.
 	var ctx: ChBattleContext = _battle(world, catalog, [at, foe])
 	var cut: Array[ChEvent] = []
 	var sink := cut
@@ -357,8 +362,9 @@ func test_chainsaw_sparks_emit_cells_cut() -> void:
 	var foe2: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([]), catalog, 1, ORIGIN + Vector2(60, 0), false)
 	var saw2 := _part_of(at2, [1])
 	assert_true(saw2 != null and foe2 != null, "the second pair built")
-	# Rock packed around the tip (x = 139 at the saw's 14-cell reach) so the cut has ground to bite.
-	world.fill_rect(Rect2i(135, 133, 10, 8), &"rock")
+	# Rock packed around the tip (x = 144 at the saw's 14-cell reach plus half its own body) so the cut
+	# has ground to bite.
+	world.fill_rect(Rect2i(140, 133, 10, 8), &"rock")
 	var ctx2: ChBattleContext = _battle(world, catalog, [at2, foe2])
 	var cut2: Array[ChEvent] = []
 	var sink2 := cut2
@@ -368,5 +374,5 @@ func test_chainsaw_sparks_emit_cells_cut() -> void:
 	assert_eq(cut2.size(), 1, "the terrain cut still announced CELLS_CUT")
 	assert_eq(cut2[0].data["sparks"], 4, "with the same sparks")
 	assert_eq(foe2.hp, 100, "no enemy body was in reach, so no HP went")
-	assert_true(world.get_material_at(Vector2i(139, 137)) != &"rock", "the dig opened the tip cell")
+	assert_true(world.get_material_at(Vector2i(144, 137)) != &"rock", "the dig opened the tip cell")
 	_complete()

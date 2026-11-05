@@ -22,7 +22,11 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 	runtime.body_def = body_def
 	runtime.hp = body_def.hp
 	runtime.energy = ChEnergy.new(body_def.energy_cap, body_def.energy_regen)
-	runtime.chassis = _body(parent, world, ChTextures.box(body_def.size.x, body_def.size.y, body_def.color), _material(body_def.material), body_def.size, origin, PixelRigidBody.SHAPE_HULL)
+	# One collision group per chariot (Task 1): two bodies with an equal non-zero group never collide,
+	# so a part that overlaps its own hull or another part costs nothing, while terrain, projectiles
+	# and the other chariot (whose group is side + 1 too) still hit every body here.
+	var group := side + 1
+	runtime.chassis = _body(parent, world, ChTextures.box(body_def.size.x, body_def.size.y, body_def.color), _material(body_def.material), body_def.size, origin, PixelRigidBody.SHAPE_HULL, group)
 	# all_paths is depth-first, parent before child, so a joint always names a body already mounted.
 	var mounted: Dictionary = {}  # layout path -> the part runtime built there
 	for path in layout.all_paths():
@@ -52,7 +56,7 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		var wheel := def.id == WHEEL_ID
 		# A wheel is a disc so Box2D joins a circle it can roll; everything else is a box hull.
 		var texture := ChTextures.disc(def.size.x, def.color) if wheel else ChTextures.box(def.size.x, def.size.y, def.color)
-		var body := _body(parent, world, texture, _material(def.material), def.size, at, PixelRigidBody.SHAPE_CIRCLE if wheel else PixelRigidBody.SHAPE_HULL)
+		var body := _body(parent, world, texture, _material(def.material), def.size, at, PixelRigidBody.SHAPE_CIRCLE if wheel else PixelRigidBody.SHAPE_HULL, group)
 		if wheel:
 			body.friction = WHEEL_FRICTION
 		var other_body: PixelRigidBody = holder.body if holder != null else runtime.chassis
@@ -91,11 +95,15 @@ static func _material(def_material: StringName) -> StringName:
 	return def_material
 
 
-static func _body(parent: Node, world: PixelWorld, texture: Texture2D, material: StringName, size: Vector2i, at: Vector2, shape: int) -> PixelRigidBody:
+static func _body(parent: Node, world: PixelWorld, texture: Texture2D, material: StringName, size: Vector2i, at: Vector2, shape: int, group: int) -> PixelRigidBody:
 	var body := PixelRigidBody.new()
 	body.texture = texture
 	body.pixel_material = material
 	body.shape = shape
+	# Set before add_child, the way terrain_collision is: the setter calls apply_props(), and a body
+	# joins the world on its first physics tick once it is in the tree, so the group is already on
+	# the shape when Box2D first filters it.
+	body.collision_group = group
 	# body_size is not the joined shape, which comes from the texture's pixels: it is the footprint
 	# ChPartRuntime sample_rect reads back through get_body_size.
 	body.body_size = size

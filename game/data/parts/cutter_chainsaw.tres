@@ -13,4 +13,5 @@ energy_cost = 2
 cooldown = 0.5
 damage = 20
 proximity_range = 14.0
+size = Vector2i(10, 4)
 color = Color(0.6, 0.62, 0.66, 1)

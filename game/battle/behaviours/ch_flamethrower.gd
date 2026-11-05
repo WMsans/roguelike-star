@@ -10,10 +10,14 @@ extends ChBehaviour
 # the burn's own reach. Measured with the nozzle at a settled rig's height (6 cells above the rock floor):
 # a 1 s burst reaches ~8 cells out at 90 cells/s and the test reads back >= 3 fire cells in a target 28
 # cells out at 240 cells/s; the landing extent is stochastic, so the test's peak is the evidence, not a
-# radius. Upgrade to a raised nozzle or an aimed shot if the burn has to reach the full 40-cell reach.
+# radius. The nozzle sits clear of the part's own body (see NOZZLE); how far the burst actually carries
+# with the part sizes is measured in tests/battle/test_behaviours_fire.gd's gap sweep.
 
 const BURST_SECONDS := 1.0
-const NOZZLE := 2.0  # cells out from the anchor the flame leaves the barrel
+# shortcut: cells out from the anchor the flame leaves the barrel, fixed at 5 for this part's 8-cell
+# body (half its width is 4): the burst has to clear its own body or it lands on the flamethrower
+# itself instead of down the arena. Derive it from def.size.x if part sizes start moving again.
+const NOZZLE := 5.0
 const PARTICLE_SPEED := 240.0  # cells per second out of the nozzle
 const PARTICLES_PER_TICK := 3
 const PARTICLE_SPREAD := 0.25  # radians, the cone the shot fans over
