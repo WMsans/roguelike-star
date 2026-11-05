@@ -64,6 +64,73 @@ func assert_near(a: float, b: float, eps := 0.001, msg := "") -> void:
 		_record("assert_near: %s and %s differ by more than %s" % [a, b, eps], msg)
 
 
+# --- Fight fixtures -------------------------------------------------------------------------------
+# test_battle.gd and test_battle_hud.gd both drive fights on the same two builds, so the builds live
+# here once. A second copy is not a style problem: _body_with_hp encodes how a Resource's duplicate()
+# behaves on this build, and a copy that got that wrong would fail as a mystery HP override in an
+# unrelated fight test rather than at the copy site.
+func _typed_path(path) -> Array[int]:
+	var steps: Array[int] = []
+	for index in path:
+		steps.append(index)
+	return steps
+
+
+func _player_layout() -> ChChariotLayout:
+	# The brief's "player Cutter + Rocket": two wheels in the Cutter's low slots (y = 3) and the
+	# Rocket in slot 3 (6, -3), unflipped so it fires +x, which is the way the player faces.
+	var layout := ChChariotLayout.new()
+	layout.body_id = &"cutter"
+	for mount in [[[0], &"wheel"], [[1], &"wheel"], [[3], &"cutter_rocket"]]:
+		assert_true(layout.place(_typed_path(mount[0]), mount[1]), "%s mounts" % [_typed_path(mount[0])])
+	return layout
+
+
+func _enemy_layout() -> ChChariotLayout:
+	# The fixed enemy of spec 5.9, as data: game/data/enemies/dozer_cook.tres. ChBattle mirrors it
+	# (mirrored() plus the builder's mirror_x) so its parts face the player.
+	var layout: ChChariotLayout = ResourceLoader.load("res://game/data/enemies/dozer_cook.tres")
+	assert_true(layout != null, "the dozer_cook layout loads")
+	return layout
+
+
+func _body_with_hp(loaded: ChBodyDef, hp: int) -> ChBodyDef:
+	# A body def with its HP replaced. ChBodyDef.duplicate() drops a script resource's own properties
+	# on this build (verified: the copy answers an empty id and 0 HP), so the fields the builder reads
+	# are written across one by one rather than guessed at.
+	var copy := ChBodyDef.new()
+	copy.id = loaded.id
+	copy.display_name = loaded.display_name
+	copy.hp = hp
+	copy.energy_cap = loaded.energy_cap
+	copy.energy_regen = loaded.energy_regen
+	copy.size = loaded.size
+	copy.color = loaded.color
+	copy.slots = loaded.slots
+	copy.material = loaded.material
+	return copy
+
+
+func _fight_catalog(enemy_hp: int, player_hp: int = 0) -> ChCatalog:
+	# The slice's defs with the Dozer's HP overridden to 30, so one Rocket hit ends the enemy; pass
+	# player_hp to raise the player's Cutter too, which is how a fight nobody dies in is forced.
+	# shortcut: the override travels as a catalog because a def on disk is shared by every test in
+	# the run; mutating it would make a later test's Dozer fragile.
+	var loaded := ChCatalog.load_default()
+	var parts: Array[ChPartDef] = []
+	for def in loaded.parts.values():
+		parts.append(def)
+	var bodies: Array[ChBodyDef] = []
+	for def in loaded.bodies.values():
+		if def.id == &"dozer":
+			bodies.append(_body_with_hp(def, enemy_hp))
+		elif player_hp > 0 and def.id == &"cutter":
+			bodies.append(_body_with_hp(def, player_hp))
+		else:
+			bodies.append(def)
+	return ChCatalog.from_defs(parts, bodies)
+
+
 func make_world(arena := Rect2i(0, 0, 480, 180)) -> PixelWorld:
 	# Kept untyped: with a `: SceneTree` annotation the frame wait below never resumes (the
 	# coroutine stops at the await), so look these up dynamically.

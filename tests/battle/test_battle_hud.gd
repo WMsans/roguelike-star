@@ -75,59 +75,10 @@ func test_hud_waiting_hidden_when_empty() -> void:
 # (part_fired, hit, caught_fire, ...) scrolling in the corner. This starts the shipped scene for real
 # and spends the fight, then reads every Label the HUD holds: none may name an event. The fight's own
 # bus is counted as well, so the test cannot pass by the fight never having had an event to show.
-# The fixtures below are test_battle.gd's shape, cut to this one fight: the brief's kit, the Dozer
+# The fixtures it starts with are ChTest's, shared with test_battle.gd: the brief's kit, the Dozer
 # with its HP overridden so one Rocket hit ends it, and the same three-field catalog override.
 const FIGHT_FRAMES := 4000  # start()'s 3600-tick budget plus the frames the arena takes to stream
 const DOZER_HP := 30
-
-
-func _player_layout() -> ChChariotLayout:
-	# The brief's player build: two wheels in the Cutter's low slots and the Rocket in slot 3 (6, -3),
-	# unflipped so it fires +x, which is the way the player faces.
-	var layout := ChChariotLayout.new()
-	layout.body_id = &"cutter"
-	for mount in [[[0], &"wheel"], [[1], &"wheel"], [[3], &"cutter_rocket"]]:
-		var path: Array[int] = []
-		for index in mount[0]:
-			path.append(index)
-		assert_true(layout.place(path, mount[1]), "%s mounts" % [path])
-	return layout
-
-
-func _enemy_layout() -> ChChariotLayout:
-	# The fixed enemy of spec 5.9, as data; ChBattle mirrors it so its parts face the player.
-	var layout: ChChariotLayout = ResourceLoader.load("res://game/data/enemies/dozer_cook.tres")
-	assert_true(layout != null, "the dozer_cook layout loads")
-	return layout
-
-
-func _with_hp(loaded: ChBodyDef, hp: int) -> ChBodyDef:
-	# A copy with its HP replaced. ChBodyDef.duplicate() drops a script resource's own properties on
-	# this build (test_battle.gd's note), so the fields the builder reads are written across one by one.
-	var copy := ChBodyDef.new()
-	copy.id = loaded.id
-	copy.display_name = loaded.display_name
-	copy.hp = hp
-	copy.energy_cap = loaded.energy_cap
-	copy.energy_regen = loaded.energy_regen
-	copy.size = loaded.size
-	copy.color = loaded.color
-	copy.slots = loaded.slots
-	copy.material = loaded.material
-	return copy
-
-
-func _catalog(dozer_hp: int) -> ChCatalog:
-	# The slice's defs with the Dozer's HP overridden. The override travels as a catalog because a def
-	# on disk is shared by every test in the run (test_battle.gd's reason).
-	var loaded := ChCatalog.load_default()
-	var parts: Array[ChPartDef] = []
-	for def in loaded.parts.values():
-		parts.append(def)
-	var bodies: Array[ChBodyDef] = []
-	for def in loaded.bodies.values():
-		bodies.append(_with_hp(def, dozer_hp) if def.id == &"dozer" else def)
-	return ChCatalog.from_defs(parts, bodies)
 
 
 func test_battle_has_no_ticker() -> void:
@@ -135,7 +86,7 @@ func test_battle_has_no_ticker() -> void:
 	assert_true(scene != null, "battle.tscn loads")
 	var battle: Node2D = scene.instantiate()
 	Engine.get_main_loop().get_root().add_child(battle)
-	battle.start(_player_layout(), _enemy_layout(), _catalog(DOZER_HP), 12345)
+	battle.start(_player_layout(), _enemy_layout(), _fight_catalog(DOZER_HP), 12345)
 	# start() builds the HUD before its arena streams, so the HUD exists from the first tick on; the
 	# bus is read from ctx, which is the resume that ran tick 1, so the subscription sees everything
 	# after it.

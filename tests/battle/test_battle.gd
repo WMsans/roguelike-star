@@ -17,68 +17,6 @@ const ENEMY_HP := 30  # the Dozer's HP overridden
 const TALL_HP := 100000  # a hull no fight ends: enough HP that only the time limit can decide
 
 
-func _typed_path(path) -> Array[int]:
-	var steps: Array[int] = []
-	for index in path:
-		steps.append(index)
-	return steps
-
-
-func _player_layout() -> ChChariotLayout:
-	# The brief's "player Cutter + Rocket": two wheels in the Cutter's low slots (y = 3) and the
-	# Rocket in slot 3 (6, -3), unflipped so it fires +x, which is the way the player faces.
-	var layout := ChChariotLayout.new()
-	layout.body_id = &"cutter"
-	for mount in [[[0], &"wheel"], [[1], &"wheel"], [[3], &"cutter_rocket"]]:
-		assert_true(layout.place(_typed_path(mount[0]), mount[1]), "%s mounts" % [_typed_path(mount[0])])
-	return layout
-
-
-func _enemy_layout() -> ChChariotLayout:
-	# The fixed enemy of spec 5.9, as data: game/data/enemies/dozer_cook.tres. ChBattle mirrors it
-	# (mirrored() plus the builder's mirror_x) so its parts face the player.
-	var layout: ChChariotLayout = ResourceLoader.load("res://game/data/enemies/dozer_cook.tres")
-	assert_true(layout != null, "the dozer_cook layout loads")
-	return layout
-
-
-func _body_with_hp(loaded: ChBodyDef, hp: int) -> ChBodyDef:
-	# A body def with its HP replaced. ChBodyDef.duplicate() drops a script resource's own properties
-	# on this build (verified: the copy answers an empty id and 0 HP), so the fields the builder reads
-	# are written across one by one rather than guessed at.
-	var copy := ChBodyDef.new()
-	copy.id = loaded.id
-	copy.display_name = loaded.display_name
-	copy.hp = hp
-	copy.energy_cap = loaded.energy_cap
-	copy.energy_regen = loaded.energy_regen
-	copy.size = loaded.size
-	copy.color = loaded.color
-	copy.slots = loaded.slots
-	copy.material = loaded.material
-	return copy
-
-
-func _catalog(enemy_hp: int, player_hp: int = 0) -> ChCatalog:
-	# The slice's defs with the Dozer's HP overridden to 30, so one Rocket hit ends the enemy; pass
-	# player_hp to raise the player's Cutter too, which is how a fight nobody dies in is forced.
-	# shortcut: the override travels as a catalog because a def on disk is shared by every test in
-	# the run; mutating it would make a later test's Dozer fragile.
-	var loaded := ChCatalog.load_default()
-	var parts: Array[ChPartDef] = []
-	for def in loaded.parts.values():
-		parts.append(def)
-	var bodies: Array[ChBodyDef] = []
-	for def in loaded.bodies.values():
-		if def.id == &"dozer":
-			bodies.append(_body_with_hp(def, enemy_hp))
-		elif player_hp > 0 and def.id == &"cutter":
-			bodies.append(_body_with_hp(def, player_hp))
-		else:
-			bodies.append(def)
-	return ChCatalog.from_defs(parts, bodies)
-
-
 # The seam every fight test uses: connect to finished, start the fight, then let frames run.
 # Returns whatever `finished` announced, in order, so "emitted once" is a size check.
 func _fight(battle: Node2D, player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
@@ -250,7 +188,7 @@ func test_camera_first_tick_is_the_shot() -> void:
 # contract is one fight per scene, so no test can reach a second start() to see the reset work.)
 func test_camera_first_tick_is_the_shot_in_a_real_fight() -> void:
 	var battle := _battle_scene()
-	_start_fight(battle, _player_layout(), _enemy_layout(), _catalog(ENEMY_HP))
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP))
 	assert_true(battle.camera.zoom.x >= ChBattle.ZOOM_WIDEST,
 		"the live camera's first frame is the shot (zoom %.2f, widest %s)"
 			% [battle.camera.zoom.x, ChBattle.ZOOM_WIDEST])
@@ -278,7 +216,7 @@ func test_camera_first_tick_is_the_shot_in_a_real_fight() -> void:
 
 func test_battle_finishes() -> void:
 	var battle := _battle_scene()
-	var results := await _fight(battle, _player_layout(), _enemy_layout(), _catalog(ENEMY_HP), 12345)
+	var results := await _fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP), 12345)
 	assert_eq(results.size(), 1, "the fight announced exactly one result")
 	assert_eq(results, [&"win"], "the fight ended with a win inside the 60 s ceiling")
 	# The markers have to sit on the parts at whatever zoom/pan the camera ends at, so they live under
@@ -327,7 +265,7 @@ func test_aborted_battle_still_ends() -> void:
 # clock stays short of the budget, so the ticks past the end that used to run are gone.
 func test_fight_stops_at_result() -> void:
 	var battle := _battle_scene()
-	var results := await _fight(battle, _player_layout(), _enemy_layout(), _catalog(ENEMY_HP), 12345)
+	var results := await _fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP), 12345)
 	assert_eq(results.size(), 1, "the fight announced exactly one result")
 	assert_eq(results, [&"win"], "the win, once, and no second result behind it")
 	assert_true(not battle.ticking, "the tick loop stopped at the result")
@@ -343,7 +281,7 @@ func test_fight_stops_at_result() -> void:
 func test_timeout_is_draw() -> void:
 	var battle := _battle_scene()
 	var results := await _fight(battle, _player_layout(), _enemy_layout(),
-		_catalog(TALL_HP, TALL_HP), 12345)
+		_fight_catalog(TALL_HP, TALL_HP), 12345)
 	assert_eq(results.size(), 1, "the fight that ran out its time announced exactly one result")
 	assert_eq(results, [&"draw"], "the time limit reads as a draw, not a win or a loss")
 	assert_near(battle.ctx.time, FIGHT_SECONDS, TICK, "and it spent its whole tick budget first")
@@ -361,7 +299,7 @@ func test_finished_after_ticking_stops() -> void:
 	var sink := at_emit
 	battle.finished.connect(func(result: StringName): sink.append(
 		{"result": result, "ticking": battle.ticking, "simulating": battle.world.simulating}))
-	await battle.start(_player_layout(), _enemy_layout(), _catalog(ENEMY_HP), 12345)
+	await battle.start(_player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP), 12345)
 	assert_eq(at_emit.size(), 1, "one finished across the fight")
 	assert_eq(at_emit[0]["result"], &"win", "naming the win")
 	assert_true(not bool(at_emit[0]["ticking"]), "ticking was already false when the handler ran")
