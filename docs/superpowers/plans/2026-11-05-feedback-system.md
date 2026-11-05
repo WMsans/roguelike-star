@@ -235,7 +235,7 @@ Starting profile values (designer's starting point; tune by play):
   - `hit` → `landed` on `source.visual`; `struck` with `{"amount": data.hp_damage}` on `data.target_part.visual`, or on `ctx.enemy_of(source).chassis_visual` when `target_part` is null; plus `nudge` on the struck side's HP bar (`player_bar` for side 0, `enemy_bar` for side 1; bars get `ChJuice.attach` in `_init`)
   - `caught_fire` / `frozen` / `thawed` → same-named kind on `source.visual`
   - `part_broken` → `broken` on `source.visual` with `{"color": source.def.color}`
-  - `energy_gained` → `energy` on `source.visual` with `{"amount": int(event.data.get("amount", ChEmberBattery.GAIN))}` (the Ember Battery, the only emitter today, sends no payload)
+  - `energy_gained` → `energy` on `source.visual` with `{"amount": int(event.data.get("amount", 3))}` (the Ember Battery, the only emitter today, sends no payload; 3 is its `GAIN` in `ch_ember_battery.gd`, which has no `class_name` to read it from)
   - a source/target with no live visual is skipped silently.
 
 - [ ] **Step 1: Write the failing tests** (build two real chariots with the existing builder helpers; drive `on_event` with hand-made `ChEvent`s):
