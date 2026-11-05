@@ -6,7 +6,7 @@ render_mode unshaded;
 #include "res://game/battle/background/bg_common.gdshaderinc"
 
 uniform sampler2D layer_tex : repeat_enable, filter_nearest;
-uniform sampler2D grade : filter_linear;
+uniform sampler2D grade : source_color, filter_linear;
 uniform float grade_gain = 4.0;
 uniform float opacity = 1.0;
 

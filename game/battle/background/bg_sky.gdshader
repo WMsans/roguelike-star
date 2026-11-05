@@ -6,7 +6,7 @@ render_mode unshaded;
 #include "res://game/battle/background/bg_common.gdshaderinc"
 
 uniform sampler2D cloud_tex : repeat_enable, filter_nearest;
-uniform sampler2D sky_gradient : filter_linear;
+uniform sampler2D sky_gradient : source_color, filter_linear;
 
 // bg0's palette spans luma ~0.36-0.49; mask_lo/hi stretch that span to 0..1.
 uniform float mask_lo = 0.36;
