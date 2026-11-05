@@ -28,9 +28,9 @@ var _pips_row: HBoxContainer = null  # where energy_pips are made
 
 func _init() -> void:
 	theme = ChUi.theme()
-	# The HUD fills the viewport and holds nothing clickable, and it sits on a CanvasLayer above every
-	# Control the game puts on the fight - so it must not swallow a press aimed at one of them (Task 6's
-	# result panel). MOUSE_FILTER_STOP, Godot's default for a Control, would.
+	# The HUD fills the viewport and holds nothing clickable, so it takes no presses: a press aimed at
+	# anything drawn under it is none of the HUD's business, and MOUSE_FILTER_STOP (Godot's default for
+	# a Control) would swallow it. The result panel is on a higher CanvasLayer, so it was never at risk.
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# The two blocks sit in one full-width row with an expanding spacer between them, so the enemy's
 	# block lands against the right edge without this node doing the arithmetic.

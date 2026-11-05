@@ -348,6 +348,7 @@ func test_back_twice_one_garage() -> void:
 	var back: Button = main.result_panel.back
 	var fought := main.battle
 	back.pressed.emit()
+	assert_true(main.result_panel == null, "the first press let the panel reference go")
 	var first_garage := main.garage.get_instance_id()
 	back.pressed.emit()
 	assert_eq(main.screen, &"garage", "the presses left the loop on the garage")
@@ -360,5 +361,10 @@ func test_back_twice_one_garage() -> void:
 	assert_eq(garages, 1, "and exactly one garage is a child of main")
 	assert_true(main.battle == null and not is_instance_valid(fought),
 		"while the fight was released once")
+	# queue_free is deferred, so the press leaves the panel in the tree for this frame; the next one
+	# proves it really left rather than being dropped from the reference alone.
+	await Engine.get_main_loop().process_frame
+	assert_eq(main.find_children("*", "ChResultPanel", true, false).size(), 0,
+		"and the panel itself left the tree, not just the reference to it")
 	main.free()
 	_complete()
