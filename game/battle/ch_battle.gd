@@ -45,6 +45,7 @@ var ticker_text: Array[String] = []  # the ticker's lines, oldest first
 var pulses: Array = []  # of {"part": ChPartRuntime, "left": seconds}
 var hud_listener: RefCounted = null  # the key the HUD's subscriptions unsubscribe under
 var outcome := &""  # what this fight decided, once _step names it; "" while neither hull is dead
+var _camera_primed := false  # the live camera has been put on a composed frame at least once
 var started := false  # read-only: start() has passed its arena build and may still be ticking
 var ticking := false  # read-only: start()'s tick loop is running now (see the contract below)
 
@@ -127,6 +128,7 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	pulses.clear()
 	outcome = &""
 	camera = $Camera
+	_camera_primed = false
 	_build_hud()
 	# CONTRACT: every path that cannot run a fight emits `finished` with &"aborted" — the two fight
 	# results stay &"win"/&"loss" — so a caller awaiting the signal never hangs on a broken arena.
@@ -341,7 +343,9 @@ func _pips(count: int) -> void:
 
 func _camera_at() -> void:
 	# Midpoint of both chassis framed close: camera_frame composes the shot and the live camera
-	# eases toward it, so a chase glides between ticks instead of jumping.
+	# eases toward it from the second tick on, so a chase glides between ticks instead of jumping. The
+	# first tick takes the shot outright: the scene's camera is at (0,0) zoom 1, and easing from it
+	# would open every fight on the whole pit, tiny, with world outside ARENA in frame.
 	if not _alive(player) or not _alive(enemy):
 		# The frame a hull went missing: the camera keeps the last frame it could compose rather than
 		# reading a freed position.
@@ -353,11 +357,24 @@ func _camera_at() -> void:
 	pad += Vector2(CAMERA_MARGIN, CAMERA_MARGIN)
 	var want: Dictionary = camera_frame(player.chassis.global_position,
 		enemy.chassis.global_position, pad)
-	var at: Vector2 = want["at"]
-	camera.position += (at - camera.position) * CAMERA_EASE
-	# One eased number, put back on both axes, so the frame never goes anamorphic.
-	var zoom := lerpf(camera.zoom.x, float(want["zoom"]), CAMERA_EASE)
+	var step: Dictionary = camera_eased(camera.position, camera.zoom.x, want, _camera_primed)
+	_camera_primed = true
+	camera.position = step["at"]
+	# One number, put back on both axes, so the frame never goes anamorphic.
+	var zoom := float(step["zoom"])
 	camera.zoom = Vector2(zoom, zoom)
+
+
+static func camera_eased(from_at: Vector2, from_zoom: float, want: Dictionary,
+		primed: bool) -> Dictionary:
+	# The first tick has no frame behind it: battle.tscn's camera sits at (0,0) zoom 1, so easing from
+	# there would open every fight on the whole pit, tiny and off-centre, for the ~15 ticks the glide
+	# takes to climb to its shot - and show world outside ARENA while it did. Primed, the fight opens
+	# on the shot; every tick after that eases CAMERA_EASE of the remaining gap.
+	if not primed:
+		return {"at": want["at"], "zoom": float(want["zoom"])}
+	var zoom := lerpf(from_zoom, float(want["zoom"]), CAMERA_EASE)
+	return {"at": from_at + ((want["at"] as Vector2) - from_at) * CAMERA_EASE, "zoom": zoom}
 
 
 static func camera_frame(a: Vector2, b: Vector2, pad: Vector2) -> Dictionary:

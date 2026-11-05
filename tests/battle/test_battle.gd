@@ -221,6 +221,26 @@ func test_camera_stays_in_arena() -> void:
 	_complete()
 
 
+func test_camera_first_tick_is_the_shot() -> void:
+	# battle.tscn's camera starts at (0,0) zoom 1, so an eased tick 1 would show the whole 480x180 pit
+	# tiny for the ~15 ticks the glide takes to climb to its shot, and would show world outside ARENA
+	# while it did (measured before this pin: tick 1's live view was ~1113x626 cells near (36,16)).
+	# The fight opens on its shot instead; `primed: false` is what start() holds on its first tick.
+	var want: Dictionary = ChBattle.camera_frame(Vector2(170, 100), Vector2(310, 100), PAD)
+	var first: Dictionary = ChBattle.camera_eased(Vector2.ZERO, 1.0, want, false)
+	assert_eq(first["at"], want["at"], "an unprimed camera takes the shot's centre, not a step to it")
+	assert_eq(float(first["zoom"]), float(want["zoom"]), "and its zoom, not a glide up from 1")
+	_assert_framing(want, float(want["zoom"]), "the shot itself obeys the bounds")
+	# The ease survives the fix: one primed tick covers CAMERA_EASE of the gap, so a chase still
+	# glides between ticks and a camera already on its shot stays on it.
+	var next: Dictionary = ChBattle.camera_eased(Vector2.ZERO, 1.0, want, true)
+	assert_true(next["at"] != want["at"] and float(next["zoom"]) < float(want["zoom"]),
+		"a primed tick eases toward the shot instead of snapping to it")
+	var after: Dictionary = ChBattle.camera_eased(want["at"], float(want["zoom"]), want, true)
+	assert_eq(after["at"], want["at"], "a camera already on its shot stays there")
+	_complete()
+
+
 func test_battle_finishes() -> void:
 	var battle := _battle_scene()
 	var results := await _fight(battle, _player_layout(), _enemy_layout(), _catalog(ENEMY_HP), 12345)
@@ -418,10 +438,12 @@ func _hear_all(battle: Node2D, heard: Array) -> void:
 # saw cuts, so the first catch after the cut was the player's own saw in most runs (measured: event 30
 # on side 0, eight runs) and the enemy's wheel in one run of fifteen - which of the two catches first
 # turns on frame timing (the world steps on real time), not on the rule. What is stable, and what the
-# count below pins, is that the enemy's parts catch many times over the fight (measured 12-40), so the
-# spec's "the target keeps burning" shows. The order is the evidence, not the count: CAUGHT_FIRE
-# carries no igniter (ChPartRuntime._emit), so a catch after the saw's cut in the same fight is the
-# causal link this fight can show.
+# count below pins, is that the enemy's parts catch many times after the saw's cut (measured 8-40 in
+# 16 runs, counted from the cut onward), so the spec's "the target keeps burning" shows *because of
+# this chain*: the enemy's own Hearth burns the same sand, so a count over the whole fight would pass
+# with a saw that never cut. The order is the evidence, not the count: CAUGHT_FIRE carries no
+# igniter (ChPartRuntime._emit), so a catch after the saw's cut in the same fight is the causal link
+# this fight can show.
 func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 	var battle := _battle_scene()
 	var heard: Array = []
@@ -445,7 +467,11 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 		elif caught >= 0 and paid < 0 and entry["type"] == ChEvent.ENERGY_GAINED \
 				and entry["source"] == &"ember_battery":
 			paid = at
-		if entry["type"] == ChEvent.CAUGHT_FIRE and int(entry["side"]) == 1:
+		# Only catches *after* the cut: the enemy's Hearth burns the same sand the saw cuts, so a count
+		# over the whole fight would pass with a saw that never cut (cut stays -1 here, and then no
+		# entry is after it).
+		if cut >= 0 and at > cut and entry["type"] == ChEvent.CAUGHT_FIRE \
+				and int(entry["side"]) == 1:
 			enemy_catches += 1
 	assert_true(cut >= 0, "the Chainsaw cut cells and threw sparks (heard %d events)" % heard.size())
 	assert_true(caught > cut, "something caught fire after that cut")
@@ -454,7 +480,8 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 	# below is the spec's "the target keeps burning", and it is the stable form of the claim the first
 	# catch's side cannot carry (see the note above).
 	assert_true(enemy_catches >= 4,
-		"the enemy's parts kept catching fire (measured 12-40 over the fight, got %d)" % enemy_catches)
+		"the enemy's parts kept catching fire after the saw's cut (measured 8-40, got %d)"
+			% enemy_catches)
 	# The spawn gap is 140 cells now, so this only holds if the fight closes it: measured 39. The old
 	# spawns were 360 apart, and this build's narrowest measured 130-183 cells there.
 	assert_true(min_gap < 140.0,
