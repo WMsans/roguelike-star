@@ -167,6 +167,60 @@ func test_simultaneous_death_is_loss() -> void:
 	_complete()
 
 
+# --- Task 4: the camera's frame, as a pure function ------------------------------------------------
+# Godot 4's zoom magnifies: what the camera shows is VIEW / zoom. The old _camera_at multiplied
+# box / VIEW (a Godot 3 zoom-out), which left both chariots off screen at 320x180. These three
+# call ChBattle.camera_frame directly, so the frame is checked without a world.
+const PAD := Vector2(48, 24)  # the brief's pad, the same one all three tests hand over
+
+
+func _view(frame: Dictionary) -> Rect2:
+	# The rect the camera shows: centred on `at`, sized VIEW / zoom.
+	var size := ChBattle.VIEW / float(frame["zoom"])
+	return Rect2((frame["at"] as Vector2) - size * 0.5, size)
+
+
+func _assert_framing(frame: Dictionary, zoom: float, zoom_msg: String) -> void:
+	# What every camera test expects of the number: inside the two bounds, and on a half step so
+	# the world's pixels keep one size between ticks (the design's zoom-snapping).
+	assert_true(zoom >= ChBattle.ZOOM_WIDEST and zoom <= ChBattle.ZOOM_CLOSEST, zoom_msg)
+	assert_near(fmod(zoom, 0.5), 0.0, 0.0001, "the zoom is a multiple of 0.5")
+
+
+func test_camera_frames_both() -> void:
+	# The spawns 140 cells apart: the view has to hold both chariots plus the pad.
+	var a := Vector2(170, 100)
+	var b := Vector2(310, 100)
+	var frame: Dictionary = ChBattle.camera_frame(a, b, PAD)
+	var view := _view(frame)
+	for hull in [a, b]:
+		assert_true(view.encloses(Rect2(hull - PAD, PAD * 2.0)),
+			"%s plus its pad sits inside the view %s" % [hull, view])
+	_assert_framing(frame, float(frame["zoom"]), "the zoom stays in [%s, %s]" % [
+		ChBattle.ZOOM_WIDEST, ChBattle.ZOOM_CLOSEST])
+	_complete()
+
+
+func test_camera_close_when_close() -> void:
+	# 20 cells apart: nothing caps the zoom, so it parks on the closest bound rather than
+	# magnifying the sand past the whole arena (measured: the unclamped number is 11.03).
+	var frame: Dictionary = ChBattle.camera_frame(Vector2(230, 100), Vector2(250, 100), PAD)
+	assert_near(float(frame["zoom"]), ChBattle.ZOOM_CLOSEST, 0.001, "20 cells apart frames at 8")
+	_assert_framing(frame, float(frame["zoom"]), "and that number is inside the bounds")
+	_complete()
+
+
+func test_camera_stays_in_arena() -> void:
+	# A pair in the pit's bottom-left corner: the view is clamped into the arena, so the camera
+	# never shows the world outside the pit.
+	var frame: Dictionary = ChBattle.camera_frame(Vector2(10, 170), Vector2(30, 170), PAD)
+	var pit := Rect2(Vector2(ChBattle.ARENA.position), Vector2(ChBattle.ARENA.size))
+	assert_true(pit.encloses(_view(frame)),
+		"the view %s lies inside the arena %s" % [_view(frame), ChBattle.ARENA])
+	_assert_framing(frame, float(frame["zoom"]), "and the zoom still obeys the bounds")
+	_complete()
+
+
 func test_battle_finishes() -> void:
 	var battle := _battle_scene()
 	var results := await _fight(battle, _player_layout(), _enemy_layout(), _catalog(ENEMY_HP), 12345)
@@ -270,6 +324,7 @@ func test_finished_after_ticking_stops() -> void:
 const CHAIN_FRAMES := 4000  # the 3600-frame budget, plus the frames the arena takes to stream
 const DRIVE_ON := 0.9  # seconds of held direction
 const DRIVE_OFF := 0.3  # seconds released, so the queued parts are paid (drive is paid first)
+const PLAYER_MARK_FRAMES := 120  # 2 s of fight: the player has driven, the Dozer has not arrived
 
 
 func _garage_built(body_id: StringName, mounts: Array) -> ChChariotLayout:
@@ -305,11 +360,14 @@ func _start_fight(battle: Node2D, player_layout: ChChariotLayout,
 
 # The drive keys: ChBattle._player_drive reads Input, so action_press is what holding the key at the
 # keyboard is. Bursting it is what a player learns, because ChEnergy pays the drive before the queued
-# parts and a direction held for ever starves the weapons. Returns the narrowest the two hulls ever
-# got, centre to centre, which is the number the reach pins below read.
-func _drive_fight_out(battle: Node2D) -> float:
+# parts and a direction held for ever starves the weapons. Returns `min_gap`, the narrowest the two
+# hulls ever got centre to centre (the number the reach pins below read), and `mark`, the player's
+# hull x at PLAYER_MARK_FRAMES: where its own driving had got it before the Dozer arrived, which is
+# the only stretch of the fight that is the player's driving alone.
+func _drive_fight_out(battle: Node2D) -> Dictionary:
 	var frames := 0
 	var min_gap := INF
+	var mark := 0.0
 	var held := false
 	var next_flip := DRIVE_ON
 	while battle.ticking and frames < CHAIN_FRAMES:
@@ -325,9 +383,11 @@ func _drive_fight_out(battle: Node2D) -> float:
 				Input.action_release(&"ui_right")
 		min_gap = minf(min_gap, absf(battle.enemy.chassis.global_position.x
 			- battle.player.chassis.global_position.x))
+		if frames == PLAYER_MARK_FRAMES:
+			mark = battle.player.chassis.global_position.x
 	Input.action_release(&"ui_right")
 	assert_true(frames < CHAIN_FRAMES, "the fight spent its own tick loop rather than the frame cap")
-	return min_gap
+	return {"min_gap": min_gap, "mark": mark}
 
 
 # Every event the fight names, in the order it said them, with the two fields the chains read. The
@@ -352,10 +412,16 @@ func _hear_all(battle: Node2D, heard: Array) -> void:
 # fight the cut lands on the Chainsaw's own 0.5 s cooldown, its sparks set something alight, and the
 # battery pays for that catch. The chainsaw sits on the Corsair's front slot, so its 14-cell reach
 # clears the hull's own edge and the sparks land outside it; the asserts below are the chain in order -
-# a cut with sparks, a catch after it, the battery paying after that catch.
-# The catch measured here is on the ENEMY's side, which is what the spec's "the target keeps burning"
-# asks for. The fires the enemy's own Hearth rings into place also catch its parts, so the order is the
-# evidence, not the count: an enemy catch lands between a cut and the battery's next payment.
+# a cut with sparks, a catch after it, the battery paying after that catch, and the enemy's parts
+# catching too.
+# WHICH side catches first is not pinned: at the Task 4 spawns both hulls sit in the burning sand the
+# saw cuts, so the first catch after the cut was the player's own saw in most runs (measured: event 30
+# on side 0, eight runs) and the enemy's wheel in one run of fifteen - which of the two catches first
+# turns on frame timing (the world steps on real time), not on the rule. What is stable, and what the
+# count below pins, is that the enemy's parts catch many times over the fight (measured 12-40), so the
+# spec's "the target keeps burning" shows. The order is the evidence, not the count: CAUGHT_FIRE
+# carries no igniter (ChPartRuntime._emit), so a catch after the saw's cut in the same fight is the
+# causal link this fight can show.
 func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 	var battle := _battle_scene()
 	var heard: Array = []
@@ -363,10 +429,12 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 		[[6], &"cutter_chainsaw"], [[3], &"ember_battery"]])
 	_start_fight(battle, layout, _enemy_layout())
 	_hear_all(battle, heard)
-	var min_gap := await _drive_fight_out(battle)
+	var driven := await _drive_fight_out(battle)
+	var min_gap: float = driven["min_gap"]
 	var cut := -1
 	var caught := -1
 	var paid := -1
+	var enemy_catches := 0
 	for at in heard.size():
 		var entry: Dictionary = heard[at]
 		if cut < 0 and entry["type"] == ChEvent.CELLS_CUT \
@@ -377,17 +445,20 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 		elif caught >= 0 and paid < 0 and entry["type"] == ChEvent.ENERGY_GAINED \
 				and entry["source"] == &"ember_battery":
 			paid = at
+		if entry["type"] == ChEvent.CAUGHT_FIRE and int(entry["side"]) == 1:
+			enemy_catches += 1
 	assert_true(cut >= 0, "the Chainsaw cut cells and threw sparks (heard %d events)" % heard.size())
 	assert_true(caught > cut, "something caught fire after that cut")
 	assert_true(paid > caught, "and the Ember Battery paid energy for the catch")
-	# Where the chain landed, as measured: the enemy side. The two hulls are not asserted to touch
-	# here - this build's four parts make it the lightest one, and how close it gets varies with the
-	# sand it ploughs (measured between 130 and 183 cells). The chain does not need contact: the sparks
-	# fly, the sand burns, and the battery pays.
-	assert_eq(int(heard[caught]["side"]) if caught >= 0 else -1, 1,
-		"the catch this chain made was on the enemy's side")
-	assert_true(min_gap < 260.0,
-		"and the two chariots were in the same half of the arena (narrowest %.0f)" % min_gap)
+	# The chain does not need contact: the sparks fly, the sand burns, and the battery pays. The count
+	# below is the spec's "the target keeps burning", and it is the stable form of the claim the first
+	# catch's side cannot carry (see the note above).
+	assert_true(enemy_catches >= 4,
+		"the enemy's parts kept catching fire (measured 12-40 over the fight, got %d)" % enemy_catches)
+	# The spawn gap is 140 cells now, so this only holds if the fight closes it: measured 39. The old
+	# spawns were 360 apart, and this build's narrowest measured 130-183 cells there.
+	assert_true(min_gap < 140.0,
+		"and the two chariots closed the spawn gap (narrowest %.0f)" % min_gap)
 	battle.free()
 	_complete()
 
@@ -396,14 +467,15 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 # part. This is the harness the final review asked for - the plan's own build (a Mace and a Harpoon on
 # the Corsair's front slots) fought for real through ChBattle, built by the garage's own drop path. It
 # pins the two things that are stable run to run:
-#   - the player's chariot drives out of its corner. That is what the wheel mounts buy (see
+#   - the player's chariot drives off its spawn. That is what the wheel mounts buy (see
 #     ChBodyDef): a loaded chariot used to sit with its motors on and the hulls could never meet,
 #     which is the state this test used to pin as "min_gap > 100".
 #   - the Mace swings on its own cooldown, so the fight pays it through ChBattleContext's loop.
 # What it does NOT pin: how close the two hulls get. With the wheel mounts fixed they met (38 cells,
 # the two hulls touching) in three runs of this build and stayed 186 apart in a fourth, because
 # whether the sand and the two pools let the player across varies run to run; the fight resolves
-# either way, at its own result or at its frame budget.
+# either way, at its own result or at its frame budget. Measured again at the Task 4 spawns: the two
+# hulls got to 39 cells apart and the fight resolved as a win.
 # Nothing freezes, and that is chain 2's remaining gap. A weapon's reach box is at the part's own
 # height (one cell for these defs), and the Dozer's wheels hang 14 cells below a Corsair's top slots,
 # so a Mace hits the Dozer's chassis almost every swing and a wheel only when the Dozer has rolled
@@ -419,7 +491,8 @@ func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 		[[6], &"ice_cream_mace"], [[5], &"freeze_charge"], [[4], &"corsair_harpoon"]])
 	_start_fight(battle, layout, _enemy_layout())
 	_hear_all(battle, heard)
-	var min_gap := await _drive_fight_out(battle)
+	var driven := await _drive_fight_out(battle)
+	var min_gap: float = driven["min_gap"]
 	var swung := 0
 	var frozen := 0
 	for entry in heard:
@@ -428,11 +501,15 @@ func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 		elif entry["type"] == ChEvent.FROZEN:
 			frozen += 1
 	assert_true(swung > 0, "the fight paid the Mace, so it swung on its own cooldown")
-	# Measured 180-220 cells of travel for this build; the loaded chariots that could not drive at all
-	# managed 0-31 (a hull resting on the sand with its wheels buried).
-	assert_true(absf(battle.player.chassis.global_position.x - 60.0) > 60.0,
-		"the player's chariot drove out of its corner (ended at x %.0f, hulls %.0f apart)" % [
-			battle.player.chassis.global_position.x, min_gap])
+	# Measured 2 s in, with the Dozer still 83-91 cells away: the player's hull sat at x 184-191, i.e.
+	# 14-21 cells off its 170 spawn, under nothing but its own wheels. That is the pin - not where the
+	# fight leaves it: the Dozer comes to meet it at x ~206 and the pair shove each other from there, so
+	# the ends measured 206-296 over 14 runs (36-126 cells of travel). A loaded chariot whose wheels
+	# were buried moved 0 with these same keys; at the old x = 60 spawn the player crossed the pit
+	# alone (180-220 cells) because the Dozer started 360 away.
+	assert_true(float(driven["mark"]) - float(ChArenaBuilder.SPAWN_LEFT_X) > 10.0,
+		"the player's chariot drove off its spawn (at x %.0f two seconds in, hulls %.0f apart at the end)"
+			% [driven["mark"], min_gap])
 	assert_eq(frozen, 0, "nothing froze: the melee band misses the Dozer's wheels (see above)")
 	battle.free()
 	_complete()

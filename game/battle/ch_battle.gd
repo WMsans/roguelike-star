@@ -16,11 +16,14 @@ class_name ChBattle extends Node2D
 signal finished(result: StringName)
 
 const ARENA := Rect2i(0, 0, 480, 180)
-const VIEW := Vector2(320, 180)  # project.godot's viewport: the HUD lays out in these pixels
+const VIEW := Vector2(1280, 720)  # project.godot's viewport: the HUD lays out in these pixels
 const TICK := 1.0 / 60.0  # one 60 fps frame: the delta every part, cooldown and pool counts against
 const FIGHT_TICKS := 3600  # 60 s of ticks: the ceiling the brief gives a fight
 const WORLD_WAIT := 600  # frames the world is given to load before the arena fill starts
 const CAMERA_MARGIN := 24.0  # cells of arena kept beside both chariots when the camera zooms
+const ZOOM_WIDEST := 4.0  # the pull-back bound: its view is 320x180 cells, exactly the pit's height
+const ZOOM_CLOSEST := 8.0  # the magnify bound: closer than this and a chariot outruns its own frame
+const CAMERA_EASE := 0.15  # the share of the remaining gap the camera covers per fight tick
 const PULSE_SECONDS := 0.2  # the HUD's pulse on a part the player just fired
 const TICKER_LINES := 4  # events the ticker keeps
 const BAR := 64.0  # HP/energy bar width in pixels
@@ -33,7 +36,7 @@ var player: ChChariotRuntime = null  # side 0
 var enemy: ChChariotRuntime = null  # side 1
 var ai: ChEnemyAI = null  # the enemy's drive decision
 var camera: Camera2D = null
-var hud: CanvasLayer = null  # the HUD's root layer, at the viewport's 320x180
+var hud: CanvasLayer = null  # the HUD's root layer, at the viewport's 1280x720
 var marks: Node2D = null  # the per-part markers, drawn in the world layer
 var bars: Array[ColorRect] = []  # [player HP fill, enemy HP fill, player energy fill]
 var pips: Array[ColorRect] = []  # queue-size pips, made on demand
@@ -69,14 +72,15 @@ func _build_hud() -> void:
 	hud = $HUD
 	# shortcut: this build's CanvasLayer exposes no writable size (get_property_list lists only
 	# layer/offset/rotation/scale/transform/canvas_items/...), so the layer's pixels are the viewport's
-	# by construction — project.godot sets 320x180 and every piece below lays out in VIEW.
+	# by construction — project.godot sets 1280x720 and every piece below lays out in VIEW.
 	_bar(hud, 0, 6.0, 6.0)  # player HP
 	_bar(hud, 1, VIEW.x - BAR - 6.0, 6.0)  # enemy HP
 	_bar(hud, 2, 6.0, 16.0)  # player energy
 	for at in TICKER_LINES:
 		var label := Label.new()
 		# 150 rather than 156: four 8px lines at a 6px pitch end at 174, and 156 put the fourth
-		# line's glyphs past the 180px viewport's bottom edge (measured on the display).
+		# line's glyphs past the bottom edge of the 320x180 viewport this ticker was laid out in
+		# (measured on the display; the 1280x720 viewport leaves the line where it is until Task 5).
 		label.position = Vector2(6.0, 150.0 + at * 6.0)
 		label.add_theme_font_size_override("font_size", 8)
 		label.text = ""
@@ -336,37 +340,47 @@ func _pips(count: int) -> void:
 
 
 func _camera_at() -> void:
-	# Midpoint of both chassis, zoomed out so both hulls plus the margin fit, and the view clamped
-	# into the arena so the camera never shows the world outside the pit.
-	# shortcut: the zoom is uniform, so the arena's own extent caps how far it pulls back; a fight
-	# that wants the whole pit at once wants the viewport sized to the arena.
+	# Midpoint of both chassis framed close: camera_frame composes the shot and the live camera
+	# eases toward it, so a chase glides between ticks instead of jumping.
 	if not _alive(player) or not _alive(enemy):
 		# The frame a hull went missing: the camera keeps the last frame it could compose rather than
 		# reading a freed position.
 		return
-	var a := player.chassis.global_position
-	var b := enemy.chassis.global_position
 	# The box the camera has to show: both hulls end to end plus the margin, so a Dozer and a Cutter
 	# get one frame whatever their lengths.
 	var pad := Vector2(maxf(_hull_box(player).size.x, _hull_box(enemy).size.x),
 		maxf(_hull_box(player).size.y, _hull_box(enemy).size.y)) * 0.5
 	pad += Vector2(CAMERA_MARGIN, CAMERA_MARGIN)
+	var want: Dictionary = camera_frame(player.chassis.global_position,
+		enemy.chassis.global_position, pad)
+	var at: Vector2 = want["at"]
+	camera.position += (at - camera.position) * CAMERA_EASE
+	# One eased number, put back on both axes, so the frame never goes anamorphic.
+	var zoom := lerpf(camera.zoom.x, float(want["zoom"]), CAMERA_EASE)
+	camera.zoom = Vector2(zoom, zoom)
+
+
+static func camera_frame(a: Vector2, b: Vector2, pad: Vector2) -> Dictionary:
+	# The shot that holds both chariots: the a–b span plus pad on every side, magnified as far as
+	# the bounds allow. Godot 4 divides the viewport by the zoom (the view is VIEW / zoom), so a
+	# bigger number is a closer shot — the opposite of the box / VIEW multiply this replaces, which is
+	# why a fight at 320x180 showed neither chariot.
 	var lo := Vector2(minf(a.x, b.x), minf(a.y, b.y)) - pad
 	var hi := Vector2(maxf(a.x, b.x), maxf(a.y, b.y)) + pad
 	var box := Rect2(lo, hi - lo)
-	var zoom := maxf(maxf(box.size.x / VIEW.x, box.size.y / VIEW.y), 1.0)
-	var view := VIEW * zoom
+	# The biggest zoom that still fits the box on both axes: whichever axis runs out first.
+	var zoom := clampf(minf(VIEW.x / box.size.x, VIEW.y / box.size.y), ZOOM_WIDEST, ZOOM_CLOSEST)
+	# Then snap down to a half step: a zoom that slides between ticks makes the world's pixels
+	# shimmer. Clamping wins over snapping, so a snap past a bound goes back to that bound.
+	zoom = clampf(floorf(zoom / 0.5) * 0.5, ZOOM_WIDEST, ZOOM_CLOSEST)
+	var view := VIEW / zoom
+	# The centre, pushed back into the pit so the view never shows the world outside the arena.
+	# At ZOOM_WIDEST the view is 320x180 cells, no wider or taller than ARENA, so clampf's min never
+	# sits above its max — which is what used to park the camera against one wall.
 	var at := box.get_center()
-	# A zoom that makes the view wider or taller than the arena leaves clampf's min above its max, which
-	# pins the view to one bound and drifts the arena off frame; that axis parks on the arena's centre
-	# instead, which is the least lopsided place for a view larger than the pit.
-	var centre := ARENA.get_center()
-	at.x = clampf(at.x, ARENA.position.x + view.x * 0.5, ARENA.end.x - view.x * 0.5) \
-		if view.x <= ARENA.size.x else centre.x
-	at.y = clampf(at.y, ARENA.position.y + view.y * 0.5, ARENA.end.y - view.y * 0.5) \
-		if view.y <= ARENA.size.y else centre.y
-	camera.zoom = Vector2(zoom, zoom)
-	camera.position = at
+	at.x = clampf(at.x, ARENA.position.x + view.x * 0.5, ARENA.end.x - view.x * 0.5)
+	at.y = clampf(at.y, ARENA.position.y + view.y * 0.5, ARENA.end.y - view.y * 0.5)
+	return {"at": at, "zoom": zoom}
 
 
 func _alive(chariot: ChChariotRuntime) -> bool:

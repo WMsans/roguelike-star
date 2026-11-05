@@ -11,8 +11,8 @@ const SURFACE_Y := 110
 const SURFACE_NOISE := 6
 const SURFACE_FREQUENCY := 0.02
 const ROCK_TOP := 125
-const SPAWN_LEFT_X := 60
-const SPAWN_RIGHT_X := 420
+const SPAWN_LEFT_X := 170
+const SPAWN_RIGHT_X := 310
 const SPAWN_ABOVE := 30
 
 
@@ -56,8 +56,13 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 		written += world.fill_rect(Rect2i(x, surface[x], 1, ROCK_TOP - surface[x]), &"sand")
 	if written != wanted:
 		push_error("ChArenaBuilder: %d of %d ground cells went unwritten, so the arena holds air caves" % [wanted - written, wanted])
-	# Wood and water sink into the surface in the middle of the pit, 60 cells clear of both spawn
-	# columns, so a chariot starts on plain ground.
+	# Wood and water sink into the surface in the middle of the pit. With the spawns at 170 and 310
+	# they are no longer clear of the spawn columns: the nearest patch edge sits 12 cells off the
+	# right spawn, so a 30-cell hull overlaps it by 3 cells. The design allows that ("the wood/water
+	# patches may then sit between or under the spawns") on the condition that a chariot still starts
+	# on ground it can drive off. Measured: the Dozer drives off that wood edge in every fight, and the
+	# player's corsair gets past both pools (ends at x 289-296 from its 170 spawn) whenever the Dozer
+	# does not stop it first. The pools being one cell deep is what makes that true; see below.
 	# Water is one cell deep rather than the plan's 6: PhysicsWorld::apply_buoyancy (physics.cpp:521)
 	# floats a stamped body on the liquid it covers, so a chassis in a deep pool loses wheel contact
 	# with the ground and the pool becomes a wall. Measured with the plan's Step-5 build: the Corsair

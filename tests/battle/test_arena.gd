@@ -5,8 +5,8 @@ extends ChTest
 # The fills want a loaded world, so every test is world-backed like Tasks 9/10's.
 
 const ARENA := Rect2i(0, 0, 480, 180)
-const SPAWN_LEFT_X := 60
-const SPAWN_RIGHT_X := 420
+const SPAWN_LEFT_X := 170
+const SPAWN_RIGHT_X := 310
 const ABOVE_SURFACE := 30
 # Everything the builder puts in the ground: a column is solid from its first one down.
 const TERRAIN := [&"concrete", &"rock", &"sand", &"wood", &"water", &"lava"]
