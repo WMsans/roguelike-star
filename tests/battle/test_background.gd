@@ -47,7 +47,8 @@ func test_no_camera_holds_rest() -> void:
 	Engine.get_main_loop().get_root().add_child(bg)
 	await Engine.get_main_loop().process_frame
 	var mat := (bg.get_node("Mid") as ColorRect).material as ShaderMaterial
-	assert_eq(mat.get_shader_parameter("pan"), Vector2.ZERO)
+	# At rest the camera adds no pan, so all that is left is the layer's own fixed shift.
+	assert_eq(mat.get_shader_parameter("pan"), bg.shifts[&"Mid"])
 	assert_near(mat.get_shader_parameter("view_zoom"), ChBattle.ZOOM_WIDEST)
 	_complete()
 
