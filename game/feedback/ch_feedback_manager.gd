@@ -1,8 +1,8 @@
 class_name ChFeedbackManager extends Node
 
 # The one entry point for a feedback beat: Feedback.play(&"struck", node, {amount = 12}).
-# Profiles are data (game/feedback/profiles/<kind>.tres); this task's play() only kicks the
-# target's juice — text, particles and shake arrive in later tasks and belong here too.
+# Profiles are data (game/feedback/profiles/<kind>.tres); play() kicks the target's juice and
+# pops its text — particles and shake arrive in later tasks and belong here too.
 # Nothing here writes fight state: feedback reads the fight, it never changes it.
 
 const KINDS := [&"fired", &"landed", &"struck", &"caught_fire", &"frozen", &"thawed",
@@ -15,6 +15,14 @@ var rng := RandomNumberGenerator.new()
 # shortcut: kinds are cached for the life of the autoload; a .tres edited while the game runs
 # needs a restart. Fine while these are tuning values.
 var _profiles: Dictionary[StringName, ChFeedbackProfile] = {}
+
+# The one screen-space pop-up layer; later tasks hang their one-shot particles under it too.
+var popups: ChPopups
+
+
+func _ready() -> void:
+	popups = ChPopups.new()
+	add_child(popups)
 
 
 func profile(kind: StringName) -> ChFeedbackProfile:
@@ -38,6 +46,7 @@ func play(kind: StringName, target, overrides := {}) -> void:
 	var beat := profile(kind)
 	if beat == null:
 		return
+	_pop_text(beat, target, overrides)
 	# Kicking a target that has no Juice is a no-op: the Juice child belongs to whoever owns
 	# the node (buttons, battle visuals, the garage), never to feedback itself.
 	var juice := ChJuice.of(target)
@@ -47,6 +56,18 @@ func play(kind: StringName, target, overrides := {}) -> void:
 	if rng.randf() < 0.5:
 		rotation_kick = -rotation_kick
 	juice.kick(beat.scale_kick, rotation_kick)
+
+
+func _pop_text(beat: ChFeedbackProfile, target, overrides: Dictionary) -> void:
+	# `overrides.text` wins over the profile's text; a `%d` in the result is the beat's amount.
+	var text: String = overrides.get("text", beat.text)
+	if text == "":
+		return
+	if text.contains("%d"):
+		text = text % int(overrides.get("amount", 0))
+	if not target is CanvasItem or popups == null:
+		return
+	popups.pop(text, beat.text_color, target.get_global_transform_with_canvas().origin)
 
 
 func attach_button(button: BaseButton) -> void:
