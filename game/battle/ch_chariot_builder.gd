@@ -27,6 +27,7 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 	# and the other chariot (whose group is side + 1 too) still hit every body here.
 	var group := side + 1
 	runtime.chassis = _body(parent, world, ChTextures.box(body_def.size.x, body_def.size.y, body_def.color), _material(body_def.material), body_def.size, origin, PixelRigidBody.SHAPE_HULL, group)
+	runtime.chassis_visual = visual_of(runtime.chassis)
 	# all_paths is depth-first, parent before child, so a joint always names a body already mounted.
 	var mounted: Dictionary = {}  # layout path -> the part runtime built there
 	for path in layout.all_paths():
@@ -72,6 +73,7 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		part_runtime.cooldown_left = def.cooldown
 		part_runtime.charges_left = def.charges
 		part_runtime.body = body
+		part_runtime.visual = visual_of(body)
 		part_runtime.joint = joint
 		part_runtime.parent = holder
 		if holder != null:
@@ -85,6 +87,11 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		runtime.parts.append(part_runtime)
 		mounted[steps] = part_runtime
 	return runtime
+
+
+static func visual_of(body: Node) -> Node2D:
+	# The child sprite that draws a body's art (see _body). Null for anything the builder did not make.
+	return body.get_node_or_null("Visual") as Node2D
 
 
 static func _material(def_material: StringName) -> StringName:
@@ -109,6 +116,18 @@ static func _body(parent: Node, world: PixelWorld, texture: Texture2D, material:
 	body.body_size = size
 	body.position = at
 	parent.add_child(body)
+	# The body stops drawing its own texture; self_modulate reaches only the body's own draw, so a
+	# "Visual" child carries the art and the juice. Everything that wobbles is that child's, which
+	# leaves the collision, the mass and the body transform Box2D joined untouched.
+	body.self_modulate = Color(1, 1, 1, 0)
+	var visual := Sprite2D.new()
+	visual.name = "Visual"
+	visual.texture = texture
+	# Same pixels in the same place: PixelRigidBody::_draw draws the texture at -size * 0.5, which is
+	# a centred sprite at the body's own origin.
+	visual.centered = true
+	body.add_child(visual)
+	ChJuice.attach(visual)
 	# Joining finds the world by this path first and the "pixel_world" group second; naming it keeps
 	# the build tied to the world the caller handed over. get_path_to needs the body in the tree
 	# already, so this runs after add_child.

@@ -32,6 +32,7 @@ var broken: bool = false  # set by ChChariotRuntime.break_part (Task 10)
 # shortcut: body stays loose-typed on purpose; Task 9 is the only caller that hands a real
 # PixelRigidBody, and a : PixelRigidBody annotation rejects the fake bodies the tests use.
 var body: Object = null  # the PixelRigidBody this part hangs on (Task 9 attaches it)
+var visual: Node2D = null  # the "Visual" child of `body` (the builder's, Task 6), what juice moves
 var joint: Node = null  # null for a part that hangs straight off the chassis
 var parent: ChPartRuntime = null  # the part this one is mounted on, null for a body slot
 var children: Array[ChPartRuntime] = []  # the parts mounted on this one

@@ -12,6 +12,7 @@ var body_def: ChBodyDef = null  # the def this chassis was built from
 var hp: int = 0  # body HP left; the builder seeds it from body_def.hp
 var energy: ChEnergy = null  # the body's pool, capped and regenerating from body_def
 var chassis: PixelRigidBody = null  # the one body that carries the whole chariot's HP
+var chassis_visual: Node2D = null  # the chassis body's "Visual" child (the builder's, Task 6)
 var parts: Array[ChPartRuntime] = []  # every part, in the order the builder mounted them
 
 var burn_damage_left: float = 0.0  # burn damage held back until it adds up to a whole HP point
