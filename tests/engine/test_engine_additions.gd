@@ -65,6 +65,85 @@ func test_count_materials() -> void:
 	_complete()
 
 
+# --- garage-battle-ui Task 1: PixelRigidBody.collision_group ---
+# Two 10x4 wood boxes whose centres sit 3 cells apart, so their hulls overlap by 7 cells.
+# gravity_scale 0: only their own contact can move them. ChTest.make_world loads game_set.tres,
+# which carries the wood material these bodies stamp.
+const GROUP_SPAWN := Vector2(120, 90)  # interior air, far from the arena border
+const GROUP_FRAMES := 30
+
+
+func _overlap_pair(world: PixelWorld, group_a: int, group_b: int) -> Array[PixelRigidBody]:
+	# `world` by path, not the pixel_world group: this file's `_make_world` worlds are never freed
+	# and would be found first, and their material set has no wood.
+	var parent := _parent()
+	var pair: Array[PixelRigidBody] = []
+	for i in 2:
+		var body := PixelRigidBody.new()
+		body.texture = ChTextures.box(10, 4, Color(0.6, 0.45, 0.3))
+		body.pixel_material = &"wood"
+		body.gravity_scale = 0
+		body.collision_group = group_a if i == 0 else group_b
+		body.world = world.get_path()
+		parent.add_child(body)
+		body.global_position = GROUP_SPAWN + Vector2(3 * i, 0)
+		pair.append(body)
+	return pair
+
+
+func test_same_group_bodies_overlap_freely() -> void:
+	var world: PixelWorld = await make_world()
+	# simulating off + one step(1) per frame: the headless frame rate can skip physics ticks, and
+	# the collide test's margin needs exactly the 30 steps the brief names.
+	world.simulating = false
+	var pair := _overlap_pair(world, 1, 1)
+	var start_a := pair[0].global_position
+	var start_b := pair[1].global_position
+	# The union of the two 10x4 footprints: x 115..127, y 88..91.
+	var footprints := Rect2i(115, 88, 13, 4)
+	var wood_frame_1 := 0
+	var wood_after := 0
+	for frame in range(1, GROUP_FRAMES + 1):
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+		if frame == 1 or frame == GROUP_FRAMES:
+			var wood: int = world.count_materials(footprints).get(&"wood", 0)
+			if frame == 1:
+				wood_frame_1 = wood
+			else:
+				wood_after = wood
+	assert_true(pair[0].global_position.distance_to(start_a) < 0.5,
+		"same-group bodies must not push each other apart (a moved %s)" % [pair[0].global_position.distance_to(start_a)])
+	assert_true(pair[1].global_position.distance_to(start_b) < 0.5,
+		"same-group bodies must not push each other apart (b moved %s)" % [pair[1].global_position.distance_to(start_b)])
+	# Same-group bodies pass through each other's stamped cells; neither erases the other's.
+	assert_eq(wood_after, wood_frame_1,
+		"stamped wood cells over the footprints changed from frame 1 (%d) to frame %d (%d)"
+		% [wood_frame_1, GROUP_FRAMES, wood_after])
+	_complete()
+
+
+func test_different_group_bodies_still_collide() -> void:
+	var world: PixelWorld = await make_world()
+	world.simulating = false
+	var pair := _overlap_pair(world, 1, 2)
+	var gap_before := pair[0].global_position.distance_to(pair[1].global_position)
+	for _frame in GROUP_FRAMES:
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	var gap_after := pair[0].global_position.distance_to(pair[1].global_position)
+	assert_true(gap_after - gap_before > 1.0,
+		"the overlapping bodies must separate by more than 1 cell (before %s, after %s)" % [gap_before, gap_after])
+	_complete()
+
+
+func test_collision_group_defaults_to_zero() -> void:
+	var body := PixelRigidBody.new()
+	assert_eq(body.collision_group, 0, "a fresh body has no collision group")
+	body.free()
+	_complete()
+
+
 func test_count_materials_without_grid() -> void:
 	# A world that never finished _ready has no grid; the header still promises the burning key,
 	# which is how the per-tick status sample reads counts[&"burning"].

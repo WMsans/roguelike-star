@@ -40,6 +40,7 @@ b2ShapeDef body_shape_def(const BodyDef& def, int handle, float density) {
 	sd.material.restitution = def.restitution;
 	sd.filter = body_filter(def.props, handle);
 	sd.enableHitEvents = true;
+	sd.enableCustomFiltering = true;  // so group_filter below is consulted for body pairs
 	return sd;
 }
 
@@ -69,6 +70,19 @@ PhysicsWorld::PhysicsWorld(WorldGrid& grid, float gravity) : grid(grid), gravity
 	// so a body can't step into a chunk whose shapes were never built (960 cells/s).
 	def.maximumLinearSpeed = BODY_SHAPE_MARGIN / PHYSICS_DT;
 	world = b2CreateWorld(&def);
+	b2World_SetCustomFilterCallback(world, &PhysicsWorld::group_filter, this);
+}
+
+// The collision_group filter (BodyProps). Terrain and proxy shapes carry no handle (their body
+// has no userData), so they always pass. Box2D may call this on worker threads: it only reads
+// props, which set_props rewrites only outside b2World_Step.
+bool PhysicsWorld::group_filter(b2ShapeId shape_a, b2ShapeId shape_b, void* context) {
+	PhysicsWorld* self = static_cast<PhysicsWorld*>(context);
+	const int a = handle_of(b2Shape_GetBody(shape_a));
+	const int b = handle_of(b2Shape_GetBody(shape_b));
+	if (!self->has_body(a) || !self->has_body(b)) return true;
+	const int group = self->bodies[(size_t)a]->props.collision_group;
+	return group == 0 || group != self->bodies[(size_t)b]->props.collision_group;
 }
 
 PhysicsWorld::~PhysicsWorld() { b2DestroyWorld(world); }

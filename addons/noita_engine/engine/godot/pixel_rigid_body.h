@@ -94,6 +94,11 @@ public:
 		apply_props();
 	}
 	bool get_terrain_collision() const { return props.terrain_collision; }
+	void set_collision_group(int p_value) {
+		props.collision_group = p_value;
+		apply_props();
+	}
+	int get_collision_group() const { return props.collision_group; }
 	void set_cell_proxies(bool p_value) {
 		props.cell_proxies = p_value;
 		apply_props();

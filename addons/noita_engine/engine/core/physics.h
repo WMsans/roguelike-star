@@ -22,6 +22,9 @@ struct BodyProps {
 	bool lock_rotation = false, terrain_collision = true, can_sleep = true;
 	bool cell_proxies = false;
 	int proxy_step_height = 0;
+	// Bodies sharing an equal non-zero group never collide with each other (one chariot's own
+	// parts); 0 = no group. Separate from Box2D groupIndex, which carries the cell-proxy group.
+	int collision_group = 0;
 };
 
 // A body's pixels and spawn pose. Box2D works in cells (see PhysicsWorld), y down.
@@ -162,6 +165,10 @@ private:
 	void destroy_proxies(Body& body);
 	void place_proxies(Body& body);
 	void set_proxy(Body& body, int side, bool on, float x, float y);
+
+	// The b2World_SetCustomFilterCallback filter: rejects a pair only when both shapes belong to
+	// live bodies with an equal non-zero collision_group. Runs on Box2D worker threads: read-only.
+	static bool group_filter(b2ShapeId shape_a, b2ShapeId shape_b, void* context);
 
 	WorldGrid& grid;
 	float gravity;
