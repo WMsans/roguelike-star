@@ -241,6 +241,41 @@ func test_camera_first_tick_is_the_shot() -> void:
 	_complete()
 
 
+# The pin the helper test above cannot make: that _camera_at actually passes the unprimed flag on the
+# first tick. This is the shipped scene with a real arena, and _start_fight returns on the resume that
+# set ctx - the same resume start() runs its first _step on - so the live camera has taken exactly one
+# step: the shot. A regression that passes `true` unconditionally eases from the scene's (0,0) zoom 1
+# instead: 1.67 at tick 1, still short of the widest 4 for ~14 ticks, so the one bound tells them apart.
+# (start()'s `_camera_primed = false` reset stays defensive: a fresh scene starts false and ChBattle's
+# contract is one fight per scene, so no test can reach a second start() to see the reset work.)
+func test_camera_first_tick_is_the_shot_in_a_real_fight() -> void:
+	var battle := _battle_scene()
+	_start_fight(battle, _player_layout(), _enemy_layout(), _catalog(ENEMY_HP))
+	assert_true(battle.camera.zoom.x >= ChBattle.ZOOM_WIDEST,
+		"the live camera's first frame is the shot (zoom %.2f, widest %s)"
+			% [battle.camera.zoom.x, ChBattle.ZOOM_WIDEST])
+	# And the other half of the wiring: once primed, a tick must ease, not snap. Parked 1000 cells off
+	# the shot at zoom 1, the fight's own next tick covers CAMERA_EASE of the gap, so the zoom lands
+	# between 1 and the widest bound (measured 1.67 with the ease; a dropped `_camera_primed = true`
+	# would snap onto the shot's 5.5 instead, which the bound catches).
+	battle.camera.position = Vector2(-1000, -1000)
+	battle.camera.zoom = Vector2.ONE
+	await Engine.get_main_loop().process_frame
+	assert_true(battle.camera.zoom.x > 1.0 and battle.camera.zoom.x < ChBattle.ZOOM_WIDEST,
+		"the next live tick eased toward the shot (zoom %.2f, from 1 toward at least %s)"
+			% [battle.camera.zoom.x, ChBattle.ZOOM_WIDEST])
+	# Spent to its result before the free: ChBattle.start's contract forbids freeing the scene while its
+	# coroutine is suspended (ch_battle.gd's CONTRACT note above the tick loop). The low-HP catalog
+	# keeps that cheap - this fight is over in 124 of its 3600 ticks.
+	var frames := 0
+	while battle.ticking and frames < CHAIN_FRAMES:
+		await Engine.get_main_loop().process_frame
+		frames += 1
+	assert_true(not battle.ticking, "the fight this test watched reached its own end")
+	battle.free()
+	_complete()
+
+
 func test_battle_finishes() -> void:
 	var battle := _battle_scene()
 	var results := await _fight(battle, _player_layout(), _enemy_layout(), _catalog(ENEMY_HP), 12345)
@@ -369,8 +404,11 @@ func _garage_built(body_id: StringName, mounts: Array) -> ChChariotLayout:
 # is deliberately not awaited here. The caller waits for ctx (which owns the fight's bus), subscribes,
 # then spends the frames the loop needs.
 func _start_fight(battle: Node2D, player_layout: ChChariotLayout,
-	enemy_layout: ChChariotLayout) -> void:
-	battle.start(player_layout, enemy_layout, ChCatalog.load_default(), 12345)
+	enemy_layout: ChChariotLayout, catalog: ChCatalog = null) -> void:
+	# A catalog is optional: the camera test hands over the low-HP one so its fight ends soon and it
+	# can free the scene after the loop instead of mid-await.
+	battle.start(player_layout, enemy_layout, catalog if catalog != null else ChCatalog.load_default(),
+		12345)
 	var frames := 0
 	while battle.ctx == null and frames < 600:
 		await Engine.get_main_loop().process_frame
