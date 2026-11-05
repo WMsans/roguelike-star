@@ -292,10 +292,11 @@ func test_main_round_trip() -> void:
 	assert_eq(outcome, "You win!", "and the result panel named it on the way back")
 	# Task 3 changed what "that moment" looks like: the fight's own loop stopped at the win, so the
 	# fight is over and freeable, and the loop is not back at the garage only because ChMain is still
-	# holding its 2 s result window.
+	# holding its 2 s result window. What the fight itself does at its result is pinned in
+	# test_battle.gd; what is still this test's to pin is that ChMain holds the node through the
+	# window and releases it at the window's end (below).
 	assert_true(is_instance_valid(main.battle),
 		"the ended fight is still in the tree while the panel is up")
-	assert_true(not main.battle.ticking, "because its own tick loop stopped at the result")
 	# The build and the kit come back untouched whatever the loop did in between: ChMain owns ONE
 	# layout and ONE inventory, and the fight only ever got a copy.
 	assert_true(main.layout.get_instance_id() == build_id, "the SAME layout instance, not a rebuilt one")
@@ -303,8 +304,15 @@ func test_main_round_trip() -> void:
 	var rocket := main.layout.get_node([3])
 	assert_true(rocket != null and rocket.part_id == &"cutter_rocket", "the Rocket in the same slot")
 	assert_eq(main.inventory.part_ids.size(), carried, "and the same parts carried")
-	# shortcut: this test's teardown frees ChMain with its result window still up, so the ended fight
-	# goes with the tree rather than through ChMain's own release; that release is unpinned until
-	# Task 6 writes the replacements for the tests this task deleted.
+	# The round trip's last leg: ChMain's own hand-back, not the tree taking the fight down with main.
+	# The window's two seconds end, the fight is released, its reference goes with it, and the garage
+	# comes back. MAIN_WAIT_MS is the cap that turns a window that never closes into a recorded
+	# failure rather than a hung run.
+	var started_ms := Time.get_ticks_msec()
+	while main.screen != &"garage" and Time.get_ticks_msec() - started_ms < MAIN_WAIT_MS:
+		await Engine.get_main_loop().process_frame
+	assert_eq(main.screen, &"garage", "the garage came back once the window ended")
+	assert_true(main.garage != null and main.garage.is_visible_in_tree(), "as a live screen again")
+	assert_true(main.battle == null, "and ChMain released the ended fight, node and reference")
 	main.free()
 	_complete()
