@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/ch_chainsaw.gd" id="2_chainsaw"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"cutter_chainsaw"
+behaviour = ExtResource("2_chainsaw")
+display_name = "Cutter Chainsaw"
+hook_text = "Sparks: cutting through parts or terrain throws sparks that can ignite flammables"
+energy_cost = 2
+cooldown = 0.5
+damage = 20
+proximity_range = 14.0
+color = Color(0.6, 0.62, 0.66, 1)

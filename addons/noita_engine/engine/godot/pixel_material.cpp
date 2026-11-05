@@ -100,6 +100,8 @@ void PixelMaterial::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_lifetime"), &PixelMaterial::get_lifetime);
 	ClassDB::bind_method(D_METHOD("set_decays_into", "value"), &PixelMaterial::set_decays_into);
 	ClassDB::bind_method(D_METHOD("get_decays_into"), &PixelMaterial::get_decays_into);
+	ClassDB::bind_method(D_METHOD("set_indestructible", "value"), &PixelMaterial::set_indestructible);
+	ClassDB::bind_method(D_METHOD("get_indestructible"), &PixelMaterial::get_indestructible);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "name"), "set_material_name", "get_material_name");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "material_class", PROPERTY_HINT_ENUM, "Solid:1,Powder:2,Liquid:3,Gas:4"), "set_material_class", "get_material_class");
@@ -126,6 +128,7 @@ void PixelMaterial::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "low_into"), "set_low_into", "get_low_into");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "lifetime"), "set_lifetime", "get_lifetime");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "decays_into"), "set_decays_into", "get_decays_into");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "indestructible"), "set_indestructible", "get_indestructible");
 }
 
 MaterialDef PixelMaterial::to_def() const {
@@ -157,6 +160,7 @@ MaterialDef PixelMaterial::to_def() const {
 	d.low_into = to_std(low_into);
 	d.lifetime = to_uint8(lifetime);
 	d.decays_into = to_std(decays_into);
+	d.indestructible = indestructible;
 	return d;
 }
 

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/ch_hearth.gd" id="2_hearth"]
+
+[resource]
+script = ExtResource("1_part")
+behaviour = ExtResource("2_hearth")
+id = &"hearth"
+display_name = "Hearth"
+energy_cost = 2
+cooldown = 4.0
+damage = 45
+color = Color(0.75, 0.3, 0.2, 1)

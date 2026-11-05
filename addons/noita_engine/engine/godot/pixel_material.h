@@ -52,6 +52,7 @@ private:
 	StringName low_into;
 	int lifetime = 0;
 	StringName decays_into;
+	bool indestructible = false;
 
 protected:
 	static void _bind_methods();
@@ -133,6 +134,9 @@ public:
 
 	void set_decays_into(const StringName &p_decays_into) { decays_into = p_decays_into; }
 	StringName get_decays_into() const { return decays_into; }
+
+	void set_indestructible(bool p_indestructible) { indestructible = p_indestructible; }
+	bool get_indestructible() const { return indestructible; }
 };
 
 } // namespace godot

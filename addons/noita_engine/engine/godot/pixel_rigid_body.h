@@ -20,6 +20,12 @@ class PixelRigidBody : public PixelPhysicsNode {
 public:
 	enum Shape { SHAPE_HULL, SHAPE_CIRCLE, SHAPE_BOXES };
 
+	// Drop the decoded-texture cache (see the .cpp) while objects are still alive. The module's
+	// terminator calls this at shutdown: the cache holds Ref<Image>, and letting its static
+	// destructor release them after ObjectDB cleanup leaks every decoded Image and crashes the run
+	// on exit instead of letting it return its own status.
+	static void clear_texture_cache();
+
 private:
 	Ref<Texture2D> texture;
 	StringName pixel_material;

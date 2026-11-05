@@ -1,0 +1,21 @@
+[gd_resource type="PixelMaterialSet" load_steps=16 format=3]
+
+[ext_resource type="PixelMaterial" path="res://game/materials/rock.tres" id="1_rock"]
+[ext_resource type="PixelMaterial" path="res://game/materials/wood.tres" id="1_wood"]
+[ext_resource type="PixelMaterial" path="res://game/materials/sand.tres" id="1_sand"]
+[ext_resource type="PixelMaterial" path="res://game/materials/water.tres" id="1_water"]
+[ext_resource type="PixelMaterial" path="res://game/materials/oil.tres" id="1_oil"]
+[ext_resource type="PixelMaterial" path="res://game/materials/lava.tres" id="1_lava"]
+[ext_resource type="PixelMaterial" path="res://game/materials/fire.tres" id="1_fire"]
+[ext_resource type="PixelMaterial" path="res://game/materials/steam.tres" id="1_steam"]
+[ext_resource type="PixelMaterial" path="res://game/materials/smoke.tres" id="1_smoke"]
+[ext_resource type="PixelMaterial" path="res://game/materials/concrete.tres" id="1_concrete"]
+[ext_resource type="PixelMaterial" path="res://game/materials/frost.tres" id="1_frost"]
+[ext_resource type="PixelMaterial" path="res://game/materials/ice.tres" id="1_ice"]
+[ext_resource type="PixelReaction" path="res://game/materials/water_lava.tres" id="2_water_lava"]
+[ext_resource type="PixelReaction" path="res://game/materials/water_fire.tres" id="2_water_fire"]
+[ext_resource type="PixelReaction" path="res://game/materials/fire_oil.tres" id="2_fire_oil"]
+
+[resource]
+materials = Array[PixelMaterial]([ExtResource("1_rock"), ExtResource("1_wood"), ExtResource("1_sand"), ExtResource("1_water"), ExtResource("1_oil"), ExtResource("1_lava"), ExtResource("1_fire"), ExtResource("1_steam"), ExtResource("1_smoke"), ExtResource("1_concrete"), ExtResource("1_frost"), ExtResource("1_ice")])
+reactions = Array[PixelReaction]([ExtResource("2_water_lava"), ExtResource("2_water_fire"), ExtResource("2_fire_oil")])

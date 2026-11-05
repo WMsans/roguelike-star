@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_body_def.gd" id="1_body"]
+
+[resource]
+script = ExtResource("1_body")
+id = &"dozer"
+display_name = "Dozer"
+hp = 500
+energy_cap = 20
+energy_regen = 5.0
+size = Vector2i(30, 18)
+color = Color(0.6, 0.45, 0.4, 1)
+slots = PackedVector2Array(-9, 9, 9, 9, -12, -3, 12, -3, -6, -9, 6, -9)

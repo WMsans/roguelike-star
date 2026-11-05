@@ -94,7 +94,7 @@ struct ExplodeStyle {
 	int flash_sparks = 0;
 };
 
-// Removes every loaded, non-air, non-body cell in the blast around (cx, cy): in_blast, minus
+// Removes every loaded, non-air, non-body, non-indestructible cell in the blast around (cx, cy): in_blast, minus
 // the lobes and ragged edge of `rim_noise`. Solids and gases vanish; powders and liquids are
 // thrown with EXPLODE_THROW_CHANCE, outward at up to `power` cells/tick (full at the centre,
 // none at the rim) plus a lift, else vanish. A vanished cell sprays a spark of spark_color with

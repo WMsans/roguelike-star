@@ -1,0 +1,10 @@
+[gd_resource type="PixelMaterial" format=3]
+
+[resource]
+name = &"concrete"
+material_class = 1
+density = 2.5
+color = Color(0.6, 0.58, 0.52, 1)
+collision_solid = true
+conductivity = 0.0
+indestructible = true

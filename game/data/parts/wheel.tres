@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"wheel"
+display_name = "Wheel"
+energy_cost = 0
+cooldown = 0.0
+damage = 0
+size = Vector2i(12, 12)
+color = Color(0.25, 0.25, 0.28, 1)
