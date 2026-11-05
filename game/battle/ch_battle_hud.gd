@@ -10,7 +10,7 @@ const MARGIN := 20.0  # the gap from the viewport's top corners
 const BAR := Vector2(320, 20)  # the HP bar, the brief's 320x20
 const PIP := Vector2(10, 12)  # one energy unit
 const PIP_GAP := 4
-const PIP_OFF := Color("#3c3c46")  # an unlit pip: the theme's button grey, so it reads as a socket
+const PIP_OFF := ChUi.BUTTON  # an unlit pip: the theme's button grey, so it reads as a socket
 const ROW_GAP := 6  # between a block's rows
 const STATUS_GAP := 12  # between the pips and the waiting count
 

@@ -88,9 +88,8 @@ func _on_fight_requested(copy: ChChariotLayout) -> void:
 	# what keeps the garage's own build off whatever the fight does to it.
 	shown = copy
 	screen = &"fight"
-	# The garage screen stops reading the pointer while the fight runs and leaves the tree at the
-	# hand-back: the fight draws over it, and a build cannot be edited mid-fight.
-	garage.set_process(false)
+	# The garage screen leaves the tree at the hand-back: the fight draws over it, and a build cannot
+	# be edited mid-fight. hide() is what stops its clicks; nothing here reads the pointer on a frame.
 	garage.hide()
 	await _start_battle()
 
@@ -118,6 +117,10 @@ func _on_finished(result: StringName, from: ChBattle) -> void:
 	# shortcut: one panel naming what happened rather than three screens; to the player only a win is
 	# a win.
 	if from != battle:
+		return
+	# Idempotent against a contract-violating second `finished`: the panel is the whole result screen,
+	# so a second one would stack over the first and orphan it under the layer.
+	if result_panel != null:
 		return
 	# The HUD is a CanvasLayer above the fight's own nodes, so it would keep drawing the last HP of a
 	# fight nobody can act on any more; the result screen is the panel alone.

@@ -36,10 +36,11 @@ func _init(def_in: ChPartDef, garage_in: ChGarage) -> void:
 
 
 func set_count(carried: int) -> void:
-	# The inventory's count is the card's whole state: a part the player owns none of is disabled
-	# rather than hidden, so the strip keeps its one shape whatever the build.
+	# The inventory's count is the card's whole state: a part the player owns none of is greyed out and
+	# disabled rather than hidden, so the strip keeps its one shape whatever the build.
 	count = carried
 	disabled = carried <= 0
+	modulate = Color(1, 1, 1, 0.45 if carried <= 0 else 1.0)
 	queue_redraw()
 
 

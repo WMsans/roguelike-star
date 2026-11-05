@@ -103,6 +103,10 @@ func test_battle_has_no_ticker() -> void:
 		frames += 1
 	assert_true(not battle.ticking, "the fight spent its own loop")
 	assert_true(not fired.is_empty(), "the fight fired a part, so a ticker would have had a line")
+	# The HUD's numbers are the tick's: every other HUD test hands show_state its own fixture, so
+	# deleting _hud_tick's call would leave them all green with a permanently blank HUD.
+	assert_eq(battle.hud.enemy_name.text, "Dozer", "the fight's own tick filled the enemy's name")
+	assert_eq(battle.hud.enemy_hp.text, "0 / 30", "and the HP it reads off the enemy it just killed")
 	var names: Array[StringName] = [ChEvent.PART_FIRED, ChEvent.HIT, ChEvent.CAUGHT_FIRE,
 		ChEvent.FROZEN, ChEvent.THAWED, ChEvent.PART_BROKEN, ChEvent.CELLS_CUT,
 		ChEvent.ENERGY_GAINED]

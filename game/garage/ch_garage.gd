@@ -61,8 +61,10 @@ func setup(inventory_in: ChInventory, layout_in: ChChariotLayout,
 	# Three references and nothing else: a lift returns a part where the owner can see it and a
 	# drop takes it from there, so the screen keeps no copy of either half. The copy the brief
 	# asks for belongs to request_fight, which is the only layout a fight could mutate.
-	# The refreshes are for a screen that is already on the tree (a caller that sets up after
-	# add_child); on ChMain's order - setup, then add_child - they are no-ops.
+	# The order is setup() then add_child: _enter_tree builds the strip from this catalog, so a
+	# caller that sets up after entering the tree leaves the strip empty (_enter_tree says so).
+	# The two refreshes below are for a garage that is already on the tree and set up again; on
+	# ChMain's order they are no-ops, because there is no strip or top bar to refresh yet.
 	# shortcut: no validation. An unresolvable body_id is cycle_body's refusal, and Task 4's
 	# place() left an out-of-range index legal on the same grounds, so the garage adds no rule.
 	inventory = inventory_in
@@ -263,34 +265,11 @@ func _info_of(def: ChPartDef) -> Dictionary:
 
 func screen_of(path) -> Vector2:
 	# The pixel a path's anchor sits at, mounted or not: an empty slot has no node to read, so the
-	# position comes from the defs, which is what makes a click aimed at a marker land on it.
-	return CHARIOT_AT + _cells_of(_typed(path)) * ZOOM
-
-
-func _cells_of(path: Array[int]) -> Vector2:
-	# Body-local cells for any path: the body slot's own position, then one extension offset per step,
-	# whose x negates on a flipped parent. The same walk anchor_of does, which answers only for a path
-	# that holds a part - the markers and the drop pointer need the position of a slot nothing fills.
-	if layout == null or catalog == null or path.is_empty():
-		return Vector2.ZERO
-	var body: ChBodyDef = catalog.body(layout.body_id)
-	if body == null or path[0] < 0 or path[0] >= body.slots.size():
-		return Vector2.ZERO
-	var at := Vector2(body.slots[path[0]])
-	var node: ChSlotNode = layout.slots.get(path[0])
-	for i in range(1, path.size()):
-		# A path with a hole in its middle names no slot: the part that would own it is not mounted.
-		if node == null:
-			return Vector2.ZERO
-		var def: ChPartDef = catalog.part(node.part_id)
-		if def == null or path[i] < 0 or path[i] >= def.extension_slots.size():
-			return Vector2.ZERO
-		var off: Vector2 = def.extension_slots[path[i]]
-		if node.flipped:
-			off.x = -off.x
-		at += off
-		node = node.children.get(path[i])
-	return at
+	# position comes from the defs, which is what makes a click aimed at a marker land on it. The walk
+	# lives in the layout, the same one anchor_of reads, so the pit and the fight cannot drift.
+	if layout == null or catalog == null:
+		return CHARIOT_AT
+	return CHARIOT_AT + layout.cells_of(_typed(path), catalog) * ZOOM
 
 
 func _box_at(at: Vector2, def: ChPartDef) -> Rect2:
@@ -314,7 +293,7 @@ func _free_slots() -> Array:
 	for index in body_def.slots.size():
 		if not layout.slots.has(index):
 			var one: Array[int] = [index]
-			out.append([one, _cells_of(one)])
+			out.append([one, layout.cells_of(one, catalog)])
 	for path in layout.all_paths():
 		var typed_path: Array[int] = _typed(path)
 		var node: ChSlotNode = layout.get_node(typed_path)
@@ -326,7 +305,7 @@ func _free_slots() -> Array:
 				continue  # a taken extension draws its part where the marker would sit
 			var step: Array[int] = _typed(typed_path)  # a fresh path per slot, not a shared one
 			step.append(slot)
-			out.append([step, _cells_of(step)])
+			out.append([step, layout.cells_of(step, catalog)])
 	return out
 
 
@@ -423,6 +402,11 @@ func _enter_tree() -> void:
 	# that is taken out and put back from building a second strip.
 	if _info_panel != null:
 		return
+	# setup() has to run before this node enters the tree, because the strip below is built from the
+	# catalog and nothing later rebuilds it: a caller that gets this wrong gets an empty strip and no
+	# error otherwise, which is silent and looks like a bug in the inventory.
+	if catalog == null:
+		push_error("ChGarage entered the tree before setup(): its strip stays empty")
 	_pit = $Pit
 	_pit.gui_input.connect(_on_pit_input)
 	_held_layer = $HeldLayer

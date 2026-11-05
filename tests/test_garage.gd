@@ -164,9 +164,8 @@ func test_click_flips() -> void:
 	# which is the only visible effect a flip has on a part that owns no range of its own.
 	assert_true(layout.get_node([1]).flipped, "the flag toggled")
 	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(2, -1), "flipped parent: 6-4 across")
-	# The screen's own walk (_cells_of) repeats anchor_of's rule for a slot nothing fills, so the two
-	# could drift apart in silence: this pins the pixel the pit draws to the layout's cell math on the
-	# flipped branch, which is the one the negation lives on.
+	# The pit reads the layout's own walk now, so this pins the wiring: a second copy in the garage
+	# would be free to drift again without it.
 	assert_eq(garage.screen_of([1, 1]), garage.CHARIOT_AT + layout.anchor_of([1, 1], catalog) * garage.ZOOM,
 		"a flipped nested part sits where the layout says it does")
 	garage.click_part([1])
@@ -441,6 +440,12 @@ func test_main_round_trip() -> void:
 	# What the fight itself does at its result is pinned in test_battle.gd.
 	var fought := main.battle
 	assert_true(is_instance_valid(fought), "the ended fight is still in the tree under the panel")
+	# A second `finished` is a contract violation, but the panel is the whole result screen: a second
+	# one would stack over the first, so the handler refuses once a panel exists.
+	fought.finished.emit(&"win")
+	assert_eq(main.find_children("*", "ChResultPanel", true, false).size(), 1,
+		"a second finished does not stack a second panel")
+	assert_eq(main.screen, &"result", "and the screen is still the one panel")
 	main.result_panel.back.pressed.emit()
 	assert_eq(main.screen, &"garage", "back went to the garage")
 	assert_true(main.garage != null and main.garage.is_visible_in_tree(), "as a live screen again")
@@ -583,15 +588,20 @@ func test_strip_has_every_part() -> void:
 	assert_true(mace != null, "the mace has a card")
 	assert_eq(mace.count, 0, "carrying none")
 	assert_true(mace.disabled, "so it cannot be picked")
+	# A disabled card is greyed out as well as unpickable, which is the spec's "stays in the strip,
+	# greyed out and not clickable": the alpha is the whole of the grey-out.
+	assert_near(mace.modulate.a, 0.45, 0.001, "a card carrying none is greyed out")
 	var wheel := _card_of(garage, &"wheel")
 	assert_eq(wheel.count, 1, "the carried wheel reads one")
 	assert_true(not wheel.disabled, "and its card is live")
+	assert_near(wheel.modulate.a, 1.0, 0.001, "and drawn at full strength")
 	assert_eq(garage.card_counts().size(), garage.STRIP_ORDER.size(),
 		"card_counts answers for every id the strip shows")
 	# A drop updates the strip without a rebuild, which is the only thing that keeps it honest.
 	assert_true(garage.drop_part(&"wheel", [0]), "the wheel mounts")
 	assert_eq(wheel.count, 0, "and its card reads none carried")
 	assert_true(wheel.disabled, "with nothing to pick")
+	assert_near(wheel.modulate.a, 0.45, 0.001, "and greyed out once the last copy left the kit")
 	_complete()
 
 

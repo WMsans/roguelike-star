@@ -110,31 +110,31 @@ func all_paths() -> Array:
 	return out
 
 
-func anchor_of(path: Array[int], catalog: ChCatalog) -> Vector2:
-	# Body-local cell position of the part at the path: positions live in the defs, which is why
-	# the catalog is a parameter and the layout itself stores only ids.
-	# shortcut: ZERO answers every failure (no node, no def, index out of range); the brief fixes
-	# the return type to Vector2, so a reason cannot travel with an anchor and a caller re-checks.
-	# shortcut: ChGarage._cells_of repeats this walk for unmounted slots - change both, not one.
+func cells_of(path: Array[int], catalog: ChCatalog) -> Vector2:
+	# Body-local cell position of any path: the body slot's own position, then one extension offset per
+	# step, whose x negates on a flipped parent. The walk anchor_of reads, and the one place it lives.
+	# Unlike anchor_of it answers for a path whose last slot is empty - a free slot's marker, or the slot
+	# a part is being dropped onto - so a hole in the middle refuses (there is no def to step from) while
+	# an empty tip is a real position.
+	# shortcut: ZERO answers every failure (no def, index out of range, no node to read the next def
+	# from); the brief fixes the return type to Vector2, so a reason cannot travel with the position.
 	if path.is_empty():
 		return Vector2.ZERO
-	# A path that addresses no mounted part has no anchor, so no def is read for it.
-	if get_node(path) == null:
-		return Vector2.ZERO
 	var body: ChBodyDef = catalog.body(body_id)
-	if body == null or path[0] < 0 or path[0] >= body.slots.size():
-		return Vector2.ZERO
 	# An index outside the def's range is checked here rather than at place, which has no def to
 	# check against: a PackedVector2Array index wraps, so the bound belongs on this side.
+	if body == null or path[0] < 0 or path[0] >= body.slots.size():
+		return Vector2.ZERO
 	var at := Vector2(body.slots[path[0]])
-	var node: ChSlotNode = slots[path[0]]
+	var node: ChSlotNode = slots.get(path[0])
 	for i in range(1, path.size()):
+		# A path with a hole in its middle names no slot: the part that would own it is not mounted.
+		if node == null:
+			return Vector2.ZERO
 		# One step per path index: the offset comes from the part one level up, looked up by its id.
 		# shortcut: only the direct parent's flag is read, so an ancestor does not rotate a whole branch.
 		var def: ChPartDef = catalog.part(node.part_id)
-		if def == null:
-			return Vector2.ZERO
-		if path[i] < 0 or path[i] >= def.extension_slots.size():
+		if def == null or path[i] < 0 or path[i] >= def.extension_slots.size():
 			return Vector2.ZERO
 		# A flip negates the extension offset's x only: a flip turns the mount left/right, not upside
 		# down, so y stays. A part's own flag never enters its own anchor, only its parent's.
@@ -143,8 +143,20 @@ func anchor_of(path: Array[int], catalog: ChCatalog) -> Vector2:
 			off.x = -off.x
 		# shortcut: at accumulates, so depth costs the loop rather than a case per level.
 		at += off
-		node = node.children[path[i]]
+		node = node.children.get(path[i])
 	return at
+
+
+func anchor_of(path: Array[int], catalog: ChCatalog) -> Vector2:
+	# Body-local cell position of the part at the path: positions live in the defs, which is why
+	# the catalog is a parameter and the layout itself stores only ids.
+	# shortcut: ZERO answers every failure (no node, no def, index out of range); the brief fixes
+	# the return type to Vector2, so a reason cannot travel with an anchor and a caller re-checks.
+	# A path that addresses no mounted part has no anchor: cells_of would answer the free slot's
+	# position for it, so the mount is what this check adds on top of the one walk.
+	if path.is_empty() or get_node(path) == null:
+		return Vector2.ZERO
+	return cells_of(path, catalog)
 
 
 func swap_body(new_body: ChBodyDef, catalog: ChCatalog) -> Array[ChSlotNode]:
