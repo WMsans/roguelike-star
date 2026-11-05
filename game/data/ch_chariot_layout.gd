@@ -115,6 +115,7 @@ func anchor_of(path: Array[int], catalog: ChCatalog) -> Vector2:
 	# the catalog is a parameter and the layout itself stores only ids.
 	# shortcut: ZERO answers every failure (no node, no def, index out of range); the brief fixes
 	# the return type to Vector2, so a reason cannot travel with an anchor and a caller re-checks.
+	# shortcut: ChGarage._cells_of repeats this walk for unmounted slots - change both, not one.
 	if path.is_empty():
 		return Vector2.ZERO
 	# A path that addresses no mounted part has no anchor, so no def is read for it.

@@ -164,6 +164,11 @@ func test_click_flips() -> void:
 	# which is the only visible effect a flip has on a part that owns no range of its own.
 	assert_true(layout.get_node([1]).flipped, "the flag toggled")
 	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(2, -1), "flipped parent: 6-4 across")
+	# The screen's own walk (_cells_of) repeats anchor_of's rule for a slot nothing fills, so the two
+	# could drift apart in silence: this pins the pixel the pit draws to the layout's cell math on the
+	# flipped branch, which is the one the negation lives on.
+	assert_eq(garage.screen_of([1, 1]), garage.CHARIOT_AT + layout.anchor_of([1, 1], catalog) * garage.ZOOM,
+		"a flipped nested part sits where the layout says it does")
 	garage.click_part([1])
 	assert_true(not layout.get_node([1]).flipped, "a second click toggles back")
 	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(10, -1), "and the child returns to its cell")
