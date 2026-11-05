@@ -89,14 +89,29 @@ func unbind_world() -> void:
 	_scope = null
 
 
+func _in_world_scope(target: CanvasItem) -> bool:
+	# A battle-world target hangs under the scope with no CanvasLayer in between. ChBattle also owns
+	# the HUD's CanvasLayer, so being a descendant is not enough: a bar's pixels are screen
+	# coordinates, not cells, and it takes the screen-space path below.
+	if _world == null or not is_instance_valid(_world) \
+			or _scope == null or not is_instance_valid(_scope):
+		return false
+	if not _scope.is_ancestor_of(target):
+		return false
+	var node := target.get_parent()
+	while node != null and node != _scope:
+		if node is CanvasLayer:
+			return false
+		node = node.get_parent()
+	return true
+
+
 func _burst(beat: ChFeedbackProfile, target, overrides: Dictionary) -> void:
 	if beat.particle_count <= 0 or not target is CanvasItem:
 		return
 	var color: Color = overrides.get("color", beat.particle_color)
-	# Battle space is cell space, so the body's global position is the world point. A target
-	# outside the bound scope (the HUD, the garage) still gets its screen-space burst below.
-	if _world != null and is_instance_valid(_world) and _scope != null and is_instance_valid(_scope) \
-			and _scope.is_ancestor_of(target):
+	# Battle space is cell space, so the body's global position is the world point.
+	if _in_world_scope(target):
 		ChFeedbackParticles.burst_world(_world, target.global_position, beat, color)
 		return
 	if popups == null:
@@ -108,6 +123,13 @@ func _burst(beat: ChFeedbackProfile, target, overrides: Dictionary) -> void:
 	burst.lifetime = UI_PARTICLE_LIFE
 	burst.amount = mini(beat.particle_count, ChFeedbackParticles.CAP)
 	burst.color = color
+	# Read as a burst, not a 1 px static square: spray out, move, fall, draw bigger than a pixel.
+	burst.spread = 180.0
+	burst.initial_velocity_min = 40.0
+	burst.initial_velocity_max = 90.0
+	burst.gravity = Vector2(0, 200)
+	burst.scale_amount_min = 2.0
+	burst.scale_amount_max = 2.0
 	burst.position = target.get_global_transform_with_canvas().origin
 	popups.add_child(burst)
 	burst.emitting = true

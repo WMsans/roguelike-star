@@ -9,7 +9,6 @@ extends ChTest
 func _profile_asking(count: int) -> ChFeedbackProfile:
 	var profile := ChFeedbackProfile.new()
 	profile.particle_count = count
-	profile.particle_color = Color.WHITE
 	profile.particle_speed = 30.0
 	return profile
 
@@ -97,4 +96,47 @@ func test_ui_burst_uses_cpu_particles() -> void:
 		elapsed += ml.root.get_process_delta_time()
 	assert_true(not is_instance_valid(burst), "the first burst freed itself")
 	assert_true(not is_instance_valid(overridden[before + 1]), "the overridden burst freed itself")
+	_complete()
+
+
+func test_hud_target_takes_ui_path() -> void:
+	# Task 7 binds ChBattle as the scope, and the HUD's CanvasLayer is a child of that same battle:
+	# a bar is a descendant of the scope, but its pixels are screen coordinates, not cells.
+	var world: PixelWorld = await make_world()
+	var scope := _parent()
+	var body := Node2D.new()
+	scope.add_child(body)
+	body.global_position = Vector2(240, 90)
+	var layer := CanvasLayer.new()
+	scope.add_child(layer)
+	var bar := Control.new()
+	layer.add_child(bar)
+	bar.global_position = Vector2(40, 50)
+	Feedback.bind_world(world, scope)
+
+	var cpu_before: int = _cpu_bursts().size()
+	var world_before: int = world.get_stats()["particles_visual"]
+	Feedback.play(&"broken", body)
+	assert_true(world.get_stats()["particles_visual"] > world_before,
+		"a battle body bursts in the world pool")
+	assert_eq(_cpu_bursts().size(), cpu_before, "a battle body adds no screen-space burst")
+
+	var world_mid: int = world.get_stats()["particles_visual"]
+	Feedback.play(&"placed", bar)
+	var bursts := _cpu_bursts()
+	assert_eq(world.get_stats()["particles_visual"], world_mid,
+		"a HUD bar is not a battle-world target: the world pool is untouched")
+	assert_eq(bursts.size(), cpu_before + 1, "a HUD bar bursts on the screen-space layer")
+	var burst: CPUParticles2D = bursts[cpu_before]
+	_track(burst)
+	assert_true(burst.position.distance_to(bar.get_global_transform_with_canvas().origin) < 1.0,
+		"the burst sits at the bar's screen point, got %s" % burst.position)
+	# The burst has to read as a burst, not a 1 px static square: it sprays out, moves, falls and
+	# draws bigger than a pixel.
+	assert_near(burst.spread, 180.0, 0.01, "the burst sprays around")
+	assert_true(burst.initial_velocity_min > 0.0 and burst.initial_velocity_max >= burst.initial_velocity_min,
+		"the burst has speed: %s..%s" % [burst.initial_velocity_min, burst.initial_velocity_max])
+	assert_true(burst.gravity.is_equal_approx(Vector2(0, 200)), "the burst falls, got %s" % burst.gravity)
+	assert_near(burst.scale_amount_min, 2.0, 0.01, "the burst is bigger than 1 px")
+	Feedback.unbind_world()
 	_complete()
