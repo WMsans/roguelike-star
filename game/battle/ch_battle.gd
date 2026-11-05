@@ -12,7 +12,8 @@ class_name ChBattle extends Node2D
 # HUD and camera follow the brief: HP bars both sides, the player's energy bar with queue-size pips,
 # the last 4 events as text, a marker per part, and a 0.2 s pulse on a part the player just fired.
 
-signal finished(result: StringName)  # &"win" or &"loss" from the fight, &"aborted" if it could not start
+# &"win", &"loss" or &"draw" from the fight, &"aborted" if it could not start
+signal finished(result: StringName)
 
 const ARENA := Rect2i(0, 0, 480, 180)
 const VIEW := Vector2(320, 180)  # project.godot's viewport: the HUD lays out in these pixels
@@ -40,7 +41,7 @@ var ticker_labels: Array[Label] = []
 var ticker_text: Array[String] = []  # the ticker's lines, oldest first
 var pulses: Array = []  # of {"part": ChPartRuntime, "left": seconds}
 var hud_listener: RefCounted = null  # the key the HUD's subscriptions unsubscribe under
-var reported := false  # `finished` gets one emit per fight
+var outcome := &""  # what this fight decided, once _step names it; "" while neither hull is dead
 var started := false  # read-only: start() has passed its arena build and may still be ticking
 var ticking := false  # read-only: start()'s tick loop is running now (see the contract below)
 
@@ -110,8 +111,8 @@ func _bar(canvas: CanvasLayer, kind: int, at_x: float, at_y: float) -> void:
 func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	catalog: ChCatalog, seed: int) -> void:
 	# The whole fight, once: arena, two builds, the setup calls every behaviour subscribes on, then
-	# the ticks. It runs to its tick budget whatever the result, so the ticks that follow a win are
-	# real ticks and `finished` is the one emit they cannot repeat.
+	# the ticks. The ticks stop at the result, and a fight nobody dies in stops at its own budget, so
+	# `finished` follows an ended fight rather than announcing a result mid-fight.
 	# shortcut: one fight per scene — start() builds the HUD and the arena from scratch, so a caller
 	# that wants a second fight instantiates the scene again rather than reusing this node's nodes.
 	# The HUD collections are cleared here so a second call cannot write the first fight's nodes.
@@ -120,7 +121,7 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	ticker_labels.clear()
 	ticker_text.clear()
 	pulses.clear()
-	reported = false
+	outcome = &""
 	camera = $Camera
 	_build_hud()
 	# CONTRACT: every path that cannot run a fight emits `finished` with &"aborted" — the two fight
@@ -159,29 +160,30 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 			if part.behaviour != null:
 				part.behaviour.setup(ctx)
 	_subscribe_hud()
-	# CONTRACT: a caller may free this node only once `started` is true and `ticking` is false. Both
-	# start() legs - streaming the arena, then the ticks - are a coroutine that resumes on the tree's
-	# own frames, so freeing it mid-await deletes the object it resumes into; `finished` says who won,
-	# not that the loop is over, because the ticks run to FIGHT_TICKS either way.
+	# CONTRACT: `finished` is the fight's end, not an announcement made while it runs. It fires once,
+	# after the tick loop has stopped, with `ticking` already false and `world.simulating` already
+	# false, so a listener may free this node on any later frame: there is no suspended coroutine and
+	# no simulating world left under it. Freeing before that is still forbidden - both start() legs
+	# (streaming the arena, then the ticks) are a coroutine that resumes on the tree's own frames, so
+	# freeing the node mid-await deletes the object it resumes into.
 	# shortcut: there is no stop: a caller that wants a fight over early has to wait for its loop,
 	# because ending a fight on someone else's say-so is not part of ChBattle's contract.
 	started = true
 	ticking = true
-	# A fight ChMain has hidden (its _return_to_garage keeps a still-ticking fight off screen) stops
-	# simulating: the HUD, the drives, the off-screen ui_left/ui_right poll and the sand would all be
-	# working for nobody. Only the sim stops - the loop still runs its FIGHT_TICKS frames, so the fight
-	# still ends on its own budget and `ticking` still says when it is safe to free; and no HP moves
-	# while paused, so a pause can never decide a result. The world's own `simulating` is the engine's
-	# switch (pixel_world.cpp:331 gates the sim step, physics included).
-	var shown := true
+	# One ctx.tick per awaited frame until someone dies: _step stores the result it sees and the break
+	# ends the fight. A fight with no result still spends its FIGHT_TICKS frames, so a draw is the
+	# fight's own budget running out and never another node's clock.
 	for _tick in FIGHT_TICKS:
-		if visible != shown:
-			shown = visible
-			world.simulating = shown
-		if shown:
-			_step(TICK)
+		_step(TICK)
+		if outcome != &"":
+			break
 		await get_tree().process_frame
 	ticking = false
+	# The world's own switch (pixel_world.cpp:331 gates the sim step on it) goes off with the loop, so
+	# a finished fight leaves nothing simulating behind it - which is what makes the free above safe.
+	world.simulating = false
+	# The loop ended with neither hull dead: the time limit ran out, and that is a result too.
+	finished.emit(outcome if outcome != &"" else &"draw")
 
 static func result_for(player_dead: bool, enemy_dead: bool) -> StringName:
 	# Review Focus 4: both chariots reaching 0 HP on one tick is the player's loss. A Ring of Fire
@@ -257,9 +259,10 @@ func _step(delta: float) -> void:
 	_hud_tick(delta)
 	_camera_at()
 	var result := result_for(player.is_dead(), enemy.is_dead())
-	if result != &"" and not reported:
-		reported = true
-		finished.emit(result)
+	if result != &"":
+		# Stored, not emitted: the loop in start() breaks on this and then speaks, so `finished` only
+		# ever arrives with the fight already over (see the contract there).
+		outcome = result
 
 
 func _player_drive() -> float:

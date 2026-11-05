@@ -14,6 +14,7 @@ extends ChTest
 const FIGHT_SECONDS := 60.0  # the brief's ceiling: a headless fight has to finish inside this
 const TICK := 1.0 / 60.0
 const ENEMY_HP := 30  # the Dozer's HP overridden
+const TALL_HP := 100000  # a hull no fight ends: enough HP that only the time limit can decide
 
 
 func _typed_path(path) -> Array[int]:
@@ -41,16 +42,14 @@ func _enemy_layout() -> ChChariotLayout:
 	return layout
 
 
-func _dozer(enemy_hp: int) -> ChBodyDef:
-	# The Dozer with the brief's HP override. ChBodyDef.duplicate() drops a script resource's own
-	# properties on this build (verified: the copy answers an empty id and 0 HP), so the fields the
-	# builder reads are written across one by one rather than guessed at.
-	var loaded: ChBodyDef = ChCatalog.load_default().body(&"dozer")
-	assert_true(loaded != null, "the dozer body def loads")
+func _body_with_hp(loaded: ChBodyDef, hp: int) -> ChBodyDef:
+	# A body def with its HP replaced. ChBodyDef.duplicate() drops a script resource's own properties
+	# on this build (verified: the copy answers an empty id and 0 HP), so the fields the builder reads
+	# are written across one by one rather than guessed at.
 	var copy := ChBodyDef.new()
 	copy.id = loaded.id
 	copy.display_name = loaded.display_name
-	copy.hp = enemy_hp
+	copy.hp = hp
 	copy.energy_cap = loaded.energy_cap
 	copy.energy_regen = loaded.energy_regen
 	copy.size = loaded.size
@@ -60,8 +59,9 @@ func _dozer(enemy_hp: int) -> ChBodyDef:
 	return copy
 
 
-func _catalog(enemy_hp: int) -> ChCatalog:
-	# The slice's defs with the Dozer's HP overridden to 30, so one Rocket hit ends the enemy.
+func _catalog(enemy_hp: int, player_hp: int = 0) -> ChCatalog:
+	# The slice's defs with the Dozer's HP overridden to 30, so one Rocket hit ends the enemy; pass
+	# player_hp to raise the player's Cutter too, which is how a fight nobody dies in is forced.
 	# shortcut: the override travels as a catalog because a def on disk is shared by every test in
 	# the run; mutating it would make a later test's Dozer fragile.
 	var loaded := ChCatalog.load_default()
@@ -70,7 +70,12 @@ func _catalog(enemy_hp: int) -> ChCatalog:
 		parts.append(def)
 	var bodies: Array[ChBodyDef] = []
 	for def in loaded.bodies.values():
-		bodies.append(_dozer(enemy_hp) if def.id == &"dozer" else def)
+		if def.id == &"dozer":
+			bodies.append(_body_with_hp(def, enemy_hp))
+		elif player_hp > 0 and def.id == &"cutter":
+			bodies.append(_body_with_hp(def, player_hp))
+		else:
+			bodies.append(def)
 	return ChCatalog.from_defs(parts, bodies)
 
 
@@ -209,16 +214,49 @@ func test_aborted_battle_still_ends() -> void:
 	_complete()
 
 
-# The end of a fight does not stop its ticks: ChBattle runs the fight to its tick budget whatever
-# the result, so a second `finished` never arrives.
-func test_finished_emitted_once() -> void:
+# Task 3: a result ends the fight. The loop stops at it, the world stops simulating with it, and the
+# clock stays short of the budget, so the ticks past the end that used to run are gone.
+func test_fight_stops_at_result() -> void:
 	var battle := _battle_scene()
 	var results := await _fight(battle, _player_layout(), _enemy_layout(), _catalog(ENEMY_HP), 12345)
-	assert_eq(results.size(), 1, "one finished across a whole budget of ticks")
-	assert_eq(results, [&"win"], "and it is the win, not a second result")
-	# The ticks ran past the end: the fight's clock reached the budget it was given, so this is
-	# the second emit being refused rather than a loop that stopped at the result.
-	assert_true(battle.ctx.time >= FIGHT_SECONDS - TICK, "ticks ran on past the result to the budget")
+	assert_eq(results.size(), 1, "the fight announced exactly one result")
+	assert_eq(results, [&"win"], "the win, once, and no second result behind it")
+	assert_true(not battle.ticking, "the tick loop stopped at the result")
+	assert_true(not battle.world.simulating, "and the world stopped simulating with it")
+	assert_true(battle.ctx.time < FIGHT_SECONDS - 1.0,
+		"the fight stopped short of its 60 s budget (clock at %.2f s)" % battle.ctx.time)
+	battle.free()
+	_complete()
+
+
+# Review Focus 5, the fight's half: a fight that runs out its time with both hulls standing names a
+# draw rather than saying nothing. ChMain's half (the panel that shows it) is Task 6's.
+func test_timeout_is_draw() -> void:
+	var battle := _battle_scene()
+	var results := await _fight(battle, _player_layout(), _enemy_layout(),
+		_catalog(TALL_HP, TALL_HP), 12345)
+	assert_eq(results.size(), 1, "the fight that ran out its time announced exactly one result")
+	assert_eq(results, [&"draw"], "the time limit reads as a draw, not a win or a loss")
+	assert_near(battle.ctx.time, FIGHT_SECONDS, TICK, "and it spent its whole tick budget first")
+	assert_true(not battle.ticking, "the loop ended on its own budget")
+	battle.free()
+	_complete()
+
+
+# The contract Tasks 6 and 7 build on: `finished` is the fight's end, not a mid-fight announcement.
+# Read from inside the handler, `ticking` and the world's sim are already down, so a listener may
+# free this node on any later frame without cutting a coroutine or leaving a simulating world.
+func test_finished_after_ticking_stops() -> void:
+	var battle := _battle_scene()
+	var at_emit: Array = []
+	var sink := at_emit
+	battle.finished.connect(func(result: StringName): sink.append(
+		{"result": result, "ticking": battle.ticking, "simulating": battle.world.simulating}))
+	await battle.start(_player_layout(), _enemy_layout(), _catalog(ENEMY_HP), 12345)
+	assert_eq(at_emit.size(), 1, "one finished across the fight")
+	assert_eq(at_emit[0]["result"], &"win", "naming the win")
+	assert_true(not bool(at_emit[0]["ticking"]), "ticking was already false when the handler ran")
+	assert_true(not bool(at_emit[0]["simulating"]), "and the world had already stopped simulating")
 	battle.free()
 	_complete()
 
@@ -226,9 +264,9 @@ func test_finished_emitted_once() -> void:
 # --- Review item 3: the spec's chains, read off a real fight --------------------------------------
 # Everything above this line drives one seam in isolation. These two drive the shipped scene with a
 # build made through the garage's own drop path, hold the fight's own drive keys the way a player
-# holds D, and read what the fight's own event bus said. ChBattle has no stop and always spends its
-# 3600-frame budget (Task 15's contract), so each of these pays one whole fight: measured, ~11 s each
-# at the suite's headless frame rate.
+# holds D, and read what the fight's own event bus said. ChBattle has no stop, so each of these
+# pays its fight to the end - at its own result if one arrives, otherwise at its 3600-frame budget -
+# and both drive through the shipped scene's real tick loop.
 const CHAIN_FRAMES := 4000  # the 3600-frame budget, plus the frames the arena takes to stream
 const DRIVE_ON := 0.9  # seconds of held direction
 const DRIVE_OFF := 0.3  # seconds released, so the queued parts are paid (drive is paid first)
@@ -365,7 +403,7 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 # What it does NOT pin: how close the two hulls get. With the wheel mounts fixed they met (38 cells,
 # the two hulls touching) in three runs of this build and stayed 186 apart in a fourth, because
 # whether the sand and the two pools let the player across varies run to run; the fight resolves
-# either way (ChBattle always spends its frame budget).
+# either way, at its own result or at its frame budget.
 # Nothing freezes, and that is chain 2's remaining gap. A weapon's reach box is at the part's own
 # height (one cell for these defs), and the Dozer's wheels hang 14 cells below a Corsair's top slots,
 # so a Mace hits the Dozer's chassis almost every swing and a wheel only when the Dozer has rolled

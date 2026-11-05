@@ -10,25 +10,18 @@ extends ChTest
 # shipped scene rather than a copy of ChMain's loop, which is also where the scene's own nodes
 # get pinned: ChMain makes its screen in code, so main.tscn must not instance a second garage
 # (review finding 2) drawing "Fight" over the live one.
-# Cheapness: ChBattle always runs its 3600 ticks (Task 15's contract), so a fight left to its own
-# budget costs the suite ~25 s of headless frames. test_main_round_trip,
-# test_result_window_returns_over_a_still_ticking_fight and
-# test_starting_a_second_fight_retires_the_hidden_one drop the enemy's HP so `finished` fires in
-# seconds; test_main_watchdog_returns pays the full budget, because a fight that never speaks can
-# only be handed back when its own loop ends. The two still-ticking tests each pay that budget once,
-# for the fight they had already started; the third of them starts its newer fight inside the older
-# one's budget and stops at the release of the retired one, so no test pays two full budgets.
-# All four pin that ChMain did NOT free the battle it left ticking there, and the three that wait
-# pin the release that comes once the fight goes idle.
+# Cheapness: a fight now stops at its own result (Task 3), so test_main_round_trip's low-HP enemy
+# ends the fight in seconds instead of paying ChBattle's whole 3600-tick budget. What still lives
+# here pins the round trip and the identity of the layout and inventory across it. The three tests
+# that pinned a fight still ticking behind the result window - the watchdog hand-back, the hidden
+# fight's release and ChMain's retiring list - are deleted here, because that state no longer
+# exists; Task 6 writes their replacements.
 const MAIN_SCENE := "res://game/main.tscn"
 # A hang here is a real bug, not a slow fight: what these waits stop on is a panel line or a screen
 # change, both of which arrive inside ChMain's own 2 s window. 30 s is that window with room for a
 # loaded, ticking fight to win the race on a slow machine - the old 8 s cap sat close enough to that
 # race to be the flake risk, and it still fails a hang in seconds.
 const MAIN_WAIT_MS := 30000
-const BATTLE_PROBE := "ch_battle_probe"  # what the last test counts ChBattle nodes through
-const IDLE_WAIT_MS := 60000  # the fight's own 3600-frame loop measures ~25 s headless; the cap only
-# runs when a fight never stops ticking, so a hang reads as a failure rather than a hung run
 
 
 func _catalog() -> ChCatalog:
@@ -92,13 +85,12 @@ func _main_scene() -> ChMain:
 
 # The wait the ChMain tests use: frames until the result panel names an outcome, capped in real
 # time rather than frames because ChMain counts its window in delta, so a frame cap would be a
-# guess at headless speed. A loop that never speaks costs the suite this cap once and records a
+# guess at headless speed. A panel that never speaks costs the suite this cap once and records a
 # failure instead of hanging the run. Returns the last thing the result panel said.
 # Finding 3: the watch stops the moment the panel names an outcome, rather than running on to the
 # garage, which is why it is named _wait_outcome: what happens after the panel speaks is a different
-# wait in each test (the screen coming back, or the fight going idle). The fight keeps ticking the
-# whole time, so a hull could reach 0 HP inside the window and the real result would replace the
-# watchdog's line on the way back - which is how the watchdog pin used to be able to flip.
+# wait in each test. A fight that has named its outcome has also stopped ticking (Task 3), so the
+# line the panel first named is the line it keeps - nothing can arrive later to replace it.
 # "Named an outcome" means a panel line that is neither blank nor the fight's "Fighting ..." text.
 func _wait_outcome(main: ChMain) -> String:
 	var outcome := ""
@@ -298,11 +290,12 @@ func test_main_round_trip() -> void:
 	var outcome := await _wait_outcome(main)
 	assert_eq(results, [&"win"], "the loop saw the fight's result, a win for the low-HP enemy")
 	assert_eq(outcome, "You win!", "and the result panel named it on the way back")
-	# Finding 2: the fight is still running its own 3600 ticks at that moment, so ChMain must NOT
-	# have freed it - freeing a battle whose coroutine is suspended mid-loop is what the shipped
-	# handoff used to do - and the loop is not back on the garage yet precisely because of it.
-	assert_true(is_instance_valid(main.battle), "the still-ticking fight is still in the tree")
-	assert_true(main.battle.ticking, "because its own tick loop is still running")
+	# Task 3 changed what "that moment" looks like: the fight's own loop stopped at the win, so the
+	# fight is over and freeable, and the loop is not back at the garage only because ChMain is still
+	# holding its 2 s result window.
+	assert_true(is_instance_valid(main.battle),
+		"the ended fight is still in the tree while the panel is up")
+	assert_true(not main.battle.ticking, "because its own tick loop stopped at the result")
 	# The build and the kit come back untouched whatever the loop did in between: ChMain owns ONE
 	# layout and ONE inventory, and the fight only ever got a copy.
 	assert_true(main.layout.get_instance_id() == build_id, "the SAME layout instance, not a rebuilt one")
@@ -310,198 +303,8 @@ func test_main_round_trip() -> void:
 	var rocket := main.layout.get_node([3])
 	assert_true(rocket != null and rocket.part_id == &"cutter_rocket", "the Rocket in the same slot")
 	assert_eq(main.inventory.part_ids.size(), carried, "and the same parts carried")
-	# shortcut: this test's own teardown frees the fight it leaves behind mid-loop, which the shipped
-	# loop no longer does; the release ChMain makes instead is pinned by test_main_watchdog_returns.
-	# Waiting that out here too would be a second full-budget fight for the same pin.
-	main.free()
-	_complete()
-
-
-func test_main_watchdog_returns() -> void:
-	# Review finding 1: ChBattle emits `finished` only from an HP reaching 0 (plus its three
-	# `aborted` paths), so a fight both hulls survive announces nothing at all and the loop would
-	# sit on "Fighting ..." for ever. This is that fight, run at the shipped budget: a real battle,
-	# both hulls standing, waited out to the end of the fight's own 3600-frame loop, because a silent
-	# fight can only be handed back by its own loop ending - there is nothing in ChMain that stops one.
-	var main: ChMain = _main_scene()
-	main.garage.request_fight()
-	assert_true(main.battle != null, "the fight started")
-	# Finding 2 (round 3): the frame counter ChMain used to arm beside this fight is gone - it gated
-	# nothing, since only ChBattle's own loop can end a fight. What is pinned instead is that the
-	# hand-back came no earlier than the fight's own budget, by ctx.time below.
-	var frames := 0
-	while (main.battle.player == null or main.battle.enemy == null) and frames < 60:
-		await Engine.get_main_loop().process_frame
-		frames += 1
-	assert_true(main.battle.player != null and main.battle.enemy != null, "both hulls built")
-	# Finding 3 (round 2): this fight cannot kill anyone, so no HP can reach 0 inside it. The pin used
-	# to read its panel line some frames after the expiry, during which the still-ticking fight could
-	# win the race and name a real result instead.
-	main.battle.player.hp = 1000000
-	main.battle.enemy.hp = 1000000
-	assert_true(main.battle.ticking, "and the fight is in its own tick loop")
-	var results: Array[StringName] = []
-	var sink := results
-	main.battle.finished.connect(func(result: StringName): sink.append(result))
-	# The fight's own end, un-armed. IDLE_WAIT_MS is the cap that turns a loop that never stops
-	# into a recorded failure rather than a hung run.
-	var started := Time.get_ticks_msec()
-	while main.battle != null and main.battle.ticking \
-			and Time.get_ticks_msec() - started < IDLE_WAIT_MS:
-		await Engine.get_main_loop().process_frame
-	assert_true(not main.battle.ticking, "the fight spent its own 3600-frame loop")
-	# ChMain sees the loop end on its own next frame, so the panel is read once it has spoken rather
-	# than on the frame the flag went false.
-	started = Time.get_ticks_msec()
-	while main.label.text == ChMain.FIGHT_TEXT and Time.get_ticks_msec() - started < MAIN_WAIT_MS:
-		await Engine.get_main_loop().process_frame
-	# Finding 1's consequence, read off the fight's own clock: a hand-back that came early would
-	# show a short clock here.
-	assert_near(main.battle.ctx.time, ChBattle.FIGHT_TICKS * ChBattle.TICK, ChBattle.TICK, \
-		"the fight ran all 3600 of its own ticks before the hand-back")
-	assert_eq(results, [], "the fight announced nothing")
-	assert_eq(main.screen, &"result", "the watchdog opened the 2 s window")
-	assert_eq(main.label.text, ChMain.WATCHDOG_TEXT, "naming the non-win it hands back")
-	assert_true(is_instance_valid(main.battle), "the fight it could not free is still in the tree")
-	assert_true(main.garage != null and not main.garage.is_visible_in_tree(), "under a hidden garage")
-	# The window's two seconds, then the release and the garage: this is the loop's way back from a
-	# fight nobody died in.
-	started = Time.get_ticks_msec()
-	while main.screen != &"garage" and Time.get_ticks_msec() - started < MAIN_WAIT_MS:
-		await Engine.get_main_loop().process_frame
-	assert_eq(main.screen, &"garage", "the garage came back once the fight was over")
-	assert_true(is_instance_valid(main.garage), "as a live screen again")
-	# Finding 3 (round 3): the reference is nulled with the node, so a test never reads a freed object
-	# through main.battle.
-	assert_true(main.battle == null, "and ChMain let the finished fight go, node and reference")
-	main.free()
-	_complete()
-
-
-func test_result_window_returns_over_a_still_ticking_fight() -> void:
-	# Review finding 1 (round 3): the brief's deliverable is "the result for 2 s on `finished`, then
-	# returns to the garage", and in the shipped game a win arrives seconds into ChBattle's own
-	# 3600-frame loop. Both Task 15 rulings stand - only HP reaching 0 ends a fight, and the loop
-	# keeps ticking after the end (test_finished_emitted_once) - and ChBattle offers no stop, so the
-	# fight can neither be freed (its coroutine is suspended) nor left drawing over the garage. It
-	# goes hidden, the garage comes back on the window's own frame, and the fight leaves when its own
-	# loop ends. Cheapness: the win is test_main_round_trip's low-HP one (~7 s), and the wait to the
-	# end of that same fight's ticks is what pins the release, so no third fight is started.
-	var main: ChMain = _main_scene()
-	main.garage.drop_part(&"wheel", [0])
-	main.garage.drop_part(&"wheel", [1])
-	main.garage.request_fight()
-	var frames := 0
-	while main.battle.enemy == null and frames < 60:
-		await Engine.get_main_loop().process_frame
-		frames += 1
-	main.battle.enemy.hp = 1
-	var outcome := await _wait_outcome(main)
-	assert_eq(outcome, "You win!", "the panel named the win")
-	assert_true(main.battle.ticking, "the fight is still running its own loop at that moment")
-	# Review item 4's control reading, taken while the fight is still the screen: on screen the world
-	# simulates. Read here, because once the window closes the fight goes hidden and the sim goes off -
-	# reading it later would compare the paused state with itself.
-	var sim_on_screen: bool = main.battle.world.simulating
-	# The brief's 2 s, then what the player is left looking at.
-	var started := Time.get_ticks_msec()
-	while main.screen == &"result" and Time.get_ticks_msec() - started < MAIN_WAIT_MS:
-		await Engine.get_main_loop().process_frame
-	assert_eq(main.screen, &"garage", "the garage came back on the window's frame")
-	assert_true(main.garage != null and main.garage.is_visible_in_tree(), "the garage is on screen")
-	assert_true(is_instance_valid(main.battle), "the still-ticking fight was not freed mid-loop")
-	assert_true(main.battle.ticking, "and it is still ticking")
-	assert_true(not main.battle.visible, "hidden, so it draws nothing over the garage")
-	assert_true(main.battle.hud != null and not main.battle.hud.visible, "and its HUD is off too")
-	# The camera is the load-bearing one of the three: hide() does not unmake a fight's Camera2D, and
-	# a current Camera2D transforms the whole canvas the garage then draws on.
-	assert_true(main.battle.camera != null and not main.battle.camera.enabled,
-		"and its camera is disabled, so it cannot move the garage")
-	# Review item 4: hidden means stopped, not just unseen. The fight's loop keeps running its 3600
-	# frames (pinned below), but nothing under game/ works while the fight is hidden: the world's own
-	# sim is off, so no tick runs, no drive is paid, no HP moves, and the off-screen player's keys are
-	# not polled. ctx.time is the fight's own clock, so a frozen clock says the ticks were skipped.
-	var clock: float = main.battle.ctx.time
-	var hull_at: Vector2 = main.battle.player.chassis.global_position
-	for _paused in range(90):
-		await Engine.get_main_loop().process_frame
-	assert_true(sim_on_screen, "the fight on screen was simulating before it went hidden")
-	assert_true(not main.battle.world.simulating, "the hidden fight's world is not simulating")
-	assert_near(main.battle.ctx.time, clock, 0.0001, "and no fight tick advanced its clock")
-	assert_near(main.battle.player.chassis.global_position.x, hull_at.x, 0.0001,
-		"the sand did not move either")
-	# One-shot for ChMain: this fight's panel already ran, so an outcome arriving later must not put a
-	# second window over the garage. The emit is made by calling the handler the battle is wired to -
-	# ChBattle's own `reported` flag lets one fight emit once, so it cannot be provoked twice from a
-	# real fight, and paying another 3600-frame loop to reach it was not an option.
-	main.battle.finished.emit(&"loss")
-	await Engine.get_main_loop().process_frame
-	assert_eq(main.screen, &"garage", "a late result did not open a window over the garage")
-	assert_true(main.garage != null and main.garage.is_visible_in_tree(), "the garage is still there")
-	assert_eq(main.label.text, "", "and the panel stayed clear")
-	# The other half of the ruling: the fight the window handed back stays in the tree until its own
-	# loop ends, and only then is it freed. This waits the rest of this same fight's 3600 ticks (no
-	# new fight, ~18 s), because no flag ChMain owns may free a suspended coroutine - and with that
-	# wait done, the teardown below is clean too: nothing ticking is left when main goes.
-	var idle := Time.get_ticks_msec()
-	while main.battle != null and Time.get_ticks_msec() - idle < IDLE_WAIT_MS:
-		await Engine.get_main_loop().process_frame
-	assert_true(main.battle == null, "the hidden fight freed itself once its own loop was over")
-	assert_eq(main.screen, &"garage", "and the garage stayed up through it")
-	main.free()
-	_complete()
-
-
-func test_starting_a_second_fight_retires_the_hidden_one() -> void:
-	# Review finding 1 (round 4): the fight the window left hidden is retired, not dropped. Asking for
-	# a second fight while it still ticks used to overwrite ChMain.battle, which left the older fight
-	# in the tree with nothing able to reach it - never freed, simulating its whole remaining budget,
-	# making HUD pips every tick and reading the player's keys, off screen. It now goes onto a
-	# retiring list that _process frees each one the frame its own loop ends.
-	# Cheapness: the older fight is won in one hit (1 HP) and the newer one never decides anything (the
-	# watchdog case), so the only full budget paid here is the older fight's - the newer one is still
-	# mid-loop when the test stops, and its teardown note below says why that is not a leak of the pin.
-	var main: ChMain = _main_scene()
-	main.garage.drop_part(&"wheel", [0])
-	main.garage.drop_part(&"wheel", [1])
-	main.garage.request_fight()
-	var older: ChBattle = main.battle
-	older.add_to_group(BATTLE_PROBE)
-	var frames := 0
-	while older.enemy == null and frames < 60:
-		await Engine.get_main_loop().process_frame
-		frames += 1
-	older.enemy.hp = 1
-	assert_eq(await _wait_outcome(main), "You win!", "the older fight named its win")
-	assert_true(older.ticking, "and it is still ticking when the window opens")
-	var started := Time.get_ticks_msec()
-	while main.screen == &"result" and Time.get_ticks_msec() - started < MAIN_WAIT_MS:
-		await Engine.get_main_loop().process_frame
-	assert_eq(main.screen, &"garage", "the garage came back over the still-ticking fight")
-	# The second request, made while the older fight is mid-loop - the case that used to orphan it.
-	main.garage.request_fight()
-	var newer: ChBattle = main.battle
-	newer.add_to_group(BATTLE_PROBE)
-	assert_true(newer != older, "a second fight took the screen")
-	assert_true(is_instance_valid(older), "the still-ticking fight was not freed mid-loop")
-	assert_true(older in main.retiring, "it went to ChMain's retiring list instead")
-	assert_true(older.ticking, "and it is still simulating, off the new fight's screen")
-	# The older fight's own loop ends first, and the frame it goes idle it must leave the tree even
-	# though the newer fight still holds the screen: the pin for the orphan is that no ChBattle is left
-	# in the tree but the one ChMain still holds.
-	var idle := Time.get_ticks_msec()
-	while is_instance_valid(older) and Time.get_ticks_msec() - idle < IDLE_WAIT_MS:
-		await Engine.get_main_loop().process_frame
-	assert_true(not is_instance_valid(older), "the retired fight left the tree once its loop ended")
-	assert_true(newer.ticking, "with the newer fight still running its own")
-	var live := 0
-	for node in main.get_tree().get_nodes_in_group(BATTLE_PROBE):
-		if is_instance_valid(node):
-			live += 1
-	assert_eq(live, 1, "one fight left in the tree: the one ChMain holds")
-	assert_eq(main.retiring.size(), 0, "and the retiring list is empty again")
-	# shortcut: this teardown frees the still-ticking newer fight, the way test_main_round_trip's does;
-	# waiting that second full budget would cost ~20 s to pin a release the still-ticking test already
-	# pins, and ChBattle is only ever freed mid-loop by a test here, never by the shipped loop.
+	# shortcut: this test's teardown frees ChMain with its result window still up, so the ended fight
+	# goes with the tree rather than through ChMain's own release; that release is unpinned until
+	# Task 6 writes the replacements for the tests this task deleted.
 	main.free()
 	_complete()

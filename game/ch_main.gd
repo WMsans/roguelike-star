@@ -4,9 +4,9 @@ class_name ChMain extends Node
 # owns the two halves of a build (the ChInventory and the current ChChariotLayout) and hands both
 # to the garage screen, which is the API the later shop wraps the same way. The fight is ChBattle
 # instantiated, never a copy of its loop, and ChBattle.start is a coroutine: the result comes back
-# on `finished`, which is &"win", &"loss" or &"aborted" when the arena or a chariot could not
-# build, so anything that is not &"win" reads as "no fight" and nothing here waits for a signal
-# that already fired.
+# on `finished`, which is &"win", &"loss" or &"draw" from a fight that ended, or &"aborted" when the
+# arena or a chariot could not build, so anything that is not &"win" reads as "no fight" and nothing
+# here waits for a signal that already fired.
 
 const GARAGE := "res://game/garage/garage.tscn"
 const BATTLE := "res://game/battle/battle.tscn"
@@ -111,8 +111,8 @@ func _start_battle() -> void:
 	add_child(next)
 	label.text = FIGHT_TEXT
 	await next.start(shown, ResourceLoader.load(ENEMY), catalog, SEED)
-	# start() answers only after its whole tick budget, so `finished` has usually moved the
-	# screen to the result panel already; nothing is written after that await.
+	# start() answers once its own loop is over (Task 3), and `finished` fired just before that, so the
+	# screen is already on the result panel by here; nothing is written after that await.
 
 
 func _open_result(text: String) -> void:
@@ -196,14 +196,13 @@ func _release_retiring() -> void:
 
 
 func _return_to_garage() -> void:
-	# The brief's hand-back - the garage, whatever the fight is still doing. ChBattle runs its loop
-	# to FIGHT_TICKS whatever the result and offers no stop, and a caller may free it only while
-	# `ticking` is false, so a fight still ticking when the window ends can neither be freed (its
-	# coroutine is suspended mid-loop) nor left on screen. It goes hidden instead, and _process
-	# frees it once its loop returns.
-	# shortcut: the cost is up to ~60 s of hidden simulation per fight; upgrade when ChBattle can
-	# end a fight on the caller's say-so. A fight hidden here is still retired rather than dropped if a
-	# later fight replaces it, so it leaves the tree the frame its own loop ends; see _retire_current.
+	# The brief's hand-back - the garage, and the fight that decided it goes with it. ChBattle stops
+	# its own loop at its result (Task 3) and emits `finished` with `ticking` already false, so by the
+	# time this window ends the fight is over and freeable, which is the leg below. The hide is kept as
+	# the guard for a fight that still holds its loop when the window ends; Task 6 removes it along with
+	# the retiring list, once nothing can leave a fight running behind the garage.
+	# shortcut: kept for the fight that outran its window, which the leg above now handles by freeing
+	# it; upgrade when Task 6 rewrites this hand-back.
 	if battle != null and is_instance_valid(battle):
 		if battle.ticking:
 			battle.hide()
@@ -218,11 +217,12 @@ func _return_to_garage() -> void:
 
 func _hold_fight() -> void:
 	# What this node does while a fight is on screen: the hand-back, and the name for a fight that
-	# announced nothing. ChBattle emits `finished` only when an HP reaches 0, so a fight that runs its
-	# whole budget with both hulls standing never speaks, and this is what gets the loop back. Its own
-	# loop is `for _tick in FIGHT_TICKS: await get_tree().process_frame`, so `ticking` going false IS
-	# the fight's end; the countdown that used to sit beside it could only ever cut a running fight
-	# off, and there is no ChBattle stop for it to be worth anything, so it is gone.
+	# announced nothing. ChBattle now speaks at the end of its own loop, &"draw" included for a fight
+	# both hulls survive (Task 3), so `_on_finished` normally moves this screen to its window first and
+	# this watchdog only names a fight that ended without reaching its emit. Its own loop is
+	# `for _tick in FIGHT_TICKS: await get_tree().process_frame`, so `ticking` going false IS the
+	# fight's end; the countdown that used to sit beside it could only ever cut a running fight off, and
+	# there is no ChBattle stop for it to be worth anything, so it is gone.
 	if battle == null or not is_instance_valid(battle):
 		_show_garage()
 		return
