@@ -32,8 +32,8 @@ const PULSE_SECONDS := 0.2  # the HUD's pulse on a part the player just fired
 const MARKER_Z := 10  # the marker layer's z_index: above every body, which all sit at 0
 # The bright look. The world's light overlay multiplies the whole lit area, sky included, so a full
 # ambient is what stops it greying the pit and the parallax sky behind it; LIGHT_HEADROOM lets fire
-# and lava lift cells above their own colour, which only survives the multiply because project.godot
-# turns on hdr_2d. The backdrop goes transparent so the air shows the ChBackground layer.
+# and lava lift cells above their own colour, which only survives the multiply on an HDR canvas: the
+# battle turns hdr_2d on for its viewport while it is in the tree (see _enter_tree). The backdrop goes transparent so the air shows the ChBackground layer.
 const AMBIENT := 1.0
 const AMBIENT_TINT := Color(1.0, 0.98, 0.94)
 const LIGHT_HEADROOM := 1.8
@@ -50,6 +50,7 @@ var marks: Node2D = null  # the per-part markers, drawn in the world layer
 var pulses: Array = []  # of {"part": ChPartRuntime, "left": seconds}
 var hud_listener: RefCounted = null  # the key the HUD's subscriptions unsubscribe under
 var outcome := &""  # what this fight decided, once _step names it; "" while neither hull is dead
+var _hdr_before := false  # the viewport's use_hdr_2d before this battle turned it on
 var _camera_primed := false  # the live camera has been put on a composed frame at least once
 var started := false  # read-only: start() has passed its arena build and may still be ticking
 var ticking := false  # read-only: start()'s tick loop is running now (see the contract below)
@@ -59,6 +60,17 @@ func _init() -> void:
 	# Only the input actions go here: a scene's own nodes ($Camera, $HUD) are not in the tree yet
 	# while _init runs, so the HUD is built when the fight starts.
 	_add_input_actions()
+
+
+func _enter_tree() -> void:
+	# HDR is the battle's alone: the garage shares the root viewport and keeps the 8-bit, sRGB-blended
+	# canvas its UI was laid out on, so the battle hands the viewport back as it found it.
+	_hdr_before = get_viewport().use_hdr_2d
+	get_viewport().use_hdr_2d = true
+
+
+func _exit_tree() -> void:
+	get_viewport().use_hdr_2d = _hdr_before
 
 
 func _add_input_actions() -> void:

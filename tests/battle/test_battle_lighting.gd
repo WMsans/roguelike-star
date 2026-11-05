@@ -53,7 +53,15 @@ func test_background_sits_behind_world() -> void:
 	_complete()
 
 
-func test_hdr_2d_on() -> void:
-	assert_eq(ProjectSettings.get_setting("rendering/viewport/hdr_2d"), true,
-		"headroom above 1.0 only survives the multiply on an HDR canvas")
+# hdr_2d is the battle's alone: the garage and its UI share the root viewport and keep the 8-bit,
+# sRGB-blended canvas they were laid out on, so the battle turns it on while it is in the tree and
+# hands the viewport back as it found it.
+func test_hdr_2d_only_while_battling() -> void:
+	var viewport := Engine.get_main_loop().get_root() as Viewport
+	assert_eq(ProjectSettings.get_setting("rendering/viewport/hdr_2d", false), false, "off project-wide")
+	var before := viewport.use_hdr_2d
+	var battle := _battle_scene()
+	assert_true(viewport.use_hdr_2d, "headroom above 1.0 only survives the multiply on an HDR canvas")
+	battle.free()
+	assert_eq(viewport.use_hdr_2d, before, "the viewport is handed back as the battle found it")
 	_complete()
