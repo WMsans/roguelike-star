@@ -9,8 +9,10 @@ class_name ChBattle extends Node2D
 # sim steps on those frames, see _step), so a
 # headless test drives the same loop the game runs on screen: the fight's clock is the fixed TICK,
 # not the host's frame rate, which is what makes a 60 s fight deterministic.
-# HUD and camera follow the brief: HP bars both sides, the player's energy bar with queue-size pips,
-# the last 4 events as text, a marker per part, and a 0.2 s pulse on a part the player just fired.
+# HUD and camera follow the brief: the HUD (ChBattleHud, on ChUi's shared theme) shows both sides'
+# names and HP, the player's energy as pips and the parts waiting behind it; the camera frames the two
+# chariots; a marker sits on every part, and a 0.2 s pulse rings the part the player just fired.
+# There is no event feed and no hint line anywhere: the screen shows the fight, not a log of it.
 
 # &"win", &"loss" or &"draw" from the fight, &"aborted" if it could not start
 signal finished(result: StringName)
@@ -25,9 +27,6 @@ const ZOOM_WIDEST := 4.0  # the pull-back bound: its view is 320x180 cells, exac
 const ZOOM_CLOSEST := 8.0  # the magnify bound: closer than this and a chariot outruns its own frame
 const CAMERA_EASE := 0.15  # the share of the remaining gap the camera covers per fight tick
 const PULSE_SECONDS := 0.2  # the HUD's pulse on a part the player just fired
-const TICKER_LINES := 4  # events the ticker keeps
-const BAR := 64.0  # HP/energy bar width in pixels
-const BAR_H := 5.0  # and height
 const MARKER_Z := 10  # the marker layer's z_index: above every body, which all sit at 0
 
 var ctx: ChBattleContext = null
@@ -36,12 +35,8 @@ var player: ChChariotRuntime = null  # side 0
 var enemy: ChChariotRuntime = null  # side 1
 var ai: ChEnemyAI = null  # the enemy's drive decision
 var camera: Camera2D = null
-var hud: CanvasLayer = null  # the HUD's root layer, at the viewport's 1280x720
+var hud: ChBattleHud = null  # the HUD itself, a Control under the $HUD CanvasLayer
 var marks: Node2D = null  # the per-part markers, drawn in the world layer
-var bars: Array[ColorRect] = []  # [player HP fill, enemy HP fill, player energy fill]
-var pips: Array[ColorRect] = []  # queue-size pips, made on demand
-var ticker_labels: Array[Label] = []
-var ticker_text: Array[String] = []  # the ticker's lines, oldest first
 var pulses: Array = []  # of {"part": ChPartRuntime, "left": seconds}
 var hud_listener: RefCounted = null  # the key the HUD's subscriptions unsubscribe under
 var outcome := &""  # what this fight decided, once _step names it; "" while neither hull is dead
@@ -68,25 +63,14 @@ func _add_input_actions() -> void:
 
 
 func _build_hud() -> void:
-	# Bars, pips and ticker lines lay out in viewport pixels under the CanvasLayer, which ignores
-	# the camera: a 60-cell zoom cannot move the HUD.
-	hud = $HUD
+	# The HUD is one Control in the viewport's pixels under the CanvasLayer, which ignores the camera:
+	# a 60-cell zoom cannot move the HUD. ChBattleHud needs no size from here — it fills the layer in
+	# its own _ready and lays its two blocks out against the viewport's corners.
+	hud = ChBattleHud.new()
 	# shortcut: this build's CanvasLayer exposes no writable size (get_property_list lists only
 	# layer/offset/rotation/scale/transform/canvas_items/...), so the layer's pixels are the viewport's
-	# by construction — project.godot sets 1280x720 and every piece below lays out in VIEW.
-	_bar(hud, 0, 6.0, 6.0)  # player HP
-	_bar(hud, 1, VIEW.x - BAR - 6.0, 6.0)  # enemy HP
-	_bar(hud, 2, 6.0, 16.0)  # player energy
-	for at in TICKER_LINES:
-		var label := Label.new()
-		# 150 rather than 156: four 8px lines at a 6px pitch end at 174, and 156 put the fourth
-		# line's glyphs past the bottom edge of the 320x180 viewport this ticker was laid out in
-		# (measured on the display; the 1280x720 viewport leaves the line where it is until Task 5).
-		label.position = Vector2(6.0, 150.0 + at * 6.0)
-		label.add_theme_font_size_override("font_size", 8)
-		label.text = ""
-		hud.add_child(label)
-		ticker_labels.append(label)
+	# by construction — project.godot sets 1280x720 and ChBattleHud lays out in those.
+	$HUD.add_child(hud)
 	# The marker container is made here and parented in _build_world: it belongs to the world's Node2D
 	# layer, not this CanvasLayer, so the camera's position and zoom are what put the markers on the
 	# parts (a CanvasLayer would draw them at raw arena numbers, on nothing).
@@ -97,22 +81,6 @@ func _build_hud() -> void:
 	marks.draw.connect(_draw_markers)
 
 
-func _bar(canvas: CanvasLayer, kind: int, at_x: float, at_y: float) -> void:
-	# A bar is a dark backing plus a fill whose width carries the fraction; the fill is what the
-	# HUD updates every tick.
-	var back := ColorRect.new()
-	back.position = Vector2(at_x, at_y)
-	back.size = Vector2(BAR, BAR_H)
-	back.color = Color(0.1, 0.1, 0.12, 0.9)
-	canvas.add_child(back)
-	var front := ColorRect.new()
-	front.position = Vector2(at_x, at_y) + Vector2(1.0, 1.0)
-	front.size = Vector2(BAR - 2.0, BAR_H - 2.0)
-	front.color = [Color(0.3, 0.75, 0.35), Color(0.8, 0.3, 0.25), Color(0.95, 0.8, 0.3)][kind]
-	canvas.add_child(front)
-	bars.append(front)
-
-
 func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	catalog: ChCatalog, seed: int) -> void:
 	# The whole fight, once: arena, two builds, the setup calls every behaviour subscribes on, then
@@ -120,11 +88,6 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	# `finished` follows an ended fight rather than announcing a result mid-fight.
 	# shortcut: one fight per scene — start() builds the HUD and the arena from scratch, so a caller
 	# that wants a second fight instantiates the scene again rather than reusing this node's nodes.
-	# The HUD collections are cleared here so a second call cannot write the first fight's nodes.
-	bars.clear()
-	pips.clear()
-	ticker_labels.clear()
-	ticker_text.clear()
 	pulses.clear()
 	outcome = &""
 	camera = $Camera
@@ -278,35 +241,27 @@ func _player_drive() -> float:
 
 
 func _subscribe_hud() -> void:
-	# The HUD hears every event type through one listener key, so the ticker sees the chain a part
-	# caused (caught_fire, then energy_gained) and the pulse sees the player's own fires. The listener
-	# needs no unsubscribing: the bus belongs to this fight's context and dies with it.
+	# The HUD hears the two events the pulse cares about through one listener key: the player's own
+	# fires. It subscribes to nothing else — the event feed this used to drive is gone (see _hear).
+	# The listener needs no unsubscribing: the bus belongs to this fight's context and dies with it.
 	hud_listener = RefCounted.new()
-	for type in [ChEvent.PART_FIRED, ChEvent.HIT, ChEvent.CAUGHT_FIRE, ChEvent.FROZEN,
-		ChEvent.THAWED, ChEvent.PART_BROKEN, ChEvent.CELLS_CUT, ChEvent.ENERGY_GAINED]:
+	for type in [ChEvent.PART_FIRED, ChEvent.ENERGY_GAINED]:
 		ctx.bus.subscribe(hud_listener, type, _hear)
 
 
 func _hear(event: ChEvent) -> void:
-	# One callback for every event type, so the ticker line is the event's own name and the chain
-	# a part caused reads as it happened (caught_fire, then energy_gained, then part_fired).
-	ticker_text.append(String(event.type))
-	while ticker_text.size() > TICKER_LINES:
-		ticker_text.remove_at(0)
+	# The pulse on the player's own fire, on the part that made it — the whole of what the HUD listens
+	# for. There is no event feed: the brief forbids hint and instruction lines, and a scrolling list of
+	# event names is exactly that (tests/battle/test_battle_hud.gd pins its absence).
 	if event.side == 0 and event.source != null and (event.type == ChEvent.PART_FIRED
 		or event.type == ChEvent.ENERGY_GAINED):
-		# The brief's pulse on the player's own fire, on the part that made it.
 		pulses.append({"part": event.source, "left": PULSE_SECONDS})
 
 
 func _hud_tick(delta: float) -> void:
-	_set_bar(0, float(player.hp) / maxf(1.0, float(player.body_def.hp)))
-	_set_bar(1, float(enemy.hp) / maxf(1.0, float(enemy.body_def.hp)))
-	var pool: ChEnergy = player.energy
-	_set_bar(2, pool.value / maxf(1.0, pool.cap))
-	_pips(pool.queue_size())
-	for line in ticker_labels.size():
-		ticker_labels[line].text = ticker_text[line] if line < ticker_text.size() else ""
+	# The HUD reads the fight's numbers, then the pulse countdown runs on the HUD's own clock and the
+	# markers redraw over the parts it marks.
+	hud.show_state(player, enemy)
 	var at := 0
 	while at < pulses.size():
 		pulses[at]["left"] = float(pulses[at]["left"]) - delta
@@ -315,30 +270,6 @@ func _hud_tick(delta: float) -> void:
 		else:
 			at += 1
 	marks.queue_redraw()
-
-
-func _set_bar(at: int, fraction: float) -> void:
-	# The fill's width is the fraction of the bar, clamped so a part that went past 0 HP or a pool
-	# that went past its cap cannot grow the bar out of its backing.
-	bars[at].size.x = (BAR - 2.0) * clampf(fraction, 0.0, 1.0)
-
-
-func _pips(count: int) -> void:
-	# One pip per part waiting in the energy queue, made on demand and hidden when unused: the
-	# queue is what makes a part visibly wait, which is the chain the HUD has to show.
-	while pips.size() < count:
-		var pip := ColorRect.new()
-		var at := pips.size()
-		pip.position = Vector2(6.0 + at * 4.0, 24.0)
-		pip.size = Vector2(3.0, 4.0)
-		pip.color = Color(0.95, 0.5, 0.2)
-		hud.add_child(pip)
-		pips.append(pip)
-	for at in pips.size():
-		if at >= count:
-			pips[at].hide()
-		else:
-			pips[at].show()
 
 
 func _camera_at() -> void:

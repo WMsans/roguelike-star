@@ -167,7 +167,7 @@ func _retire_current() -> void:
 	# The fight this node was showing, dealt with before a new one takes `battle`: gone now if its own
 	# loop is over, otherwise handed to `retiring`, where _process frees it the frame that loop ends.
 	# Dropping it instead would leave it in the tree with nothing able to reach it - never freed, still
-	# simulating its whole 3600-tick budget, still making HUD pips each tick and polling ui_left and
+	# simulating its whole 3600-tick budget, still updating its HUD every tick and polling ui_left and
 	# ui_right, all off screen.
 	# shortcut: only a fight whose own loop can still end goes here; one still streaming its arena
 	# (ChBattle.started false) could be one whose start() already returned on an `aborted` leg, which
@@ -206,8 +206,8 @@ func _return_to_garage() -> void:
 	if battle != null and is_instance_valid(battle):
 		if battle.ticking:
 			battle.hide()
-			# hide() does not reach the HUD (a CanvasLayer child) or the current Camera2D, and both
-			# would still draw over the garage.
+			# hide() does not reach the HUD (a Control on the HUD's CanvasLayer, which the Node2D's own
+			# visibility does not touch) or the current Camera2D, and both would still draw over the garage.
 			battle.hud.visible = false
 			battle.camera.enabled = false
 		else:
