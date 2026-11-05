@@ -1,22 +1,30 @@
 class_name ChFeedbackManager extends Node
 
 # The one entry point for a feedback beat: Feedback.play(&"struck", node, {amount = 12}).
-# Profiles are data (game/feedback/profiles/<kind>.tres); play() kicks the target's juice and
-# pops its text — particles and shake arrive in later tasks and belong here too.
+# Profiles are data (game/feedback/profiles/<kind>.tres); play() kicks the target's juice, pops
+# its text and bursts its particles. Screen shake is a later task and belongs here too.
 # Nothing here writes fight state: feedback reads the fight, it never changes it.
 
 const KINDS := [&"fired", &"landed", &"struck", &"caught_fire", &"frozen", &"thawed",
 	&"broken", &"energy", &"activate", &"hover", &"placed", &"nudge"]
 const PROFILE_DIR := "res://game/feedback/profiles/"
+# A one-shot UI burst lives about as long as a battle one.
+const UI_PARTICLE_LIFE := 0.5
 
 # Seeded by tests so a randomised rotation sign is reproducible.
 var rng := RandomNumberGenerator.new()
+
+# The fight's world and the node whose targets are in it (the battle, not the world: bodies are
+# children of ChBattle). Bound by ChBattle while a fight runs, so a beat aimed at a battle node
+# bursts world particles at its cell position instead of using screen-space CPU particles.
+var _world: PixelWorld
+var _scope: Node
 
 # shortcut: kinds are cached for the life of the autoload; a .tres edited while the game runs
 # needs a restart. Fine while these are tuning values.
 var _profiles: Dictionary[StringName, ChFeedbackProfile] = {}
 
-# The one screen-space pop-up layer; later tasks hang their one-shot particles under it too.
+# The one screen-space pop-up layer; one-shot CPU particle bursts hang under it too.
 var popups: ChPopups
 
 
@@ -47,6 +55,7 @@ func play(kind: StringName, target, overrides := {}) -> void:
 	if beat == null:
 		return
 	_pop_text(beat, target, overrides)
+	_burst(beat, target, overrides)
 	# Kicking a target that has no Juice is a no-op: the Juice child belongs to whoever owns
 	# the node (buttons, battle visuals, the garage), never to feedback itself.
 	var juice := ChJuice.of(target)
@@ -68,6 +77,41 @@ func _pop_text(beat: ChFeedbackProfile, target, overrides: Dictionary) -> void:
 	if not target is CanvasItem or popups == null:
 		return
 	popups.pop(text, beat.text_color, target.get_global_transform_with_canvas().origin)
+
+
+func bind_world(world: PixelWorld, scope: Node) -> void:
+	_world = world
+	_scope = scope
+
+
+func unbind_world() -> void:
+	_world = null
+	_scope = null
+
+
+func _burst(beat: ChFeedbackProfile, target, overrides: Dictionary) -> void:
+	if beat.particle_count <= 0 or not target is CanvasItem:
+		return
+	var color: Color = overrides.get("color", beat.particle_color)
+	# Battle space is cell space, so the body's global position is the world point. A target
+	# outside the bound scope (the HUD, the garage) still gets its screen-space burst below.
+	if _world != null and is_instance_valid(_world) and _scope != null and is_instance_valid(_scope) \
+			and _scope.is_ancestor_of(target):
+		ChFeedbackParticles.burst_world(_world, target.global_position, beat, color)
+		return
+	if popups == null:
+		return
+	var burst := CPUParticles2D.new()
+	burst.one_shot = true
+	# All particles at once, so `finished` lands one lifetime after the burst, not two.
+	burst.explosiveness = 1.0
+	burst.lifetime = UI_PARTICLE_LIFE
+	burst.amount = mini(beat.particle_count, ChFeedbackParticles.CAP)
+	burst.color = color
+	burst.position = target.get_global_transform_with_canvas().origin
+	popups.add_child(burst)
+	burst.emitting = true
+	burst.finished.connect(burst.queue_free)
 
 
 func attach_button(button: BaseButton) -> void:
