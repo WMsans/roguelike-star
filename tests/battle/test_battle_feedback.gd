@@ -124,12 +124,41 @@ func test_hull_hit_wobbles_the_enemy_chassis() -> void:
 	assert_true(enemy != null, "enemy_of names the other chariot")
 	var chassis := ChJuice.of(enemy.chassis_visual)
 	var attacker_chassis := ChJuice.of(player.chassis_visual)
+	var enemy_bar := ChJuice.of(arena["hud"].enemy_bar)
+	var player_bar := ChJuice.of(arena["hud"].player_bar)
 	arena["feedback"].on_event(_event(ChEvent.HIT, 0, rocket,
 		{"target_part": null, "hp_damage": 7}))
 	assert_true(chassis.scale_spring.velocity > 0.0,
 		"a hull hit wobbles the enemy's chassis visual")
 	assert_eq(attacker_chassis.scale_spring.velocity, 0.0,
 		"and leaves the attacker's own chassis alone")
+	# The event's side is the attacker's, so a hull hit must invert it to reach the enemy's bar.
+	assert_eq(enemy_bar.scale_spring.velocity, 3.0,
+		"a hull hit nudges the struck side's bar by nudge's 3")
+	assert_eq(player_bar.scale_spring.velocity, 0.0,
+		"and leaves the attacker's own bar at rest")
+	_complete()
+
+
+func test_enemy_hull_hit_nudges_the_player_bar() -> void:
+	# The other direction of the same rule: a side-1 source hitting the hull must reach the player's
+	# bar. Both formulas agree when target_part names a part, so only a null target pins the inversion.
+	var arena = await _arena()
+	var enemy: ChChariotRuntime = arena["enemy"]
+	var source: ChPartRuntime = enemy.parts[0]
+	var player: ChChariotRuntime = arena["ctx"].enemy_of(source)
+	assert_true(player != null and player.side == 0, "enemy_of(source) names the player's chariot")
+	var player_chassis := ChJuice.of(player.chassis_visual)
+	var player_bar := ChJuice.of(arena["hud"].player_bar)
+	var enemy_bar := ChJuice.of(arena["hud"].enemy_bar)
+	arena["feedback"].on_event(_event(ChEvent.HIT, 1, source,
+		{"target_part": null, "hp_damage": 7}))
+	assert_true(player_chassis.scale_spring.velocity > 0.0,
+		"the enemy's hull hit wobbles the player's chassis visual")
+	assert_eq(player_bar.scale_spring.velocity, 3.0,
+		"an enemy hull hit nudges the player's bar by nudge's 3")
+	assert_eq(enemy_bar.scale_spring.velocity, 0.0,
+		"and leaves the attacking side's own bar at rest")
 	_complete()
 
 
