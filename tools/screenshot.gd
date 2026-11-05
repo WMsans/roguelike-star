@@ -15,6 +15,7 @@ extends SceneTree
 const GARAGE_FRAMES := 60  # frames the garage gets before garage.png
 const BATTLE_FRAMES := 400  # frames of fighting before battle.png, the brief's 400
 const MAIN_WAIT := 600  # frames ChMain is given to put its fight in the tree
+const RESULT_WAIT := 600  # frames the forced win is given to reach the result panel after battle.png
 const MOUNTS := [[[0], &"wheel"], [[1], &"wheel"], [[3], &"ice_cream_mace"]]  # the brief's kit
 
 var outdir := ""
@@ -75,6 +76,27 @@ func _run() -> void:
 		var size := Vector2(rig.body_def.size.x, rig.body_def.size.y)
 		print("side %s hull %s size %s" % [rig.side, hull, size])
 	_shot("battle.png")
+	# Task 6: the result panel. The win is forced by emptying the enemy's hull (ChBattle._step reads
+	# is_dead each tick), so the shot does not wait on the melee build landing a hit; ChMain then puts
+	# its panel up over the stopped fight.
+	battle.enemy.hp = 0
+	frames = 0
+	while main.screen != &"result" and frames < RESULT_WAIT:
+		await process_frame
+		frames += 1
+	if main.screen != &"result":
+		print("tool: the forced win never reached the result panel (screen %s)" % main.screen)
+		quit(1)
+		return
+	# Two frames for the panel's own layout (a Container sorts its children at the end of a frame)
+	# before the grab, so the shot is the rect the player gets rather than a half-sorted one.
+	for _frame in 2:
+		await process_frame
+	var panel: ChResultPanel = main.result_panel
+	var rect := panel.get_global_rect()
+	print("result: %s, panel \"%s\" at %s size %s, centre %s of viewport %s" % [battle.outcome,
+		panel.title.text, rect.position, rect.size, rect.get_center(), ChBattle.VIEW])
+	_shot("result.png")
 	quit(0)
 
 

@@ -130,11 +130,14 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 				part.behaviour.setup(ctx)
 	_subscribe_hud()
 	# CONTRACT: `finished` is the fight's end, not an announcement made while it runs. It fires once,
-	# after the tick loop has stopped, with `ticking` already false and `world.simulating` already
-	# false, so a listener may free this node on any later frame: there is no suspended coroutine and
-	# no simulating world left under it. Freeing before that is still forbidden - both start() legs
-	# (streaming the arena, then the ticks) are a coroutine that resumes on the tree's own frames, so
-	# freeing the node mid-await deletes the object it resumes into.
+	# from the last statement of start() on every leg, with `ticking` false - the loop has stopped, or
+	# never started - so a listener may free this node on any later frame: there is no suspended
+	# coroutine under it. The world is the one difference between the legs: the fight's own result sets
+	# `world.simulating` false with the loop, while the three `aborted` legs emit with the world built
+	# but never run, so its sim flag is still true. Freeing is safe on all of them because the world is
+	# a child of this node and leaves the tree with it. Freeing before that is still forbidden - both
+	# start() legs (streaming the arena, then the ticks) are a coroutine that resumes on the tree's own
+	# frames, so freeing the node mid-await deletes the object it resumes into.
 	# shortcut: there is no stop: a caller that wants a fight over early has to wait for its loop,
 	# because ending a fight on someone else's say-so is not part of ChBattle's contract.
 	started = true

@@ -10,18 +10,19 @@ extends ChTest
 # shipped scene rather than a copy of ChMain's loop, which is also where the scene's own nodes
 # get pinned: ChMain makes its screen in code, so main.tscn must not instance a second garage
 # (review finding 2) drawing "Fight" over the live one.
-# Cheapness: a fight now stops at its own result (Task 3), so test_main_round_trip's low-HP enemy
-# ends the fight in seconds instead of paying ChBattle's whole 3600-tick budget. What still lives
-# here pins the round trip and the identity of the layout and inventory across it. The three tests
-# that pinned a fight still ticking behind the result window - the watchdog hand-back, the hidden
-# fight's release and ChMain's retiring list - are deleted here, because that state no longer
-# exists; Task 6 writes their replacements.
+# Cheapness: a fight stops at its own result (Task 3), so the round trip's low-HP enemy ends the
+# fight in seconds instead of paying ChBattle's whole 3600-tick budget; only the draw test pays that,
+# because a draw IS the budget running out. The three tests that pinned a fight still ticking behind
+# the result window - the watchdog hand-back, the hidden fight's release and ChMain's retiring list -
+# are gone with that machinery: Task 6 replaced them with the result panel and its back button.
 const MAIN_SCENE := "res://game/main.tscn"
-# A hang here is a real bug, not a slow fight: what these waits stop on is a panel line or a screen
-# change, both of which arrive inside ChMain's own 2 s window. 30 s is that window with room for a
-# loaded, ticking fight to win the race on a slow machine - the old 8 s cap sat close enough to that
-# race to be the flake risk, and it still fails a hang in seconds.
-const MAIN_WAIT_MS := 30000
+# A hull no fight ends: with both sides on this only the time limit can decide the fight, which is
+# how test_main_draw_panel reaches the draw panel (test_battle.gd spells the same value for its half).
+const TALL_HP := 100000
+# The wait's cap in frames, not seconds: the fight is frame-driven (one tick per awaited frame), so
+# WORLD_WAIT frames of arena streaming plus FIGHT_TICKS ticks is the exact worst case on any machine,
+# and a screen that never changes still fails in a bounded run instead of hanging the suite.
+const SCREEN_FRAMES := 6000
 
 
 func _catalog() -> ChCatalog:
@@ -75,7 +76,7 @@ func _main_scene() -> ChMain:
 	# would decide which button the pointer reaches - and that instance is never setup().
 	var screens := 0
 	for child in main.get_children():
-		# shortcut: one level deep, which is main.tscn's own shape: the label and the garage.
+		# shortcut: one level deep, which is main.tscn's own shape: the panel layer and the garage.
 		if child is ChGarage:
 			screens += 1
 	assert_eq(screens, 1, "the tree holds exactly one garage, the one ChMain made")
@@ -83,24 +84,16 @@ func _main_scene() -> ChMain:
 	return main
 
 
-# The wait the ChMain tests use: frames until the result panel names an outcome, capped in real
-# time rather than frames because ChMain counts its window in delta, so a frame cap would be a
-# guess at headless speed. A panel that never speaks costs the suite this cap once and records a
-# failure instead of hanging the run. Returns the last thing the result panel said.
-# Finding 3: the watch stops the moment the panel names an outcome, rather than running on to the
-# garage, which is why it is named _wait_outcome: what happens after the panel speaks is a different
-# wait in each test. A fight that has named its outcome has also stopped ticking (Task 3), so the
-# line the panel first named is the line it keeps - nothing can arrive later to replace it.
-# "Named an outcome" means a panel line that is neither blank nor the fight's "Fighting ..." text.
-func _wait_outcome(main: ChMain) -> String:
-	var outcome := ""
-	var started_ms := Time.get_ticks_msec()
-	while (main.label.text == "" or main.label.text == ChMain.FIGHT_TEXT) \
-			and Time.get_ticks_msec() - started_ms < MAIN_WAIT_MS:
+# The wait the ChMain tests use: frames until ChMain's own screen is `want`. ChMain.screen is the
+# state (garage, fight, result) that the deleted bottom-left label used to be read for, and nothing
+# here counts ChMain's frames any more - the fight's ticks do, so a frame cap is the honest bound.
+# The cap costs a silent screen one test's failure rather than hanging the run; every caller asserts
+# the screen it waited for, so a capped wait reads as the failure it is.
+func _wait_screen(main: ChMain, want: StringName) -> void:
+	var frames := 0
+	while main.screen != want and frames < SCREEN_FRAMES:
 		await Engine.get_main_loop().process_frame
-		if main.label.text != "":
-			outcome = main.label.text
-	return outcome
+		frames += 1
 
 
 func test_drop_takes_from_inventory() -> void:
@@ -287,16 +280,19 @@ func test_main_round_trip() -> void:
 		frames += 1
 	if main.battle.enemy != null:
 		main.battle.enemy.hp = 1
-	var outcome := await _wait_outcome(main)
+	await _wait_screen(main, &"result")
 	assert_eq(results, [&"win"], "the loop saw the fight's result, a win for the low-HP enemy")
-	assert_eq(outcome, "You win!", "and the result panel named it on the way back")
-	# Task 3 changed what "that moment" looks like: the fight's own loop stopped at the win, so the
-	# fight is over and freeable, and the loop is not back at the garage only because ChMain is still
-	# holding its 2 s result window. What the fight itself does at its result is pinned in
-	# test_battle.gd; what is still this test's to pin is that ChMain holds the node through the
-	# window and releases it at the window's end (below).
-	assert_true(is_instance_valid(main.battle),
-		"the ended fight is still in the tree while the panel is up")
+	assert_eq(main.screen, &"result", "and the fight stopped on the result screen")
+	assert_eq(main.result_panel.title.text, "You win", "the panel named the win")
+	assert_true(not main.garage.is_visible_in_tree(), "the garage stays away under it")
+	# The fight is still on screen behind the panel - a still picture, because ChBattle stopped at its
+	# own result (Task 3) - and it is the panel's back button that frees it, not a window closing.
+	# What the fight itself does at its result is pinned in test_battle.gd.
+	var fought := main.battle
+	assert_true(is_instance_valid(fought), "the ended fight is still in the tree under the panel")
+	main.result_panel.back.pressed.emit()
+	assert_eq(main.screen, &"garage", "back went to the garage")
+	assert_true(main.garage != null and main.garage.is_visible_in_tree(), "as a live screen again")
 	# The build and the kit come back untouched whatever the loop did in between: ChMain owns ONE
 	# layout and ONE inventory, and the fight only ever got a copy.
 	assert_true(main.layout.get_instance_id() == build_id, "the SAME layout instance, not a rebuilt one")
@@ -304,15 +300,65 @@ func test_main_round_trip() -> void:
 	var rocket := main.layout.get_node([3])
 	assert_true(rocket != null and rocket.part_id == &"cutter_rocket", "the Rocket in the same slot")
 	assert_eq(main.inventory.part_ids.size(), carried, "and the same parts carried")
-	# The round trip's last leg: ChMain's own hand-back, not the tree taking the fight down with main.
-	# The window's two seconds end, the fight is released, its reference goes with it, and the garage
-	# comes back. MAIN_WAIT_MS is the cap that turns a window that never closes into a recorded
-	# failure rather than a hung run.
-	var started_ms := Time.get_ticks_msec()
-	while main.screen != &"garage" and Time.get_ticks_msec() - started_ms < MAIN_WAIT_MS:
-		await Engine.get_main_loop().process_frame
-	assert_eq(main.screen, &"garage", "the garage came back once the window ended")
-	assert_true(main.garage != null and main.garage.is_visible_in_tree(), "as a live screen again")
 	assert_true(main.battle == null, "and ChMain released the ended fight, node and reference")
+	assert_true(not is_instance_valid(fought), "the fight node itself is gone")
+	main.free()
+	_complete()
+
+
+# Review Focus 5 on ChMain's side: a fight whose time runs out reaches the result panel instead of
+# leaving the game on a screen that never names anything. The HP override travels as a catalog
+# (ChTest._fight_catalog), so the fight really does run its whole 3600-tick budget: this is the one
+# test here that pays ChBattle's full clock, because a draw IS the clock running out.
+func test_main_draw_panel() -> void:
+	var main: ChMain = _main_scene()
+	# The same build the round trip fights with, so the player has a weapon; TALL_HP means nothing it
+	# fires can end the fight early.
+	assert_true(main.garage.drop_part(&"wheel", [0]), "body slot 0 takes a wheel")
+	assert_true(main.garage.drop_part(&"wheel", [1]), "as the other")
+	assert_true(main.garage.drop_part(&"cutter_rocket", [3]), "and the Rocket")
+	main.catalog = _fight_catalog(TALL_HP, TALL_HP)
+	main.garage.request_fight()
+	assert_eq(main.screen, &"fight", "the fight started")
+	await _wait_screen(main, &"result")
+	assert_eq(main.screen, &"result", "the timeout reached the result screen rather than hanging")
+	assert_eq(main.result_panel.title.text, "Draw: time ran out", "and the panel named the draw")
+	assert_true(main.battle != null and not main.battle.ticking, "on a fight that has stopped")
+	main.free()
+	_complete()
+
+
+# Review Focus: "Back to garage" pressed twice in one frame. The first press is the hand-back; the
+# second has to be a no-op rather than a second garage build, which would throw away the screen the
+# first press just made. The panel is queue_free'd rather than freed (freeing a Button from inside
+# its own `pressed` signal is not safe), so the second press still reaches this node's handler - and
+# the garage's instance id is what tells the two outcomes apart, because a rebuild would leave one
+# garage in the tree either way.
+func test_back_twice_one_garage() -> void:
+	var main: ChMain = _main_scene()
+	main.garage.request_fight()
+	var frames := 0
+	while main.battle.enemy == null and frames < 60:
+		await Engine.get_main_loop().process_frame
+		frames += 1
+	if main.battle.enemy != null:
+		main.battle.enemy.hp = 1
+	await _wait_screen(main, &"result")
+	assert_eq(main.screen, &"result", "the fight reached its result panel")
+	var back: Button = main.result_panel.back
+	var fought := main.battle
+	back.pressed.emit()
+	var first_garage := main.garage.get_instance_id()
+	back.pressed.emit()
+	assert_eq(main.screen, &"garage", "the presses left the loop on the garage")
+	assert_true(main.garage.get_instance_id() == first_garage,
+		"the second press did not rebuild the garage the first one made")
+	var garages := 0
+	for child in main.get_children():
+		if child is ChGarage:
+			garages += 1
+	assert_eq(garages, 1, "and exactly one garage is a child of main")
+	assert_true(main.battle == null and not is_instance_valid(fought),
+		"while the fight was released once")
 	main.free()
 	_complete()

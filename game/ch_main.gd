@@ -1,21 +1,20 @@
 class_name ChMain extends Node
 
-# Task 16: the loop the slice is made of - garage, one fight, the result, garage again. This node
+# Task 16: the loop the slice is made of - garage, one fight, its result, garage again. This node
 # owns the two halves of a build (the ChInventory and the current ChChariotLayout) and hands both
 # to the garage screen, which is the API the later shop wraps the same way. The fight is ChBattle
 # instantiated, never a copy of its loop, and ChBattle.start is a coroutine: the result comes back
 # on `finished`, which is &"win", &"loss" or &"draw" from a fight that ended, or &"aborted" when the
-# arena or a chariot could not build, so anything that is not &"win" reads as "no fight" and nothing
-# here waits for a signal that already fired.
+# arena or a chariot could not build.
+# Task 3 made `finished` the fight's own end, so nothing here holds or retires a fight that is still
+# running: the signal opens a result panel over a battle that has already stopped, and the panel's
+# back button frees the battle and puts the garage back (Task 6).
 
 const GARAGE := "res://game/garage/garage.tscn"
 const BATTLE := "res://game/battle/battle.tscn"
 const ENEMY := "res://game/data/enemies/dozer_cook.tres"
-const RESULT_SECONDS := 2.0
-const WATCHDOG_TEXT := "Rounds ran out: nobody died."  # what a fight that never spoke reads as
 const SEED := 12345
 const START := &"cutter"
-const FIGHT_TEXT := "Fighting ..."
 const STARTER_PARTS := [&"ice_cream_mace", &"cutter_chainsaw", &"flamethrower", &"hearth",
 	&"cutter_rocket", &"corsair_harpoon", &"ember_battery", &"firebolt_launcher",
 	&"ring_of_fire", &"freeze_charge", &"strut"]
@@ -26,12 +25,10 @@ var inventory: ChInventory = null
 var layout: ChChariotLayout = null  # the build the garage shows and the next fight takes
 var garage: ChGarage = null
 var battle: ChBattle = null
-var retiring: Array[ChBattle] = []  # fights a newer one replaced, still running their own loop
-var label: Label = null
+var result_panel: ChResultPanel = null
+var _panel_layer: CanvasLayer = null  # what the result panel is drawn on: see _init
 var screen: StringName = &"garage"  # what this node is showing: garage, fight or result
 var shown: ChChariotLayout = null  # the copy a fight is running, never the garage's own
-var result_left := 0.0  # seconds of the result panel left
-var announced := false  # this fight's result window has already been shown: see _on_finished
 
 
 func _init() -> void:
@@ -44,12 +41,14 @@ func _init() -> void:
 	# An empty build on a body the catalog has a def for, so swap_body can measure it and the
 	# pit opens on empty markers.
 	layout.body_id = START
-	label = Label.new()
-	# The result panel: one line at the bottom left, the same 8px as the garage's own text.
-	label.position = Vector2(8.0, 168.0)
-	label.add_theme_font_size_override("font_size", 8)
-	label.text = ""
-	add_child(label)
+	# The result panel's own canvas layer, because a Camera2D transforms every canvas item it shares a
+	# layer with - Controls included - so a panel on the default layer is drawn at the zoomed world's
+	# coordinates rather than over the screen (measured: a centred panel landed at 3558,2078 and never
+	# showed). The battle's HUD is on a layer of its own for the same reason; this one is above it, so
+	# the panel is never behind the HUD.
+	_panel_layer = CanvasLayer.new()
+	_panel_layer.layer = 2
+	add_child(_panel_layer)
 	_show_garage()
 
 
@@ -80,7 +79,6 @@ func _show_garage() -> void:
 	add_child(next)
 	garage = next
 	screen = &"garage"
-	label.text = ""
 
 
 func _on_fight_requested(copy: ChChariotLayout) -> void:
@@ -90,8 +88,8 @@ func _on_fight_requested(copy: ChChariotLayout) -> void:
 	# what keeps the garage's own build off whatever the fight does to it.
 	shown = copy
 	screen = &"fight"
-	# The garage screen stops taking the pointer while the fight runs, and leaves the tree when
-	# the result window ends: the fight draws over it, and a build cannot be edited mid-fight.
+	# The garage screen stops reading the pointer while the fight runs and leaves the tree at the
+	# hand-back: the fight draws over it, and a build cannot be edited mid-fight.
 	garage.set_process(false)
 	garage.hide()
 	await _start_battle()
@@ -100,144 +98,57 @@ func _on_fight_requested(copy: ChChariotLayout) -> void:
 func _start_battle() -> void:
 	# One ChBattle scene per fight, the same reason the garage is instantiated: start() builds
 	# its arena, HUD and markers from scratch, and a second call would write the first fight's
-	# nodes. The coroutine is awaited here, so the fight's ticks run on this node's frames.
-	_retire_current()
+	# nodes.
 	var next: ChBattle = ResourceLoader.load(BATTLE).instantiate()
 	battle = next
-	announced = false
-	# The battle is named to the handler, so a late `finished` from a fight this node already handed
-	# back cannot speak for the one now on screen.
+	# The battle is named to the handler, so a `finished` from a fight this node no longer shows
+	# cannot open a panel over a later one.
 	next.finished.connect(func(result: StringName) -> void: _on_finished(result, next))
 	add_child(next)
-	label.text = FIGHT_TEXT
+	# start() answers once its own loop is over, and `finished` fired just before that, so the screen
+	# is already the result panel by here; nothing is written after this await.
 	await next.start(shown, ResourceLoader.load(ENEMY), catalog, SEED)
-	# start() answers once its own loop is over (Task 3), and `finished` fired just before that, so the
-	# screen is already on the result panel by here; nothing is written after that await.
-
-
-func _open_result(text: String) -> void:
-	# One window for every outcome, so a real `finished` and a fight that never spoke hand the loop
-	# back the same way: the battle node is only dealt with at the window's end, see _return_to_garage.
-	screen = &"result"
-	result_left = RESULT_SECONDS
-	label.text = text
-	announced = true
 
 
 func _on_finished(result: StringName, from: ChBattle) -> void:
-	# The result window. &"aborted" is a fight that could not build, so it reads as "no fight"
-	# next to &"loss": the brief makes anything that is not &"win" not a win, and the layout the
-	# garage holds was never handed to the fight, so it comes back unchanged either way.
-	# The window is one-shot per fight: the loop is back at the garage while a won fight is still
-	# ticking, so a second outcome from it - or from a fight a later one replaced - must not open a
-	# panel over the garage or over that later fight.
-	# shortcut: one panel naming what happened, rather than three screens; to the player only a
-	# win is a win, and the brief asks for the result for 2 s then the garage.
-	if announced or from != battle:
+	# The result screen, over the fight that decided it: ChBattle stops at its own result (Task 3), so
+	# the battle behind this panel is a still picture, and the panel is the only thing left to press.
+	# &"aborted" reads as "no fight" rather than "loss": the arena or a chariot could not build, and
+	# the layout the garage holds was never handed to anything that could have changed it.
+	# shortcut: one panel naming what happened rather than three screens; to the player only a win is
+	# a win.
+	if from != battle:
 		return
-	_open_result("You win!" if result == &"win" else \
-		"You lose." if result == &"loss" else "No fight: the battle could not start.")
+	# The HUD is a CanvasLayer above the fight's own nodes, so it would keep drawing the last HP of a
+	# fight nobody can act on any more; the result screen is the panel alone.
+	from.hud.visible = false
+	screen = &"result"
+	result_panel = ChResultPanel.new()
+	result_panel.show_result(result)
+	result_panel.back_pressed.connect(_on_back_pressed)
+	_panel_layer.add_child(result_panel)
 
 
-func _process(delta: float) -> void:
-	# What runs on the two screens this node can be stuck on: a fight that has not handed the loop
-	# back, then the result window's two seconds. The fight's ticks and the garage's pointer handling
-	# run their own nodes, so nothing else here needs a frame.
-	# A retired fight goes the frame its own loop ends, whatever screen is up: this runs ahead of the
-	# screen branches so a newer fight holding the screen cannot keep an idle one in the tree.
-	_release_retiring()
-	if screen == &"fight":
-		_hold_fight()
+func _on_back_pressed() -> void:
+	# The brief's hand-back - the garage, and the panel and the fight that opened it go with it.
+	# Idempotent, because a second press can land in the same frame: the panel is queue_free'd rather
+	# than freed (freeing a Button from inside its own `pressed` signal is not safe), so its signal is
+	# still connected when that press arrives, and a second _show_garage would throw away the garage
+	# the first press just made.
+	if screen != &"result":
 		return
-	if screen == &"result":
-		# The window counts real frames rather than reading a clock, so a headless run that ticks
-		# faster than a display still waits the brief's two seconds.
-		result_left -= delta
-		if result_left > 0.0:
-			return
-		_return_to_garage()
-		return
-	# Back at the garage over a fight that outran its window: all that is left is to let it go the
-	# frame its own loop ends.
-	if battle != null and is_instance_valid(battle) and battle.started and not battle.ticking:
-		_release_battle()
-
-
-func _retire_current() -> void:
-	# The fight this node was showing, dealt with before a new one takes `battle`: gone now if its own
-	# loop is over, otherwise handed to `retiring`, where _process frees it the frame that loop ends.
-	# Dropping it instead would leave it in the tree with nothing able to reach it - never freed, still
-	# simulating its whole 3600-tick budget, still updating its HUD every tick and polling ui_left and
-	# ui_right, all off screen.
-	# shortcut: only a fight whose own loop can still end goes here; one still streaming its arena
-	# (ChBattle.started false) could be one whose start() already returned on an `aborted` leg, which
-	# would sit in `retiring` for ever, and no flag ChMain may read tells the two apart. Reaching that
-	# needs a second request_fight inside the frames start() spends building its arena, which the
-	# hidden, unprocessed garage does not offer; upgrade when ChBattle reports its own end.
-	if battle == null or not is_instance_valid(battle):
-		return
-	if battle.started and not battle.ticking:
-		_release_battle()
-	else:
-		retiring.append(battle)
-
-
-func _release_retiring() -> void:
-	# One reverse pass over the retiring fights: each goes the frame ChBattle's contract allows it, so
-	# erase cannot shift an entry past the cursor. `started` is the same never-free-a-live-coroutine
-	# rule _release_battle waits on.
-	for at in range(retiring.size() - 1, -1, -1):
-		var fought: ChBattle = retiring[at]
-		if fought == null or not is_instance_valid(fought):
-			retiring.remove_at(at)
-		elif fought.started and not fought.ticking:
-			retiring.remove_at(at)
-			fought.free()
-
-
-func _return_to_garage() -> void:
-	# The brief's hand-back - the garage, and the fight that decided it goes with it. ChBattle stops
-	# its own loop at its result (Task 3) and emits `finished` with `ticking` already false, so by the
-	# time this window ends the fight is over and freeable, which is the leg below. The hide is kept as
-	# the guard for a fight that still holds its loop when the window ends; Task 6 removes it along with
-	# the retiring list, once nothing can leave a fight running behind the garage.
-	# shortcut: kept for the fight that outran its window, which the leg above now handles by freeing
-	# it; upgrade when Task 6 rewrites this hand-back.
-	if battle != null and is_instance_valid(battle):
-		if battle.ticking:
-			battle.hide()
-			# hide() does not reach the HUD (a Control on the HUD's CanvasLayer, which the Node2D's own
-			# visibility does not touch) or the current Camera2D, and both would still draw over the garage.
-			battle.hud.visible = false
-			battle.camera.enabled = false
-		else:
-			_release_battle()
+	# queue_free, and not free: the panel's Button is what emitted the press this is running under.
+	result_panel.queue_free()
+	result_panel = null
+	_release_battle()
 	_show_garage()
 
 
-func _hold_fight() -> void:
-	# What this node does while a fight is on screen: the hand-back, and the name for a fight that
-	# announced nothing. ChBattle now speaks at the end of its own loop, &"draw" included for a fight
-	# both hulls survive (Task 3), so `_on_finished` normally moves this screen to its window first and
-	# this watchdog only names a fight that ended without reaching its emit. Its own loop is
-	# `for _tick in FIGHT_TICKS: await get_tree().process_frame`, so `ticking` going false IS the
-	# fight's end; the countdown that used to sit beside it could only ever cut a running fight off, and
-	# there is no ChBattle stop for it to be worth anything, so it is gone.
-	if battle == null or not is_instance_valid(battle):
-		_show_garage()
-		return
-	if not battle.started or battle.ticking:
-		# Still starting up (start() streams its arena before its first tick) or still fighting: the
-		# node is neither freeable nor over, so hold the screen as it is.
-		return
-	# The loop ended without announcing anything: nobody died. A real result never comes here, because
-	# _on_finished moved the screen to its own window first, so this only names the silent fight.
-	_open_result(WATCHDOG_TEXT)
-
-
 func _release_battle() -> void:
-	# The battle node leaves the tree only once ChBattle.ticking is false, whatever screen we are on.
-	# The reference goes with it, so `battle` only ever names a fight this node still holds.
+	# The battle node leaves the tree once ChBattle's own loop is over, and `finished` is that moment
+	# (Task 3), so no tick or coroutine check belongs here. The world is a child of the fight, so it
+	# goes with it - on the `aborted` legs too, where the world was built but never started.
+	# The reference goes with the node, so `battle` only ever names a fight this node still holds.
 	if battle != null and is_instance_valid(battle):
 		battle.free()
 	battle = null
