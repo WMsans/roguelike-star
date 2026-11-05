@@ -7,6 +7,7 @@
 
 import os
 import subprocess
+import sys
 
 env = Environment()
 customs = ["custom.py"]
@@ -31,7 +32,10 @@ THIRDPARTY = (
 ARGUMENTS.pop("thirdparty", None)
 THIRDPARTY = str(THIRDPARTY)
 
-env["ARCOM"] = "${TEMPFILE('$AR $ARFLAGS $TARGET $SOURCES')}"
+# macOS' BSD ar has no @response-file support, and the godot-cpp object list is long
+# enough that scons would use one. Pass the objects directly instead: macOS ARG_MAX is
+# 1 MB and the list is about 300 KB.
+env["ARCOM"] = "$AR $ARFLAGS $TARGET $SOURCES" if sys.platform == "darwin" else "${TEMPFILE('$AR $ARFLAGS $TARGET $SOURCES')}"
 
 SConscript(
     os.path.join(THIRDPARTY, "godot-cpp", "SConstruct"),
