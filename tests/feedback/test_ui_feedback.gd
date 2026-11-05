@@ -200,9 +200,10 @@ func test_top_bar_and_back_buttons_juiced() -> void:
 
 
 func test_round_trip_with_feedback() -> void:
-	# The round trip test_garage pins, with a wobble still in flight when the screen leaves: ChMain
-	# hides the garage for the fight and frees it on the way back, so the spring a drop started is
-	# still moving when the node that owns it goes. No beat may reach the freed target.
+	# The round trip test_garage pins. A part is still wobbling when Fight is asked for, so the
+	# garage leaves with a live spring in it; ChMain hides the garage for the fight and frees it on
+	# the way back. This proves the frames after that free raise no beat on the old garage and the
+	# hand-back state is intact — the piece-freed-mid-kick case lives in tests/test_garage.gd.
 	var main: ChMain = _main_scene()
 	assert_true(main.garage.drop_part(&"wheel", [0]), "body slot 0 takes a wheel")
 	assert_true(main.garage.drop_part(&"wheel", [1]), "as the other")

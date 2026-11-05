@@ -214,6 +214,10 @@ func _exit_tree() -> void:
 	# a battle that leaves the tree must not leave them bound. Both are children of this node and go
 	# with it, which is why the unbind is the whole cleanup. The world is also the marker that this
 	# fight bound them at all: a scene freed before start() must not unbind another fight's world.
+	if ctx != null and feedback != null:
+		# The feedback holds ctx and the bus holds the feedback, so dropping the listener is what
+		# lets this fight's bus/context/runtime graph go; without it every fight leaks one.
+		ctx.bus.unsubscribe_all(feedback)
 	if world != null:
 		Feedback.unbind_shake()
 		Feedback.unbind_world()
