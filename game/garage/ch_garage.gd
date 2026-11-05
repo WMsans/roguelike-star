@@ -101,6 +101,8 @@ func drop_part(part_id: StringName, path) -> bool:
 	inventory.take(part_id)
 	_refresh_cards()
 	_sync_pit()
+	# After the sync, so the piece the beat kicks is the one the drop just built.
+	Feedback.play(&"placed", piece_at(step))
 	return true
 
 
@@ -113,10 +115,21 @@ func lift(path) -> bool:
 	var branch: ChSlotNode = layout.remove(_typed(path))
 	if branch == null:
 		return false
+	var root_id: StringName = branch.part_id
 	_lift_branches([branch])
 	_refresh_cards()
 	_sync_pit()
+	# The beat goes to the card the part went home to; a strip with no such card skips it.
+	Feedback.play(&"activate", _card_for(root_id))
 	return true
+
+
+func _card_for(id: StringName) -> ChPartCard:
+	# The strip's card for an id, null when the strip lists none: play() skips a null target.
+	for card in _cards:
+		if card.part_id == id:
+			return card
+	return null
 
 
 func click_part(path) -> void:
@@ -199,6 +212,7 @@ func cycle_body(step: int = 1) -> void:
 	_refresh_top()
 	_refresh_cards()
 	_sync_pit()
+	Feedback.play(&"placed", hull_piece())
 
 
 func _cycle_index() -> int:
@@ -430,6 +444,7 @@ func _enter_tree() -> void:
 	# Mouse only: these are not in a focus chain, so no keyboard focus warnings on entry.
 	for button in [prev, next, fight]:
 		button.focus_mode = Control.FOCUS_NONE
+		Feedback.attach_button(button)
 	# One logic call each: the buttons are the methods the tests drive, not a second path through the UI.
 	prev.pressed.connect(cycle_body.bind(-1))
 	next.pressed.connect(cycle_body.bind(1))

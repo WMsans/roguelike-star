@@ -33,6 +33,7 @@ func _init() -> void:
 	back = Button.new()
 	back.text = "Back to garage"
 	back.pressed.connect(func() -> void: back_pressed.emit())
+	Feedback.attach_button(back)
 	rows.add_child(back)
 
 
