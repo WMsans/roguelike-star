@@ -30,6 +30,14 @@ const ZOOM_CLOSEST := 4.5
 const CAMERA_EASE := 0.15  # the share of the remaining gap the camera covers per fight tick
 const PULSE_SECONDS := 0.2  # the HUD's pulse on a part the player just fired
 const MARKER_Z := 10  # the marker layer's z_index: above every body, which all sit at 0
+# The bright look. The world's light overlay multiplies the whole lit area, sky included, so a full
+# ambient is what stops it greying the pit and the parallax sky behind it; LIGHT_HEADROOM lets fire
+# and lava lift cells above their own colour, which only survives the multiply because project.godot
+# turns on hdr_2d. The backdrop goes transparent so the air shows the ChBackground layer.
+const AMBIENT := 1.0
+const AMBIENT_TINT := Color(1.0, 0.98, 0.94)
+const LIGHT_HEADROOM := 1.8
+const BACKDROP := Color(0, 0, 0, 0)
 
 var ctx: ChBattleContext = null
 var world: PixelWorld = null
@@ -178,6 +186,10 @@ func _build_world(seed: int) -> bool:
 	world.material_set = ResourceLoader.load("res://game/materials/game_set.tres")
 	world.arena = ARENA
 	world.arena_border_material = &"concrete"
+	world.ambient = AMBIENT
+	world.ambient_tint = AMBIENT_TINT
+	world.light_headroom = LIGHT_HEADROOM
+	world.backdrop_color = BACKDROP
 	# The arena streams a window of chunks around its target cell, and a chunk is 64 cells, so the
 	# window has to reach the chunk holding the arena's far corner or is_area_ready never turns true
 	# (the same reading ChTest.make_world takes, and the reason a fill would silently write nothing).
