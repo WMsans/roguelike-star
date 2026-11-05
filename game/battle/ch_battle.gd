@@ -22,9 +22,11 @@ const VIEW := Vector2(1280, 720)  # project.godot's viewport: the HUD lays out i
 const TICK := 1.0 / 60.0  # one 60 fps frame: the delta every part, cooldown and pool counts against
 const FIGHT_TICKS := 3600  # 60 s of ticks: the ceiling the brief gives a fight
 const WORLD_WAIT := 600  # frames the world is given to load before the arena fill starts
-const CAMERA_MARGIN := 24.0  # cells of arena kept beside both chariots when the camera zooms
+const CAMERA_MARGIN := 48.0  # cells of arena kept beside both chariots when the camera zooms
 const ZOOM_WIDEST := 4.0  # the pull-back bound: its view is 320x180 cells, exactly the pit's height
-const ZOOM_CLOSEST := 8.0  # the magnify bound: closer than this and a chariot outruns its own frame
+# The magnify bound: the pit around a brawl is part of the read, so a fight frames at least a
+# 284x160-cell view rather than filling the screen with two hulls (8.0 here showed 160x90).
+const ZOOM_CLOSEST := 4.5
 const CAMERA_EASE := 0.15  # the share of the remaining gap the camera covers per fight tick
 const PULSE_SECONDS := 0.2  # the HUD's pulse on a part the player just fired
 const MARKER_Z := 10  # the marker layer's z_index: above every body, which all sit at 0
