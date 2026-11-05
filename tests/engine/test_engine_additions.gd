@@ -71,6 +71,16 @@ func test_count_materials() -> void:
 # which carries the wood material these bodies stamp.
 const GROUP_SPAWN := Vector2(120, 90)  # interior air, far from the arena border
 const GROUP_FRAMES := 30
+# stamp() keeps the cell the first body wrote, so the second body's overlapping pixels are
+# contested: (10 - 3) columns x 4 rows of hull overlap.
+const GROUP_CONTESTS := 28
+
+
+func _stamp_contests(world: PixelWorld) -> int:
+	# Contested cells counted by this tick's stamp(). FLAG_BODY cells exist only between stamp() and
+	# unstamp() inside one tick, so no frame-boundary grid read (count_materials) can see a stamped
+	# cell at all; this is the seam that measures them.
+	return int(world.get_stats()["stamp_contests"])
 
 
 func _overlap_pair(world: PixelWorld, group_a: int, group_b: int) -> Array[PixelRigidBody]:
@@ -103,23 +113,36 @@ func test_same_group_bodies_overlap_freely() -> void:
 	var footprints := Rect2i(115, 88, 13, 4)
 	var wood_frame_1 := 0
 	var wood_after := 0
+	var contests_frame_1 := 0
+	var contests_after := 0
 	for frame in range(1, GROUP_FRAMES + 1):
 		await Engine.get_main_loop().process_frame
 		world.step(1)
 		if frame == 1 or frame == GROUP_FRAMES:
 			var wood: int = world.count_materials(footprints).get(&"wood", 0)
+			var contests := _stamp_contests(world)
 			if frame == 1:
 				wood_frame_1 = wood
+				contests_frame_1 = contests
 			else:
 				wood_after = wood
+				contests_after = contests
 	assert_true(pair[0].global_position.distance_to(start_a) < 0.5,
 		"same-group bodies must not push each other apart (a moved %s)" % [pair[0].global_position.distance_to(start_a)])
 	assert_true(pair[1].global_position.distance_to(start_b) < 0.5,
 		"same-group bodies must not push each other apart (b moved %s)" % [pair[1].global_position.distance_to(start_b)])
-	# Same-group bodies pass through each other's stamped cells; neither erases the other's.
-	assert_eq(wood_after, wood_frame_1,
-		"stamped wood cells over the footprints changed from frame 1 (%d) to frame %d (%d)"
-		% [wood_frame_1, GROUP_FRAMES, wood_after])
+	# The hulls really are stamped: all 28 overlapping cells are contested on frame 1 and still 28
+	# after 30 frames, so neither body lost its stamped cells to the other, and the contested-cell
+	# skip (the first holder keeps the cell) still protects them.
+	assert_eq(contests_frame_1, GROUP_CONTESTS,
+		"contested stamped cells over the overlapping hulls on frame 1")
+	assert_eq(contests_after, GROUP_CONTESTS,
+		"contested stamped cells over the overlapping hulls after %d frames (%d on frame 1)"
+		% [GROUP_FRAMES, contests_frame_1])
+	# Leak guard, kept from the plan's wording: unstamp() lifts everything stamp() wrote, so a frame
+	# boundary reads air over the footprints. It cannot see the stamped cells themselves.
+	assert_eq(wood_frame_1, 0, "wood left in the grid at a frame boundary (frame 1)")
+	assert_eq(wood_after, 0, "wood left in the grid at a frame boundary (frame %d)" % GROUP_FRAMES)
 	_complete()
 
 
@@ -134,6 +157,10 @@ func test_different_group_bodies_still_collide() -> void:
 	var gap_after := pair[0].global_position.distance_to(pair[1].global_position)
 	assert_true(gap_after - gap_before > 1.0,
 		"the overlapping bodies must separate by more than 1 cell (before %s, after %s)" % [gap_before, gap_after])
+	# Discriminates the counter: Box2D pushes this pair apart, so the cells their stamps share run
+	# out (measured 2, 1, 0 over the extra ticks) while the same-group pair stays at GROUP_CONTESTS.
+	world.step(GROUP_FRAMES)
+	assert_eq(_stamp_contests(world), 0, "contested stamped cells once the pair has separated")
 	_complete()
 
 

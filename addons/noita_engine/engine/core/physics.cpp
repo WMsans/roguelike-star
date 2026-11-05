@@ -548,6 +548,7 @@ void PhysicsWorld::apply_buoyancy(Body& body) {
 void PhysicsWorld::stamp() {
 	const Clock::time_point start = Clock::now();
 	const MaterialTable& mt = grid.materials();
+	stats_.stamp_contests = 0;
 	for (const std::unique_ptr<Body>& owned : bodies) {
 		if (!owned || owned->pixels.empty() || !b2Body_IsEnabled(owned->id))
 			continue;  // an unstamped box has no pixels to stamp
@@ -570,7 +571,10 @@ void PhysicsWorld::stamp() {
 				Chunk* chunk = grid.find(chunk_of(wx, wy));
 				if (!chunk) continue;
 				Cell& cell = chunk->at(floor_mod(wx, CHUNK), floor_mod(wy, CHUNK));
-				if (cell.flags & FLAG_BODY) continue;  // another body got here first
+				if (cell.flags & FLAG_BODY) {
+					++stats_.stamp_contests;  // the grid reports how many cells this skip cost
+					continue;  // another body got here first
+				}
 				const CompiledMaterial& under = mt.get(cell.mat);
 				if (under.cls == MatClass::Solid) continue;  // terrain stays; Box2D separates them
 				if (under.cls == MatClass::Liquid) {

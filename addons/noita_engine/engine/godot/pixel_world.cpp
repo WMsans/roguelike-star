@@ -1446,6 +1446,7 @@ Dictionary PixelWorld::get_stats() const {
 	stats["bodies_awake"] = physics_stats.awake;
 	stats["terrain_bodies"] = physics_stats.terrain_bodies;
 	stats["shape_builds"] = physics_stats.shape_builds;
+	stats["stamp_contests"] = physics_stats.stamp_contests;
 	stats["physics_ms"] = physics_stats.physics_ms;
 	stats["shape_ms"] = physics_stats.shape_ms;
 	stats["stamp_ms"] = physics_stats.stamp_ms;

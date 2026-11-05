@@ -45,6 +45,9 @@ struct BodyHit {
 
 struct PhysicsStats {
 	int bodies = 0, awake = 0, terrain_bodies = 0, shape_builds = 0;
+	// Cells this tick's stamp() skipped because another body already holds them: the first holder
+	// keeps the cell, so the other body's pixels are absent from the grid there.
+	int stamp_contests = 0;
 	double physics_ms = 0, shape_ms = 0, stamp_ms = 0;
 };
 
