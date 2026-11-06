@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ChFeedbackProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/feedback/ch_feedback_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+scale_kick = -4.0
+rotation_kick_deg = 4.0
+text = "FROZEN"
+text_color = Color(0.560784, 0.831373, 1.0, 1.0)
+particle_count = 10
+particle_color = Color(0.811765, 0.937255, 1.0, 1.0)
+particle_speed = 30.0
+shake = 0.05

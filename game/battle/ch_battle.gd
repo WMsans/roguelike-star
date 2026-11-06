@@ -11,7 +11,9 @@ class_name ChBattle extends Node2D
 # not the host's frame rate, which is what makes a 60 s fight deterministic.
 # HUD and camera follow the brief: the HUD (ChBattleHud, on ChUi's shared theme) shows both sides'
 # names and HP, the player's energy as pips and the parts waiting behind it; the camera frames the two
-# chariots; a marker sits on every part, and a 0.2 s pulse rings the part the player just fired.
+# chariots (the shot lives on the scene's PhantomCamera2D, `pcam`, which the Camera2D's host copies), a
+# marker sits on every part, and the bus's events are played by the battle's own ChBattleFeedback.
+# Feedback's screen shake lands on the scene's own noise emitter while a fight runs.
 # There is no event feed and no hint line anywhere: the screen shows the fight, not a log of it.
 
 # &"win", &"loss" or &"draw" from the fight, &"aborted" if it could not start
@@ -28,7 +30,6 @@ const ZOOM_WIDEST := 4.0  # the pull-back bound: its view is 320x180 cells, exac
 # 284x160-cell view rather than filling the screen with two hulls (8.0 here showed 160x90).
 const ZOOM_CLOSEST := 4.5
 const CAMERA_EASE := 0.15  # the share of the remaining gap the camera covers per fight tick
-const PULSE_SECONDS := 0.2  # the HUD's pulse on a part the player just fired
 const MARKER_Z := 10  # the marker layer's z_index: above every body, which all sit at 0
 # The bright look. The world's light overlay multiplies the whole lit area, sky included, so a full
 # ambient is what stops it greying the pit and the parallax sky behind it; LIGHT_HEADROOM lets fire
@@ -45,10 +46,10 @@ var player: ChChariotRuntime = null  # side 0
 var enemy: ChChariotRuntime = null  # side 1
 var ai: ChEnemyAI = null  # the enemy's drive decision
 var camera: Camera2D = null
+var pcam: PhantomCamera2D = null  # the live shot: the host under $Camera drives it from here
 var hud: ChBattleHud = null  # the HUD itself, a Control under the $HUD CanvasLayer
 var marks: Node2D = null  # the per-part markers, drawn in the world layer
-var pulses: Array = []  # of {"part": ChPartRuntime, "left": seconds}
-var hud_listener: RefCounted = null  # the key the HUD's subscriptions unsubscribe under
+var feedback: ChBattleFeedback = null  # the bus listener that turns this fight's events into beats
 var outcome := &""  # what this fight decided, once _step names it; "" while neither hull is dead
 var _hdr_before := false  # the viewport's use_hdr_2d before this battle turned it on
 var _camera_primed := false  # the live camera has been put on a composed frame at least once
@@ -67,10 +68,6 @@ func _enter_tree() -> void:
 	# canvas its UI was laid out on, so the battle hands the viewport back as it found it.
 	_hdr_before = get_viewport().use_hdr_2d
 	get_viewport().use_hdr_2d = true
-
-
-func _exit_tree() -> void:
-	get_viewport().use_hdr_2d = _hdr_before
 
 
 func _add_input_actions() -> void:
@@ -110,9 +107,9 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	# `finished` follows an ended fight rather than announcing a result mid-fight.
 	# shortcut: one fight per scene — start() builds the HUD and the arena from scratch, so a caller
 	# that wants a second fight instantiates the scene again rather than reusing this node's nodes.
-	pulses.clear()
 	outcome = &""
 	camera = $Camera
+	pcam = $PCam
 	_camera_primed = false
 	_build_hud()
 	# CONTRACT: every path that cannot run a fight emits `finished` with &"aborted" — the two fight
@@ -120,6 +117,11 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	if not await _build_world(seed):
 		finished.emit(&"aborted")
 		return
+	# Feedback reads this fight's world and shakes this fight's camera. The scope is this battle, not the
+	# world: the chariot bodies are its children and the HUD's CanvasLayer sits here too, which is the
+	# routing Task 5's particle path reads. _exit_tree unbinds both.
+	Feedback.bind_shake($Shake)
+	Feedback.bind_world(world, self)
 	var spawn: Dictionary = ChArenaBuilder.build(world, seed)
 	if not spawn.has("spawn_left") or not spawn.has("spawn_right") or not _arena_landed():
 		# fill_rect answers 0 cells for a grid that never loaded, so the counts are the arena's own
@@ -150,7 +152,9 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 			# it a subscribing part (Rocket's Ignition, Ember Battery) is dead in a real fight.
 			if part.behaviour != null:
 				part.behaviour.setup(ctx)
-	_subscribe_hud()
+	# The bus's events, played: one listener key for the seven types, held here so the fight keeps it.
+	feedback = ChBattleFeedback.new(ctx, hud)
+	feedback.subscribe()
 	# CONTRACT: `finished` is the fight's end, not an announcement made while it runs. It fires once,
 	# from the last statement of start() on every leg, with `ticking` false - the loop has stopped, or
 	# never started - so a listener may free this node on any later frame: there is no suspended
@@ -225,6 +229,22 @@ func _build_world(seed: int) -> bool:
 	return true
 
 
+func _exit_tree() -> void:
+	# HDR is the battle's alone: the garage shares the root viewport, so hand it back as it was found.
+	get_viewport().use_hdr_2d = _hdr_before
+	# The manager holds nodes from this fight (the world for particle routing, the emitter for shake);
+	# a battle that leaves the tree must not leave them bound. Both are children of this node and go
+	# with it, which is why the unbind is the whole cleanup. The world is also the marker that this
+	# fight bound them at all: a scene freed before start() must not unbind another fight's world.
+	if ctx != null and feedback != null:
+		# The feedback holds ctx and the bus holds the feedback, so dropping the listener is what
+		# lets this fight's bus/context/runtime graph go; without it every fight leaks one.
+		ctx.bus.unsubscribe_all(feedback)
+	if world != null:
+		Feedback.unbind_shake()
+		Feedback.unbind_world()
+
+
 func _arena_landed() -> bool:
 	# The fill's own evidence, per the arena builder's note: an unloaded grid answers 0 cells, so
 	# a fight that found no sand and no rock has nothing to stand on.
@@ -254,7 +274,7 @@ func _step(delta: float) -> void:
 	# The world runs its own simulation steps on the physics frames this tick awaited, which is the
 	# seam ChProjectile flies on (Task 13's ruling): adding world.step here would run the sim twice
 	# per tick and double every chariot's movement against the fight's clock.
-	_hud_tick(delta)
+	_hud_tick()
 	_camera_at()
 	var result := result_for(player.is_dead(), enemy.is_dead())
 	if result != &"":
@@ -269,43 +289,18 @@ func _player_drive() -> float:
 	return left + (1.0 if Input.is_action_pressed(&"ui_right") else 0.0)
 
 
-func _subscribe_hud() -> void:
-	# The HUD hears the two events the pulse cares about through one listener key: the player's own
-	# fires. It subscribes to nothing else — the event feed this used to drive is gone (see _hear).
-	# The listener needs no unsubscribing: the bus belongs to this fight's context and dies with it.
-	hud_listener = RefCounted.new()
-	for type in [ChEvent.PART_FIRED, ChEvent.ENERGY_GAINED]:
-		ctx.bus.subscribe(hud_listener, type, _hear)
-
-
-func _hear(event: ChEvent) -> void:
-	# The pulse on the player's own fire, on the part that made it — the whole of what the HUD listens
-	# for. There is no event feed: the brief forbids hint and instruction lines, and a scrolling list of
-	# event names is exactly that (tests/battle/test_battle_hud.gd pins its absence).
-	if event.side == 0 and event.source != null and (event.type == ChEvent.PART_FIRED
-		or event.type == ChEvent.ENERGY_GAINED):
-		pulses.append({"part": event.source, "left": PULSE_SECONDS})
-
-
-func _hud_tick(delta: float) -> void:
-	# The HUD reads the fight's numbers, then the pulse countdown runs on the HUD's own clock and the
-	# markers redraw over the parts it marks.
+func _hud_tick() -> void:
+	# The HUD reads the fight's numbers, then the markers redraw over the parts they mark.
 	hud.show_state(player, enemy)
-	var at := 0
-	while at < pulses.size():
-		pulses[at]["left"] = float(pulses[at]["left"]) - delta
-		if pulses[at]["left"] <= 0.0:
-			pulses.remove_at(at)
-		else:
-			at += 1
 	marks.queue_redraw()
 
 
 func _camera_at() -> void:
-	# Midpoint of both chassis framed close: camera_frame composes the shot and the live camera
-	# eases toward it from the second tick on, so a chase glides between ticks instead of jumping. The
-	# first tick takes the shot outright: the scene's camera is at (0,0) zoom 1, and easing from it
-	# would open every fight on the whole pit, tiny, with world outside ARENA in frame.
+	# Midpoint of both chassis framed close: camera_frame composes the shot and the live shot (the pcam)
+	# eases toward it from the second tick on, so a chase glides between ticks instead of jumping; the
+	# Camera2D only follows the pcam through its host. The first tick takes the shot outright: the scene's
+	# pcam starts at (0,0) zoom 1, and easing from it would open every fight on the whole pit, tiny, with
+	# world outside ARENA in frame.
 	if not _alive(player) or not _alive(enemy):
 		# The frame a hull went missing: the camera keeps the last frame it could compose rather than
 		# reading a freed position.
@@ -317,17 +312,17 @@ func _camera_at() -> void:
 	pad += Vector2(CAMERA_MARGIN, CAMERA_MARGIN)
 	var want: Dictionary = camera_frame(player.chassis.global_position,
 		enemy.chassis.global_position, pad)
-	var step: Dictionary = camera_eased(camera.position, camera.zoom.x, want, _camera_primed)
+	var step: Dictionary = camera_eased(pcam.global_position, pcam.zoom.x, want, _camera_primed)
 	_camera_primed = true
-	camera.position = step["at"]
+	pcam.global_position = step["at"]
 	# One number, put back on both axes, so the frame never goes anamorphic.
 	var zoom := float(step["zoom"])
-	camera.zoom = Vector2(zoom, zoom)
+	pcam.zoom = Vector2(zoom, zoom)
 
 
 static func camera_eased(from_at: Vector2, from_zoom: float, want: Dictionary,
 		primed: bool) -> Dictionary:
-	# The first tick has no frame behind it: battle.tscn's camera sits at (0,0) zoom 1, so easing from
+	# The first tick has no frame behind it: battle.tscn's pcam sits at (0,0) zoom 1, so easing from
 	# there would open every fight on the whole pit, tiny and off-centre, for the ~15 ticks the glide
 	# takes to climb to its shot - and show world outside ARENA while it did. Primed, the fight opens
 	# on the shot; every tick after that eases CAMERA_EASE of the remaining gap.
@@ -408,12 +403,3 @@ func _draw_markers() -> void:
 				marks.draw_line(box.position, box.end, Color(1.0, 1.0, 1.0))
 				marks.draw_line(Vector2(box.position.x, box.end.y), Vector2(box.end.x, box.position.y),
 					Color(1.0, 1.0, 1.0))
-	for pulse in pulses:
-		var part: ChPartRuntime = pulse["part"]
-		if part == null or part.broken or part.body == null or not is_instance_valid(part.body):
-			continue
-		# The 0.2 s pulse: a ring that grows out from the part over the window it has left.
-		var left := maxf(0.0, float(pulse["left"]))
-		var spot: Vector2 = onto * part.anchor_world()
-		var grow := 1.0 - left / PULSE_SECONDS
-		marks.draw_circle(spot, 4.0 + 10.0 * grow, Color(1.0, 0.9, 0.4, 1.0 - 0.8 * grow))

@@ -189,19 +189,21 @@ func test_camera_first_tick_is_the_shot() -> void:
 func test_camera_first_tick_is_the_shot_in_a_real_fight() -> void:
 	var battle := _battle_scene()
 	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP))
-	assert_true(battle.camera.zoom.x >= ChBattle.ZOOM_WIDEST,
-		"the live camera's first frame is the shot (zoom %.2f, widest %s)"
-			% [battle.camera.zoom.x, ChBattle.ZOOM_WIDEST])
+	# Task 7: the shot lives on the pcam now - _camera_at writes it and the camera host copies it onto
+	# the Camera2D a process frame later - so the live shot is read off battle.pcam, not the camera.
+	assert_true(battle.pcam.zoom.x >= ChBattle.ZOOM_WIDEST,
+		"the live pcam's first frame is the shot (zoom %.2f, widest %s)"
+			% [battle.pcam.zoom.x, ChBattle.ZOOM_WIDEST])
 	# And the other half of the wiring: once primed, a tick must ease, not snap. Parked 1000 cells off
 	# the shot at zoom 1, the fight's own next tick covers CAMERA_EASE of the gap, so the zoom lands
 	# between 1 and the widest bound (measured 1.67 with the ease; a dropped `_camera_primed = true`
 	# would snap onto the shot's 5.5 instead, which the bound catches).
-	battle.camera.position = Vector2(-1000, -1000)
-	battle.camera.zoom = Vector2.ONE
+	battle.pcam.global_position = Vector2(-1000, -1000)
+	battle.pcam.zoom = Vector2.ONE
 	await Engine.get_main_loop().process_frame
-	assert_true(battle.camera.zoom.x > 1.0 and battle.camera.zoom.x < ChBattle.ZOOM_WIDEST,
+	assert_true(battle.pcam.zoom.x > 1.0 and battle.pcam.zoom.x < ChBattle.ZOOM_WIDEST,
 		"the next live tick eased toward the shot (zoom %.2f, from 1 toward at least %s)"
-			% [battle.camera.zoom.x, ChBattle.ZOOM_WIDEST])
+			% [battle.pcam.zoom.x, ChBattle.ZOOM_WIDEST])
 	# Spent to its result before the free: ChBattle.start's contract forbids freeing the scene while its
 	# coroutine is suspended (ch_battle.gd's CONTRACT note above the tick loop). The low-HP catalog
 	# keeps that cheap - this fight is over in 124 of its 3600 ticks.
@@ -210,6 +212,38 @@ func test_camera_first_tick_is_the_shot_in_a_real_fight() -> void:
 		await Engine.get_main_loop().process_frame
 		frames += 1
 	assert_true(not battle.ticking, "the fight this test watched reached its own end")
+	battle.free()
+	_complete()
+
+
+# Task 7: the shake path end to end. A beat played at a real fight's body has to reach the battle's own
+# emitter through the manager's binding - a PhantomCameraNoiseEmitter2D on the layer the live pcam reads
+# - and the amplitude/duration are the profile's own numbers, so a retune of profiles/broken.tres keeps
+# this honest. A weaker beat landing while the shake runs must not cut the louder one short.
+func test_shake_plays_through_the_emitter() -> void:
+	var battle := _battle_scene()
+	var results: Array[StringName] = []
+	var sink := results
+	battle.finished.connect(func(result: StringName): sink.append(result))
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP))
+	var shake: PhantomCameraNoiseEmitter2D = battle.get_node("Shake")
+	var broken: ChFeedbackProfile = Feedback.profile(&"broken")
+	Feedback.play(&"broken", battle.player.chassis_visual)
+	assert_true(shake.is_emitting(), "the broken beat started the battle's emitter")
+	assert_near(shake.noise.amplitude, 12.0 * broken.shake, 0.001,
+		"at the profile's own amplitude")
+	assert_near(shake.duration, 0.08 + 0.25 * broken.shake, 0.001, "and its own duration")
+	Feedback.play(&"fired", battle.player.chassis_visual)
+	assert_near(shake.noise.amplitude, 12.0 * broken.shake, 0.001,
+		"a weaker beat did not replace the louder shake")
+	assert_true(shake.is_emitting(), "and the loud shake is still running")
+	# Then the fight has to end as any other: a shake is feedback on the fight, never a change to it.
+	var frames := 0
+	while battle.ticking and frames < CHAIN_FRAMES:
+		await Engine.get_main_loop().process_frame
+		frames += 1
+	assert_true(not battle.ticking, "the fight ran to its own end")
+	assert_eq(results, [&"win"], "and still ended on its own result")
 	battle.free()
 	_complete()
 

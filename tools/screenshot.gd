@@ -67,7 +67,7 @@ func _run() -> void:
 		battle.ctx.time])
 	# The camera's own numbers, so a shot that looks wrong can be tied to a frame that is.
 	var zoom := float(battle.camera.zoom.x)
-	var view: Vector2 = ChBattle.VIEW / zoom
+	var view: Vector2 = battle.VIEW / zoom
 	var at: Vector2 = battle.camera.position
 	print("camera at %s zoom %.3f -> view %s cells, x %.0f..%.0f y %.0f..%.0f" % [at, zoom, view,
 		at.x - view.x * 0.5, at.x + view.x * 0.5, at.y - view.y * 0.5, at.y + view.y * 0.5])
@@ -92,10 +92,10 @@ func _run() -> void:
 	# before the grab, so the shot is the rect the player gets rather than a half-sorted one.
 	for _frame in 2:
 		await process_frame
-	var panel: ChResultPanel = main.result_panel
-	var rect := panel.get_global_rect()
+	var panel = main.result_panel
+	var rect: Rect2 = panel.get_global_rect()
 	print("result: %s, panel \"%s\" at %s size %s, centre %s of viewport %s" % [battle.outcome,
-		panel.title.text, rect.position, rect.size, rect.get_center(), ChBattle.VIEW])
+		panel.title.text, rect.position, rect.size, rect.get_center(), battle.VIEW])
 	_shot("result.png")
 	quit(0)
 

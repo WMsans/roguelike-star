@@ -363,3 +363,110 @@ func test_mirror_x_flips_anchor() -> void:
 	assert_eq(part.body.global_position, Vector2(ORIGIN.x - 10, ORIGIN.y + 5), "mirrored to origin.x - 10")
 	world.free()
 	_complete()
+
+
+func test_bodies_hide_and_carry_a_visual() -> void:
+	# Task 6: a body stops drawing its own texture (self_modulate alpha 0 hides only the node's own
+	# draw) and a "Visual" Sprite2D child carries the art and the juice, so collision, mass and the
+	# body transform are the ones Box2D joined while everything that wobbles lives one node down.
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var layout: ChChariotLayout = _mount(&"dozer", [[[0], &"wheel"], [[2], &"strut"]])
+	var runtime: ChChariotRuntime = ChChariotBuilder.build(
+		world, _parent(), layout, ChCatalog.load_default(), 0, ORIGIN, false)
+	assert_true(runtime != null, "the build returns a runtime")
+	# The chassis and every part body, the one list both loops below walk.
+	var bodies: Array = [runtime.chassis]
+	for part in runtime.parts:
+		bodies.append(part.body)
+	for body in bodies:
+		assert_true(body.self_modulate.a == 0.0, "the body draws nothing of its own")
+		var visual: Node2D = ChChariotBuilder.visual_of(body)
+		assert_true(visual is Sprite2D, "the body carries a Visual Sprite2D")
+		if visual == null:
+			continue
+		# centred, at the body's origin: that is where PixelRigidBody::_draw puts the same texture
+		# (draw_texture(texture, -texture->get_size() * 0.5)), so the art does not move.
+		assert_true((visual as Sprite2D).texture == body.texture, "the visual draws the body's texture")
+		assert_true((visual as Sprite2D).centered, "centred on the body's origin")
+		assert_eq(visual.position, Vector2.ZERO, "at the body's origin")
+		assert_eq((visual as Sprite2D).offset, Vector2.ZERO, "and with no offset, so the texture stays put")
+		assert_true(ChJuice.of(body) == null, "the juice hangs on the visual, not the body")
+		assert_true(ChJuice.of(visual) != null, "the visual carries a ChJuice")
+	assert_eq(runtime.chassis_visual, ChChariotBuilder.visual_of(runtime.chassis),
+		"the runtime names the chassis visual")
+	for part in runtime.parts:
+		assert_eq(part.visual, ChChariotBuilder.visual_of(part.body),
+			"the runtime names the part visual at %s" % [part.path])
+	world.free()
+	_complete()
+
+
+func test_visual_does_not_change_collision() -> void:
+	# The shape, and so the mass, comes from the texture's pixels and not from the sprite that draws
+	# them: the same build with its visuals freed joins bodies of the same mass.
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := ChCatalog.load_default()
+	var runtime: ChChariotRuntime = ChChariotBuilder.build(
+		world, _parent(), _mount(&"dozer", [[[0], &"wheel"], [[2], &"strut"]]), catalog, 0, ORIGIN, false)
+	# The control build sits 200 cells along, out of the first one's way.
+	var bare: ChChariotRuntime = ChChariotBuilder.build(
+		world, _parent(), _mount(&"dozer", [[[0], &"wheel"], [[2], &"strut"]]), catalog, 0,
+		ORIGIN + Vector2(200, 0), false)
+	assert_true(runtime != null and bare != null, "both builds return a runtime")
+	ChChariotBuilder.visual_of(bare.chassis).free()
+	for part in bare.parts:
+		ChChariotBuilder.visual_of(part.body).free()
+	# One world.step per awaited frame, as test_settles_on_ground does: the bodies join on the
+	# engine's internal physics tick, which a single step(60) call would not catch.
+	for _tick in range(60):
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	var chassis_mass: float = runtime.chassis.get_mass()
+	assert_true(chassis_mass > 0.0, "the chassis joined the world")
+	assert_eq(bare.chassis.get_mass(), chassis_mass, "the visual changes nothing about the chassis mass")
+	for part in runtime.parts:
+		var bare_part := _part_of(bare, part.path)
+		assert_true(bare_part != null, "the control build mounted the part at %s" % [part.path])
+		if bare_part == null:
+			continue
+		var mass: float = part.body.get_mass()
+		assert_true(mass > 0.0, "the part body at %s joined the world" % [part.path])
+		assert_eq(bare_part.body.get_mass(), mass,
+			"and nothing about the mass at %s" % [part.path])
+	world.free()
+	_complete()
+
+
+func test_kicked_visual_leaves_body_alone() -> void:
+	# Every wobble is the visual's: a kick moves the child sprite, and the body Box2D joined keeps its
+	# transform, so juice can never fight the collision.
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var runtime: ChChariotRuntime = ChChariotBuilder.build(
+		world, _parent(), _mount(&"dozer", [[[0], &"wheel"], [[2], &"strut"]]),
+		ChCatalog.load_default(), 0, ORIGIN, false)
+	# simulating off: no physics tick can move the body between the two reads below, so the transform
+	# is the same value before and after the kick unless something wrote it.
+	world.simulating = false
+	var part := _part_of(runtime, [2])
+	assert_true(part != null, "the strut mounted")
+	if part == null:
+		world.free()
+		_complete()
+		return
+	var before: Transform2D = part.body.global_transform
+	var juice := ChJuice.of(part.visual)
+	assert_true(juice != null, "the strut's visual carries a ChJuice")
+	if juice == null:
+		world.free()
+		_complete()
+		return
+	juice.kick(9.0, 3.0)
+	juice.advance(0.1)
+	assert_eq(part.body.global_transform, before, "the kick left the body's transform alone")
+	assert_eq(part.body.scale, Vector2.ONE, "and the body's scale")
+	assert_true(part.visual.scale != Vector2.ONE, "while the visual's scale moved")
+	world.free()
+	_complete()

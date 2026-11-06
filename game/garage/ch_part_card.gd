@@ -33,6 +33,8 @@ func _init(def_in: ChPartDef, garage_in: ChGarage) -> void:
 	# The card's own click is the pick; the garage wires the hover that fills the InfoPanel where it
 	# builds the strip, so this class never reaches for the panel.
 	pressed.connect(func() -> void: garage.pick_part(part_id))
+	# Press and hover answer with a feedback beat, the same wiring every button in the game gets.
+	Feedback.attach_button(self)
 
 
 func set_count(carried: int) -> void:
