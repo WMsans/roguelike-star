@@ -137,3 +137,22 @@ func test_cancel_removes() -> void:
 	pool.request(a, 3.0)
 	assert_eq(pool.queue_size(), 2, "A re-queues now that the cancel freed it")
 	_complete()
+
+
+func test_spent_counts_drive_and_paid_requests() -> void:
+	var pool := ChEnergy.new(10.0, 0.0, 2.0)
+	pool.request(_requester(), 3.0)
+	pool.tick(0.5, true)  # drive 2/s * 0.5 s = 1, then the request's 3
+	assert_near(pool.spent, 4.0, 0.0001, "drive and paid request both count")
+	assert_near(pool.value, 6.0, 0.0001)
+	_complete()
+
+
+func test_is_queued_reports_waiting_requester() -> void:
+	var pool := ChEnergy.new(1.0, 0.0, 2.0)
+	var waiting := _requester()
+	pool.request(waiting, 5.0)
+	pool.tick(0.0, false)
+	assert_true(pool.is_queued(waiting), "unaffordable request waits")
+	assert_true(not pool.is_queued(_requester()), "a stranger is not queued")
+	_complete()
