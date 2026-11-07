@@ -1,7 +1,6 @@
 # Handoff: balancing the demo with the balance runner
 
-Date: 2026-11-07. Branch: `garage-battle-ui`. **None of this work is committed yet** (see "State of
-the tree").
+Date: 2026-11-07. Branch: `garage-battle-ui`. All of this work is in commit `4b5dc53`.
 
 ## The task
 
@@ -188,12 +187,9 @@ of Fire 8–11, Harpoon 4. Sparks wins because it's the only build with no drawb
 3. Add `expect` ranges to `demo.json` once the numbers are final, so the suite guards the balance
    (for example `win_rate` [0.5, 0.9] and `mean_fight_seconds` [25, 55]).
 4. Bring the open problems to the user, then rerun `demo` and `demo-matrix`.
-5. Commit only when the user says so. The branch is `garage-battle-ui`.
+5. Commit only when the user says so.
 
 ## State of the tree
 
-Uncommitted: every file listed under "What changed", the tests touched for Ember, max HP and stats
-(`tests/battle/test_behaviours_fire.gd`, `tests/battle/test_builder.gd`, `tests/data/test_layout.gd`,
-`tests/balance/test_fight_stats.gd`, `tests/ch_test.gd`), `tools/balance/README.md`, the new
-`tools/balance/suites/demo.json` and `demo-matrix.json`, `tools/balance/analysis/`, and this file.
-Check with `git status --short`.
+Everything is committed in `4b5dc53` on `garage-battle-ui`. The 9 failing tests listed under Next
+steps are failing in that commit, so fix them first.
