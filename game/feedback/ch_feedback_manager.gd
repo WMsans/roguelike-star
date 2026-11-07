@@ -8,7 +8,7 @@ class_name ChFeedbackManager extends Node
 # Nothing here writes fight state: feedback reads the fight, it never changes it.
 
 const KINDS := [&"fired", &"landed", &"struck", &"caught_fire", &"frozen", &"thawed",
-	&"broken", &"energy", &"activate", &"hover", &"placed", &"nudge"]
+	&"broken", &"energy", &"activate", &"hover", &"placed", &"nudge", &"tooltip"]
 const PROFILE_DIR := "res://game/feedback/profiles/"
 # A one-shot UI burst lives about as long as a battle one.
 const UI_PARTICLE_LIFE := 0.5
