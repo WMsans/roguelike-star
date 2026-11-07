@@ -18,3 +18,4 @@ var color: Color = Color(0.8, 0.8, 0.8)
 var material: StringName = &""
 var behaviour: Script
 var hook_text: String = ""
+var description: PackedStringArray = []  # one tagged bullet per entry ({key} / {key:shown}, see ChKeywords)

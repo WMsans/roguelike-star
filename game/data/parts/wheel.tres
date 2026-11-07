@@ -6,6 +6,7 @@
 script = ExtResource("1_part")
 id = &"wheel"
 display_name = "Wheel"
+description = PackedStringArray("Drives your chariot.")
 energy_cost = 0
 cooldown = 0.0
 damage = 0

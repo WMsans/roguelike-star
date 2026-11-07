@@ -6,6 +6,7 @@
 script = ExtResource("1_part")
 id = &"strut"
 display_name = "Strut"
+description = PackedStringArray("Holds 2 more parts ({extension}).")
 energy_cost = 0
 cooldown = 0.0
 damage = 0

@@ -8,6 +8,7 @@ script = ExtResource("1_part")
 id = &"cutter_chainsaw"
 behaviour = ExtResource("2_chainsaw")
 display_name = "Cutter Chainsaw"
+description = PackedStringArray("Cuts anything within 14 cells: 20 damage.", "Every cut throws {sparks}.")
 hook_text = "Sparks: cutting through parts or terrain throws sparks that can ignite flammables"
 energy_cost = 2
 cooldown = 0.5

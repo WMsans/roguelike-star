@@ -8,6 +8,7 @@ script = ExtResource("1_part")
 behaviour = ExtResource("2_ring")
 id = &"ring_of_fire"
 display_name = "Ring of Fire"
+description = PackedStringArray("A ring of {burn:fire} grows 24 cells out over 1 s.", "10 damage to every part it crosses, yours too.")
 energy_cost = 4
 cooldown = 6.0
 damage = 10

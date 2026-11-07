@@ -126,3 +126,18 @@ func test_enemy_layout_valid() -> void:
 			assert_true(anchor.x > 0.0, "%s mounts facing forward" % node.part_id)
 	assert_eq(wheels, 2, "the build has exactly 2 wheels, low and exposed")
 	_complete()
+
+
+func test_every_part_described() -> void:
+	var catalog := ChCatalog.load_default()
+	assert_eq(catalog.parts.size(), 12, "the slice's 12 parts")
+	for id in catalog.parts:
+		var def: ChPartDef = catalog.parts[id]
+		assert_true(def.description.size() > 0, "%s has a description" % id)
+		for line in def.description:
+			assert_eq(ChKeywords.parse(line).unknown, [], "%s: every tag resolves" % id)
+			assert_true(not line.begins_with("•"), "%s: the tooltip adds the bullet" % id)
+	assert_eq(ChKeywords.keys_of(catalog.part(&"flamethrower").description), [&"burn"])
+	assert_eq(ChKeywords.keys_of(catalog.part(&"freeze_charge").description), [&"proximity", &"freeze"])
+	assert_eq(ChKeywords.keys_of(catalog.part(&"ember_battery").description), [&"burn", &"energy"])
+	_complete()
