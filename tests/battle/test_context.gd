@@ -429,3 +429,19 @@ func test_hit_on_a_fallen_wreck_pays_nothing() -> void:
 	assert_true(ctx.chariot_of_body(target.body) == null, "and to no chariot, so deal_hit drops the hit")
 	assert_eq(hits.size(), 1, "so no second HIT was announced for the wreck")
 	_complete()
+
+
+# The balance runner's need: a HIT says which chariot it landed on, so a part that hurts its own
+# hull (Ring of Fire pays its chassis as it grows) is not counted as damage dealt to the enemy.
+func test_hit_names_the_side_it_landed_on() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog(20)
+	var layout := _mount([[[0], &"gun"], [[1], &"target"]])
+	var rig: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), layout, catalog, 0, ORIGIN, false)
+	var ctx: ChBattleContext = _battle(world, catalog, [rig])
+	var sides: Array = []
+	(ctx.bus).subscribe(RefCounted.new(), ChEvent.HIT, func(event: ChEvent): sides.append(event.data.get("target_side")))
+	ctx.deal_hit(_part_of(rig, [0]), _part_of(rig, [1]).body, DAMAGE)
+	assert_eq(sides, [0], "a hit on its own chariot names side 0")
+	_complete()

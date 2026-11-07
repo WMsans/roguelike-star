@@ -550,3 +550,32 @@ func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 	assert_eq(frozen, 0, "nothing froze: the melee band misses the Dozer's wheels (see above)")
 	battle.free()
 	_complete()
+
+
+func test_stepped_fires_every_tick_and_drivers_override() -> void:
+	var battle := _battle_scene()
+	var ticks := [0]
+	battle.stepped.connect(func(_ctx): ticks[0] += 1)
+	# Player charges, enemy holds: the player must close distance.
+	battle.drivers = [func(b, s): return 1.0, func(b, s): return 0.0]
+	var start_gap := [-1.0]
+	battle.stepped.connect(func(ctx):
+		if start_gap[0] < 0.0:
+			start_gap[0] = absf(ctx.chariots[1].chassis.global_position.x - ctx.chariots[0].chassis.global_position.x))
+	var results := await _fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP), 12345)
+	assert_eq(results.size(), 1)
+	assert_eq(ticks[0], int(round(battle.ctx.time / ChBattle.TICK)), "one stepped per tick, last tick included")
+	var end_gap := absf(battle.enemy.chassis.global_position.x - battle.player.chassis.global_position.x)
+	assert_true(end_gap < start_gap[0], "the charging player closed the gap")
+	battle.free()
+	_complete()
+
+
+func test_ai_drive_is_symmetric() -> void:
+	# ai_drive on side 0 decides toward side 1 with the same rule the enemy uses.
+	var battle := _battle_scene()
+	battle.drivers = [func(b, s): return b.ai_drive(s), Callable()]
+	var results := await _fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP), 12345)
+	assert_eq(results.size(), 1, "an AI-driven player still finishes the fight")
+	battle.free()
+	_complete()

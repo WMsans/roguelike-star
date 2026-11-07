@@ -18,6 +18,9 @@ class_name ChBattle extends Node2D
 
 # &"win", &"loss" or &"draw" from the fight, &"aborted" if it could not start
 signal finished(result: StringName)
+# Once per fight tick, after ctx.tick and before the result check, so the fight's last tick is
+# included. The balance runner samples a fight here; nothing in the game listens.
+signal stepped(ctx: ChBattleContext)
 
 const ARENA := Rect2i(0, 0, 480, 180)
 const VIEW := Vector2(1280, 720)  # project.godot's viewport: the HUD lays out in these pixels
@@ -55,6 +58,12 @@ var _hdr_before := false  # the viewport's use_hdr_2d before this battle turned 
 var _camera_primed := false  # the live camera has been put on a composed frame at least once
 var started := false  # read-only: start() has passed its arena build and may still be ticking
 var ticking := false  # read-only: start()'s tick loop is running now (see the contract below)
+# CONTRACT: one entry per side. A valid Callable `func(battle: ChBattle, side: int) -> float`
+# replaces that side's drive; an empty one keeps the default (held keys for side 0, the AI for
+# side 1). A headless run has no input, so the balance runner drives the player through here.
+# shortcut: untyped, because a caller holding the battle as Node2D assigns a plain Array literal and
+# Godot refuses that for an Array[Callable] property.
+var drivers: Array = [Callable(), Callable()]
 
 
 func _init() -> void:
@@ -267,10 +276,11 @@ func _step(delta: float) -> void:
 	# that keeps the two boxes apart. ChEnemyAI holds at least this far out, so an enemy whose shortest
 	# reach is the Mace's 6 cells (measured from a part on the hull's edge) still stops outside the
 	# player's hull instead of grinding into it.
-	var drives: Array[float] = [_player_drive(),
-		ai.decide(enemy.chassis.global_position.x, player.chassis.global_position.x,
-			ai.reach(enemy), _half_width(enemy), _half_width(player))]
+	var drives: Array[float] = [
+		drivers[0].call(self, 0) if drivers[0].is_valid() else _player_drive(),
+		drivers[1].call(self, 1) if drivers[1].is_valid() else ai_drive(1)]
 	ctx.tick(delta, drives)
+	stepped.emit(ctx)
 	# The world runs its own simulation steps on the physics frames this tick awaited, which is the
 	# seam ChProjectile flies on (Task 13's ruling): adding world.step here would run the sim twice
 	# per tick and double every chariot's movement against the fight's clock.
@@ -281,6 +291,15 @@ func _step(delta: float) -> void:
 		# Stored, not emitted: the loop in start() breaks on this and then speaks, so `finished` only
 		# ever arrives with the fight already over (see the contract there).
 		outcome = result
+
+
+func ai_drive(side: int) -> float:
+	# ChEnemyAI's decision for either side, toward the other chariot: side 1 is the enemy's own drive,
+	# and side 0 lets a headless run drive the player by the same rule.
+	var me := player if side == 0 else enemy
+	var other := enemy if side == 0 else player
+	return ai.decide(me.chassis.global_position.x, other.chassis.global_position.x,
+		ai.reach(me), _half_width(me), _half_width(other))
 
 
 func _player_drive() -> float:
@@ -307,8 +326,8 @@ func _camera_at() -> void:
 		return
 	# The box the camera has to show: both hulls end to end plus the margin, so a Dozer and a Cutter
 	# get one frame whatever their lengths.
-	var pad := Vector2(maxf(_hull_box(player).size.x, _hull_box(enemy).size.x),
-		maxf(_hull_box(player).size.y, _hull_box(enemy).size.y)) * 0.5
+	var pad := Vector2(maxf(hull_box(player).size.x, hull_box(enemy).size.x),
+		maxf(hull_box(player).size.y, hull_box(enemy).size.y)) * 0.5
 	pad += Vector2(CAMERA_MARGIN, CAMERA_MARGIN)
 	var want: Dictionary = camera_frame(player.chassis.global_position,
 		enemy.chassis.global_position, pad)
@@ -368,7 +387,7 @@ func _half_width(chariot: ChChariotRuntime) -> float:
 	return maxi(1, chariot.body_def.size.x) * 0.5
 
 
-func _hull_box(chariot: ChChariotRuntime) -> Rect2:
+func hull_box(chariot: ChChariotRuntime) -> Rect2:
 	# The chassis box in arena cells, the same reading ChBehaviour's _hull_box takes.
 	var size := Vector2(maxi(1, chariot.body_def.size.x), maxi(1, chariot.body_def.size.y))
 	return Rect2(chariot.chassis.global_position - size * 0.5, size)

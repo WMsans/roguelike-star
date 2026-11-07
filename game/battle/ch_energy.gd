@@ -12,6 +12,7 @@ var cap: float = 0.0
 var regen: float = 0.0
 var drive_cost: float = 2.0
 var queue: Array = []  # FIFO of {"requester": Object, "cost": float}
+var spent: float = 0.0  # every point paid since construction, drive and requests both (balance runner)
 
 
 func _init(cap: float, regen: float, drive_cost: float = 2.0) -> void:
@@ -44,6 +45,11 @@ func queue_size() -> int:
 	return queue.size()
 
 
+func is_queued(requester: Object) -> bool:
+	# Public for the balance runner, which counts the seconds a part spends waiting in line.
+	return _queued(requester)
+
+
 func _queued(requester: Object) -> bool:
 	# Object == compares identity, and request keeps one entry per requester, so the first match is
 	# the only one.
@@ -64,6 +70,7 @@ func tick(delta: float, driving: bool) -> Dictionary:
 	# a caller's job, since a part of a drive costs nothing here.
 	if driving and value >= drive_cost * delta:
 		value -= drive_cost * delta
+		spent += drive_cost * delta
 		drove = true
 	var paid: Array[Object] = []
 	# Strict FIFO: only the head can pay, and the moment it cannot, the rest wait behind it.
@@ -79,5 +86,6 @@ func tick(delta: float, driving: bool) -> Dictionary:
 			break
 		queue.pop_front()
 		value -= cost
+		spent += cost
 		paid.append(head["requester"])
 	return {"drove": drove, "paid": paid}

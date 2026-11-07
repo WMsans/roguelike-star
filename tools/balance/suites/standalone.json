@@ -1,0 +1,421 @@
+{
+  "name": "standalone",
+  "scenarios": [
+    {
+      "name": "standalone-cutter_rocket",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "cutter_rocket"
+          }
+        ]
+      },
+      "enemy": {
+        "body_id": "dozer",
+        "hp": 100000,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-cutter_chainsaw",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "cutter_chainsaw"
+          }
+        ]
+      },
+      "enemy": {
+        "body_id": "dozer",
+        "hp": 100000,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-flamethrower",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "flamethrower"
+          }
+        ]
+      },
+      "enemy": {
+        "body_id": "dozer",
+        "hp": 100000,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-firebolt_launcher",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "firebolt_launcher"
+          }
+        ]
+      },
+      "enemy": {
+        "body_id": "dozer",
+        "hp": 100000,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-hearth",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "hearth"
+          }
+        ]
+      },
+      "enemy": {
+        "body_id": "dozer",
+        "hp": 100000,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-ice_cream_mace",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "ice_cream_mace"
+          }
+        ]
+      },
+      "enemy": {
+        "body_id": "dozer",
+        "hp": 100000,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-ring_of_fire",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "ring_of_fire"
+          }
+        ]
+      },
+      "enemy": {
+        "body_id": "dozer",
+        "hp": 100000,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-corsair_harpoon",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "corsair_harpoon"
+          }
+        ]
+      },
+      "enemy": {
+        "body_id": "dozer",
+        "hp": 100000,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    }
+  ]
+}

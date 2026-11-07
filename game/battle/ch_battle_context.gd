@@ -155,7 +155,7 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	event.side = source.side
 	event.source = source
 	event.position = source.anchor_world()
-	event.data = {"target_part": target_part, "hp_damage": damage_out}
+	event.data = {"target_part": target_part, "hp_damage": damage_out, "target_side": target_chariot.side}
 	bus.emit(event)
 	if target_part != null and target_part.integrity <= 0:
 		target_chariot.break_part(target_part, self)
