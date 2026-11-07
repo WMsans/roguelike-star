@@ -21,7 +21,8 @@ starting point. All numbers are Proposed.
 - Numbers are on The Bazaar's scale. A plain common weapon hits for 40–120 every 3–8 seconds.
 - Continuous weapons (chainsaws, drills, lasers, flamethrowers) deal about 10–20 damage per
   second.
-- Status stacks are 1–10 per hit.
+- Elemental statuses come only from the sand sim (§1.3). A weapon spawns a patch of its material,
+  and what it touches gains about 2–6 stacks per second of contact.
 
 **Proposed**
 - Starting body HP about 800, energy capacity about 20, regen about 4 per second.
@@ -47,7 +48,13 @@ starting point. All numbers are Proposed.
 - The 9 statuses are Flame, Freeze, Block, Acid, Wet, Oil, Shock, Speedup and Slow
   ([elements-list.md](elements-list.md)). All effects that change a part over time are statuses:
   "speed up 1s" is "gain 1 Speedup".
-- "Apply N Flame" puts the stacks on the enemy part the hit landed on.
+- All elemental damage comes from the sand sim. Parts never give Flame, Freeze, Acid,
+  Wet, Oil or Shock directly. They spawn material cells (fire, frost, acid, water, oil, sparks), and a
+  part touching those cells gains the status at the rates in
+  [elements-list.md](elements-list.md) §5. The status rules there (decay, cancelling, Oil and Wet
+  doubling, Shock jumps) are unchanged.
+- Parts can still give Block, Speedup and Slow directly, and can change how much of an elemental
+  status a part gains from the sim ("Wet enemy parts gain double Shock from sparks").
 - "The enemy's Flame" means the total across all enemy parts. "Your body's Block" means one part.
 - "For the battle" lasts until the battle ends. "Permanently" lasts the rest of the run (Balatro
   style scaling). The shop always offers a part in its base state.
@@ -70,8 +77,8 @@ starting point. All numbers are Proposed.
   side this part faces), behind (within range, on the other side), mounted on this part, parts
   with a tag, all your parts, enemy parts.
 - **Conditions and counters:** "while…", "if…", "for every N…".
-- **Effects:** apply a status, deal damage, spawn a material, gain energy, gain gold, heal,
-  permanent scaling, and (rarely) making another part fire.
+- **Effects:** give Block, Speedup or Slow, deal damage, spawn a material (the only way to give an
+  elemental status), gain energy, gain gold, heal, permanent scaling, and (rarely) making another part fire.
 - **Inventory parts** react to shop and run triggers. Battle triggers only reach mounted parts.
 
 ### 1.5 Columns
@@ -93,8 +100,8 @@ starting point. All numbers are Proposed.
 
 | # | Build | Theme | Plan | Uncommons | Rares | Bridges to other builds |
 |---|---|---|---|---|---|---|
-| 1 | Inferno | Fire | Stack Oil on the enemy, double Flame. Oil keeps water from saving them. | U01–U06 | R01–R03 | U03 Heat Shield → Fortress. U06 Bellows → Overclock |
-| 2 | Deep Freeze | Ice | Soak with Wet, double Freeze, lock cooldowns and wheels. | U07–U13 | R04–R06 | U13 Ice Scope → Sniper |
+| 1 | Inferno | Fire | Coat the enemy in oil, then light it. Oil doubles the Flame they gain from fire and keeps water from saving them. | U01–U06 | R01–R03 | U03 Heat Shield → Fortress. U06 Bellows → Overclock |
+| 2 | Deep Freeze | Ice | Soak them with water, then frost: Wet doubles the Freeze they gain. Lock cooldowns and wheels. | U07–U13 | R04–R06 | U13 Ice Scope → Sniper |
 | 3 | Shock Chain | Electric | Batteries, wet terrain and packed enemy parts make Shock jump. | U14–U19 | R07–R09 | U17 Capacitor → Reactor. U18 Wet Wire → Deep Freeze |
 | 4 | Acid Eater | Acid | Strip Block, dissolve terrain, sink the enemy. | U20–U24 | R10–R11 | U21 Corroder → Grinder. U24 Sinkhole Flask → Demolition |
 | 5 | Fortress | Defence | Stack Block, turn Block into damage. | U25–U30 | R12–R14 | U30 Thermal Plating → Inferno |
@@ -148,31 +155,31 @@ Simple, universal, weak. Price 2 gold.
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
-| C16 | Flamethrower | Weapon, Fire, Beam | 2/s | Beam | 50 | — | — | Short beam: 4 damage and 1 Flame per second. Sprays fire cells. | C: CATS Laser + Noita Burning Trail |
-| C17 | Molotov | Weapon, Fire | 4 | 6 | 40 | — | — | Lob a bottle: 30 damage, apply 4 Flame, leaves a patch of fire. | A: CATS Molotov Cocktail |
-| C18 | Igniter | Fire | 2 | 3 | 40 | S | — | Apply 1 Flame. Neighbours apply 2 more Flame whenever they apply Flame. | A: Bazaar Incendiary Rounds |
+| C16 | Flamethrower | Weapon, Fire, Beam | 2/s | Beam | 50 | — | — | Short beam: 4 damage per second. Sprays fire cells along the beam. | C: CATS Laser + Noita Burning Trail |
+| C17 | Molotov | Weapon, Fire | 4 | 6 | 40 | — | — | Lob a bottle: 30 damage, bursts into a patch of fire. | A: CATS Molotov Cocktail |
+| C18 | Igniter | Fire | 2 | 3 | 40 | S | — | Spark a small patch of fire in front. Neighbours spawn twice as many fire cells. | A: Bazaar Incendiary Rounds |
 
 ### Ice (3)
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
-| C19 | Frost Sprayer | Weapon, Ice | 3 | 4 | 50 | — | — | 15 damage, apply 3 Freeze. | A: Bazaar Frost Potion |
-| C20 | Water Cannon | Weapon, Ice | 3 | 4 | 60 | — | — | A jet of water: 10 damage, apply 4 Wet, pushes the enemy back. Spawns water cells. | A: Noita Water Trail |
+| C19 | Frost Sprayer | Weapon, Ice | 3 | 4 | 50 | — | — | 15 damage. Sprays frost cells over the part hit. | A: Bazaar Frost Potion |
+| C20 | Water Cannon | Weapon, Ice | 3 | 4 | 60 | — | — | A jet of water: 10 damage, pushes the enemy back. Spawns water cells. | A: Noita Water Trail |
 | C21 | Ice Pick | Weapon, Ice, Melee | 2 | 2 | 50 | — | — | 20 damage. 40 instead if the part hit has Freeze. | M: Bazaar Ice Pick |
 
 ### Electric (3)
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
-| C22 | Zap Gun | Weapon, Electric | 3 | 3 | 50 | — | — | 15 damage, apply 3 Shock. | A: CATS Zap Gun |
+| C22 | Zap Gun | Weapon, Electric | 3 | 3 | 50 | — | — | 15 damage. Throws sparks at the part hit. | A: CATS Zap Gun |
 | C23 | Battery Dropper | Electric, Earth | 3 | 8 | 40 | — | — | Drop a battery block on the ground in front. | P: battery material as a deployable |
-| C24 | Lightning Rod | Electric, Defence | 0 | — | 80 | M | — | Shock your parts within range would gain goes to this part instead. | R: Noita Electric Charge (draws charge in) |
+| C24 | Lightning Rod | Electric, Defence | 0 | — | 80 | M | — | Sparks within range are drawn to this part instead of your other parts. | R: Noita Electric Charge (draws charge in) |
 
 ### Acid (2)
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
-| C25 | Acid Squirter | Weapon, Acid | 3 | 4 | 40 | — | — | 10 damage, apply 3 Acid. | A: Noita Acid Ball |
+| C25 | Acid Squirter | Weapon, Acid | 3 | 4 | 40 | — | — | 10 damage. Splashes acid cells on the part hit. | A: Noita Acid Ball |
 | C26 | Acid Dripper | Acid | 0 | — | 40 | — | — | Every 2 seconds, drip acid cells under the chariot. | A: Noita Acid Trail |
 
 ### Earth (3)
@@ -230,42 +237,42 @@ More powerful and leaning towards a build. Price 6 gold.
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
-| U01 | Oil Sprayer | Fire | 3 | 5 | 50 | — | — | Spray oil: apply 4 Oil, spawns oil cells. | A: Noita Oil Trail |
-| U02 | Fuel Line | Fire | 0 | — | 50 | S | — | When a neighbour applies Flame, it also applies 2 Oil. | C: Bazaar Incendiary Rounds + Noita Oil Trail |
+| U01 | Oil Sprayer | Fire | 3 | 5 | 50 | — | — | Spray oil: spawns oil cells on and under the enemy. | A: Noita Oil Trail |
+| U02 | Fuel Line | Fire | 0 | — | 50 | S | — | When a neighbour spawns fire cells, it spawns oil cells with them. | C: Bazaar Incendiary Rounds + Noita Oil Trail |
 | U03 | Heat Shield | Fire, Defence | 0 | — | 80 | — | — | While this part has Flame, it gains Block equal to its Flame each second. | discussion example |
 | U04 | Incinerator | Weapon, Fire | 4 | 6 | 60 | — | — | Deal damage equal to 5 × the Flame on the part hit. | M: Bazaar Infernal Greatsword |
-| U05 | Napalm Launcher | Weapon, Fire | 5 | 7 | 50 | — | — | 30 damage, apply 3 Oil then 3 Flame. Leaves burning oil. | C: CATS Molotov Cocktail + Noita Oil Trail |
-| U06 | Bellows | Fire, Wind | 0 | — | 40 | S | — | When a neighbour applies Flame, neighbours gain 1 Speedup. | A: Bazaar Pyrocarbon |
+| U05 | Napalm Launcher | Weapon, Fire | 5 | 7 | 50 | — | — | 30 damage. Splashes oil and lights it, leaving a patch of burning oil. | C: CATS Molotov Cocktail + Noita Oil Trail |
+| U06 | Bellows | Fire, Wind | 0 | — | 40 | S | — | When a neighbour spawns fire cells, neighbours gain 1 Speedup. | A: Bazaar Pyrocarbon |
 
 ### 4.2 Deep Freeze (Ice)
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
 | U07 | Rainmaker | Ice | 3 | 5 | 40 | — | — | Spawn a small rain cloud above the enemy for 3 seconds. | M: Noita Sea of Water (small, overhead) |
-| U08 | Cryo Cannon | Weapon, Ice | 5 | 7 | 60 | — | — | 40 damage, apply 6 Freeze. If the part hit is Wet, parts touching it gain 2 Freeze. | C: Bazaar Frost Potion + Ice Luge |
+| U08 | Cryo Cannon | Weapon, Ice | 5 | 7 | 60 | — | — | 40 damage. Bursts into frost cells, twice as many if the part hit is Wet. | C: Bazaar Frost Potion + Ice Luge |
 | U09 | Icebreaker | Weapon, Ice | 4 | 7 | 70 | — | — | 100 damage. When any enemy part gains Freeze, this gains 1 Speedup. | A: Bazaar Icebreaker |
 | U10 | Antifreeze Coat | Ice, Defence | 0 | — | 60 | M | — | Your parts within range lose Freeze twice as fast. | A: Bazaar Cryosleeve |
-| U11 | Cold Snap | Ice | 3 | 6 | 40 | — | — | The enemy part with the most Wet gains Freeze equal to half its Wet. | P: Wet doubling as a payoff |
-| U12 | Freeze Ray | Weapon, Ice, Beam | 3/s | Beam | 40 | — | — | 1 Freeze per second, no damage. When it switches on, apply 3 Wet. | A: Noita Freezing Gaze |
+| U11 | Cold Snap | Ice | 3 | 6 | 40 | — | — | Spawn frost cells around the enemy part with the most Wet. | P: Wet doubling as a payoff |
+| U12 | Freeze Ray | Weapon, Ice, Beam | 3/s | Beam | 40 | — | — | No damage. Spawns frost cells along the beam. When it switches on, sprays a burst of water. | A: Noita Freezing Gaze |
 | U13 | Ice Scope | Ice, Attack | 0 | — | 40 | S | — | Neighbouring weapons deal +25 damage per hit to parts that have Freeze. | C: Ice Pick (C21) + Sniper build |
 
 ### 4.3 Shock Chain (Electric)
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
-| U14 | Tesla Coil | Weapon, Electric | 4 | 5 | 60 | S | — | 40 damage, apply 3 Shock. When a neighbour fires, this gains 1 Speedup. | A: Bazaar Tesla Coil |
-| U15 | Chain Lightning | Weapon, Electric | 5 | 6 | 50 | — | — | 30 damage, apply 4 Shock. This Shock jumps one extra hop. | A: Noita Chain Bolt |
-| U16 | Ball Lightning | Weapon, Electric | 5 | 8 | 40 | — | — | Launch 3 slow orbs, each 10 damage and 3 Shock. They spark through water. | A: Noita Ball Lightning |
+| U14 | Tesla Coil | Weapon, Electric | 4 | 5 | 60 | S | — | 40 damage. Throws sparks at the part hit. When a neighbour fires, this gains 1 Speedup. | A: Bazaar Tesla Coil |
+| U15 | Chain Lightning | Weapon, Electric | 5 | 6 | 50 | — | — | 30 damage. Throws sparks at the part hit. Shock from these sparks jumps one extra hop. | A: Noita Chain Bolt |
+| U16 | Ball Lightning | Weapon, Electric | 5 | 8 | 40 | — | — | Launch 3 slow orbs, each 10 damage. Each bursts into sparks, which travel through water. | A: Noita Ball Lightning |
 | U17 | Capacitor | Electric, Stats | 0 | — | 40 | M | — | When a part within range gains Shock (yours or the enemy's), gain 1 energy. | P: Shock as an energy source |
-| U18 | Wet Wire | Electric, Ice | 0 | — | 40 | — | — | Shock you apply to Wet enemy parts is doubled. | S: Noita Critical On Burning (burning → wet, crit → Shock) |
-| U19 | Grounding Spike | Electric, Earth | 3 | 6 | 60 | — | — | Send a spark through the ground towards the enemy. It travels along water and steel and applies 4 Shock on contact. | P: electric spark material as a weapon |
+| U18 | Wet Wire | Electric, Ice | 0 | — | 40 | — | — | Wet enemy parts gain double Shock from sparks. | S: Noita Critical On Burning (burning → wet, crit → Shock) |
+| U19 | Grounding Spike | Electric, Earth | 3 | 6 | 60 | — | — | Send a spark through the ground towards the enemy. It travels along water and steel to the first part it reaches. | P: electric spark material as a weapon |
 
 ### 4.4 Acid Eater (Acid)
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
-| U20 | Acid Cannon | Weapon, Acid | 4 | 6 | 50 | — | — | 20 damage, apply 5 Acid. Splashes acid cells. | A: Noita Circle of Acid |
-| U21 | Corroder | Acid | 0 | — | 40 | S | — | Neighbouring melee weapons also apply 1 Acid per tick. | C: Sharpener (C34) + Acid |
+| U20 | Acid Cannon | Weapon, Acid | 4 | 6 | 50 | — | — | 20 damage. Splashes acid cells over the part hit. | A: Noita Circle of Acid |
+| U21 | Corroder | Acid | 0 | — | 40 | S | — | Neighbouring melee weapons drip an acid cell on what they hit each tick. | C: Sharpener (C34) + Acid |
 | U22 | Acid Gas Vent | Acid, Wind | 3 | 6 | 40 | — | — | Release a cloud of acid gas in front. | P: acid gas material as a weapon |
 | U23 | Etching Ray | Weapon, Acid, Beam | 3/s | Beam | 40 | — | — | 6 damage per second. Damage to Block is doubled. | M: CATS Laser for Block |
 | U24 | Sinkhole Flask | Acid, Earth | 4 | 8 | 40 | — | — | Throw a flask that bursts into a pool of acid under the enemy, dissolving the ground beneath its wheels. | M: Noita Sea of Acid (small, aimed) |
@@ -279,14 +286,14 @@ More powerful and leaning towards a build. Price 6 gold.
 | U27 | Rampart | Defence | 4 | 5 | 120 | S | 1 | This part and every neighbour gain 15 Block. | A: Noita Circle of Shielding |
 | U28 | Bunker Frame | Defence, Negative | 0 | — | 100 | — | 2 | +1 inventory slot. Start of battle: your body gains 30 Block. | C: Negative tag + Steel Plate (C11) |
 | U29 | Compound Plating | Defence | 0 | — | 100 | — | — | Every 5 seconds, your body gains Block equal to 10% of its Block (at least 5). | M: Bazaar Nesting Doll (grows in battle) |
-| U30 | Thermal Plating | Defence, Fire | 0 | — | 100 | S | — | When this part gains Block, neighbouring weapons apply +1 Flame per hit for the battle. | discussion example |
+| U30 | Thermal Plating | Defence, Fire | 0 | — | 100 | S | — | When this part gains Block, neighbouring weapons spawn +1 fire cell per hit for the battle. | discussion example |
 
 ### 4.6 Grinder (Weapon, melee)
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
 | U31 | Buzzsaw Arm | Weapon, Melee | 2/s | Melee | 60 | S | — | 12 damage per tick. When a neighbour fires, this deals +5 on its next tick. | C: CATS Chainsaw + Bazaar Bayonet |
-| U32 | Hot Teeth | Fire, Melee | 0 | — | 40 | S | — | When a neighbouring melee weapon fires, apply 1 Flame to what it hit. | C: Sharpener (C34) + Flame |
+| U32 | Hot Teeth | Fire, Melee | 0 | — | 40 | S | — | When a neighbouring melee weapon fires, spawn a fire cell on what it hit. | C: Sharpener (C34) + Flame |
 | U33 | Gear Train | Stats, Melee | 0 | — | 50 | S | — | Every 4th time a neighbouring melee weapon fires, gain 1 energy. | P: melee ticks as an energy source |
 | U34 | Heavy Grinder | Weapon, Melee | 3/s | Melee | 80 | — | — | 20 damage per tick, +2 for each second of unbroken contact. Resets when contact breaks. | A: CATS Minigun (spin-up) |
 | U35 | Rotary Drill | Weapon, Melee, Earth | 2/s | Melee | 70 | — | — | 12 damage per tick. Digs up to hardness 7. Gains 1 Block per cell dug. | A: Noita Luminous Drill |
@@ -306,7 +313,7 @@ More powerful and leaning towards a build. Price 6 gold.
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
-| U42 | TNT Launcher | Weapon, Earth | 5 | 8 | 50 | — | — | Lob a TNT crate that lands in front. It explodes when Flame or a spark reaches it. | A: Noita Summon Explosive Box |
+| U42 | TNT Launcher | Weapon, Earth | 5 | 8 | 50 | — | — | Lob a TNT crate that lands in front. It explodes when fire or a spark reaches it. | A: Noita Summon Explosive Box |
 | U43 | Detonator | Earth | 3 | 6 | 40 | — | — | Set off every TNT and gunpowder within 40 cells. | A: Noita Explosive Detonator |
 | U44 | Blast Shield | Earth, Defence | 0 | — | 120 | S | — | When an explosion happens within range, neighbours gain 10 Block. | M: Sandbag (C29) for neighbours |
 | U45 | Demolition Charge | Weapon, Earth | 6 | 9 | 40 | — | — | A large explosion where it lands: 80 damage, digs up to hardness 6. | A: Noita Bomb |
@@ -332,7 +339,7 @@ More powerful and leaning towards a build. Price 6 gold.
 | U55 | Momentum Hammer | Weapon | 3 | 5 | 60 | — | — | 30 damage. When this gains Speedup, it gains +10 damage for the battle. | A: Bazaar Rolling Pin |
 | U56 | Coolant Pump | Tricky, Ice | 0 | — | 40 | S | — | Neighbours lose Slow twice as fast. | R: Antifreeze Coat (U10) for Slow |
 | U57 | Pulse Gun | Weapon, Wind | 3 | 4 | 50 | S | — | 20 damage. Neighbours gain 1 Speedup. | discussion example |
-| U58 | Static Gears | Tricky, Electric | 0 | — | 40 | S | — | When a neighbour gains Speedup, its next hit applies 2 Shock. | C: Gear Linkage (U54) + Shock |
+| U58 | Static Gears | Tricky, Electric | 0 | — | 40 | S | — | When a neighbour gains Speedup, its next hit throws sparks. | C: Gear Linkage (U54) + Shock |
 
 ### 4.11 Reactor (Tricky / Stats)
 
@@ -358,9 +365,9 @@ More powerful and leaning towards a build. Price 6 gold.
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
-| U69 | Boiler | Fire, Ice | 4 | 6 | 60 | — | — | Apply 4 Wet, then 4 Flame, to the part hit. They cancel into a burst of steam. | C: Water Cannon (C20) + Molotov (C17) |
+| U69 | Boiler | Fire, Ice | 4 | 6 | 60 | — | — | Splash water, then fire, on the part hit. They meet in a burst of steam. | C: Water Cannon (C20) + Molotov (C17) |
 | U70 | Pressure Valve | Fire, Ice | 0 | — | 50 | — | — | When Flame is put out on any part, your Fire and Ice parts gain 1 Speedup. | P: cancelling as a trigger |
-| U71 | Thermal Shock Gun | Weapon, Fire, Ice | 4 | 5 | 50 | — | — | 30 damage. If the part hit has Freeze, apply Flame equal to its Freeze. Otherwise apply 4 Freeze. | R: Flame and Freeze cancelling (one feeds the other) |
+| U71 | Thermal Shock Gun | Weapon, Fire, Ice | 4 | 5 | 50 | — | — | 30 damage. If the part hit has Freeze, bursts into fire cells, more for more Freeze. Otherwise bursts into frost cells. | R: Flame and Freeze cancelling (one feeds the other) |
 | U72 | Condenser | Ice, Wind | 0 | — | 40 | L | — | Steam within range turns back into water at once. | M: steam condensing (instant) |
 
 ### 4.14 Rammer (Wheel)
@@ -388,7 +395,7 @@ More powerful and leaning towards a build. Price 6 gold.
 |---|---|---|---|---|---|---|---|---|---|
 | U82 | Spiked Armour | Defence | 0 | — | 120 | — | — | When this part is hit, deal 15 damage to the attacking part. | R: CATS Repulse (damages instead of pushing) |
 | U83 | Reactive Plate | Defence | 0 | — | 100 | S | — | When Block on this part absorbs a hit, neighbouring weapons gain 1 Speedup. | P: Block absorbing as a trigger |
-| U84 | Shock Plate | Defence, Electric | 0 | — | 100 | — | — | When this part is hit, apply 3 Shock to the attacking part. | C: Spiked Armour (U82) + Shock |
+| U84 | Shock Plate | Defence, Electric | 0 | — | 100 | — | — | When this part is hit, throw sparks at the attacking part. | C: Spiked Armour (U82) + Shock |
 | U85 | Mirror Plating | Defence | 0 | — | 80 | S | — | When Block on a neighbour reaches 0, deal 30 damage to the attacking part. | P: Block breaking as a trigger |
 
 ### 4.17 Frames
@@ -407,7 +414,7 @@ Very strong, usually a build's core. Price 12 gold.
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
-| R01 | Inferno Core | Fire | 6 | 10 | 60 | — | — | Double the Flame on every enemy part. | discussion example |
+| R01 | Inferno Core | Fire | 6 | 10 | 60 | — | — | Every enemy part with Flame bursts into fire cells, more for more Flame. | discussion example |
 | R02 | Eternal Flame | Fire | 0 | — | 60 | — | — | Enemy parts that have Oil don't lose Flame over time. | E: Flame decay |
 | R03 | Pyre | Fire | 5 | 5 | 60 | — | — | Deal damage to the enemy body equal to the enemy's Flame. | M: Bazaar Infernal Greatsword (whole chariot) |
 
@@ -417,14 +424,14 @@ Very strong, usually a build's core. Price 12 gold.
 |---|---|---|---|---|---|---|---|---|---|
 | R04 | Absolute Zero | Weapon, Ice | 6 | 6 | 60 | — | — | Deal damage equal to 3 × the enemy's Freeze. | discussion example |
 | R05 | Permafrost | Ice | 0 | — | 60 | — | — | Enemy parts that are Wet don't lose Freeze over time. | E: Freeze decay |
-| R06 | Glacier Engine | Ice | 0 | — | 60 | — | — | When an enemy part gains Freeze, parts touching it gain half as much. | S: Shock jumping (Shock → Freeze) |
+| R06 | Glacier Engine | Ice | 0 | — | 60 | — | — | When an enemy part gains Freeze, frost cells form on it and spread to the parts it touches. | S: Shock jumping (Shock → Freeze) |
 
 ### 5.3 Shock Chain
 
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
 | R07 | Storm Core | Electric | 0 | — | 60 | — | — | Your Shock keeps jumping, halving each hop, until it would be less than 1. | E: Shock's one-hop limit |
-| R08 | Lightning Bolt | Weapon, Electric | 8 | 10 | 50 | — | — | 150 damage, apply 15 Shock. Sets off a large electric explosion. | A: Noita Lightning Bolt |
+| R08 | Lightning Bolt | Weapon, Electric | 8 | 10 | 50 | — | — | 150 damage. Sets off a large electric explosion that sprays sparks. | A: Noita Lightning Bolt |
 | R09 | Superconductor | Electric, Defence | 0 | — | 80 | — | — | Your Shock deals double damage. Your parts can't gain Shock. | C: damage boost + immunity |
 
 ### 5.4 Acid Eater
@@ -432,7 +439,7 @@ Very strong, usually a build's core. Price 12 gold.
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
 | R10 | Universal Solvent | Acid | 0 | — | 60 | — | — | Acid on enemy parts also damages the enemy's HP. | E: the integrity-only rule for part statuses |
-| R11 | Matter Eater | Weapon, Acid, Beam | 4/s | Beam | 50 | — | — | 8 damage and 2 Acid per second. Dissolves all terrain in the beam except concrete. | A: Noita Matter Eater |
+| R11 | Matter Eater | Weapon, Acid, Beam | 4/s | Beam | 50 | — | — | 8 damage per second, dripping acid cells on what it touches. Dissolves all terrain in the beam except concrete. | A: Noita Matter Eater |
 
 ### 5.5 Fortress
 
@@ -529,6 +536,8 @@ Very strong, usually a build's core. Price 12 gold.
 ## 6. Open
 
 - All numbers need playtesting, especially continuous energy costs against driving cost.
+- How many cells each elemental part spawns, so its status lands near the old stack counts at the
+  rates in `elements-list.md` §5.
 - Loops to watch for under the per-event chain cap: Meshing Gearbox (R15), Perpetual Gear (R25)
   with Gear Linkage (U54), Bench Warmer (R30) with inventory passives, and two Mimic Modules (R37)
   facing each other (proposed: a Mimic copying a Mimic does nothing).
