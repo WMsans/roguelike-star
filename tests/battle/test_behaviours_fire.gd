@@ -313,11 +313,14 @@ func test_ember_battery_pays_for_own_hearth() -> void:
 	var rigs: Array[ChChariotRuntime] = [at, foe]
 	var ctx: ChBattleContext = _battle(world, catalog, rigs)
 	var gained_at: Array[float] = []
+	var gained_amount: Array[float] = []
 	var caught: Array[ChEvent] = []
 	var fired_at: Array[float] = []
 	var hits: Array[ChEvent] = []
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.ENERGY_GAINED,
-		func(event: ChEvent): gained_at.append(ctx.time))
+		func(event: ChEvent):
+			gained_at.append(ctx.time)
+			gained_amount.append(float(event.data.get("amount", -1.0))))
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.CAUGHT_FIRE, func(event: ChEvent): caught.append(event))
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.PART_FIRED, func(event: ChEvent): fired_at.append(ctx.time))
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.HIT, func(event: ChEvent): hits.append(event))
@@ -341,7 +344,8 @@ func test_ember_battery_pays_for_own_hearth() -> void:
 	assert_true(gained_at.size() >= 1, "so the battery announced ENERGY_GAINED")
 	assert_true(fired_at.size() >= 1 and gained_at[0] - fired_at[0] <= EMBER_WINDOW,
 		"the gain fell within 3 s of the hearth's fire")
-	assert_near(at.energy.value, 6.0, 0.0001, "the pool paid the hearth's 2 and gained the battery's 3")
+	assert_near(at.energy.value, 5.0, 0.0001, "the pool paid the hearth's 3 and gained the battery's 3")
+	assert_near(gained_amount[0], 3.0, 0.0001, "the event carries the energy that landed")
 	# The battery's cooldown keeps a second catch inside 0.5 s out, which Ember Battery's own test pins
 	# in the melee suite; what this test adds is that the catch comes from the part's own side.
 	# shortcut: a catch from the other side is that suite's subject, not this chain's.

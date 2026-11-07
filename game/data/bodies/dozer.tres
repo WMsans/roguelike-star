@@ -6,9 +6,9 @@
 script = ExtResource("1_body")
 id = &"dozer"
 display_name = "Dozer"
-hp = 500
-energy_cap = 20
-energy_regen = 5.0
+hp = 1000
+energy_cap = 14
+energy_regen = 3.0
 size = Vector2i(30, 18)
 color = Color(0.6, 0.45, 0.4, 1)
 slots = PackedVector2Array(-9, 9, 9, 9, -12, -3, 12, -3, -6, -9, 6, -9)

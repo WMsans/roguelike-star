@@ -470,3 +470,19 @@ func test_kicked_visual_leaves_body_alone() -> void:
 	assert_true(part.visual.scale != Vector2.ONE, "while the visual's scale moved")
 	world.free()
 	_complete()
+
+
+func test_layout_max_hp_seeds_hp() -> void:
+	# A layout's max_hp replaces the body's HP; 0 leaves the body's own.
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := ChCatalog.load_default()
+	var tough := _mount(&"dozer", [])
+	tough.max_hp = 1800
+	var built: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), tough, catalog, 1, ORIGIN, false)
+	assert_eq(built.max_hp, 1800, "max_hp comes from the layout")
+	assert_eq(built.hp, 1800, "and the fight starts there")
+	var plain: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount(&"dozer", []), catalog, 0,
+		ORIGIN + Vector2(60, 0), false)
+	assert_eq(plain.max_hp, catalog.body(&"dozer").hp, "no layout max_hp: the body's HP")
+	_complete()

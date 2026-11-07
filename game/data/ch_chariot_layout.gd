@@ -5,6 +5,9 @@ class_name ChChariotLayout extends Resource
 # in body slot 2. Positions live in the catalog defs, so anything that measures takes a catalog.
 
 var body_id: StringName = &""
+# The chariot's starting HP when it isn't the body's: 0 means the body's own hp. Enemies grow over a
+# run through rarer parts and more max HP (core-mechanics.md §8), and this is that lever.
+var max_hp: int = 0
 var slots: Dictionary[int, ChSlotNode] = {}  # body slot index -> node
 
 
@@ -232,6 +235,7 @@ func mirrored() -> ChChariotLayout:
 	# no extra method, and a build is a few dozen nodes, so a stack is cheap here.
 	var copy := ChChariotLayout.new()
 	copy.body_id = body_id
+	copy.max_hp = max_hp
 	var stack: Array = []
 	for index in slots.keys():
 		# A copy keeps its keys, so a mirrored build answers the same paths as the original.

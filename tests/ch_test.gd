@@ -89,8 +89,13 @@ func _player_layout() -> ChChariotLayout:
 func _enemy_layout() -> ChChariotLayout:
 	# The fixed enemy of spec 5.9, as data: game/data/enemies/dozer_cook.tres. ChBattle mirrors it
 	# (mirrored() plus the builder's mirror_x) so its parts face the player.
-	var layout: ChChariotLayout = ResourceLoader.load("res://game/data/enemies/dozer_cook.tres")
-	assert_true(layout != null, "the dozer_cook layout loads")
+	var loaded: ChChariotLayout = ResourceLoader.load("res://game/data/enemies/dozer_cook.tres")
+	assert_true(loaded != null, "the dozer_cook layout loads")
+	# A copy with the layout's own max_hp cleared: fight tests size the enemy through the catalog's
+	# body HP (_fight_catalog), and a layout max_hp would win over it. Mirroring twice is a deep copy
+	# with every flip as it was, so the shared resource is never touched.
+	var layout := loaded.mirrored().mirrored()
+	layout.max_hp = 0
 	return layout
 
 

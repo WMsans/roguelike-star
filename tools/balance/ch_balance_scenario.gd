@@ -200,6 +200,8 @@ static func _side(value: Variant, base: ChCatalog, where: String, field: String,
 		var def := _body_with_hp(base.body(layout.body_id), int(hp))
 		extra_bodies[def.id] = def
 		layout.body_id = def.id
+		# A layout's own max_hp would win over its body's hp, so the override is set there too.
+		layout.max_hp = int(hp)
 	return layout
 
 

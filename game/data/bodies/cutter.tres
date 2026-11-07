@@ -6,9 +6,9 @@
 script = ExtResource("1_body")
 id = &"cutter"
 display_name = "Cutter"
-hp = 500
-energy_cap = 20
-energy_regen = 6.0
+hp = 650
+energy_cap = 10
+energy_regen = 3.5
 size = Vector2i(30, 10)
 color = Color(0.7, 0.65, 0.55, 1)
 slots = PackedVector2Array(-4, 5, 6, 5, -4, -3, 6, -3)

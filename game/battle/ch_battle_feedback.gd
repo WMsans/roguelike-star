@@ -46,7 +46,7 @@ func on_event(event: ChEvent) -> void:
 			# The part's own def colour, so a broken wheel's burst matches its art.
 			_play(&"broken", source, {"color": source.def.color} if source.def != null else {})
 		ChEvent.ENERGY_GAINED:
-			# The only emitter today (the Ember Battery) sends no payload, so 3 is its own GAIN.
+			# The Ember Battery sends what landed after the cap; 3 (its GAIN) is the fallback.
 			_play(&"energy", source, {"amount": int(event.data.get("amount", 3))})
 
 

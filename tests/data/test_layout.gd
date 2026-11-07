@@ -165,3 +165,12 @@ func test_inventory_capacity() -> void:
 	assert_true(not inventory.has(&"strut"), "take removed it")
 	assert_true(inventory.add(&"mace"), "the freed slot takes another part")
 	_complete()
+
+
+func test_mirrored_keeps_max_hp() -> void:
+	# The enemy copy is the one that fights, so a layout's own max HP has to survive the mirror.
+	var layout := _layout(&"A")
+	layout.max_hp = 1800
+	assert_eq(layout.mirrored().max_hp, 1800, "the mirror keeps the layout's max HP")
+	assert_eq(_layout(&"A").max_hp, 0, "a fresh layout defers to its body")
+	_complete()

@@ -20,7 +20,8 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 	var runtime: ChChariotRuntime = ChChariotRuntime.new()
 	runtime.side = side
 	runtime.body_def = body_def
-	runtime.hp = body_def.hp
+	runtime.max_hp = layout.max_hp if layout.max_hp > 0 else body_def.hp
+	runtime.hp = runtime.max_hp
 	runtime.energy = ChEnergy.new(body_def.energy_cap, body_def.energy_regen)
 	# One collision group per chariot (Task 1): two bodies with an equal non-zero group never collide,
 	# so a part that overlaps its own hull or another part costs nothing, while terrain, projectiles

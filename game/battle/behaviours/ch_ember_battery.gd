@@ -28,10 +28,14 @@ func _gain(ctx: ChBattleContext) -> void:
 	if chariot == null:
 		return
 	cooldown_left = BATTERY_COOLDOWN
+	var before := chariot.energy.value
 	chariot.energy.value = minf(chariot.energy.value + GAIN, chariot.energy.cap)
 	var event := ChEvent.new()
 	event.type = ChEvent.ENERGY_GAINED
 	event.side = part.side
 	event.source = part
 	event.position = part.anchor_world()
+	# What actually landed, after the cap: a battery firing into a full pool gained nothing, and the
+	# balance runner sums this to price the battery.
+	event.data = {"amount": chariot.energy.value - before}
 	ctx.bus.emit(event)

@@ -6,9 +6,9 @@
 script = ExtResource("1_body")
 id = &"corsair"
 display_name = "Corsair"
-hp = 600
-energy_cap = 24
-energy_regen = 5.0
+hp = 900
+energy_cap = 12
+energy_regen = 3.0
 size = Vector2i(48, 10)
 color = Color(0.45, 0.55, 0.7, 1)
 slots = PackedVector2Array(-8, 5, 10, 5, -18, -5, -8, -5, 2, -5, 12, -5, 20, -5)

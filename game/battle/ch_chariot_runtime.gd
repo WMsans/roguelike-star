@@ -9,7 +9,14 @@ class_name ChChariotRuntime extends RefCounted
 
 var side: int = 0  # 0 = the player's chariot, 1 = the enemy's (the ChariotLayout index)
 var body_def: ChBodyDef = null  # the def this chassis was built from
-var hp: int = 0  # body HP left; the builder seeds it from body_def.hp
+var hp: int = 0  # body HP left; the builder seeds it from max_hp
+# Starting HP: the layout's max_hp, set by the builder. Unset (0) reads as the body's own hp, so a
+# runtime made by hand (the HUD tests) still has a max to measure against.
+var max_hp: int = 0:
+	get:
+		if max_hp > 0 or body_def == null:
+			return max_hp
+		return body_def.hp
 var energy: ChEnergy = null  # the body's pool, capped and regenerating from body_def
 var chassis: PixelRigidBody = null  # the one body that carries the whole chariot's HP
 var chassis_visual: Node2D = null  # the chassis body's "Visual" child (the builder's, Task 6)

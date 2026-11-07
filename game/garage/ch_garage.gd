@@ -417,6 +417,7 @@ func _copy_of_build() -> ChChariotLayout:
 	# is re-applied with the class's own toggle_flip so the build faces the way the pit shows it.
 	var copy := ChChariotLayout.new()
 	copy.body_id = layout.body_id
+	copy.max_hp = layout.max_hp
 	for path in layout.all_paths():
 		var step: Array[int] = _typed(path)
 		var node: ChSlotNode = layout.get_node(step)

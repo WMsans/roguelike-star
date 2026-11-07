@@ -127,6 +127,9 @@ Per side:
 | `energy_starved_seconds` | time with at least one part waiting in the energy queue |
 | `flipped_seconds` | time with the hull rotated past 90° |
 | `rams` | times the two hulls started touching (same number for both sides) |
+| `energy_gained` | energy this chariot's parts added to its own pool (Ember Battery), after the cap: a gain into a full pool counts 0 |
+| `caught_fire` | times one of this chariot's parts caught fire |
+| `frozen` | times one of this chariot's parts froze |
 | `parts` | per part, keyed `<part_id>@<slot path>`, e.g. `cutter_rocket@[3]` |
 
 Per part:

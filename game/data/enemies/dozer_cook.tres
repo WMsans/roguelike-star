@@ -31,4 +31,5 @@ flipped = false
 [resource]
 script = ExtResource("1_layout")
 body_id = &"dozer"
+max_hp = 1800
 slots = { 0: SubResource("ChSlotNode_0"), 1: SubResource("ChSlotNode_1"), 2: SubResource("ChSlotNode_2"), 3: SubResource("ChSlotNode_3"), 5: SubResource("ChSlotNode_5") }

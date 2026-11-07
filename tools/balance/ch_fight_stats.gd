@@ -9,6 +9,9 @@ var _bus: ChEventBus = null
 var _starved_ticks: Array[int] = [0, 0]
 var _flipped_ticks: Array[int] = [0, 0]
 var _rams := 0
+var _energy_gained: Array[float] = [0.0, 0.0]  # by the side whose pool gained
+var _caught_fire: Array[int] = [0, 0]  # parts of this side that caught fire
+var _frozen: Array[int] = [0, 0]  # parts of this side that froze
 var _touching := false
 var _parts: Dictionary = {}  # ChPartRuntime -> {firings, hits, damage, waiting_ticks, broke_at}
 
@@ -26,6 +29,9 @@ func _on_step(ctx: ChBattleContext) -> void:
 		_bus = ctx.bus
 		_bus.subscribe(self, ChEvent.PART_FIRED, _on_fired)
 		_bus.subscribe(self, ChEvent.HIT, _on_hit)
+		_bus.subscribe(self, ChEvent.ENERGY_GAINED, _on_energy)
+		_bus.subscribe(self, ChEvent.CAUGHT_FIRE, func(e: ChEvent): _count(_caught_fire, e))
+		_bus.subscribe(self, ChEvent.FROZEN, func(e: ChEvent): _count(_frozen, e))
 	for side in 2:
 		var chariot: ChChariotRuntime = ctx.chariots[side]
 		if chariot.energy.queue_size() > 0:
@@ -57,6 +63,16 @@ func _on_fired(event: ChEvent) -> void:
 		_part(event.source).firings += 1
 
 
+func _on_energy(event: ChEvent) -> void:
+	if event.side == 0 or event.side == 1:
+		_energy_gained[event.side] += float(event.data.get("amount", 0.0))
+
+
+func _count(counter: Array[int], event: ChEvent) -> void:
+	if event.side == 0 or event.side == 1:
+		counter[event.side] += 1
+
+
 func _on_hit(event: ChEvent) -> void:
 	# Only hits on the other chariot count: a part that wears its own hull (Ring of Fire) has
 	# dealt nothing to the enemy.
@@ -79,7 +95,7 @@ func fight(seed: int, result: StringName) -> Dictionary:
 	for side in 2:
 		var me: ChChariotRuntime = ctx.chariots[side]
 		var other: ChChariotRuntime = ctx.chariots[1 - side]
-		var dealt := other.body_def.hp - other.hp
+		var dealt := other.max_hp - other.hp
 		var parts := {}
 		var part_sum := 0
 		for part in me.parts:
@@ -101,11 +117,12 @@ func fight(seed: int, result: StringName) -> Dictionary:
 			"energy_spent": me.energy.spent,
 			"energy_starved_seconds": _starved_ticks[side] * ChBattle.TICK,
 			"flipped_seconds": _flipped_ticks[side] * ChBattle.TICK,
-			"rams": _rams, "parts": parts})
+			"rams": _rams, "energy_gained": _energy_gained[side], "caught_fire": _caught_fire[side],
+			"frozen": _frozen[side], "parts": parts})
 	return {"seed": seed, "result": String(result), "fight_seconds": seconds, "sides": sides}
 
 
 static func _zero_side() -> Dictionary:
 	return {"hp_left": 0, "damage_dealt": 0, "unattributed_damage": 0, "dps_dealt": 0.0,
 		"energy_spent": 0.0, "energy_starved_seconds": 0.0, "flipped_seconds": 0.0, "rams": 0,
-		"parts": {}}
+		"energy_gained": 0.0, "caught_fire": 0, "frozen": 0, "parts": {}}

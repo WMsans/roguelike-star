@@ -5,7 +5,7 @@ extends ChBehaviour
 # The crossing test is geometric (radius vs body box, ChBehaviour's own footprints), so the fire cells
 # and the damage stay independent, which is what makes a body behind a wall of fire still pay.
 
-const RADIUS := 24.0
+const RADIUS := 36.0
 const STEPS := 10  # one step every 0.1 s over the 1 s expansion
 const STEP_SECONDS := 0.1
 
@@ -67,9 +67,12 @@ func _fill_ring(ctx: ChBattleContext, at: Vector2, r: float) -> void:
 
 func _cross(ctx: ChBattleContext, at: Vector2, r: float, bodies: Array) -> void:
 	# The ring crosses a body once its radius reaches the body's nearest edge, measured against ChBehaviour's
-	# footprints. The walk is ChBehaviour._bodies, which takes every chariot whatever its side: that is
-	# the brief's "own chassis included".
+	# footprints. Only enemy bodies take the hit: the balance pass measured the brief's "own chassis
+	# included" killing a lone Ring in 54 s. The ring's fire cells still set your own parts alight,
+	# which is the risk Ember Battery pays for, the same deal Hearth makes.
 	for entry in bodies:
+		if entry[0].side == part.side:
+			continue
 		var body: Object = entry[1]
 		# The ring expands out from the part's own anchor, so the circumference never crosses the
 		# body it leaves from: the emitter pays itself nothing, and the hull it hangs on still pays.

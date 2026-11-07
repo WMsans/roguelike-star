@@ -122,13 +122,13 @@ func show_state(player: ChChariotRuntime, enemy: ChChariotRuntime) -> void:
 
 
 static func _hp_text(rig: ChChariotRuntime) -> String:
-	# Current of the body's own max: 78 of 100 reads "78 / 100".
-	return "%d / %d" % [rig.hp, rig.body_def.hp]
+	# Current of the chariot's max: 78 of 100 reads "78 / 100".
+	return "%d / %d" % [rig.hp, rig.max_hp]
 
 
 static func _hp_percent(rig: ChChariotRuntime) -> float:
 	# The bar's own scale, clamped so a hit that took HP past zero cannot draw past the frame.
-	return clampf(100.0 * float(rig.hp) / maxf(1.0, float(rig.body_def.hp)), 0.0, 100.0)
+	return clampf(100.0 * float(rig.hp) / maxf(1.0, float(rig.max_hp)), 0.0, 100.0)
 
 
 func _energy(pool: ChEnergy) -> void:

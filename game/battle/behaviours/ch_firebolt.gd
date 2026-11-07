@@ -7,8 +7,8 @@ extends ChBehaviour
 # energy, which is the rule ChBattleContext left to the behaviour ("a limited part at 0 charges is
 # still ready and still asks for energy").
 
-const SPEED := 110.0  # cells per second out of the barrel
-const LOFT := 60.0  # degrees the shot leaves the barrel above facing
+const SPEED := 150.0  # cells per second out of the barrel
+const LOFT := 20.0  # degrees the shot leaves the barrel above facing
 const GRAVITY := 120.0  # cells per second squared the bolt falls under
 const BLAST_RADIUS := 8
 const BLAST_POWER := 300.0

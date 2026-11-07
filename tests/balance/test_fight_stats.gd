@@ -33,6 +33,9 @@ func test_aborted_fight_has_zeroed_sides() -> void:
 	assert_eq(f.fight_seconds, 0.0)
 	assert_eq(f.sides.size(), 2)
 	assert_eq(f.sides[0].damage_dealt, 0)
+	assert_eq(f.sides[0].energy_gained, 0.0)
+	assert_eq(f.sides[0].caught_fire, 0)
+	assert_eq(f.sides[0].frozen, 0)
 	_complete()
 
 
