@@ -58,7 +58,9 @@ func _on_fired(event: ChEvent) -> void:
 
 
 func _on_hit(event: ChEvent) -> void:
-	if event.source is ChPartRuntime:
+	# Only hits on the other chariot count: a part that wears its own hull (Ring of Fire) has
+	# dealt nothing to the enemy.
+	if event.source is ChPartRuntime and event.data.get("target_side", -1) != event.source.side:
 		var stats := _part(event.source)
 		stats.hits += 1
 		stats.damage += int(event.data.get("hp_damage", 0))

@@ -34,3 +34,19 @@ func test_aborted_fight_has_zeroed_sides() -> void:
 	assert_eq(f.sides.size(), 2)
 	assert_eq(f.sides[0].damage_dealt, 0)
 	_complete()
+
+
+func test_hits_on_own_chariot_are_not_damage_dealt() -> void:
+	# Reaches into the bus callback: a real self-hit needs a 60 s Ring of Fire fight.
+	var stats := ChFightStats.new()
+	var ring := ChPartRuntime.new()
+	ring.side = 0
+	for target_side in [0, 1]:
+		var hit := ChEvent.new()
+		hit.type = ChEvent.HIT
+		hit.source = ring
+		hit.data = {"target_part": null, "hp_damage": 10, "target_side": target_side}
+		stats._on_hit(hit)
+	assert_eq(stats._part(ring).hits, 1, "only the hit on the enemy counts")
+	assert_eq(stats._part(ring).damage, 10)
+	_complete()
