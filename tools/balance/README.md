@@ -22,7 +22,7 @@ Exit codes (the highest that applies wins):
 | code | meaning |
 |---|---|
 | 0 | every fight ran, every `expect` passed |
-| 1 | usage, JSON or scenario error, or wrong frame pacing; no fight ran |
+| 1 | usage, JSON or scenario error, an unwritable `--out`, or wrong frame pacing; no fight ran |
 | 2 | an `expect` range failed |
 | 3 | a fight aborted (its seed is printed and listed in `aborted_seeds`) |
 

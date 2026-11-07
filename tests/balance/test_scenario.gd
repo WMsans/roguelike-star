@@ -65,3 +65,12 @@ func test_charge_driver_points_at_the_enemy() -> void:
 	assert_eq(ChBalanceDrivers.charge_toward(10.0, 50.0), 1.0)
 	assert_eq(ChBalanceDrivers.charge_toward(50.0, 10.0), -1.0)
 	_complete()
+
+func test_parts_on_a_layout_side_are_an_error() -> void:
+	# A layout side has its parts already; parts given beside it would be silently dropped.
+	var out := ChBalanceScenario.parse({"name": "s", "player": _side(),
+		"enemy": {"layout": "res://game/data/enemies/dozer_cook.tres", "parts": [{"slot": [9], "part": "nope"}]}},
+		_base(), "s.json")
+	assert_true(not out.ok)
+	assert_true(not out.errors.is_empty() and out.errors[0].contains("enemy.parts"), str(out.errors))
+	_complete()

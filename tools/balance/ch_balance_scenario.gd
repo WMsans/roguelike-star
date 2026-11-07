@@ -186,6 +186,9 @@ static func _side(value: Variant, base: ChCatalog, where: String, field: String,
 	if value.has("layout") == value.has("body_id"):
 		errors.append("%s: %s: give exactly one of layout or body_id" % [where, field])
 	elif value.has("layout"):
+		# A layout brings its own parts, so parts beside it would be silently dropped.
+		if value.has("parts"):
+			errors.append("%s: %s.parts: only with body_id; a layout side uses the layout's parts" % [where, field])
 		layout = _layout_file(value["layout"], base, where, field + ".layout", errors)
 	else:
 		layout = _inline(value, base, where, field, errors)

@@ -46,6 +46,15 @@ func main(args: PackedStringArray) -> int:
 		for line in parsed.errors:
 			print(line)
 		return 1
+	# --out opens before any fight: an unwritable path fails fast (exit 1, no fight ran), and an
+	# old file is truncated now, so a later failure can never leave stale results to be read.
+	var file: FileAccess = null
+	if opts.has("out"):
+		var out_path := _resolve(opts.out)
+		file = FileAccess.open(out_path, FileAccess.WRITE)
+		if file == null:
+			print("balance: cannot write --out %s (%s)" % [out_path, error_string(FileAccess.get_open_error())])
+			return 1
 	var matchups: Array = parsed.matchups
 	var aggs: Array[Dictionary] = []
 	var fights_by_name := {}
@@ -62,15 +71,10 @@ func main(args: PackedStringArray) -> int:
 		print("[%d/%d] %s: %dW %dL %dD%s" % [i + 1, matchups.size(), m.name, agg.wins, agg.losses,
 			agg.draws, " %d aborted (seeds %s)" % [agg.aborted, agg.aborted_seeds] if agg.aborted > 0 else ""])
 	print(ChBalanceReport.summary_text(aggs))
-	if opts.has("out"):
-		var out_path := _resolve(opts.out)
-		var file := FileAccess.open(out_path, FileAccess.WRITE)
-		if file == null:
-			print("balance: cannot write --out %s (%s)" % [out_path, error_string(FileAccess.get_open_error())])
-		else:
-			file.store_string(JSON.stringify({"aggregates": aggs, "fights": fights_by_name,
-				"failures": Array(failures)}, "  "))
-			file.close()
+	if file != null:
+		file.store_string(JSON.stringify({"aggregates": aggs, "fights": fights_by_name,
+			"failures": Array(failures)}, "  "))
+		file.close()
 	print(ChBalanceReport.result_line(aggs, failures))
 	var code := 0
 	if not failures.is_empty():
