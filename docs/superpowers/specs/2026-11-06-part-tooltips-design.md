@@ -128,8 +128,9 @@ The user picked **A**.
   `tooltip` profile, so the stack bounces in like a Balatro card.
 - Moving straight from one part to another re-kicks rather than rebuilding from rest. The springs
   add, consistent with the feedback design's "no twitchy restarts".
-- Keyword words in the main box use a gentle RicherTextLabel effect (for example a small wave), so
-  they read as interactive concepts.
+- Keyword words in the main box wave gently, using the installed richtext2 addon's wave effect
+  (`RicherTextLabel`), so they read as interactive concepts. No hand-rolled text animation.
+  (User decision.)
 
 ### Glossary and descriptions (draft wording)
 
