@@ -141,3 +141,10 @@ func test_every_part_described() -> void:
 	assert_eq(ChKeywords.keys_of(catalog.part(&"freeze_charge").description), [&"proximity", &"freeze"])
 	assert_eq(ChKeywords.keys_of(catalog.part(&"ember_battery").description), [&"burn", &"energy"])
 	_complete()
+
+
+func test_ember_battery_names_its_cooldown() -> void:
+	# Five parts lighting at once pay 3, not 15: the battery's internal cooldown is part of the rule.
+	var lines := "\n".join(ChCatalog.load_default().part(&"ember_battery").description)
+	assert_true(lines.contains("0.5 s"), "ch_ember_battery.gd's BATTERY_COOLDOWN is stated")
+	_complete()

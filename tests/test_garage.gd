@@ -844,6 +844,7 @@ func test_tooltip_follows_card_hover() -> void:
 	assert_true(garage.tooltip.visible)
 	assert_eq(garage.tooltip.def.id, &"flamethrower")
 	card.mouse_exited.emit()
+	await Engine.get_main_loop().process_frame  # the exit's hide is judged a frame later
 	assert_true(not garage.tooltip.visible)
 	_complete()
 
@@ -894,6 +895,7 @@ func test_tooltip_leaving_pit_clears_hull_hover() -> void:
 	var card := _card_of(garage, &"wheel")
 	card.mouse_entered.emit()
 	card.mouse_exited.emit()
+	await Engine.get_main_loop().process_frame  # the exit's hide is judged a frame later
 	assert_true(not garage.tooltip.visible, "no stale hull tooltip comes back")
 	_complete()
 
@@ -909,4 +911,21 @@ func test_no_info_panel_left() -> void:
 	var garage: ChGarage = await _ready_garage([&"wheel"])
 	assert_true(garage.get_node_or_null("Pit/InfoPanel") == null)
 	assert_true(not "hook_text" in ChPartDef.new(), "hook_text is gone")
+	_complete()
+
+func test_tooltip_card_to_card_exit_first_keeps_springs() -> void:
+	# Godot's own order: A's exit lands before B's entry. The hop must not restart the pop from small.
+	var garage: ChGarage = await _ready_garage([&"wheel", &"flamethrower"])
+	var a := _card_of(garage, &"wheel")
+	var b := _card_of(garage, &"flamethrower")
+	a.mouse_entered.emit()
+	var juice := ChJuice.of(garage.tooltip.boxes()[0])
+	juice.scale_spring.value = 1.0
+	juice.scale_spring.velocity = 0.0
+	a.mouse_exited.emit()
+	b.mouse_entered.emit()
+	await Engine.get_main_loop().process_frame
+	assert_true(garage.tooltip.visible, "the hop keeps the tooltip up")
+	assert_eq(garage.tooltip.def.id, &"flamethrower")
+	assert_true(juice.scale_spring.value > ChPartTooltip.POP_FROM + 0.1, "no restart from small")
 	_complete()

@@ -380,9 +380,13 @@ func _on_card_hover(card: ChPartCard, entered: bool) -> void:
 	# Card to card, the exit of A may land after the entry of B: only A's own exit clears A.
 	if entered:
 		_hover_card = card
-	elif _hover_card == card:
+		_refresh_tooltip()
+		return
+	if _hover_card == card:
 		_hover_card = null
-	_refresh_tooltip()
+	# Godot sends A's exit before B's entry; judging the hide a frame later lets B land first, so a
+	# hop re-kicks the shown tooltip instead of hiding it and popping it in again from small.
+	_refresh_tooltip.call_deferred()
 
 
 func _on_pit_exited() -> void:
