@@ -9,7 +9,6 @@ id = &"cutter_rocket"
 behaviour = ExtResource("2_rocket")
 display_name = "Cutter Rocket"
 description = PackedStringArray("Fires straight ahead: 30 damage, digs the ground it hits.", "When anything {burn:catches fire}, its next shot charges twice as fast.")
-hook_text = "Ignition: whenever anything catches fire, its next shot charges faster"
 energy_cost = 2
 cooldown = 1.0
 damage = 30

@@ -528,7 +528,7 @@ func test_back_twice_one_garage() -> void:
 
 # --- Task 7: the built screen ---------------------------------------------------------------------
 # The rebuild is a scene, so these three tests instance garage.tscn: the strip's cards and the
-# InfoPanel only exist once the scene does. Everything above stays a bare ChGarage because the logic
+# tooltip only exist once the scene does. Everything above stays a bare ChGarage because the logic
 # methods must work with no nodes at all (ChMain calls setup before add_child).
 
 func _garage_scene(inventory: ChInventory, layout: ChChariotLayout,
@@ -607,7 +607,7 @@ func test_strip_has_every_part() -> void:
 
 func test_no_hint_labels() -> void:
 	# The brief's rule: no screen says how to play. The garage's only text is the top bar's and the
-	# InfoPanel's, and the InfoPanel is hidden until something is hovered.
+	# part tooltip's, and the tooltip is hidden until something is hovered.
 	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
 	var hints: Array = []
 	for node in garage.find_children("*", "Label", true, false):
@@ -617,8 +617,7 @@ func test_no_hint_labels() -> void:
 	assert_eq(hints, [], "no label tells the player what to click")
 	assert_eq(garage.get_node("TopBar/BodyName").text, "Cutter", "the bar names the hull")
 	assert_eq(garage.get_node("TopBar/Stats").text, "HP 500 · Energy 20", "and its fight stats")
-	assert_true(not garage.get_node("Pit/InfoPanel").is_visible_in_tree(),
-		"the info panel is away until something is hovered")
+	assert_true(not garage.tooltip.visible, "the tooltip is away until something is hovered")
 	_complete()
 
 
@@ -648,13 +647,13 @@ func test_mouse_chain_plays_a_round_trip() -> void:
 	assert_eq(garage.held_id, &"", "with nothing left in hand")
 	assert_eq(garage.card_counts()[&"wheel"], 3, "and one of the four wheels out of the kit")
 	# The hover: a motion over empty pit space leaves the panel away, a motion over the mounted wheel
-	# fills it from the def, which is the whole of what the panel says.
-	var panel: PanelContainer = garage.get_node("Pit/InfoPanel")
+	# shows the part tooltip for its def.
+	var panel: ChPartTooltip = garage.tooltip
 	_move(Vector2(100, 500))
-	assert_true(not panel.visible, "moving off the hull puts the info panel away")
+	assert_true(not panel.visible, "moving off the hull puts the tooltip away")
 	_move(garage.get_global_position() + garage.screen_of([0]))
 	assert_true(panel.visible, "hovering the mounted wheel filled it")
-	assert_eq(garage.get_node("Pit/InfoPanel/Rows/Name").text, "Wheel", "naming the part")
+	assert_eq(garage.tooltip.def.id, &"wheel", "naming the part")
 	# 3. flip it: a right click on the mounted part.
 	_press(garage.get_global_position() + garage.screen_of([0]), MOUSE_BUTTON_RIGHT)
 	assert_true(main.layout.get_node([0]).flipped, "a right click turned the wheel round")
@@ -810,7 +809,7 @@ func test_cycle_body_rebuilds_hull() -> void:
 
 func test_pit_draw_order() -> void:
 	# The order the one `_draw` painted in, now as siblings: hull, free-slot markers, parts, hover.
-	# Below the pit view sit the InfoPanel, the strip and the held layer, which stay on top.
+	# After the pit view come the strip, the held layer and the tooltip, which stay on top.
 	var garage: ChGarage = _garage_scene(_inventory([]), _layout(&"cutter"), _catalog())
 	var pit: Control = garage.get_node("Pit")
 	var view: Node = pit.get_child(0)
@@ -829,4 +828,85 @@ func test_pit_draw_order() -> void:
 	assert_true(hull < markers, "the hull draws under the free-slot markers")
 	assert_true(markers < parts, "the markers draw under the mounted parts")
 	assert_true(parts < hover, "and the hover box draws over everything")
+	_complete()
+
+
+func _ready_garage(ids: Array) -> ChGarage:
+	var garage := _garage_scene(_inventory(ids), _layout(&"cutter"), _catalog())
+	for i in 2:
+		await Engine.get_main_loop().process_frame
+	return garage
+
+func test_tooltip_follows_card_hover() -> void:
+	var garage: ChGarage = await _ready_garage([&"wheel", &"flamethrower"])
+	var card := _card_of(garage, &"flamethrower")
+	card.mouse_entered.emit()
+	assert_true(garage.tooltip.visible)
+	assert_eq(garage.tooltip.def.id, &"flamethrower")
+	card.mouse_exited.emit()
+	assert_true(not garage.tooltip.visible)
+	_complete()
+
+func test_tooltip_card_to_card() -> void:
+	var garage: ChGarage = await _ready_garage([&"wheel", &"flamethrower"])
+	var a := _card_of(garage, &"wheel")
+	var b := _card_of(garage, &"flamethrower")
+	a.mouse_entered.emit()
+	b.mouse_entered.emit()
+	a.mouse_exited.emit()
+	assert_true(garage.tooltip.visible, "a late exit from A does not hide B's tooltip")
+	assert_eq(garage.tooltip.def.id, &"flamethrower")
+	_complete()
+
+func test_tooltip_hidden_while_held() -> void:
+	var garage: ChGarage = await _ready_garage([&"wheel", &"wheel"])
+	var card := _card_of(garage, &"wheel")
+	card.mouse_entered.emit()
+	assert_true(garage.pick_part(&"wheel"))
+	assert_true(not garage.tooltip.visible, "picking up hides it")
+	_move(garage.get_global_position() + garage.screen_of([0]))
+	assert_true(not garage.tooltip.visible, "and it stays hidden while held")
+	garage.cancel_hold()
+	assert_true(garage.tooltip.visible, "putting it back lets hover show it again")
+	assert_true(garage.pick_part(&"wheel"))
+	assert_true(garage.drop_part(&"wheel", [0]))
+	garage.cancel_hold()
+	assert_true(garage.tooltip.visible, "after a drop, hover shows it again")
+	_complete()
+
+func test_tooltip_on_hull_part() -> void:
+	var garage: ChGarage = await _ready_garage([&"wheel"])
+	assert_true(garage.drop_part(&"wheel", [0]))
+	var at := garage.get_global_position() + garage.screen_of([0])
+	_move(at)
+	assert_true(garage.tooltip.visible)
+	assert_eq(garage.tooltip.def.id, &"wheel")
+	_move(Vector2(100, 500))
+	assert_true(not garage.tooltip.visible, "moving off the hull hides it")
+	_complete()
+
+func test_tooltip_leaving_pit_clears_hull_hover() -> void:
+	var garage: ChGarage = await _ready_garage([&"wheel", &"wheel"])
+	assert_true(garage.drop_part(&"wheel", [0]))
+	_move(garage.get_global_position() + garage.screen_of([0]))
+	garage.get_node("Pit").mouse_exited.emit()
+	assert_true(not garage.tooltip.visible, "leaving the pit drops the hull hover")
+	var card := _card_of(garage, &"wheel")
+	card.mouse_entered.emit()
+	card.mouse_exited.emit()
+	assert_true(not garage.tooltip.visible, "no stale hull tooltip comes back")
+	_complete()
+
+func test_tooltip_hidden_by_body_swap() -> void:
+	var garage: ChGarage = await _ready_garage([&"wheel"])
+	assert_true(garage.drop_part(&"wheel", [0]))
+	_move(garage.get_global_position() + garage.screen_of([0]))
+	garage.cycle_body(1)
+	assert_true(not garage.tooltip.visible)
+	_complete()
+
+func test_no_info_panel_left() -> void:
+	var garage: ChGarage = await _ready_garage([&"wheel"])
+	assert_true(garage.get_node_or_null("Pit/InfoPanel") == null)
+	assert_true(not "hook_text" in ChPartDef.new(), "hook_text is gone")
 	_complete()

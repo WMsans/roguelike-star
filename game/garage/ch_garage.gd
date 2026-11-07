@@ -11,7 +11,7 @@ class_name ChGarage extends Control
 # that drives them drives the screen's own rules, with or without a scene.
 # Deliberately thin: take lifts the first copy, add never dedupes and place accepts a slot index no def
 # owns, so the garage adds no rule of its own. drop_part checks the carry before it places, which is the
-# one order that cannot lose a part on a refused place. selected_info reads the DEF, never a runtime: no
+# one order that cannot lose a part on a refused place. The tooltip reads the DEF, never a runtime: no
 # fight has run yet, so cooldown_left, integrity and charges_left do not exist here.
 # Nothing leaves the inventory on a pick: a part in hand is only an id, so a fight asked for or a body
 # swapped mid-hold can lose nothing (both clear the hold first).
@@ -47,10 +47,8 @@ var _parts: Node2D = null  # one ChPitPiece per mounted part
 var _hover: Node2D = null  # the hovered part's box and range, drawn over everything
 var _pieces := {}  # path string -> ChPitPiece: what _parts holds, and the way back from a path
 var _held_layer: Control = null  # the part in hand, drawn over everything at the pointer
-var _info_panel: PanelContainer = null
-var _info_name: Label = null
-var _info_line: Label = null
-var _info_hook: Label = null
+var tooltip: ChPartTooltip = null  # the one part tooltip, the garage's last child so it draws on top
+var _hover_card: ChPartCard = null  # the strip card under the pointer, null when none is
 var _body_name: Label = null
 var _stats: Label = null
 var _pointer := Vector2.ZERO  # the last pointer the pit saw, garage-local: the marker nearest it fills
@@ -103,6 +101,7 @@ func drop_part(part_id: StringName, path) -> bool:
 	_sync_pit()
 	# After the sync, so the piece the beat kicks is the one the drop just built.
 	Feedback.play(&"placed", piece_at(step))
+	_refresh_tooltip()
 	return true
 
 
@@ -151,6 +150,7 @@ func pick_part(id: StringName) -> bool:
 	held_id = id
 	if _held_layer != null:
 		_held_layer.queue_redraw()
+	_refresh_tooltip()
 	return true
 
 
@@ -184,6 +184,7 @@ func cancel_hold() -> void:
 	held_id = &""
 	if _held_layer != null:
 		_held_layer.queue_redraw()
+	_refresh_tooltip()
 	_sync_pit()
 
 
@@ -208,7 +209,7 @@ func cycle_body(step: int = 1) -> void:
 	_lift_branches(layout.swap_body(catalog.body(next), catalog))
 	# The paths the pointer was over are the old hull's slots, so the hover goes with them.
 	hover_path = []
-	_fill_info({})
+	_refresh_tooltip()
 	_refresh_top()
 	_refresh_cards()
 	_sync_pit()
@@ -254,33 +255,6 @@ func _count_of(id: StringName) -> int:
 	return total
 
 
-func selected_info(path) -> Dictionary:
-	# The panel's fields, straight off the def: cost, cooldown and hook text are what a player
-	# decides with, and range is the proximity circle drawn beside it.
-	if layout == null or catalog == null:
-		return {}
-	var node: ChSlotNode = layout.get_node(_typed(path))
-	if node == null:
-		return {}
-	var def: ChPartDef = catalog.part(node.part_id)
-	if def == null:
-		# A mounted id with no def has nothing to say; the panel stays empty rather than naming
-		# a part the catalog cannot describe.
-		return {}
-	var info := _info_of(def)
-	info["range"] = def.proximity_range
-	return info
-
-
-func _info_of(def: ChPartDef) -> Dictionary:
-	# The panel's shape for a def nothing has mounted yet, which is what a card hovers: the same fields
-	# selected_info answers for a mount, so a card and a hull read alike.
-	return {
-		"name": def.display_name,
-		"cost": def.energy_cost,
-		"cooldown": def.cooldown,
-		"hook_text": def.hook_text,
-	}
 
 
 func screen_of(path) -> Vector2:
@@ -370,21 +344,53 @@ func _follow_pointer(pointer: Vector2) -> void:
 	var next: Array[int] = _hover_at(pointer)
 	if next != hover_path:
 		hover_path = next
-		_fill_info(selected_info(hover_path))
+		_refresh_tooltip()
 	_sync_pit()
 
 
-func _fill_info(info: Dictionary) -> void:
-	# The InfoPanel's three lines, off the dict selected_info and _info_of answer with; an empty dict is
-	# nothing hovered, so the panel goes away rather than showing a blank slab.
-	if _info_panel == null:
+
+func _refresh_tooltip() -> void:
+	# The one place the tooltip is shown or hidden: a held part hides it, then the hovered card wins
+	# over the hovered hull part, and nothing hovered puts it away.
+	if tooltip == null:
 		return
-	_info_panel.visible = not info.is_empty()
-	if info.is_empty():
-		return
-	_info_name.text = String(info["name"])
-	_info_line.text = "Cost %d · Cooldown %.1fs" % [int(info["cost"]), float(info["cooldown"])]
-	_info_hook.text = String(info["hook_text"])
+	var bounds := Rect2(Vector2.ZERO, size)
+	if held_id != &"":
+		tooltip.hide_tooltip()
+	elif _hover_card != null:
+		var anchor := Rect2(_hover_card.global_position - global_position, _hover_card.size)
+		tooltip.show_part(_hover_card.def, anchor, ChPartTooltip.Side.ABOVE, bounds)
+	else:
+		var def := _hovered_def()
+		if def == null:
+			tooltip.hide_tooltip()
+		else:
+			tooltip.show_part(def, _box_at(screen_of(hover_path), def), ChPartTooltip.Side.RIGHT, bounds)
+
+
+func _hovered_def() -> ChPartDef:
+	# The def of the mounted part under the pointer, null when nothing (or an id with no def) is.
+	if hover_path.is_empty() or layout == null or catalog == null:
+		return null
+	var node: ChSlotNode = layout.get_node(hover_path)
+	return catalog.part(node.part_id) if node != null else null
+
+
+func _on_card_hover(card: ChPartCard, entered: bool) -> void:
+	# Card to card, the exit of A may land after the entry of B: only A's own exit clears A.
+	if entered:
+		_hover_card = card
+	elif _hover_card == card:
+		_hover_card = null
+	_refresh_tooltip()
+
+
+func _on_pit_exited() -> void:
+	# A pointer that leaves the pit straight off a hull part sends the pit no motion, so the hover
+	# would stay on the part and come back the moment a card's tooltip went away.
+	hover_path = []
+	_refresh_tooltip()
+	_sync_pit()
 
 
 func request_fight() -> void:
@@ -420,7 +426,7 @@ func _enter_tree() -> void:
 	# The nodes the scene declares, the same reading ChBattle takes of $Camera and $HUD. A garage is
 	# instanced per screen (ChMain frees and rebuilds it), so this runs once; the guard keeps a node
 	# that is taken out and put back from building a second strip.
-	if _info_panel != null:
+	if tooltip != null:
 		return
 	# setup() has to run before this node enters the tree, because the strip below is built from the
 	# catalog and nothing later rebuilds it: a caller that gets this wrong gets an empty strip and no
@@ -432,10 +438,9 @@ func _enter_tree() -> void:
 	_build_pit_nodes()
 	_held_layer = $HeldLayer
 	_held_layer.draw.connect(_draw_held)
-	_info_panel = $Pit/InfoPanel
-	_info_name = $Pit/InfoPanel/Rows/Name
-	_info_line = $Pit/InfoPanel/Rows/Line
-	_info_hook = $Pit/InfoPanel/Rows/Hook
+	_pit.mouse_exited.connect(_on_pit_exited)
+	tooltip = ChPartTooltip.new()
+	add_child(tooltip)
 	_body_name = $TopBar/BodyName
 	_stats = $TopBar/Stats
 	var prev: Button = $TopBar/PrevBody
@@ -462,7 +467,7 @@ func _enter_tree() -> void:
 func _build_strip() -> void:
 	# One card per id STRIP_ORDER lists, in that order: the strip is the whole kit at once, so there is
 	# no paging and no row count to keep. A card's press is its own pick call; the hover is wired here
-	# because this is where the defs and the InfoPanel meet.
+	# because this is where the cards and the tooltip meet.
 	var row: HBoxContainer = $Strip/Scroll/Cards
 	row.add_theme_constant_override("separation", CARD_GAP)
 	for id in STRIP_ORDER:
@@ -470,8 +475,8 @@ func _build_strip() -> void:
 		if def == null:
 			continue  # an id the catalog has no def for cannot be drawn
 		var card := ChPartCard.new(def, self)
-		card.mouse_entered.connect(_fill_info.bind(_info_of(def)))
-		card.mouse_exited.connect(_fill_info.bind({}))
+		card.mouse_entered.connect(_on_card_hover.bind(card, true))
+		card.mouse_exited.connect(_on_card_hover.bind(card, false))
 		row.add_child(card)
 		_cards.append(card)
 
@@ -537,7 +542,7 @@ func _input(event: InputEvent) -> void:
 
 
 func _build_pit_nodes() -> void:
-	# The pit's nodes, added first under $Pit so the InfoPanel and the held layer stay on top. PitView undoes the pit's own offset, so a child's position is a garage pixel - the same
+	# The pit's nodes, added first under $Pit so the strip, the held layer and the tooltip stay on top. PitView undoes the pit's own offset, so a child's position is a garage pixel - the same
 	# space screen_of, _box_at and _free_slots answer in - and the children keep the paint order the
 	# one _draw had: hull, markers, parts, hover.
 	_pit_view = Node2D.new()

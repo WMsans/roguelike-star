@@ -30,8 +30,8 @@ func _init(def_in: ChPartDef, garage_in: ChGarage) -> void:
 	custom_minimum_size = Vector2(maxf(MIN_WIDTH, def.size.x * ZOOM + 16.0), HEIGHT)
 	# Mouse only, as the garage's buttons are: these are not in a focus chain.
 	focus_mode = Control.FOCUS_NONE
-	# The card's own click is the pick; the garage wires the hover that fills the InfoPanel where it
-	# builds the strip, so this class never reaches for the panel.
+	# The card's own click is the pick; the garage wires the hover that shows the part tooltip where it
+	# builds the strip, so this class never reaches for the tooltip.
 	pressed.connect(func() -> void: garage.pick_part(part_id))
 	# Press and hover answer with a feedback beat, the same wiring every button in the game gets.
 	Feedback.attach_button(self)

@@ -9,7 +9,6 @@ id = &"ember_battery"
 behaviour = ExtResource("2_ember")
 display_name = "Ember Battery"
 description = PackedStringArray("When anything {burn:catches fire}, on either chariot, gain 3 {energy}.")
-hook_text = "When anything catches fire, gain energy"
 energy_cost = 0
 cooldown = 0.0
 damage = 0

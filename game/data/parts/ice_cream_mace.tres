@@ -9,7 +9,6 @@ id = &"ice_cream_mace"
 behaviour = ExtResource("2_mace")
 display_name = "Ice Cream Mace"
 description = PackedStringArray("Swings at anything within 6 cells: 20 damage.", "Hits on a {freeze:frozen} part deal ×3 and thaw it.")
-hook_text = "Shatter: hitting a frozen part deals x3 damage and ends its freeze"
 energy_cost = 1
 cooldown = 1.0
 damage = 20
