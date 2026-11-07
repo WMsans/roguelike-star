@@ -7,7 +7,7 @@ class_name ChKeywords extends RefCounted
 const DARK_TEXT := Color(0.08, 0.08, 0.1)
 
 const ENTRIES := {
-	&"burn": {"name": "Burning", "color": Color("#d63c2f"),
+	&"burn": {"name": "Burning", "color": Color("#ff6060"),
 		"text": "A part touching 3 or more fire or lava cells catches fire. While any of a chariot's parts burn, it loses 5 HP a second. 6 water cells put a part out."},
 	&"freeze": {"name": "Frozen", "color": Color("#6fb6e8"),
 		"text": "Frost and ice build up a part's freeze meter. When it fills, the part stops: it can't fire, and a wheel locks. The meter drains once the cold is gone."},

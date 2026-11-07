@@ -47,6 +47,7 @@ func _init() -> void:
 	_bullets.fit_content = true
 	_bullets.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_bullets.font_size = 16
+	_bullets.alignment = HORIZONTAL_ALIGNMENT_LEFT  # the addon centres by default
 	_bullets.color = ChUi.TEXT
 	_bullets.mouse_filter = MOUSE_FILTER_IGNORE
 	_bullets.scroll_active = false
