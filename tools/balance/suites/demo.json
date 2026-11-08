@@ -130,25 +130,25 @@
       "slot": [
        6
       ],
-      "part": "ice_cream_mace"
+      "part": "cutter_chainsaw"
      },
      {
       "slot": [
        5
       ],
-      "part": "hearth"
+      "part": "cutter_chainsaw"
      },
      {
       "slot": [
        4
       ],
-      "part": "hearth"
+      "part": "ring_of_fire"
      },
      {
       "slot": [
        3
       ],
-      "part": "ring_of_fire"
+      "part": "hearth"
      },
      {
       "slot": [
@@ -256,7 +256,7 @@
       "slot": [
        4
       ],
-      "part": "hearth"
+      "part": "ring_of_fire"
      },
      {
       "slot": [
@@ -268,7 +268,7 @@
       "slot": [
        2
       ],
-      "part": "ring_of_fire"
+      "part": "hearth"
      }
     ]
    },

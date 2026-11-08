@@ -275,3 +275,29 @@ Also fixed: `test_garage.gd` `test_main_draw_panel` fought the cached `dozer_coo
   +1 energy/s (Dozer regen 3, drive 2), so the reserve never triggered, and with no ranged weapon it
   never stands off. The cook's kit (Hearth, Mace, Harpoon) is a pure brawler, so there's little for
   a driving AI to do better. `hold` remains the best cheap stand-in for a careful human.
+
+### Builds fixed, cook left as is (2026-11-08)
+
+- **Cook difficulty by build:** a fourth weapon in the cook's empty slot `[4]` was tried and not
+  kept. Hearth or Ring of Fire crush selfburn and hotmelee (0/8), and a Rocket made the cook easier
+  by eating its energy. Every way of making the cook harder hit the two weakest builds first, so
+  those were fixed before the cook.
+- **hotmelee reference build:** Ring of Fire moved `[2]` → `[4]`, Hearth `[4]` → `[2]`. From the
+  rear slot the Ring is 44 cells from the enemy, beyond its 36-cell radius, so it never hit.
+  Score 0.41 → 0.72 (later 0.53 once the others were fixed).
+- **selfburn reference build:** now Chainsaw `[6]`,`[5]`, Ring `[4]`, Hearth `[3]`, Ember `[2]`.
+  The Mace version was hotmelee minus a weapon: it was starved of energy for only about 5 s, so
+  Ember (about 13 energy per fight) was nearly a dead slot. A faster Hearth opening (first ring at
+  1 s, or a 0.5 s charge) changed nothing (0.28–0.30). **Ember is still weak** in every build tried
+  (starved 0.1 s, gain 5 no better). Paying out energy only matters to a build that's short of it,
+  so what Ember pays is a design question.
+- **Firebolt cost 3 → 1** (user's call over aiming the lob). Its fixed flat arc lands about 1 shot
+  in 4 against builds that hold at range (5–6 damage per energy). The cook drives straight in,
+  which is why it read 17 there. Artillery 0.22 → 0.41. Two Flamethrowers and three Rockets scored
+  0.62, for comparison.
+- **Final** `demo-matrix`: sparks 0.69, hotmelee 0.53, selfburn 0.47, freeze 0.41, artillery 0.41.
+  Against the cook, with the AI driving the player: 5-1-2, 6-2, 7-0-1, 8-0, 8-0. With `hold`:
+  7, 6, 5, 7, 4 of 8 (50–88%), about the 55–85% target. So the cook wasn't made harder, since
+  hotmelee (4/8) would drop under. Playtest before tuning further.
+- Open: sparks at 0.69 is just over 0.65 (4 seeds per pairing). `expect` ranges for `demo.json`
+  are still to add once the user signs off on these numbers.
