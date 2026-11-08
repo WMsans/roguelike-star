@@ -1,0 +1,498 @@
+{
+ "name": "mirror",
+ "scenarios": [
+  {
+   "name": "mirror-sparks",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "ember_battery"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "ember_battery"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 20
+   }
+  },
+  {
+   "name": "mirror-freeze",
+   "player": {
+    "body_id": "dozer",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "ice_cream_mace"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "corsair_harpoon"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "freeze_charge"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "dozer",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "ice_cream_mace"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "corsair_harpoon"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "freeze_charge"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 20
+   }
+  },
+  {
+   "name": "mirror-selfburn",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "ice_cream_mace"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "hearth"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "hearth"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "ring_of_fire"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "ember_battery"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "ice_cream_mace"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "hearth"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "hearth"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "ring_of_fire"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "ember_battery"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 20
+   }
+  },
+  {
+   "name": "mirror-artillery",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "flamethrower"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "flamethrower"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "firebolt_launcher"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "firebolt_launcher"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "flamethrower"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "flamethrower"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "firebolt_launcher"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "firebolt_launcher"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 20
+   }
+  },
+  {
+   "name": "mirror-hotmelee",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "hearth"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "hearth"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "ring_of_fire"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "hearth"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "hearth"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "ring_of_fire"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 20
+   }
+  }
+ ]
+}

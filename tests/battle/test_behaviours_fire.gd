@@ -226,24 +226,24 @@ func test_hearth_damages_touching_enemy_only_after_charge() -> void:
 	assert_eq(far.hp, far_hp, "and the control hull paid nothing")
 	_complete()
 
-# The ring of fire expands from the part's own anchor: radius 0 -> 24 in 1 s, fire into the air cells
-# on the circumference every 0.1 s, and deal_hit once per body the first time the ring crosses it,
-# on both sides including the chassis the part hangs on. The own hull's centre sits 12 cells out and
-# the enemy's 15, so both cross; the far hull's 40 never does.
+# The ring of fire expands from the part's own anchor: radius 0 -> 36 in 1 s, fire into the air cells
+# on the circumference every 0.1 s, and deal_hit once per enemy body the first time the ring crosses
+# it. Its own chariot takes no hit (the balance pass's call: the ring killed its own chariot). The own
+# hull's centre sits 6 cells out and the enemy's 15, so both are inside; the far hull's 55 never is.
 # The water pool is not part of the rule: it keeps the ring's own part out of ChPartRuntime's burning
-# transition (6 water cells douse), so the own HP below is the ring's hit alone rather than a hit plus
-# the chariot-wide burn, which the ember test reads separately. The ring still fills fire in air cells,
+# transition (6 water cells douse), so an unchanged own HP below shows the ring paid it nothing rather
+# than hiding a chariot-wide burn, which the ember test reads separately. The ring still fills fire in air cells,
 # which is why the pool sits inside the ring's reach and the ring's fill never replaces it.
 # The ring's two hits are a pinned window total, and the walk each step takes (ChBehaviour._bodies)
 # runs before the fill, so no part can break mid-window and drop a later crossing (see that helper's note).
 # shortcut: DOUSE_CELLS is ChPartRuntime's own 6-cell rule, pinned by tests/battle/test_part_runtime.gd.
 # A doused part stays unburning whatever the ring writes next to it.
 const RING_NEAR := 20  # origins apart, so the enemy hull's centre is 15 cells from the ring anchor
-const RING_FAR := 40  # the control hull, 35 cells out, which the 24-cell ring never crosses
-const RING_TICKS := 422  # 4.03 s to the 6 s cooldown's first fire, plus the 1 s ring
+const RING_FAR := 60  # the control hull, 55 cells out, which the 36-cell ring never crosses
+const RING_TICKS := 302  # 5.03 s: the 4 s cooldown's first fire, plus the 1 s ring
 const RING_POOL := Rect2i(120, 132, 12, 12)  # water inside the ring's first steps
 
-func test_ring_of_fire_hits_self_and_enemy_once_each() -> void:
+func test_ring_of_fire_hits_enemy_once_not_self() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var catalog := _catalog()
@@ -264,7 +264,7 @@ func test_ring_of_fire_hits_self_and_enemy_once_each() -> void:
 	var foe_hp := foe.hp
 	var ctl_hp := ctl.hp
 	var anchor := ring.anchor_world()
-	var ring_rect := Rect2i(Vector2i(anchor) - Vector2i(24, 24), Vector2i(49, 49))
+	var ring_rect := Rect2i(Vector2i(anchor) - Vector2i(36, 36), Vector2i(73, 73))
 	var peak := 0
 	for _tick in RING_TICKS:
 		ctx.tick(TICK, [0.0, 0.0])
@@ -274,21 +274,21 @@ func test_ring_of_fire_hits_self_and_enemy_once_each() -> void:
 	for hit in hits:
 		paid += hit.data["hp_damage"]
 	# The crossing distances the ring reads: the own hull's centre is 5.8 cells out (the part hangs on the
-# hull's own top row) and the enemy's 15.3, both inside the 24-cell radius; the control hull's centre
-	# is 35, outside it. What the ring actually tests is the nearest point of each body box, so these
+	# hull's own top row) and the enemy's 15.3, both inside the 36-cell radius; the control hull's centre
+	# is 55, outside it. What the ring actually tests is the nearest point of each body box, so these
 	# reads are the preconditions, not the crossing rule.
 	assert_near(at.chassis.global_position.distance_to(anchor), 5.83, 0.01, "own hull centre is inside the ring")
 	assert_near(foe.chassis.global_position.distance_to(anchor), 15.3, 0.1, "enemy hull centre is inside the ring")
-	assert_true(ctl.chassis.global_position.distance_to(anchor) > 24.0, "the control hull never crosses")
-	# The ring fills fire on the circumference, so the sim's own light sees it: the widest ring (24 cells
+	assert_true(ctl.chassis.global_position.distance_to(anchor) > 36.0, "the control hull never crosses")
+	# The ring fills fire on the circumference, so the sim's own light sees it: the widest ring (36 cells
 	# around the anchor) is read back as fire cells while the ring runs.
 	assert_true(peak >= 1, "the ring left fire cells on its circumference (peak %d)" % peak)
-	assert_eq(hits.size(), 2, "the ring crossed two bodies and no more")
-	assert_eq(paid, 2 * ring.def.damage, "each body paid once, at 10")
-	assert_eq(at.hp, at_hp - ring.def.damage, "own chariot took it, since the ring is not friendly")
-	assert_eq(foe.hp, foe_hp - ring.def.damage, "and so did the enemy hull")
+	assert_eq(hits.size(), 1, "the ring crossed the enemy hull and no more")
+	assert_eq(paid, ring.def.damage, "which paid once, at the def's damage")
+	assert_eq(foe.hp, foe_hp - ring.def.damage, "on the enemy hull")
+	assert_eq(at.hp, at_hp, "own chariot took nothing, though its hull is inside the ring")
 	assert_eq(ctl.hp, ctl_hp, "the control hull paid nothing")
-	assert_true(at.hp == at_hp - 10 and ring.burning == false, "the pool kept the mount unburning, so the 10 is the hit alone")
+	assert_true(ring.burning == false, "the pool kept the mount unburning, so the own HP read is the ring's alone")
 	_complete()
 
 # Chain 3 (spec §5.6): a Hearth that heats its own chariot pays an Ember Battery on the same chariot.

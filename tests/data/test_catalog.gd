@@ -37,14 +37,17 @@ func test_spec_numbers() -> void:
 	var catalog := ChCatalog.load_default()
 	var dozer: ChBodyDef = catalog.body(&"dozer")
 	assert_true(dozer != null, "the Dozer def loads")
-	assert_eq(dozer.hp, 500, "Dozer HP 500")
-	assert_eq(dozer.energy_cap, 20, "Dozer energy cap 20")
-	assert_eq(dozer.energy_regen, 5.0, "Dozer regen 5/s")
+	# The demo balance pass (docs/superpowers/handoffs/2026-11-07-demo-balance-handoff.md): HP from the
+	# bodies spec's roster, caps and regen small enough that a full loadout runs short of energy.
+	assert_eq(dozer.hp, 1000, "Dozer HP 1000")
+	assert_eq(dozer.energy_cap, 14, "Dozer energy cap 14")
+	assert_eq(dozer.energy_regen, 3.0, "Dozer regen 3/s")
 	var corsair: ChBodyDef = catalog.body(&"corsair")
 	assert_true(corsair != null, "the Corsair def loads")
-	assert_eq(corsair.hp, 600, "Corsair HP 600")
-	assert_eq(corsair.energy_cap, 24, "Corsair energy cap 24")
-	# Costs follow the CATS rule in Global Constraints: power 5 -> 1 energy, power 10 -> 2.
+	assert_eq(corsair.hp, 900, "Corsair HP 900")
+	assert_eq(corsair.energy_cap, 12, "Corsair energy cap 12")
+	# Costs started on the CATS rule in Global Constraints (power 5 -> 1 energy, power 10 -> 2); the
+	# balance pass moved the Chainsaw and the Ring to their measured damage per energy.
 	# part() answers null for an id the catalog does not hold, so each def is bound and asserted
 	# before its properties are read: chaining onto null aborts the body with a null-access error
 	# that names no def, which is what the Dozer/Corsair guards above already do.
@@ -53,10 +56,10 @@ func test_spec_numbers() -> void:
 	assert_eq(mace.energy_cost, 1, "mace costs 1")
 	var chainsaw: ChPartDef = catalog.part(&"cutter_chainsaw")
 	assert_true(chainsaw != null, "the chainsaw def loads")
-	assert_eq(chainsaw.energy_cost, 2, "chainsaw costs 2")
+	assert_eq(chainsaw.energy_cost, 1, "chainsaw costs 1")
 	var ring: ChPartDef = catalog.part(&"ring_of_fire")
 	assert_true(ring != null, "the Ring of Fire def loads")
-	assert_eq(ring.energy_cost, 4, "Ring of Fire costs 4")
+	assert_eq(ring.energy_cost, 3, "Ring of Fire costs 3")
 	var firebolt: ChPartDef = catalog.part(&"firebolt_launcher")
 	assert_true(firebolt != null, "the Firebolt launcher def loads")
 	assert_eq(firebolt.charges, 5, "Firebolt has 5 charges per fight")

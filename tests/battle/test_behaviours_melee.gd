@@ -14,8 +14,8 @@ const APART := 20  # the brief's setup: origins this far apart, which a Mace now
 const OUT_OF_REACH := 25  # the tightest miss this rig shows: the foe's nearest body starts 3 cells clear of the box's x = 135.5 edge
 const TICK := 1.0 / 60.0
 const MACE_TICKS := 62  # 1.03 s: ChChariotBuilder starts a part at def.cooldown, so a 1 s cooldown goes ready here
-const SAW_TICKS := 40  # 0.66 s: the saw's 0.5 s cooldown gets one fire, not a second
-const FREEZE_HIT := 0.5  # the Freeze Charge's freeze per hit, twice of which fills the meter
+const SAW_TICKS := 50  # 0.83 s: the saw's 0.75 s cooldown gets one fire, not a second
+const FREEZE_HIT := 1.0  # the Freeze Charge's freeze per hit: one hit fills the meter
 const BATTERY_GAIN := 3.0  # ember_battery's energy per CAUGHT_FIRE
 const ENERGY_TICKS := 10  # 0.166 s of ticks: inside the battery's 0.5 s cooldown
 const PAST_TICKS := 30  # 0.5 s of ticks: enough for the battery's cooldown to go ready
@@ -178,7 +178,7 @@ func test_mace_shatters_frozen() -> void:
 # Review finding 2: deal_hit asks every same-side behaviour whose proximity_range covers the source,
 # so a mace mounted 5 cells from the weapon that swung hears that swing. The Shatter belongs to the
 # weapon that dealt the hit, so a mace only shatters hit["source"] == its own part: the saw's cut costs
-# its own 20 HP, pays no x3 and announces no THAWED.
+# its own 16 HP, pays no x3 and announces no THAWED.
 func test_mace_shatters_only_its_own_hit() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
@@ -197,15 +197,15 @@ func test_mace_shatters_only_its_own_hit() -> void:
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.THAWED, func(event: ChEvent): sink.append(event))
 	var foe_hp := foe.hp
 	saw.behaviour.fire(ctx)
-	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut pays its own 20 damage: no mace shatter on someone else's hit")
+	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut pays its own 16 damage: no mace shatter on someone else's hit")
 	assert_eq(thawed, [], "and nothing thawed: the mace never shattered the saw's cut")
 	assert_near(foe_part.freeze, 1.0, 0.0001, "the target keeps the freeze it was built with")
-	assert_eq(foe_part.integrity, foe_part.def.integrity - 10, "while the part wore the unmultiplied half")
+	assert_eq(foe_part.integrity, foe_part.def.integrity - saw.def.damage / 2, "while the part wore the unmultiplied half")
 	_complete()
 
 # Review finding 3: the Shatter ends the freeze it read "after the hit" (spec §5.6), and ChBattleContext
 # adds a pass's hit["freeze"] after the modifiers ran. A Freeze Charge inside 24 cells of the mace adds
-# 0.5 to the same hit, so the frozen target must land at 0 freeze, not 0.5: the shatter's thaw wins over
+# 1.0 to the same hit, so the frozen target must land at 0 freeze, not 1.0: the shatter's thaw wins over
 # the charge's build-up whatever else the hit carried.
 func test_mace_shatter_thaws_freeze_charge_bonus() -> void:
 	var world: PixelWorld = await make_world()
@@ -217,18 +217,18 @@ func test_mace_shatter_thaws_freeze_charge_bonus() -> void:
 	var charge := _part_of(at, [0])
 	var foe_part := _part_of(foe, [0])
 	assert_true(mace != null and charge != null and foe_part != null, "the mace, the charge and the foe's part mounted")
-	assert_near(charge.anchor_world().distance_to(mace.anchor_world()), 10.0, 0.001, "the charge sits inside its 24-cell reach, so it adds 0.5 to this hit")
+	assert_near(charge.anchor_world().distance_to(mace.anchor_world()), 10.0, 0.001, "the charge sits inside its 24-cell reach, so it adds 1.0 to this hit")
 	foe_part.freeze = 1.0
 	var ctx: ChBattleContext = _battle(world, catalog, [at, foe])
 	var foe_hp := foe.hp
 	mace.behaviour.fire(ctx)
 	assert_eq(foe.hp, foe_hp - 3 * mace.def.damage, "the shatter still costs 60 HP")
-	assert_near(foe_part.freeze, 0.0, 0.0001, "so the meter ends at 0, not the charge's 0.5")
+	assert_near(foe_part.freeze, 0.0, 0.0001, "so the meter ends at 0, not the charge's 1.0")
 	assert_true(not foe_part.is_frozen(), "and the target is thawed, not re-frozen next tick")
 	_complete()
 
 # The Freeze Charge is passive: it adds hit["freeze"] to a hit from a same-side part inside its 24
-# cells, and ChBattleContext puts that freeze on the part hit. Two hits of 0.5 fill the meter, so the
+# cells, and ChBattleContext puts that freeze on the part hit. One hit of 1.0 fills the meter, so the
 # enemy's wheel freezes and ChChariotRuntime.drive takes its motor off.
 # shortcut: deal_hit is called directly twice rather than over a cooldown: the freeze per hit is the
 # rule here, and a tick-driven fire would add the energy queue without adding what is asserted.
@@ -246,16 +246,38 @@ func test_freeze_charge_freezes_wheel() -> void:
 	assert_near(charge.anchor_world().distance_to(mace.anchor_world()), 10.0, 0.001, "the charge sits inside its 24-cell reach")
 	var ctx: ChBattleContext = _battle(world, catalog, [at, foe])
 	var wheel_hp := foe.hp
-	# Two hits from the same mace, so the charge is asked both times and the meter fills by 0.5 each.
-	for _two in 2:
-		ctx.deal_hit(mace, wheel.body, mace.def.damage)
-	assert_near(wheel.freeze, 2 * FREEZE_HIT, 0.0001, "two hits of 0.5 fill the meter")
+	# One hit: the charge is asked and the meter fills. A second would land on a frozen wheel and shatter.
+	ctx.deal_hit(mace, wheel.body, mace.def.damage)
+	assert_near(wheel.freeze, FREEZE_HIT, 0.0001, "one hit of 1.0 fills the meter")
 	assert_true(wheel.is_frozen(), "a full meter freezes the wheel")
-	assert_eq(foe.hp, wheel_hp - 2 * mace.def.damage, "neither hit was multiplied: the wheel was not frozen when either landed")
-	assert_eq(wheel.integrity, wheel.def.integrity - 20, "and the wheel wore the wear of both hits")
+	assert_eq(foe.hp, wheel_hp - mace.def.damage, "the hit was not multiplied: the wheel was not frozen when it landed")
+	assert_eq(wheel.integrity, wheel.def.integrity - mace.def.damage / 2, "and the wheel wore the hit's half")
 	foe.drive(1.0)
 	assert_true(not wheel.joint.enable_motor, "the frozen wheel's motor is off")
 	assert_near(wheel.joint.motor_speed, 0.0, 0.0001, "and carries no speed")
+	_complete()
+
+# Chain 2 on a hull hit, which is where real swings land: the hull carries no meter, so deal_hit puts
+# the freeze on the target's part nearest the attacker, and the next hull hit reads that part frozen,
+# pays x3 on the hull and thaws it.
+func test_freeze_charge_hull_hit_freezes_nearest_part() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[0], &"ice_cream_mace"], [[1], &"freeze_charge"]]), catalog, 0, ORIGIN, false)
+	var foe: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[0], &"wheel"]]), catalog, 1, ORIGIN + Vector2(APART, 0), false)
+	var mace := _part_of(at, [0])
+	var wheel := _part_of(foe, [0])
+	assert_true(mace != null and wheel != null, "the mace and the wheel mounted")
+	var ctx: ChBattleContext = _battle(world, catalog, [at, foe])
+	var foe_hp := foe.hp
+	ctx.deal_hit(mace, foe.chassis, mace.def.damage)
+	assert_true(wheel.is_frozen(), "a hull hit froze the foe's nearest part")
+	assert_eq(foe.hp, foe_hp - mace.def.damage, "and paid plain damage on the hull")
+	assert_eq(wheel.integrity, wheel.def.integrity, "without wearing the part")
+	ctx.deal_hit(mace, foe.chassis, mace.def.damage)
+	assert_eq(foe.hp, foe_hp - 4 * mace.def.damage, "the next hull hit shattered: x3")
+	assert_true(not wheel.is_frozen(), "and thawed the part")
 	_complete()
 
 # The same charge mounted 25 cells from the mace, outside its own 24-cell reach: deal_hit never asks
@@ -284,7 +306,7 @@ func test_freeze_charge_out_of_range_no_effect() -> void:
 	_complete()
 
 # A hand-built CAUGHT_FIRE in ChPartRuntime._emit's shape: side, source and position are what the
-# bus's proximity filter reads, and the battery subscribes with no range, so it hears either side.
+# bus's proximity filter reads, and the battery subscribes with no range, so it hears any own part.
 func _catch_fire(ctx: ChBattleContext, part: ChPartRuntime) -> void:
 	var event := ChEvent.new()
 	event.type = ChEvent.CAUGHT_FIRE
@@ -293,12 +315,12 @@ func _catch_fire(ctx: ChBattleContext, part: ChPartRuntime) -> void:
 	event.position = part.anchor_world()
 	ctx.bus.emit(event)
 
-# The Ember Battery subscribes to CAUGHT_FIRE with no proximity, so a fire on either chariot buys
-# its own chariot 3 energy (clamped to the cap) and announces ENERGY_GAINED. The first catch is the
-# real one - ChPartRuntime.apply_sample over fire cells is what emits it - and it comes from the ENEMY
-# side. The second catch, hand-built 10 ticks (0.166 s) later, is inside the 0.5 s cooldown, so it
-# buys nothing. Past the cooldown a catch from the battery's own side buys again.
-func test_ember_battery_gains_on_any_caught_fire() -> void:
+# The Ember Battery counts its own chariot's fires only: a catch on its own side buys 3 energy
+# (clamped to the cap) and announces ENERGY_GAINED, and an enemy's catch buys nothing. The enemy catch
+# is the real one - ChPartRuntime.apply_sample over fire cells is what emits it - so the test also
+# reads that it happened. A second own catch inside the 0.5 s cooldown buys nothing; past the
+# cooldown a catch buys again.
+func test_ember_battery_gains_on_own_caught_fire() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var catalog := _catalog()
@@ -313,21 +335,29 @@ func test_ember_battery_gains_on_any_caught_fire() -> void:
 	var gained: Array[ChEvent] = []
 	var sink := gained
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.ENERGY_GAINED, func(event: ChEvent): sink.append(event))
+	var caught: Array[ChEvent] = []
+	var caught_sink := caught
+	ctx.bus.subscribe(RefCounted.new(), ChEvent.CAUGHT_FIRE, func(event: ChEvent): caught_sink.append(event))
 	# The fire is a real fill over the foe's part, so apply_sample's not-burning to burning transition
-	# emits the CAUGHT_FIRE the battery hears, with the foe's side and source on it.
+	# emits a CAUGHT_FIRE with the foe's side on it, which the battery hears and ignores.
 	world.fill_circle(Vector2i(burner.anchor_world()), 3, &"fire")
 	for _tick in ENERGY_TICKS:
 		ctx.tick(TICK, [0.0, 0.0])
-	assert_near(at.energy.value, 13.0, 0.0001, "the enemy's catch bought 3 energy")
+	assert_true(caught.size() >= 1 and caught[0].side == foe.side, "the foe's part caught fire")
+	assert_near(at.energy.value, 10.0, 0.0001, "and the enemy's catch bought nothing")
+	assert_eq(gained.size(), 0, "nor announced a gain")
+	_catch_fire(ctx, battery)
+	assert_near(at.energy.value, 13.0, 0.0001, "an own catch bought 3 energy")
 	assert_eq(gained.size(), 1, "one ENERGY_GAINED")
-	# A second catch 0.166 s later, inside the battery's 0.5 s cooldown: it buys nothing and announces
+	# A second own catch at once, inside the battery's 0.5 s cooldown: it buys nothing and announces
 	# nothing, which is the brief's second half of the rule.
-	_catch_fire(ctx, burner)
+	_catch_fire(ctx, battery)
 	assert_near(at.energy.value, 13.0, 0.0001, "the second catch inside 0.5 s bought nothing")
 	assert_eq(gained.size(), 1, "and announced no gain")
-	# Past the cooldown a catch on the battery's own side buys again, and the cap is where it lands:
-	# the pool sits 2 below cap, so the gain is clamped rather than spent in full.
-	for _tick in PAST_TICKS:
+	# Past the cooldown an own catch buys again, and the cap is where it lands:
+	# the pool sits 2 below cap, so the gain is clamped rather than spent in full. One tick past
+	# PAST_TICKS, since 30 ticks of 1/60 can leave the 0.5 s a hair above 0.
+	for _tick in PAST_TICKS + 1:
 		ctx.tick(TICK, [0.0, 0.0])
 	at.energy.value = 18.0
 	_catch_fire(ctx, battery)
@@ -336,7 +366,7 @@ func test_ember_battery_gains_on_any_caught_fire() -> void:
 	_complete()
 
 # The Chainsaw cuts what is in its 14-cell reach: a landed hit announces CELLS_CUT and reports the
-# fire sparks it threw (spawn_particles's pooled count), and it pays the plain 20 damage.
+# fire sparks it threw (spawn_particles's pooled count), and it pays the plain 16 damage.
 # With nothing of the enemy inside the box and solid ground at the tip, the cut goes to the terrain:
 # explode(tip, 2, 50) digs, and CELLS_CUT still announces the cut.
 func test_chainsaw_sparks_emit_cells_cut() -> void:
@@ -360,7 +390,7 @@ func test_chainsaw_sparks_emit_cells_cut() -> void:
 		ctx.tick(TICK, [0.0, 0.0])
 	assert_eq(cut.size(), 1, "the cut announced itself once")
 	assert_eq(cut[0].data["sparks"], 4, "and threw the 4 fire sparks the brief names")
-	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut paid the saw's 20 damage")
+	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut paid the saw's 16 damage")
 
 # Now nothing of the enemy reaches the box, and the tip stands in solid rock.
 	var at2: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"cutter_chainsaw"]]), catalog, 0, ORIGIN, false)

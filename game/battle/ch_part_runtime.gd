@@ -27,7 +27,8 @@ var lava_wear_left: float = 0.0  # lava wear held back until it adds up to a who
 var cooldown_left: float = 0.0  # seconds until ready; 0 means ready
 var charges_left: int = -1  # fires before the part runs out; -1 = unlimited (def.charges)
 var burning: bool = false
-var freeze: float = 0.0  # 0..1; is_frozen at 1.0
+var freeze: float = 0.0  # 0..1; freezes at 1.0, stays frozen until it decays back to 0
+var frozen_held: bool = false  # the meter filled since it last stood at 0 (apply_sample keeps it)
 var broken: bool = false  # set by ChChariotRuntime.break_part (Task 10)
 # shortcut: body stays loose-typed on purpose; Task 9 is the only caller that hands a real
 # PixelRigidBody, and a : PixelRigidBody annotation rejects the fake bodies the tests use.
@@ -68,8 +69,10 @@ func facing() -> Vector2:
 
 
 func is_frozen() -> bool:
-	# The freeze meter is a build-up: only a full one freezes.
-	return freeze >= 1.0
+	# The freeze meter is a build-up: a full one freezes, and the part stays frozen while the meter
+	# decays (spec §5.7 "Freeze decays over time"), so a hit's one full meter holds for
+	# 1 / FREEZE_DECAY seconds rather than one tick. Setting freeze to 0 thaws at once.
+	return freeze >= 1.0 or (frozen_held and freeze > 0.0)
 
 
 func sample_rect() -> Rect2i:
@@ -129,7 +132,13 @@ func apply_sample(counts: Dictionary, delta: float, bus: ChEventBus) -> void:
 	# Burning is a state, not per-tick damage: the chariot-wide damage over time is ChDamage.burn_tick
 	# (Task 10), applied once while any of its parts burns.
 	var was_burning := burning
-	var was_frozen := is_frozen()
+	# was_frozen is the held state from the last sample, so a meter a hit filled since then still
+	# announces FROZEN here, and a meter a hit emptied (the Shatter's thaw) releases the hold.
+	var was_frozen := frozen_held
+	if freeze >= 1.0:
+		frozen_held = true
+	elif freeze <= 0.0:
+		frozen_held = false
 	# fire + lava + burning cells at the threshold sets the part alight. The "burning" key is a cheap
 	# extra the addon never writes (no FLAG_BURNING writer, Task 2's ruling), so burning comes from
 	# fire and lava cells today.
@@ -167,6 +176,7 @@ func apply_sample(counts: Dictionary, delta: float, bus: ChEventBus) -> void:
 		integrity = maxi(0, integrity - points)
 	# The transitions, not the states: an already burning or already frozen part stays quiet. These
 	# are the chain events spec §5.5 asks for.
+	frozen_held = is_frozen()
 	if not was_burning and burning:
 		_emit(bus, ChEvent.CAUGHT_FIRE)
 	if not was_frozen and is_frozen():

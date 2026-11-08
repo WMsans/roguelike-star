@@ -474,9 +474,15 @@ func test_main_draw_panel() -> void:
 	assert_true(main.garage.drop_part(&"wheel", [1]), "as the other")
 	assert_true(main.garage.drop_part(&"cutter_rocket", [3]), "and the Rocket")
 	main.catalog = _fight_catalog(TALL_HP, TALL_HP)
+	# ChMain fights the cached dozer_cook layout, whose own max_hp (1800) wins over the catalog's
+	# TALL_HP, so the cached copy's max_hp is cleared for this fight and put back after it.
+	var cook: ChChariotLayout = ResourceLoader.load(ChMain.ENEMY)
+	var cook_hp := cook.max_hp
+	cook.max_hp = 0
 	main.garage.request_fight()
 	assert_eq(main.screen, &"fight", "the fight started")
 	await _wait_screen(main, &"result")
+	cook.max_hp = cook_hp
 	assert_eq(main.screen, &"result", "the timeout reached the result screen rather than hanging")
 	assert_eq(main.result_panel.title.text, "Draw: time ran out", "and the panel named the draw")
 	assert_true(main.battle != null and not main.battle.ticking, "on a fight that has stopped")
@@ -616,7 +622,7 @@ func test_no_hint_labels() -> void:
 			hints.append(text)
 	assert_eq(hints, [], "no label tells the player what to click")
 	assert_eq(garage.get_node("TopBar/BodyName").text, "Cutter", "the bar names the hull")
-	assert_eq(garage.get_node("TopBar/Stats").text, "HP 500 · Energy 20", "and its fight stats")
+	assert_eq(garage.get_node("TopBar/Stats").text, "HP 650 · Energy 10", "and its fight stats")
 	assert_true(not garage.tooltip.visible, "the tooltip is away until something is hovered")
 	_complete()
 

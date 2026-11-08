@@ -513,14 +513,10 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 # whether the sand and the two pools let the player across varies run to run; the fight resolves
 # either way, at its own result or at its frame budget. Measured again at the Task 4 spawns: the two
 # hulls got to 39 cells apart and the fight resolved as a win.
-# Nothing freezes, and that is chain 2's remaining gap. A weapon's reach box is at the part's own
-# height (one cell for these defs), and the Dozer's wheels hang 14 cells below a Corsair's top slots,
-# so a Mace hits the Dozer's chassis almost every swing and a wheel only when the Dozer has rolled
-# over - measured: one wheel hit in a whole fight, and its 0.5 of freeze decays at 0.25/s
-# (ChPartRuntime) long before the next swing. tests/battle/test_behaviours_melee.gd pins the freeze
-# build-up, the x3 and the thaw at the same height, where the chain's rules are reachable. Closing the
-# last link needs a design call - a taller reach band, a chariot-wide freeze, or a weapon that reaches
-# down - not a tuning pass, so it is named here rather than faked.
+# The freeze lands. A Mace hits the Dozer's chassis almost every swing (its wheels hang below a
+# Corsair's top slots), and the design call in the demo balance pass was that a hull hit puts its
+# freeze on the target's part nearest the attacker (ChBattleContext.deal_hit), which then holds frozen
+# while the meter decays (ChPartRuntime.is_frozen). Before that call this test pinned "nothing froze".
 func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 	var battle := _battle_scene()
 	var heard: Array = []
@@ -547,7 +543,7 @@ func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 	assert_true(float(driven["mark"]) - float(ChArenaBuilder.SPAWN_LEFT_X) > 10.0,
 		"the player's chariot drove off its spawn (at x %.0f two seconds in, hulls %.0f apart at the end)"
 			% [driven["mark"], min_gap])
-	assert_eq(frozen, 0, "nothing froze: the melee band misses the Dozer's wheels (see above)")
+	assert_true(frozen > 0, "the Mace's hull hits froze the Dozer's parts (see above)")
 	battle.free()
 	_complete()
 

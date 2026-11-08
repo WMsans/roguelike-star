@@ -1,7 +1,7 @@
 extends ChBehaviour
 
 # The Firebolt Launcher (spec §5.4): a lobbed bolt that breaks into a pool of fire wherever it
-# lands. The lob is 60 degrees up from facing at 110 cells per second under a gravity of 120, so
+# lands. The lob is 20 degrees up from facing at 150 cells per second under a gravity of 120, so
 # ChProjectile carries the arc; this only aims it and reads the impact back.
 # The launcher is the slice's charge-limited part: five shots, and at zero it stops asking for
 # energy, which is the rule ChBattleContext left to the behaviour ("a limited part at 0 charges is

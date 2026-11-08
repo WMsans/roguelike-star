@@ -1,7 +1,8 @@
 extends ChBehaviour
 
-# The Ring of Fire (spec §5.4): fire fills an expanding ring from the part's own anchor, radius 0 -> 24
-# over 1 s, and every body the ring crosses pays its damage (the def's 10) once -- both sides, the chassis it hangs on included.
+# The Ring of Fire (spec §5.4): fire fills an expanding ring from the part's own anchor, radius 0 -> 36
+# over 1 s, and every enemy body the ring crosses pays the def's damage once. Its own chariot pays
+# nothing (see _cross), though the fire cells still reach it.
 # The crossing test is geometric (radius vs body box, ChBehaviour's own footprints), so the fire cells
 # and the damage stay independent, which is what makes a body behind a wall of fire still pay.
 
@@ -36,7 +37,7 @@ func process(ctx: ChBattleContext, delta: float) -> void:
 
 func _expand(ctx: ChBattleContext) -> void:
 	var at := part.anchor_world()
-	# The ring is STEPS steps of RADIUS/STEPS, so the first step is 2.4 cells out and the last is 24.
+	# The ring is STEPS steps of RADIUS/STEPS, so the first step is 3.6 cells out and the last is 36.
 	# shortcut: the step at radius 0 has no circumference, so nothing is written at t = 0.
 	var r := RADIUS * float(STEPS - steps_left) / float(STEPS)
 	# ChBehaviour's one walk of the live bodies, taken before the fill: the cells this step writes
@@ -53,7 +54,7 @@ func _fill_ring(ctx: ChBattleContext, at: Vector2, r: float) -> void:
 		return
 	for y in range(floori(at.y - r), ceilf(at.y + r) + 1):
 		for x in range(floori(at.x - r), ceilf(at.x + r) + 1):
-			# shortcut: the step scans its whole square (~2.4k cells at r = 24, x 10 steps); upgrade to
+			# shortcut: the step scans its whole square (~5.3k cells at r = 36, x 10 steps); upgrade to
 			# walking the circumference by angle if a bigger ring makes this hot.
 			var cell := Vector2(x + 0.5, y + 0.5)
 			var near := at.distance_to(cell)
@@ -74,10 +75,6 @@ func _cross(ctx: ChBattleContext, at: Vector2, r: float, bodies: Array) -> void:
 		if entry[0].side == part.side:
 			continue
 		var body: Object = entry[1]
-		# The ring expands out from the part's own anchor, so the circumference never crosses the
-		# body it leaves from: the emitter pays itself nothing, and the hull it hangs on still pays.
-		if body == part.body:
-			continue
 		if body in crossed:
 			# The ring pays a body once, so a later step that still covers it spends nothing.
 			# shortcut: identity is the key, so a body that fell off a broken part is out of the list.

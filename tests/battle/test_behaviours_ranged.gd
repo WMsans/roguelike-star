@@ -83,16 +83,16 @@ func _ground(world: PixelWorld) -> void:
 
 # The awaited-frame loop every projectile test runs: the fight's clock stays in fight seconds
 # (FIRE_WINDOW of ctx ticks) while the engine's physics frames keep flying the projectile.
-const TICKS_TO_FIRE := 72  # 1.2 s of fight clock: a 1 s cooldown goes ready, one fire only
+const TICKS_TO_FIRE := 100  # 1.67 s of fight clock: a 1.5 s cooldown goes ready, one fire only
 const FLIGHT_FRAMES := 150  # awaited frames for the flight, which the fight clock does not bound
 const HOOK_TICKS := 330  # 5.5 s of fight clock: a 5 s cooldown goes ready and fires once
 const PULL_TICKS := 90  # 1.5 s of fight clock: the harpoon's attach window
 const HUNT_FRAMES := 520  # awaited frames covering the fire and the whole attach window
-const LOB_FRAMES := 620  # awaited frames for a lobbed flight: it arcs well past the foe's hull
+const LOB_FRAMES := 620  # awaited frames for the fire and the flight to the foe's hull
 
-# The floor band the bolt has to land in: past the hulls, down the arena. Nothing else in the test
-# can set the floor alight, so fire cells there are the impact's own fill_circle.
-const LOB_BAND := Rect2i(200, GROUND_TOP, 200, 20)
+# The band the bolt has to land in: around the foe's hull. Nothing else in the test can set it
+# alight, so fire cells there are the impact's own fill_circle.
+const LOB_BAND := Rect2i(140, 130, 40, 30)  # around the foe's hull, where the flat shot lands
 
 # The Line2D the harpoon hangs under the world while its line is attached.
 func _attached(ctx: ChBattleContext) -> bool:
@@ -173,19 +173,23 @@ func test_rocket_ignition_halves_cooldown() -> void:
 	var sink := fired
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.PART_FIRED, func(event: ChEvent): sink.append(event))
 	# No awaited frames here: the cooldown is the fight's clock, and ChBattleContext owns its ticks.
-	for _tick in 60:
+	# Tick until the first fire (90 ticks of 1/60 can sum a hair short of 1.5 s), and stop on that tick
+	# so the countdown still reads the reset the loop gave it.
+	for _tick in 91:
 		ctx.tick(TICK, [0.0, 0.0])
-	assert_eq(fired.size(), 1, "one fire in the first second of clock")
+		if fired.size() == 1:
+			break
+	assert_eq(fired.size(), 1, "one fire in the first 1.5 s of clock")
 	assert_near(rocket.cooldown_left, rocket.def.cooldown, 0.0001,
 		"the fire reset the countdown, which the loop owns")
 	var before := rocket.cooldown_left
 	_catch_fire(ctx, burner)
 	assert_near(rocket.cooldown_left, before * 0.5, 0.0001,
-		"Ignition: the caught fire halved the countdown to 0.5 s")
-	# Past the halved countdown the rocket is ready again sooner than a full second after its fire.
-	for _tick in 31:
+		"Ignition: the caught fire halved the countdown to 0.75 s")
+	# Past the halved countdown the rocket is ready again well before its full 1.5 s cooldown.
+	for _tick in 46:
 		ctx.tick(TICK, [0.0, 0.0])
-	assert_eq(fired.size(), 2, "the halved countdown paid for a second fire before 1.5 s of clock")
+	assert_eq(fired.size(), 2, "the halved countdown paid for a second fire 0.77 s after the first")
 	_complete()
 
 # The Firebolt is the charge-limited part: charges_left counts down once per fire (the battle loop
@@ -228,9 +232,9 @@ func test_firebolt_charges_run_out() -> void:
 	assert_eq(bolt.charges_left, 0, "and the charges never go past 0 into the unlimited sentinel")
 	_complete()
 
-# The Firebolt lobs: 60 degrees up from facing at 110 cells per second under a gravity of 120, so
-# its arc passes over the foe's hull and meets the floor further down the arena. The fill it leaves
-# is read back as fire cells on that floor, which is the brief's "fire or burning > 0 within 10
+# The Firebolt lobs: 20 degrees up from facing at 150 cells per second under a gravity of 120, a
+# flat arc that meets the foe's hull 24 cells out (measured: impact at (155, 150)). The fill it
+# leaves is read back as fire cells around that hull, which is the brief's "fire or burning > 0 within 10
 # ticks": the band is read on every awaited frame, so the reading is taken while it is still fire.
 func test_firebolt_starts_fire() -> void:
 	var world: PixelWorld = await make_world()
@@ -257,7 +261,7 @@ func test_firebolt_starts_fire() -> void:
 		var counts: Dictionary = world.count_materials(LOB_BAND)
 		seen = maxi(seen, counts.get(&"fire", 0) + counts.get(&"burning", 0))
 	assert_eq(fired.size(), 1, "one fire in the window")
-	assert_true(seen > 0, "the impact left fire on the floor where the bolt landed")
+	assert_true(seen > 0, "the impact left fire where the bolt landed")
 	_complete()
 
 # The Harpoon hooks an enemy hull inside its 120-cell line and reels both sides together for 1.5 s

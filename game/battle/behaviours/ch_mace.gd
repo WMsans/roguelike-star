@@ -17,13 +17,14 @@ func modify_hit(ctx: ChBattleContext, hit: Dictionary) -> void:
 	# near another weapon hears that weapon's hit as well as its own: the Shatter is the swinger's own.
 	if hit["source"] != part:
 		return
-	var target: ChPartRuntime = hit["target_part"]
+	# freeze_part is the part hit, or for a hull hit the part nearest the swing (ChBattleContext).
+	var target: ChPartRuntime = hit["freeze_part"]
 	if target == null or not target.is_frozen():
 		return
 	hit["multiplier"] = hit["multiplier"] * ChDamage.shatter_multiplier(true)
 	# ChBattleContext adds a pass's hit["freeze"] after the modifiers ran, so the Shatter asks for its
 	# freeze reset through the hit rather than writing the meter here: a Freeze Charge landing on the
-	# same hit still leaves the target thawed, at 0 rather than 0.5 (spec §5.6's "ends its freeze").
+	# same hit still leaves the target thawed, at 0 rather than its build-up (spec §5.6's "ends its freeze").
 	# shortcut: thaw is all-freeze, so it drops whatever build-up the passives added as well as the part's
 	# own; a hit that should keep part of that build-up wants a different key.
 	hit["thaw"] = true

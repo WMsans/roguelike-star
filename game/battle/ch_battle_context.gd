@@ -92,6 +92,10 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	var hit := {
 		"source": source,
 		"target_part": target_part,
+		# The part a freeze lands on and a Shatter reads. Weapons mostly strike the hull, which carries
+		# no meter, so a hull hit puts it on the target's part nearest the attacker.
+		# ponytail: nearest the source's anchor, not the impact point, which deal_hit is never given.
+		"freeze_part": target_part if target_part != null else _nearest_part(target_chariot, source.anchor_world()),
 		"target_chariot": target_chariot,
 		"damage": damage,
 		"multiplier": 1.0,
@@ -138,15 +142,18 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 		damage_out = target_chariot.hp - part_result["hp"]
 		target_chariot.hp = part_result["hp"]
 		target_part.integrity = part_result["integrity"]
-	# A passive's freeze reaches the part it was aimed at, capped where ChPartRuntime caps its own
+	# A passive's freeze reaches hit["freeze_part"], capped where ChPartRuntime caps its own
 	# freeze build, so one full meter of freeze is one frozen part whatever the number of passives.
 	# A modifier that asked for a thaw answers after that: the Mace's Shatter ends the freeze it read
 	# "after the hit" (spec §5.6), so a Freeze Charge landing on the same shatter leaves the target at
-	# 0 rather than the 0.5 it added.
-	if target_part != null and hit.get("thaw", false):
-		target_part.freeze = 0.0
-	elif target_part != null and hit["freeze"] > 0.0:
-		target_part.freeze = clampf(target_part.freeze + hit["freeze"], 0.0, 1.0)
+	# 0 rather than the freeze it added.
+	var freeze_part: ChPartRuntime = hit["freeze_part"]
+	if freeze_part != null and hit.get("thaw", false):
+		freeze_part.freeze = 0.0
+		# The Shatter announced its own THAWED, so the hold goes too and the next sample stays quiet.
+		freeze_part.frozen_held = false
+	elif freeze_part != null and hit["freeze"] > 0.0:
+		freeze_part.freeze = clampf(freeze_part.freeze + hit["freeze"], 0.0, 1.0)
 	# HIT announces the hit after it landed, so a listener reads the HP already paid. The source is
 	# the part that dealt it, which is what a proximity listener measures, and the payload carries
 	# what was hit and how much HP went: hp_damage is the damage dealt, not the HP actually lost.
@@ -159,6 +166,15 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	bus.emit(event)
 	if target_part != null and target_part.integrity <= 0:
 		target_chariot.break_part(target_part, self)
+
+func _nearest_part(chariot: ChChariotRuntime, from: Vector2) -> ChPartRuntime:
+	var best: ChPartRuntime = null
+	for part in chariot.parts:
+		if part.broken:
+			continue
+		if best == null or part.anchor_world().distance_to(from) < best.anchor_world().distance_to(from):
+			best = part
+	return best
 
 func _ask_behaviour(part: ChPartRuntime, hit: Dictionary) -> void:
 	var behaviour = part.behaviour

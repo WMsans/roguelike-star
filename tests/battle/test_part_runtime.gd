@@ -149,14 +149,18 @@ func test_thaw_emits() -> void:
 	# sample would have left (freeze capped at 1.0).
 	part.freeze = 1.0
 	assert_true(part.is_frozen(), "the part starts frozen")
-	# Nothing cold touches it, so freeze decays at 0.25/s: 1.0 -> 0.75 leaves frozen and emits.
+	# Nothing cold touches it, so freeze decays at 0.25/s: 1.0 -> 0.75, and the part stays frozen
+	# while the meter decays (spec §5.7), so a full meter holds for 4 s rather than one tick.
 	part.apply_sample({}, 1.0, bus)
 	assert_near(part.freeze, 0.75, 0.001, "the 0.25/s decay over a 1 s tick")
-	assert_true(not part.is_frozen(), "below 1.0 the part is no longer frozen")
-	assert_eq(heard, [ChEvent.THAWED], "leaving frozen emits THAWED")
-	# Decay clamps at 0 and does not re-emit.
+	assert_true(part.is_frozen(), "a decaying meter keeps the part frozen")
+	assert_eq(heard, [], "so nothing thawed yet")
+	# Decay clamps at 0, and reaching 0 is the thaw.
 	part.apply_sample({}, 10.0, bus)
 	assert_near(part.freeze, 0.0, 0.001, "decay clamps at 0 instead of going negative")
+	assert_true(not part.is_frozen(), "at 0 the part is no longer frozen")
+	assert_eq(heard, [ChEvent.THAWED], "leaving frozen emits THAWED")
+	part.apply_sample({}, 1.0, bus)
 	assert_eq(heard, [ChEvent.THAWED], "an already thawed part does not re-emit THAWED")
 	# A frost touch that does not reach 1.0 re-builds freeze without freezing: one group for half a
 	# second is 0.3, so neither FROZEN nor THAWED fires.
@@ -177,9 +181,15 @@ func test_frozen_pauses_cooldown() -> void:
 	# The paused tick: still 2 s, and a frozen part is never ready.
 	assert_eq(part.tick_cooldown(0.5), false, "a frozen part's cooldown does not advance")
 	assert_eq(part.cooldown_left, 2.0, "the cooldown stayed at 2 s across a frozen tick")
-	# One tick of decay leaves the frozen state (nothing cold in the sample).
-	part.apply_sample({}, 1.0, ChEventBus.new())
-	assert_true(not part.is_frozen(), "one tick of decay leaves the frozen state")
+	# Decay alone keeps it frozen until the meter is empty: 1 s leaves 0.75, still paused.
+	var bus := ChEventBus.new()
+	part.apply_sample({}, 1.0, bus)
+	assert_true(part.is_frozen(), "a decaying meter is still frozen")
+	assert_eq(part.tick_cooldown(0.5), false, "so the countdown still holds")
+	assert_eq(part.cooldown_left, 2.0, "at 2 s")
+	# 3 more seconds empty the meter (0.25/s), which is the thaw (nothing cold in the sample).
+	part.apply_sample({}, 3.0, bus)
+	assert_true(not part.is_frozen(), "an empty meter leaves the frozen state")
 	assert_eq(part.tick_cooldown(1.0), false, "1.0 of a 2 s cooldown is not ready yet")
 	assert_eq(part.cooldown_left, 1.0, "thawed, the countdown runs")
 	assert_eq(part.tick_cooldown(1.0), true, "reaching 0 reports ready")

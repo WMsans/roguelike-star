@@ -193,3 +193,85 @@ of Fire 8–11, Harpoon 4. Sparks wins because it's the only build with no drawb
 
 Everything is committed in `4b5dc53` on `garage-battle-ui`. The 9 failing tests listed under Next
 steps are failing in that commit, so fix them first.
+
+## Update, second session (2026-11-07, uncommitted)
+
+Next steps 1, 2 and 4 are done. Tests: 238 passed, 0 failed. If `tests/balance/*` fail with "did
+not run", the local `.godot` class cache is stale: run `godot --headless --path . --import` once.
+
+The user's calls on the open problems:
+
+1. **Freeze:** a hull hit puts its freeze on the target's part nearest the attacker
+   (`ChBattleContext.deal_hit`, `hit["freeze_part"]`; the Mace's Shatter reads that key).
+   That alone changed nothing: a hit's full meter decayed below 1.0 on the next tick, so a freeze
+   lasted one tick and `FROZEN` never fired. Now a part stays frozen until its meter decays to 0
+   (`ChPartRuntime.frozen_held`; 4 s at `FREEZE_DECAY` 0.25), per the slice spec's "Freeze decays
+   over time". A Shatter still thaws at once.
+2. **Ember** counts only its own chariot's fires. Tooltip updated.
+
+Also: tooltip copy for Rocket, Chainsaw, Firebolt, Freeze Charge and Ring of Fire now matches the
+numbers. The Sparks 7/8 in the table above was stale: it's 5W 1L 2D on `4b5dc53` too.
+
+Results now (`demo`, against `dozer_cook`): sparks 5-1-2, freeze 6-2, selfburn 7-0-1, artillery
+8-0, hotmelee 6-2. The freeze build's enemy freezes 17 times per fight, and its Mace deals 45.6
+damage per energy (the Shatter payoff).
+
+`demo-matrix`: sparks 0.72, freeze 0.66, artillery 0.47, hotmelee 0.38, **selfburn 0.28**.
+
+Tried and reverted: Ember `GAIN` 3 → 5 left selfburn exactly at 0.28 (it's starved for only about
+6 s per fight, so energy isn't what it lacks) and lifted Sparks to 0.75. Selfburn's cost is the
+flat 5 HP/s self-burn (`ChDamage.burn_tick`), which needs a design call (scale burn by parts
+alight? Hearth/Ring self-ignite less?). `expect` ranges for `demo.json` are still left out until
+the numbers are final.
+
+### Selfburn follow-up (2026-11-08)
+
+- **Burn per burning part: tried and reverted.** Selfburn went 1/8 against the cook at 2.5 HP/s per
+  part, 4/8 at 1.5 and 7/8 at 1.0, against 7/8 on the flat rule. Hotmelee went 0–1/8 against 6/8.
+  Hearth's ring lights most of its own chariot, so any per-part rule charges self-burners the most.
+  The burn is back to flat 5 HP/s.
+- **Self-burn isn't what sinks selfburn.** With burn damage off for both sides it still goes 7-0-1
+  against the cook, and self-burn costs it only about 130 HP per fight. So "Hearth/Ring self-ignite
+  less" can't lift its score and wasn't done.
+- **Ring of Fire cost 5 → 3** (kept): 8 → 13.8 damage per energy, at baseline. Against the cook:
+  selfburn 8/8, hotmelee 7/8. In `demo-matrix` selfburn stays at 0.25 (sparks 0.72, freeze 0.66,
+  artillery 0.47, hotmelee 0.41).
+- Hotmelee's Ring at Corsair `[2]` (rear) fires 9 times per fight and hits nothing. That's a
+  placement problem in the reference build, not the part's numbers.
+- Every mirror match in `demo-matrix` goes 1-3 or 0-4 against the player side, which hints at a
+  spawn or side bias in the arena. The score counts both sides, so it cancels there, but check it.
+- Round-robin fights last 13–25 s, against 30–47 s for the cook. Selfburn opens slowly (Hearth
+  charges for 1 s on a 4 s cooldown) and loses short fights. That's the lead for its next pass.
+
+Also fixed: `test_garage.gd` `test_main_draw_panel` fought the cached `dozer_cook.tres`, whose
+`max_hp` 1800 wins over the catalog's `TALL_HP`. It now clears that `max_hp` for its own fight.
+
+### Side bias and player skill (2026-11-08)
+
+- **Side bias: an artefact of mirror matches, not a bug.** New suite `mirror` (each build against
+  itself, 20 seeds): the player side wins 32/100, but artillery goes 10/10. A fully symmetric arena
+  (tried, reverted) barely changes it. The cause: identical builds fire on the same frames and
+  often kill each other on the same tick, and `ChBattle.result_for` gives a double knock-out to the
+  enemy (by design). In selfburn mirrors that decides 12 of 20 fights. In `demo-matrix` only 3 of
+  100 fights are double knock-outs, all in mirrors. Outside mirrors the player side wins 43/80, and
+  the round-robin score counts both sides, so it isn't distorted. Each tick is effectively
+  simultaneous: a chariot killed earlier in a tick still acts later in it.
+- **The arena isn't mirror-symmetric** (wood 130/322, water 196/252, lava 172@142 / 246@148, and
+  one-sided surface noise per seed). It isn't the cause of the bias, but it's there.
+- **Player skill.** A human can drive better than `ai`. The best simple policy is `hold` (stand
+  still and save the energy that driving costs). It wins as often as `ai` against the cook but ends
+  with much more HP left (sparks 654 against 503, freeze 549 against 323). Taking the best policy
+  per build, the cook loses 6–8 of 8 to every build, so it's easy for a careful player.
+- **Cook HP isn't a uniform difficulty dial.** At 2400 or 3000 HP selfburn and hotmelee fall to
+  0–1 of 8 while artillery stays at 7–8 of 8. Longer fights reward steady damage and punish
+  self-burn, which piles up over time. A difficulty dial that doesn't reorder the builds would be
+  the cook's damage or its AI, not its HP.
+- **Smarter cook AI: a "careful driver" tried and reverted.** The rule, shared by both sides: stand
+  off outside the other side's longest reach-limited weapon when you can outrange it, and don't
+  drive toward the enemy below the energy cost of your dearest weapon. As a player stand-in it was
+  worse. Backing away costs 2 energy/s, so careful players starved for 42–55 s of each fight and
+  timed out (artillery drew all 8 against the cook). It didn't make the cook harder either: `hold`
+  against it matched `hold` against the old cook exactly. While driving, the cook still nets
+  +1 energy/s (Dozer regen 3, drive 2), so the reserve never triggered, and with no ranged weapon it
+  never stands off. The cook's kit (Hearth, Mace, Harpoon) is a pure brawler, so there's little for
+  a driving AI to do better. `hold` remains the best cheap stand-in for a careful human.
