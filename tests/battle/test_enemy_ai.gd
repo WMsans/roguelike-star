@@ -51,7 +51,7 @@ func test_in_reach_and_enough_energy_presses() -> void:
 	var mace := _part(&"ice_cream_mace")
 	var rig := _rig([mace], 20.0, 0.0)
 	var cost := float(mace.def.energy_cost)
-	var dx := mace.def.proximity_range + 2.0 * HALF
+	var dx := mace.def.proximity_range + HALF  # measured from the part: range + target half
 	rig.energy.value = cost * ChEnemyAI.PRESS_SHARE
 	assert_true(ChEnemyAI.should_press(rig, dx, HALF, HALF), "in reach with 60% of the volley presses")
 	rig.energy.value = cost * 0.5
