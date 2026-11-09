@@ -64,6 +64,8 @@ static func decide(self_x: float, target_x: float, preferred_range: float,
 	if style == &"brawler":
 		return signf(dx)
 	if style == &"kiter":
+		if is_inf(hold):
+			return 0.0  # INF - KITE_BACKOFF is still INF, which would read as "too close" forever
 		if absf(dx) < hold - KITE_BACKOFF:
 			return -signf(dx)
 		return signf(dx) if absf(dx) > hold else 0.0

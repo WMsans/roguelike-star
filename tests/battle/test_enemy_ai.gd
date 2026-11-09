@@ -112,3 +112,9 @@ func test_kiter_holds_in_band() -> void:
 func test_kiter_closes_from_far() -> void:
 	assert_eq(ChEnemyAI.decide(0.0, 200.0, 30.0, 10.0, 10.0, &"kiter"), 1.0)
 	_complete()
+
+
+func test_kiter_with_no_reach_holds_still() -> void:
+	# INF - KITE_BACKOFF is still INF, so without a guard every finite distance reads "too close".
+	assert_eq(ChEnemyAI.decide(0.0, 100.0, INF, 10.0, 10.0, &"kiter"), 0.0)
+	_complete()
