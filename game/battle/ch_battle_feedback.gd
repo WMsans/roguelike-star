@@ -38,11 +38,17 @@ func on_event(event: ChEvent) -> void:
 			_hit(event, source)
 		ChEvent.CAUGHT_FIRE:
 			_play(&"caught_fire", source)
+			_fx(&"ignite", source)
 		ChEvent.FROZEN:
 			_play(&"frozen", source)
+			_fx(&"frost", source)
 		ChEvent.THAWED:
 			_play(&"thawed", source)
+			# A Shatter breaks the ice; a freeze that ran out just melts, with no burst.
+			if event.data.get("shatter", false):
+				_fx(&"shatter", source)
 		ChEvent.PART_BROKEN:
+			_fx(&"fire_blast", source)
 			# The part's own def colour, so a broken wheel's burst matches its art.
 			_play(&"broken", source, {"color": source.def.color} if source.def != null else {})
 		ChEvent.ENERGY_GAINED:
@@ -80,3 +86,10 @@ func _play(kind: StringName, part: ChPartRuntime, overrides := {}) -> void:
 	if not is_instance_valid(part.visual):
 		return
 	Feedback.play(kind, part.visual, overrides)
+
+
+func _fx(fx: StringName, part: ChPartRuntime) -> void:
+	# A status burst plays in the world at the part's body, which is cell space. Same rule as _play: a part
+	# whose body left the world has nowhere to play it.
+	if is_instance_valid(part.visual):
+		ChFx.spawn(_ctx.world, fx, part.visual.global_position)

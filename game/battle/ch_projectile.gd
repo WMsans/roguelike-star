@@ -14,6 +14,7 @@ var bolt_velocity: Vector2 = Vector2.ZERO  # cells per second
 var bolt_gravity: float = 0.0  # cells per second squared, 0 for a straight shot
 var impact: Callable = Callable()  # called with the raycast dict on the hit
 var life: float = 0.0  # seconds flown
+var trail: ChFx = null  # the bolt's own look (a ChFx loop parented here), turned along its flight
 
 const LIFE := 3.0  # seconds before the bolt gives up
 
@@ -36,6 +37,8 @@ func _physics_process(delta: float) -> void:
 	# The gravity is an acceleration in cells per second squared, so it lands on the velocity before
 	# the step does: a lobbed bolt falls more every frame it flies.
 	bolt_velocity.y += bolt_gravity * delta
+	if trail != null and is_instance_valid(trail):
+		trail.face(bolt_velocity)
 	var from := global_position
 	var to := from + bolt_velocity * delta
 	global_position = to

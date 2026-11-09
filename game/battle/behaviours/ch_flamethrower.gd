@@ -29,6 +29,7 @@ var burst_left := 0.0  # seconds of burst left to spray
 var pulse_gap := 0.0  # seconds between damage pulses
 var pulse_left := 0.0  # seconds until the next pulse
 var pulses_left := 0  # pulses still to spend
+var jet: ChFx = null  # the flame's look, held on the nozzle while the burst runs
 
 
 func _flame_box() -> Rect2:
@@ -48,12 +49,21 @@ func fire(ctx: ChBattleContext) -> void:
 	pulses_left = PULSES
 	pulse_gap = BURST_SECONDS / PULSES
 	pulse_left = 0.0
+	if jet == null or not is_instance_valid(jet):
+		jet = ChFx.spawn(ctx.world, &"flamethrower", part.anchor_world() + part.facing() * NOZZLE, part.facing())
 
 
 func process(ctx: ChBattleContext, delta: float) -> void:
 	if burst_left <= 0.0:
 		return
 	burst_left = maxf(0.0, burst_left - delta)
+	# The jet rides the nozzle as the rig rolls and tips, and fades once the burst is spent.
+	if jet != null and is_instance_valid(jet):
+		jet.position = part.anchor_world() + part.facing() * NOZZLE
+		jet.face(part.facing())
+		if burst_left <= 0.0:
+			jet.stop()
+			jet = null
 	if ctx.world != null:
 		# The brief's shot: 3 fire particles at the nozzle, facing() x 90 cells/s over a 0.25 rad cone.
 		var nozzle := part.anchor_world() + part.facing() * NOZZLE

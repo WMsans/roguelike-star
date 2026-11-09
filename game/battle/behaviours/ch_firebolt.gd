@@ -28,6 +28,8 @@ func fire(ctx: ChBattleContext) -> void:
 	ctx.world.add_child(bolt)
 	bolt.global_position = part.anchor_world()
 	bolt.setup(ctx, part, dir.rotated(up) * SPEED, GRAVITY, func(shot: Dictionary): _impact(ctx, shot))
+	ChFx.spawn(ctx.world, &"muzzle", part.anchor_world(), dir.rotated(up))
+	bolt.trail = ChFx.spawn(bolt, &"fireball", Vector2.ZERO, dir.rotated(up))
 
 func process(ctx: ChBattleContext, delta: float) -> void:
 	# At zero charges the launcher stops requesting. ChBattleContext asks the parts whose countdown
@@ -47,6 +49,7 @@ func _impact(ctx: ChBattleContext, shot: Dictionary) -> void:
 	ctx.world.explode(at, BLAST_RADIUS, BLAST_POWER)
 	# The fire goes in after the blast, so the blast cannot blow the fresh fire away.
 	ctx.world.fill_circle(at, FIRE_RADIUS, &"fire")
+	ChFx.spawn(ctx.world, &"fire_blast", Vector2(at))
 	var met: Object = shot.get("collider")
 	if met != null and is_instance_valid(met):
 		# A hull or part in the way of the landing pays through the fight's one entry point.
