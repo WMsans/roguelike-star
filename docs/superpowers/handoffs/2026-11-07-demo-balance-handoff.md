@@ -301,3 +301,19 @@ Also fixed: `test_garage.gd` `test_main_draw_panel` fought the cached `dozer_coo
   hotmelee (4/8) would drop under. Playtest before tuning further.
 - Open: sparks at 0.69 is just over 0.65 (4 seeds per pairing). `expect` ranges for `demo.json`
   are still to add once the user signs off on these numbers.
+
+### Ember as the core of an energy-hungry build (2026-11-08)
+
+- User's intent: Ember Battery is the core of builds whose parts exhaust energy.
+- **The chain-3 reference build (still named `selfburn` in the suites) is now E1:** Chainsaw `[6]`,
+  Rocket `[5]`,`[4]`, Hearth `[3]`, Ember `[2]`. The Hearth sets your own parts alight, Ember turns
+  each catch into energy, and the same catches trigger the Rockets' Ignition, which spends it.
+- Measured against a third Rocket in Ember's slot (40-fight slices): E1 0.55 with Ember against
+  0.53 without; 2 Flamethrowers + 2 Rockets 0.60 either way. Without Ember these builds starve
+  for 10–14 s per fight; with it, 4–6 s. Ember gain 5 drops starvation to 1.5–3.4 s but doesn't
+  move the score. **Ember's ceiling is the starvation a build would otherwise have**, so it's worth
+  about one weapon slot now. User's call: stop there, and revisit once more energy-hungry parts
+  exist.
+- Final `demo-matrix`: sparks 0.69, selfburn (E1) 0.56, artillery 0.47, hotmelee 0.41,
+  freeze 0.38. Against the cook (AI-driven player): 5-1-2, 6-2, 8-0, 8-0, 8-0. With `hold`:
+  7, 6, 6, 7, 4 of 8.
