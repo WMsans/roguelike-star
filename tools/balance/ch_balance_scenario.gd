@@ -5,7 +5,7 @@ class_name ChBalanceScenario extends RefCounted
 # naming the valid values when a value is unknown, so a typo is fixed in one round trip and no
 # fight ever runs on a half-understood scenario.
 
-const SCENARIO_KEYS := ["name", "player", "enemy", "seeds", "drive", "expect"]
+const SCENARIO_KEYS := ["name", "player", "enemy", "seeds", "drive", "press", "expect"]
 const SIDE_KEYS := ["layout", "body_id", "parts", "hp", "body_type", "body_seed"]
 const PART_KEYS := ["slot", "part", "flipped"]
 const SUITE_KEYS := ["name", "scenarios"]
@@ -54,7 +54,8 @@ static func _scenario(data: Variant, base: ChCatalog, where: String, root: Strin
 	if not (name is String and name != ""):
 		errors.append("%s: %s: required, a non-empty string" % [where, _at(root, "name")])
 	var seeds := _seeds(data.get("seeds", {}), where, _at(root, "seeds"), errors)
-	var drive := _drive(data.get("drive", {}), where, _at(root, "drive"), errors)
+	var drive := _policies(data.get("drive", {}), ChBalanceDrivers.POLICIES, where, _at(root, "drive"), errors)
+	var press := _policies(data.get("press", {}), ChBalanceDrivers.PRESS_POLICIES, where, _at(root, "press"), errors)
 	var expect := _expect(data.get("expect", {}), where, _at(root, "expect"), errors)
 	# Hp overrides collect here; their ids are unique per (body, hp), so one catalog holds them all.
 	var extra_bodies: Dictionary = {}
@@ -78,6 +79,7 @@ static func _scenario(data: Variant, base: ChCatalog, where: String, root: Strin
 			m.catalog = catalog
 			m.seeds = seeds
 			m.drive = drive
+			m.press = press
 			m.expect = expect
 			out.append(m)
 	return out
@@ -120,7 +122,7 @@ static func _seeds(value: Variant, where: String, field: String, errors: PackedS
 	return seeds
 
 
-static func _drive(value: Variant, where: String, field: String, errors: PackedStringArray) -> PackedStringArray:
+static func _policies(value: Variant, known: Array, where: String, field: String, errors: PackedStringArray) -> PackedStringArray:
 	var drive := PackedStringArray(["ai", "ai"])
 	if not value is Dictionary:
 		errors.append("%s: %s: must be {\"player\": policy, \"enemy\": policy}" % [where, field])
@@ -129,9 +131,9 @@ static func _drive(value: Variant, where: String, field: String, errors: PackedS
 	for at in 2:
 		var key: String = ["player", "enemy"][at]
 		var policy = value.get(key, "ai")
-		if not ChBalanceDrivers.POLICIES.has(policy):
+		if not known.has(policy):
 			errors.append("%s: %s.%s: unknown policy '%s'; known: %s" % [where, field, key, policy,
-				", ".join(ChBalanceDrivers.POLICIES)])
+				", ".join(known)])
 			continue
 		drive[at] = policy
 	return drive

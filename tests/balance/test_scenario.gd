@@ -15,6 +15,7 @@ func test_valid_scenario_builds_one_matchup() -> void:
 	var m: ChBalanceMatchup = out.matchups[0]
 	assert_eq(m.seeds, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "default seeds")
 	assert_eq(Array(m.drive), ["ai", "ai"], "default drive")
+	assert_eq(Array(m.press), ["ai", "ai"], "default press")
 	assert_eq(m.player.get_node([2]).part_id, &"cutter_rocket")
 	_complete()
 
@@ -40,6 +41,17 @@ func test_missing_name_and_bad_drive_are_both_reported() -> void:
 		_base(), "s.json")
 	assert_true(not out.ok)
 	assert_eq(out.errors.size(), 2, str(out.errors))
+	_complete()
+
+func test_press_parses_and_rejects_unknown_policy() -> void:
+	var ok := ChBalanceScenario.parse({"name": "s", "player": _side(), "enemy": _side(),
+		"press": {"player": "mash", "enemy": "never"}}, _base(), "s.json")
+	assert_true(ok.ok, str(ok.errors))
+	assert_eq(Array(ok.matchups[0].press), ["mash", "never"])
+	var bad := ChBalanceScenario.parse({"name": "s", "player": _side(), "enemy": _side(),
+		"press": {"player": "spam"}}, _base(), "s.json")
+	assert_true(not bad.ok)
+	assert_true(bad.errors[0].contains("press.player"), str(bad.errors))
 	_complete()
 
 func test_matrix_expands_every_pair() -> void:

@@ -90,6 +90,7 @@ func _fight(m: ChBalanceMatchup, seed: int) -> Dictionary:
 	var battle: ChBattle = ResourceLoader.load("res://game/battle/battle.tscn").instantiate()
 	tree.root.add_child(battle)
 	battle.drivers = [ChBalanceDrivers.make(m.drive[0]), ChBalanceDrivers.make(m.drive[1])]
+	battle.pressers = [ChBalanceDrivers.make_press(m.press[0]), ChBalanceDrivers.make_press(m.press[1])]
 	var stats := ChFightStats.new()
 	stats.bind(battle)
 	var results: Array[StringName] = []

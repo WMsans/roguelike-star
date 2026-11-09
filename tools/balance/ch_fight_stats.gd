@@ -13,7 +13,7 @@ var _energy_gained: Array[float] = [0.0, 0.0]  # by the side whose pool gained
 var _caught_fire: Array[int] = [0, 0]  # parts of this side that caught fire
 var _frozen: Array[int] = [0, 0]  # parts of this side that froze
 var _touching := false
-var _parts: Dictionary = {}  # ChPartRuntime -> {firings, hits, damage, waiting_ticks, broke_at}
+var _parts: Dictionary = {}  # ChPartRuntime -> {firings, hits, damage, ready_ticks, broke_at}
 
 
 func bind(battle: ChBattle) -> void:
@@ -34,15 +34,18 @@ func _on_step(ctx: ChBattleContext) -> void:
 		_bus.subscribe(self, ChEvent.FROZEN, func(e: ChEvent): _count(_frozen, e))
 	for side in 2:
 		var chariot: ChChariotRuntime = ctx.chariots[side]
-		if chariot.energy.queue_size() > 0:
-			_starved_ticks[side] += 1
+		# Starved: a part could go off but the pool can't pay its cost.
+		for part in chariot.parts:
+			if part.is_ready() and part.def.energy_cost > chariot.energy.value:
+				_starved_ticks[side] += 1
+				break
 		# Hull past 90 degrees either way: on its side or upside down.
 		if absf(wrapf(chariot.chassis.global_rotation, -PI, PI)) > PI / 2.0:
 			_flipped_ticks[side] += 1
 		for part in chariot.parts:
 			var stats := _part(part)
-			if chariot.energy.is_queued(part):
-				stats.waiting_ticks += 1
+			if part.is_ready():
+				stats.ready_ticks += 1
 			if part.broken and stats.broke_at < 0.0:
 				stats.broke_at = ctx.time
 	# A ram is the moment the hulls start touching, so a long shove counts once.
@@ -54,7 +57,7 @@ func _on_step(ctx: ChBattleContext) -> void:
 
 func _part(part: ChPartRuntime) -> Dictionary:
 	if not _parts.has(part):
-		_parts[part] = {"firings": 0, "hits": 0, "damage": 0, "waiting_ticks": 0, "broke_at": -1.0}
+		_parts[part] = {"firings": 0, "hits": 0, "damage": 0, "ready_ticks": 0, "broke_at": -1.0}
 	return _parts[part]
 
 
@@ -109,7 +112,7 @@ func fight(seed: int, result: StringName) -> Dictionary:
 				"misses": maxi(0, stats.firings - stats.hits),
 				"damage_dealt": stats.damage, "energy_spent": spent,
 				"damage_per_energy": stats.damage / spent if spent > 0.0 else 0.0,
-				"seconds_waiting": stats.waiting_ticks * ChBattle.TICK,
+				"seconds_ready_unfired": stats.ready_ticks * ChBattle.TICK,
 				"broke_at_seconds": stats.broke_at}
 			part_sum += stats.damage
 		sides.append({"hp_left": me.hp, "damage_dealt": dealt, "unattributed_damage": dealt - part_sum,

@@ -19,6 +19,21 @@ static func make(policy: String) -> Callable:
 	return func(battle, side): return battle.ai_drive(side)
 
 
+# The press policies, the other half of a side's input: ChBattle.pressers entries, func(battle, side)
+# -> bool. "ai" is the enemy AI's rule, "mash" holds the button every tick, "never" never presses.
+const PRESS_POLICIES := ["ai", "mash", "never"]
+
+
+static func make_press(policy: String) -> Callable:
+	# CONTRACT: policy is one of PRESS_POLICIES; ChBalanceScenario rejects anything else before a fight.
+	match policy:
+		"mash":
+			return func(_battle, _side): return true
+		"never":
+			return func(_battle, _side): return false
+	return func(battle, side): return battle.ai_press(side)
+
+
 static func charge_toward(self_x: float, other_x: float) -> float:
 	# Always at the other chariot, never holding off: -1, 0 or 1.
 	return signf(other_x - self_x)

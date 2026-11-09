@@ -3,7 +3,7 @@
 ## What it's for
 
 Runs seeded, headless auto-battles from a JSON scenario and reports win rates, time to kill and
-per-part output (damage, damage per energy, time spent waiting for energy) as text and JSON. Run
+per-part output (damage, damage per energy, time spent ready but unfired) as text and JSON. Run
 it after changing a part, a body or a balance number, or whenever someone asks whether something
 is balanced: it turns "feels strong" into numbers you can compare before and after.
 
@@ -43,6 +43,7 @@ file you can copy):
   "enemy":  SIDE or [SIDE, ...],
   "seeds":  {"from": 1, "count": 10},
   "drive":  {"player": "ai", "enemy": "ai"},
+  "press":  {"player": "ai", "enemy": "ai"},
   "expect": {"win_rate": [0.4, 0.6], "player.dps_dealt": [10, 20]}
 }
 ```
@@ -63,6 +64,7 @@ A `SIDE` is one of:
 | `player`, `enemy` | yes | | a side, or a list of sides: a list makes a matrix, every player × enemy pair runs |
 | `seeds.from`, `seeds.count` | no | `1`, `10` | fights use seeds `from .. from+count-1` |
 | `drive.player`, `drive.enemy` | no | `"ai"`, `"ai"` | `ai` (the enemy AI's approach-and-hold rule), `hold` (never drives), `charge` (always drives at the other chariot) |
+| `press.player`, `press.enemy` | no | `"ai"`, `"ai"` | when the side presses its button (a press fires a volley of ready parts): `ai` (the enemy AI's rule), `mash` (every tick, so each part fires the moment it is ready and affordable), `never` (parts sit ready and unfired) |
 | `expect` | no | `{}` | dotted metric path → inclusive `[min, max]`; see below |
 | side `layout` | one of | | a `res://` `ChChariotLayout` (`--list` shows them) |
 | side `body_id` | one of | | a body id (`--list`), with `parts` |
@@ -105,7 +107,7 @@ are engine teardown noise, not failures.
 `FIGHT` is `{"seed", "result": "win"|"loss"|"draw"|"aborted", "fight_seconds", "sides": [PLAYER, ENEMY]}`:
 `sides[0]` is the player and `sides[1]` the enemy, each with the per-side metrics below for that
 one fight. The stdout table abbreviates some names: `starved_s` = `energy_starved_seconds`,
-`dmg/energy` = `damage_per_energy`, `waiting_s` = `seconds_waiting`. Part breakage
+`dmg/energy` = `damage_per_energy`, `ready_s` = `seconds_ready_unfired`. Part breakage
 (`broke_at_seconds`, `broke_fraction`) is only in `--out`.
 
 Per matchup (`AGG`): `fights`, `wins`, `losses`, `draws`, `aborted`, `win_rate`,
@@ -124,7 +126,7 @@ Per side:
 | `unattributed_damage` | `damage_dealt` minus what this side's parts claimed. Mostly burn: any HP the other chariot lost that no part of this side hit for, so it also holds burn on a chariot that set itself alight, and can be non-zero for a build with no fire parts |
 | `dps_dealt` | `damage_dealt / fight_seconds` |
 | `energy_spent` | energy paid, driving plus every part firing |
-| `energy_starved_seconds` | time with at least one part waiting in the energy queue |
+| `energy_starved_seconds` | time with a ready part whose energy cost exceeds the pool (a press could not pay for it) |
 | `flipped_seconds` | time with the hull rotated past 90° |
 | `rams` | times the two hulls started touching (same number for both sides) |
 | `energy_gained` | energy this chariot's parts added to its own pool (Ember Battery), after the cap: a gain into a full pool counts 0 |
@@ -136,13 +138,13 @@ Per part:
 
 | metric | meaning |
 |---|---|
-| `firings` | times the part was paid and went off |
+| `firings` | times a press paid for the part and it went off |
 | `hits` | hits it landed on the other chariot (hits on its own chariot are not counted) |
 | `misses` | `max(0, firings - hits)`. Approximate: one firing can hit several times (pulses, a growing ring) or hit later |
 | `damage_dealt` | HP damage from its hits on the other chariot |
 | `energy_spent` | `firings × energy_cost` |
 | `damage_per_energy` | `damage_dealt / energy_spent`, `0` if it spent nothing |
-| `seconds_waiting` | time it sat in the energy queue |
+| `seconds_ready_unfired` | time it was ready (cooled down, intact, not frozen, charges left) and had not fired; large under `press: never`, or when the policy presses late |
 | `broke_at_seconds` | mean time it broke, over the fights it broke in; `-1` if it never broke |
 | `broke_fraction` | share of fights it broke in (aggregates only) |
 
