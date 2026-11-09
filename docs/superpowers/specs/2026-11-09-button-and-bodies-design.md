@@ -127,10 +127,11 @@ stops cancelling.
 
 **Readiness has to be visible.** Timing is the whole decision:
 
-- Each ready triggered part glows on the chariot. Reuse the existing feedback/juice layer, so this
-  is a new profile and not a new system.
-- The HUD's "N parts waiting" line becomes "N ready". The pool bar marks the cost of the full ready
-  volley, so the player can see whether a press would pay for all of it.
+- Each ready triggered part gets a **glowing outline** (Decided): a pixel outline around the part's
+  sprite that glows while it's ready and goes away when it fires. The part's own fill is not tinted.
+- The HUD's "N parts waiting" line is removed, and no "N ready" count replaces it (Decided). The
+  pool bar marks the cost of the full ready volley, so the player can see whether a press would
+  pay for all of it.
 - A press with nothing ready, or nothing affordable, gives a small "dud" nudge so the press still
   registers.
 
@@ -234,6 +235,6 @@ both sides.
 - Where each slot moves on its new outline (count and order fixed).
 - Brawler push and kiter back-off thresholds.
 - The enemy press thresholds, and part re-costing after the switch to presses.
-- The ready glow's look, and the dud feedback.
+- The outline's colour, width and glow pulse, and the dud feedback.
 - Which tests change. Each test's own comments say what it pins: change constants, and don't
   weaken what is checked.
