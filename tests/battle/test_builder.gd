@@ -518,3 +518,58 @@ func test_outline_texture_rings_the_shape() -> void:
 	assert_true(out.get_pixel(0, 0).a == 0.0, "a corner has no 4-neighbour")
 	assert_true(out.get_pixel(2, 2).a == 0.0, "the shape's own pixels are not ringed")
 	_complete()
+
+
+func _wedge_catalog(extra: Callable = Callable()) -> ChCatalog:
+	# A one-body catalog: a right triangle on a 10x10 box, its nose at the top left.
+	var def := ChBodyDef.new()
+	def.id = &"wedge"
+	def.hp = 10
+	def.size = Vector2i(10, 10)
+	def.outline = PackedVector2Array([Vector2(-5, 5), Vector2(5, 5), Vector2(-5, -5)])
+	if extra.is_valid():
+		extra.call(def)
+	return ChCatalog.from_defs([] as Array[ChPartDef], [def] as Array[ChBodyDef])
+
+
+func _chassis_image(mirror: bool) -> Image:
+	var world: PixelWorld = await make_world()
+	var runtime: ChChariotRuntime = ChChariotBuilder.build(
+		world, _parent(), _mount(&"wedge", []), _wedge_catalog(), 0, ORIGIN, mirror)
+	var image: Image = runtime.chassis.texture.get_image()
+	world.free()
+	return image
+
+
+func test_outline_hull_is_drawn_from_polygon() -> void:
+	var image: Image = await _chassis_image(false)
+	assert_eq(image.get_pixel(8, 1).a, 0.0, "the triangle's empty corner is transparent")
+	assert_eq(image.get_pixel(1, 8).a, 1.0, "its body is opaque")
+	_complete()
+
+
+func test_mirrored_hull_flips_nose() -> void:
+	# The enemy is built mirrored; a hull that kept its nose on the same side would face away.
+	var image: Image = await _chassis_image(true)
+	assert_eq(image.get_pixel(1, 1).a, 0.0, "mirrored: the left corner is empty")
+	assert_eq(image.get_pixel(8, 8).a, 1.0, "mirrored: the right side is solid")
+	_complete()
+
+
+func test_body_physics_applied() -> void:
+	var world: PixelWorld = await make_world()
+	var catalog := _wedge_catalog(func(d: ChBodyDef) -> void:
+		d.mass = 50.0
+		d.friction = 0.2
+		d.restitution = 0.4)
+	var runtime: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount(&"wedge", []), catalog, 0, ORIGIN, false)
+	assert_near(runtime.chassis.mass, 50.0, 0.001, "mass reaches the chassis")
+	assert_near(runtime.chassis.friction, 0.2, 0.001, "friction reaches the chassis")
+	assert_near(runtime.chassis.restitution, 0.4, 0.001, "restitution reaches the chassis")
+	var plain: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount(&"wedge", []), _wedge_catalog(), 1, ORIGIN, false)
+	var engine := PixelRigidBody.new()
+	assert_near(plain.chassis.friction, engine.friction, 0.001, "default friction is the engine's")
+	assert_near(plain.chassis.restitution, engine.restitution, 0.001, "default restitution is the engine's")
+	engine.free()
+	world.free()
+	_complete()

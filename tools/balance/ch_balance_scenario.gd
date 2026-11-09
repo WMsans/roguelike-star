@@ -303,13 +303,8 @@ static func _known(table: Dictionary) -> String:
 
 
 static func _body_with_hp(loaded: ChBodyDef, hp: int) -> ChBodyDef:
-	# Copied field by field: duplicate() drops a script resource's own (non-exported) properties on
-	# this build (see ChTest._body_with_hp). Walking the script's variables keeps fields a later
-	# plan adds to ChBodyDef without touching this.
-	var copy := ChBodyDef.new()
-	for prop in loaded.get_property_list():
-		if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
-			copy.set(prop.name, loaded.get(prop.name))
+	# ChBodyDef.copy() carries every field (duplicate() drops a script resource's own properties).
+	var copy := loaded.copy()
 	copy.id = StringName("%s__hp%d" % [loaded.id, hp])
 	copy.hp = hp
 	return copy

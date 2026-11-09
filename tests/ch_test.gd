@@ -100,20 +100,10 @@ func _enemy_layout() -> ChChariotLayout:
 
 
 func _body_with_hp(loaded: ChBodyDef, hp: int) -> ChBodyDef:
-	# A body def with its HP replaced. ChBodyDef.duplicate() drops a script resource's own properties
-	# on this build (verified: the copy answers an empty id and 0 HP), so the fields the builder reads
-	# are written across one by one rather than guessed at.
-	var copy := ChBodyDef.new()
-	copy.id = loaded.id
-	copy.display_name = loaded.display_name
-	copy.hp = hp
-	copy.energy_cap = loaded.energy_cap
-	copy.energy_regen = loaded.energy_regen
-	copy.size = loaded.size
-	copy.color = loaded.color
-	copy.slots = loaded.slots
-	copy.material = loaded.material
-	return copy
+	# A body def with its HP replaced; copy() writes every field across (see ChBodyDef.copy).
+	var out := loaded.copy()
+	out.hp = hp
+	return out
 
 
 func _fight_catalog(enemy_hp: int, player_hp: int = 0) -> ChCatalog:

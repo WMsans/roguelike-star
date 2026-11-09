@@ -32,7 +32,13 @@ func _draw() -> void:
 	if body_def != null:
 		# The hull, centred on the origin: the cells at the pit's zoom, in the body's own colour.
 		var hull := Vector2(maxi(1, body_def.size.x), maxi(1, body_def.size.y)) * ChGarage.ZOOM
-		draw_rect(Rect2(-hull * 0.5, hull), body_def.color)
+		if body_def.outline.size() >= 3:
+			# A Transform2D scales the whole polygon; PackedVector2Array has no * float.
+			var shape: PackedVector2Array = Transform2D().scaled(Vector2.ONE * ChGarage.ZOOM) * body_def.outline
+			draw_colored_polygon(shape, body_def.color)
+			draw_polyline(shape + PackedVector2Array([shape[0]]), body_def.color.darkened(0.3), 1.0)
+		else:
+			draw_rect(Rect2(-hull * 0.5, hull), body_def.color)
 		return
 	if part_def == null:
 		return

@@ -151,3 +151,25 @@ func test_ember_battery_names_its_cooldown() -> void:
 	var lines := "\n".join(ChCatalog.load_default().part(&"ember_battery").description)
 	assert_true(lines.contains("0.5 s"), "ch_ember_battery.gd's BATTERY_COOLDOWN is stated")
 	_complete()
+
+
+func test_body_copy_keeps_every_field() -> void:
+	for body in ChCatalog.load_default().bodies.values():
+		var c: ChBodyDef = body.copy()
+		for field in ["id", "hp", "outline", "mass", "friction", "restitution", "drive_style", "type_name", "slots"]:
+			assert_eq(c.get(field), body.get(field), "%s: copy keeps %s" % [body.id, field])
+	_complete()
+
+
+func test_outline_matches_size() -> void:
+	for body in ChCatalog.load_default().bodies.values():
+		if body.outline.is_empty():
+			continue
+		var low: Vector2 = body.outline[0]
+		var high: Vector2 = body.outline[0]
+		for p in body.outline:
+			low = Vector2(minf(low.x, p.x), minf(low.y, p.y))
+			high = Vector2(maxf(high.x, p.x), maxf(high.y, p.y))
+		assert_eq(high - low, Vector2(body.size), "%s: outline spans size" % body.id)
+		assert_eq(low, -Vector2(body.size) * 0.5, "%s: outline is centred" % body.id)
+	_complete()

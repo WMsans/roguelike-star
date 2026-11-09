@@ -15,6 +15,28 @@ static func box(w: int, h: int, colour: Color) -> ImageTexture:
 		image.set_pixel(w - 1, y, colour.darkened(0.3))
 	return ImageTexture.create_from_image(image)
 
+static func polygon(outline: PackedVector2Array, size: Vector2i, colour: Color, mirror_x: bool = false) -> ImageTexture:
+	# A hull drawn from its outline: a pixel is solid when its centre is inside, and PixelRigidBody
+	# builds the collision hull from these opaque pixels. A mirrored build flips x so the nose of the
+	# enemy's hull faces the other way, as its part anchors do.
+	var image := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
+	var half := Vector2(size) * 0.5
+	var solid := func(x: int, y: int) -> bool:
+		if x < 0 or y < 0 or x >= size.x or y >= size.y:
+			return false
+		var at := Vector2(x + 0.5, y + 0.5) - half
+		if mirror_x:
+			at.x = -at.x
+		return Geometry2D.is_point_in_polygon(at, outline)
+	for y: int in size.y:
+		for x: int in size.x:
+			if solid.call(x, y):
+				var rim: bool = not (solid.call(x - 1, y) and solid.call(x + 1, y) and solid.call(x, y - 1) and solid.call(x, y + 1))
+				image.set_pixel(x, y, colour.darkened(0.3) if rim else colour)
+			else:
+				image.set_pixel(x, y, Color(0, 0, 0, 0))
+	return ImageTexture.create_from_image(image)
+
 static func disc(diameter: int, colour: Color) -> ImageTexture:
 	var image := Image.create(diameter, diameter, false, Image.FORMAT_RGBA8)
 	var r := diameter / 2.0
