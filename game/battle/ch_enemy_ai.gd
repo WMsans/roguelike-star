@@ -39,8 +39,11 @@ static func _can_fire(part: ChPartRuntime) -> bool:
 	# when it runs out, which also holds here) and a frozen part, whose countdown is paused.
 	return part.cooldown_left <= 0.0 and part.charges_left != 0 and not part.is_frozen()
 
+const KITE_BACKOFF := 8.0  # cells; width of the kiter's rest band below its hold. Proposed.
+
 static func decide(self_x: float, target_x: float, preferred_range: float,
-		own_half_width: float = 0.0, target_half_width: float = 0.0) -> float:
+		own_half_width: float = 0.0, target_half_width: float = 0.0,
+		style: StringName = &"") -> float:
 	# Chassis-centre to chassis-centre, in cells: -1 drives left, 1 drives right, 0 holds.
 	# ChBattleContext.tick pays whichever of the three ChEnergy can afford, so an unaffordable drive
 	# is simply ignored.
@@ -53,6 +56,17 @@ static func decide(self_x: float, target_x: float, preferred_range: float,
 	# An unreachable target (preferred_range INF) stays INF under the sum, so it still holds.
 	var hold := preferred_range + own_half_width + target_half_width
 	var dx := target_x - self_x
+	# A body's drive style (ChBodyDef.drive_style) overrides the hold-off so shape can matter:
+	# hulls have to meet for a body's silhouette to count. Brawler never holds off: it keeps
+	# pushing on contact. Kiter holds a band [hold - KITE_BACKOFF, hold]: it backs off from inside
+	# it, closes from outside it, and rests between (so it does not jitter on the edge). An INF
+	# range gives INF for hold, so a kiter with no reach holds still.
+	if style == &"brawler":
+		return signf(dx)
+	if style == &"kiter":
+		if absf(dx) < hold - KITE_BACKOFF:
+			return -signf(dx)
+		return signf(dx) if absf(dx) > hold else 0.0
 	if absf(dx) <= hold:
 		return 0.0
 	return -1.0 if dx < 0.0 else 1.0

@@ -340,7 +340,7 @@ func ai_drive(side: int) -> float:
 	var me := player if side == 0 else enemy
 	var other := enemy if side == 0 else player
 	return ai.decide(me.chassis.global_position.x, other.chassis.global_position.x,
-		ai.reach(me), _half_width(me), _half_width(other))
+		ai.reach(me), _half_width(me), _half_width(other), me.body_def.drive_style)
 
 
 func ai_press(side: int) -> bool:

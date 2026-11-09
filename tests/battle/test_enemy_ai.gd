@@ -90,3 +90,25 @@ func test_reach_is_not_counted_twice_for_an_offset_part() -> void:
 		"15 cells from the part is out of reach, though within range + both halves")
 	assert_true(ChEnemyAI.should_press(rig, 20.5, 10.0, 5.0), "10.5 cells from the part is inside 6 + 5")
 	_complete()
+
+
+# Task 6: drive styles. Pure decide() calls, no rig needed.
+func test_brawler_keeps_pushing() -> void:
+	# The hulls overlap at 20 apart (halves 15+15) and it still pushes.
+	assert_eq(ChEnemyAI.decide(0.0, 20.0, 6.0, 15.0, 15.0, &"brawler"), 1.0)
+	_complete()
+
+
+func test_kiter_backs_off_inside_reach() -> void:
+	assert_eq(ChEnemyAI.decide(0.0, 20.0, 30.0, 10.0, 10.0, &"kiter"), -1.0)
+	_complete()
+
+
+func test_kiter_holds_in_band() -> void:
+	assert_eq(ChEnemyAI.decide(0.0, 45.0, 30.0, 10.0, 10.0, &"kiter"), 0.0)
+	_complete()
+
+
+func test_kiter_closes_from_far() -> void:
+	assert_eq(ChEnemyAI.decide(0.0, 200.0, 30.0, 10.0, 10.0, &"kiter"), 1.0)
+	_complete()
