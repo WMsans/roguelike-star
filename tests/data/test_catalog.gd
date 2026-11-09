@@ -173,3 +173,30 @@ func test_outline_matches_size() -> void:
 		assert_eq(high - low, Vector2(body.size), "%s: outline spans size" % body.id)
 		assert_eq(low, -Vector2(body.size) * 0.5, "%s: outline is centred" % body.id)
 	_complete()
+
+
+func test_body_copy_keeps_non_default_fields() -> void:
+	# The catalog's bodies leave the new fields at their defaults, so this one sets every field to
+	# something else: a copy() that dropped any of them would fail here.
+	var body := ChBodyDef.new()
+	body.id = &"x"
+	body.display_name = "X"
+	body.hp = 77
+	body.energy_cap = 9
+	body.energy_regen = 1.5
+	body.size = Vector2i(10, 6)
+	body.material = &"iron"
+	body.color = Color(0.1, 0.2, 0.3)
+	body.slots = PackedVector2Array([Vector2(1, 2), Vector2(-3, 4)])
+	body.outline = PackedVector2Array([Vector2(-5, 3), Vector2(5, 3), Vector2(-5, -3)])
+	body.mass = 50.0
+	body.friction = 0.2
+	body.restitution = 0.4
+	body.drive_style = &"kiter"
+	body.type_name = "Wedge"
+	var c := body.copy()
+	for prop in body.get_property_list():
+		if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			assert_eq(c.get(prop.name), body.get(prop.name), "copy keeps %s" % prop.name)
+	assert_true(c != body, "copy is a new def")
+	_complete()
