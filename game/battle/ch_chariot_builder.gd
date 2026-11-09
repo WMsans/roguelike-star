@@ -75,6 +75,17 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		part_runtime.charges_left = def.charges
 		part_runtime.body = body
 		part_runtime.visual = visual_of(body)
+		if def.cooldown > 0.0:
+			# Only a part the button fires can be "ready". White, because ChBattle tints it (HDR) when lit.
+			# z -1 under the Visual so the ring never covers the art; hidden until a part is ready.
+			var ring := Sprite2D.new()
+			ring.name = "Outline"
+			ring.texture = ChTextures.outline(texture.get_image(), Color.WHITE)
+			ring.centered = true
+			ring.z_index = -1
+			ring.visible = false
+			body.add_child(ring)
+			part_runtime.outline = ring
 		part_runtime.joint = joint
 		part_runtime.parent = holder
 		if holder != null:

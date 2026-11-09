@@ -33,6 +33,8 @@ const ZOOM_WIDEST := 4.0  # the pull-back bound: its view is 320x180 cells, exac
 # 284x160-cell view rather than filling the screen with two hulls (8.0 here showed 160x90).
 const ZOOM_CLOSEST := 4.5
 const CAMERA_EASE := 0.15  # the share of the remaining gap the camera covers per fight tick
+const READY_GLOW := Color(2.4, 2.0, 0.6)  # above 1 on purpose: the battle's hdr_2d lets an HDR modulate bloom
+const READY_PULSE_HZ := 2.0  # the glow breathes at this rate so it reads as live, not as paint
 const MARKER_Z := 10  # the marker layer's z_index: above every body, which all sit at 0
 # The bright look. The world's light overlay multiplies the whole lit area, sky included, so a full
 # ambient is what stops it greying the pit and the parallax sky behind it; LIGHT_HEADROOM lets fire
@@ -301,6 +303,7 @@ func _step(delta: float) -> void:
 	if presses[0] and fired[0] == 0 and player.chassis_visual != null \
 			and is_instance_valid(player.chassis_visual):
 		Feedback.play(&"nudge", player.chassis_visual)
+	_show_ready()
 	stepped.emit(ctx)
 	# The world runs its own simulation steps on the physics frames this tick awaited, which is the
 	# seam ChProjectile flies on (Task 13's ruling): adding world.step here would run the sim twice
@@ -312,6 +315,23 @@ func _step(delta: float) -> void:
 		# Stored, not emitted: the loop in start() breaks on this and then speaks, so `finished` only
 		# ever arrives with the fight already over (see the contract there).
 		outcome = result
+
+
+func _show_ready() -> void:
+	# Lights the outline of every part a press would fire right now (is_ready), and hides it again
+	# once the press spends the part. Outline only, no fill tint and no count: the rim is the whole cue.
+	# Run after ctx.tick so it shows the state the player is about to act on.
+	# The builder does not flip a Visual for a flipped slot (the art is mirrored by its anchor
+	# only), so the outline, which is the same shape, needs no flip either.
+	var pulse := 0.75 + 0.25 * sin(TAU * READY_PULSE_HZ * ctx.time)
+	for chariot in [player, enemy]:
+		for part in chariot.parts:
+			if part.outline == null or not is_instance_valid(part.outline):
+				continue
+			var ready: bool = part.is_ready()
+			part.outline.visible = ready
+			if ready:
+				part.outline.modulate = Color(READY_GLOW.r * pulse, READY_GLOW.g * pulse, READY_GLOW.b * pulse, 1.0)
 
 
 func ai_drive(side: int) -> float:

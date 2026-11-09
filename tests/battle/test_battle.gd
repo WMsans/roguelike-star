@@ -640,3 +640,27 @@ func test_dud_press_nudges_hull() -> void:
 	assert_true(not is_zero_approx(juice.scale_spring.velocity), "a dud press kicked the hull")
 	battle.free()
 	_complete()
+
+
+func test_outline_shows_while_ready() -> void:
+	var battle := _battle_scene()
+	battle.pressers = [func(_b, _s): return false, func(_b, _s): return false]
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
+	await _frames_ready(battle)
+	var rocket: ChPartRuntime = null
+	for part in battle.player.parts:
+		if part.def.id == &"cutter_rocket":
+			rocket = part
+	assert_true(rocket != null and rocket.outline != null, "the player has a Rocket with an outline")
+	rocket.cooldown_left = 0.0
+	await Engine.get_main_loop().process_frame
+	assert_true(rocket.outline.visible, "a ready Rocket glows")
+	var presses := [true]
+	battle.pressers[0] = func(_b, _s):
+		var now: bool = presses[0]
+		presses[0] = false
+		return now
+	await Engine.get_main_loop().process_frame
+	assert_true(not rocket.outline.visible, "the press spent it, so the glow is off")
+	battle.free()
+	_complete()

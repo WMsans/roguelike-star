@@ -486,3 +486,35 @@ func test_layout_max_hp_seeds_hp() -> void:
 		ORIGIN + Vector2(60, 0), false)
 	assert_eq(plain.max_hp, catalog.body(&"dozer").hp, "no layout max_hp: the body's HP")
 	_complete()
+
+
+func test_triggered_parts_get_an_outline() -> void:
+	# Task 3: a part the button can fire carries a hidden Outline sprite one pixel bigger on every
+	# side; a passive part (the Wheel) has nothing to light, so it carries none.
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var layout: ChChariotLayout = _mount(&"cutter", [[[0], &"wheel"], [[3], &"cutter_rocket"]])
+	var runtime: ChChariotRuntime = ChChariotBuilder.build(
+		world, _parent(), layout, ChCatalog.load_default(), 0, ORIGIN, false)
+	var rocket := _part_of(runtime, _typed_path([3]))
+	var wheel := _part_of(runtime, _typed_path([0]))
+	assert_true(rocket.outline is Sprite2D, "the Rocket has an outline sprite")
+	if rocket.outline != null:
+		assert_eq(rocket.outline.get_parent(), rocket.body, "it hangs on the part's body")
+		assert_true(not rocket.outline.visible, "and starts hidden")
+		assert_eq(rocket.outline.texture.get_size(), Vector2(rocket.def.size) + Vector2(2, 2),
+			"2 px wider and taller than the part")
+	assert_true(wheel.outline == null, "the Wheel is passive, so it has no outline")
+	world.free()
+	_complete()
+
+
+func test_outline_texture_rings_the_shape() -> void:
+	var image := Image.create(3, 3, false, Image.FORMAT_RGBA8)
+	image.fill(Color.WHITE)
+	var out := ChTextures.outline(image, Color.RED).get_image()
+	assert_eq(out.get_size(), Vector2i(5, 5), "2 px larger on each axis")
+	assert_true(out.get_pixel(0, 2).a > 0.0, "left of the shape is ringed")
+	assert_true(out.get_pixel(0, 0).a == 0.0, "a corner has no 4-neighbour")
+	assert_true(out.get_pixel(2, 2).a == 0.0, "the shape's own pixels are not ringed")
+	_complete()

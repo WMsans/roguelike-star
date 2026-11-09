@@ -24,3 +24,23 @@ static func disc(diameter: int, colour: Color) -> ImageTexture:
 			var dy := y + 0.5 - r
 			image.set_pixel(x, y, colour.lightened(0.15 * float(x < r)) if dx * dx + dy * dy <= r * r else Color(0, 0, 0, 0))
 	return ImageTexture.create_from_image(image)
+
+static func outline(source: Image, colour: Color) -> ImageTexture:
+	# A one-pixel ring around `source`'s opaque shape, on an image 2 px larger on each axis (so the
+	# ring has room outside the part's own footprint). Only transparent pixels touching an opaque
+	# 4-neighbour are coloured: the shape's interior stays clear, which is why a lit part gets a rim
+	# and no fill tint. Source pixel (x, y) sits at (x + 1, y + 1) here.
+	var w := source.get_width()
+	var h := source.get_height()
+	var image := Image.create(w + 2, h + 2, false, Image.FORMAT_RGBA8)
+	for y: int in h + 2:
+		for x: int in w + 2:
+			if _solid(source, x - 1, y - 1):
+				continue
+			if _solid(source, x - 2, y - 1) or _solid(source, x, y - 1) \
+					or _solid(source, x - 1, y - 2) or _solid(source, x - 1, y):
+				image.set_pixel(x, y, colour)
+	return ImageTexture.create_from_image(image)
+
+static func _solid(image: Image, x: int, y: int) -> bool:
+	return x >= 0 and y >= 0 and x < image.get_width() and y < image.get_height() and image.get_pixel(x, y).a > 0.0
