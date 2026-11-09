@@ -75,3 +75,18 @@ func test_ranged_part_counts_in_reach_when_facing() -> void:
 	rig.parts = [away] as Array[ChPartRuntime]
 	assert_true(not ChEnemyAI.should_press(rig, 100.0, HALF, HALF), "facing away it waits")
 	_complete()
+
+
+func test_reach_is_not_counted_twice_for_an_offset_part() -> void:
+	# A Mace (range 6) mounted 10 cells off the chassis centre on a hull with own_half 10, target_half 5.
+	# Reach is measured from the part, so it lands up to 6 + 5 = 11 cells away; adding own_half again
+	# (the old bug) would call 21 in reach and waste a press.
+	var mace := _part(&"ice_cream_mace")
+	mace.body.global_position = Vector2(10.0, 0.0)
+	var rig := _rig([mace], 20.0, 20.0)
+	rig.energy.value = float(mace.def.energy_cost)  # below cap, above 60%
+	rig.energy.cap = 20.0
+	assert_true(not ChEnemyAI.should_press(rig, 25.0, 10.0, 5.0),
+		"15 cells from the part is out of reach, though within range + both halves")
+	assert_true(ChEnemyAI.should_press(rig, 20.5, 10.0, 5.0), "10.5 cells from the part is inside 6 + 5")
+	_complete()

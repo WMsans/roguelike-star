@@ -68,8 +68,10 @@ static func should_press(chariot: ChChariotRuntime, target_x: float, own_half: f
 	# volley's cost, or when the pool is at cap (regen is wasted above it, so waiting buys nothing).
 	# A press with nothing ready is a dud, so no ready part never presses, whatever the pool holds.
 	# Distances are measured from the part's own position, so a rig needs no chassis to be asked
-	# (the same fake bodies test_part_runtime.gd uses); the hull halves are the same clearance
-	# decide holds at.
+	# (the same fake bodies test_part_runtime.gd uses). A part's reach is measured from its own edge,
+	# so measuring from the part already covers the attacker's half-width: own_half is part of the
+	# signature (it mirrors decide) but is deliberately unused, or it would be counted twice. The
+	# target's half stays, since its hull edge is what the swing has to touch.
 	var cost := 0
 	var in_reach := false
 	for part in chariot.parts:
@@ -79,7 +81,7 @@ static func should_press(chariot: ChChariotRuntime, target_x: float, own_half: f
 		var range_cells := HARPOON_RANGE if part.def.id == HARPOON_ID else part.def.proximity_range
 		var dx := target_x - part.anchor_world().x
 		if range_cells > 0.0:
-			in_reach = in_reach or absf(dx) <= range_cells + own_half + target_half
+			in_reach = in_reach or absf(dx) <= range_cells + target_half
 		else:
 			# A ranged part's shot flies where its slot faces, so facing the target is its reach.
 			in_reach = in_reach or signf(part.facing().x) == signf(dx)
