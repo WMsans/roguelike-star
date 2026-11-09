@@ -7,11 +7,12 @@ class_name ChBattleContext extends RefCounted
 #   whose def's proximity_range covers the source to change it, then the source's own behaviour,
 #   then applies ChDamage, adds hit["freeze"] onto the target part, emits HIT, and breaks the target
 #   part if its integrity reached 0.
-# - tick runs one frame for every chariot: sample -> apply_sample -> cooldowns -> energy.request
-#   for ready parts -> energy.tick (paid parts fire, reset cooldown, spend a charge, emit PART_FIRED)
-#   -> behaviour.process -> burn damage -> drive. The drive cost is paid inside energy.tick, so
-#   drive() only ever runs for a drive that was paid, which is the global "driving is paid first"
-#   rule and why drive() comes last.
+# - tick runs one frame for every chariot: sample -> apply_sample -> cooldowns -> energy.tick
+#   (regen, then the drive) -> on a press, the volley (ready triggered parts paid dearest energy_cost
+#   first; each paid part fires, resets its cooldown, spends a charge, emits PART_FIRED) ->
+#   behaviour.process -> burn damage -> drive. The drive cost is paid inside energy.tick, before the
+#   volley, so drive() only ever runs for a drive that was paid, which is the global "driving is
+#   paid first" rule and why drive() comes last.
 
 var world: PixelWorld = null
 var bus: ChEventBus = null
@@ -192,25 +193,37 @@ func _emit_fired(part: ChPartRuntime) -> void:
 	event.position = part.anchor_world()
 	bus.emit(event)
 
-func tick(delta: float, drive_input: Array[float]) -> void:
-	# One frame of the fight for every chariot, in the order this file's header states.
+func volley_cost(chariot: ChChariotRuntime) -> int:
+	# What a press would cost if every ready part could pay: the HUD's and the enemy's read.
+	var total := 0
+	for part in chariot.parts:
+		if part.is_ready():
+			total += part.def.energy_cost
+	return total
+
+func tick(delta: float, drive_input: Array[float], press_input: Array = []) -> Array[int]:
+	# One frame of the fight for every chariot, in the order this file's header states. Answers the
+	# number of parts each side fired this frame, indexed by side.
 	time += delta
+	var fired: Array[int] = []
 	for at in chariots.size():
 		# Indexed by side, so a drive_input entry belongs to the chariot at the same index.
-		# shortcut: a side with no entry reads 0.0, i.e. no direction held, rather than raising.
+		# shortcut: a side with no entry reads 0.0 / not pressed, rather than raising.
 		var chariot: ChChariotRuntime = chariots[at]
 		if chariot == null:
+			fired.append(0)
 			continue
 		var direction: float = drive_input[at] if at < drive_input.size() else 0.0
-		_tick_chariot(chariot, delta, direction)
+		var pressed: bool = bool(press_input[at]) if at < press_input.size() else false
+		fired.append(_tick_chariot(chariot, delta, direction, pressed))
+	return fired
 
-func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float) -> void:
-	# One frame of one side: sample, cooldowns, requests, the pool's tick, the fires, process,
-	# the burn, then the drive. A broken part is skipped for the whole pass: break_part took it out
-	# of the energy queue, off the bus and out of the joints, so this pass must not re-ask it, re-
-	# process it or count its burning as damage. One flag, part.broken, closes all three, and the
-	# dead joint is never read here at all, which is what Review Focus 3 asks for.
-	var ready: Array[ChPartRuntime] = []
+func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pressed: bool) -> int:
+	# One frame of one side: sample, cooldowns, the pool's tick, the volley if pressed, process,
+	# the burn, then the drive. A broken part is skipped for the whole pass: it is off the bus and
+	# out of the joints, so this pass must not fire it, re-process it or count its burning as
+	# damage. One flag, part.broken, closes all three, and the dead joint is never read here at
+	# all, which is what Review Focus 3 asks for.
 	for part in chariot.parts:
 		if part.broken:
 			continue
@@ -218,30 +231,42 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float) ->
 			part.apply_sample(world.count_materials(part.sample_rect()), delta, bus)
 		else:
 			part.apply_sample({}, delta, bus)
-		if part.tick_cooldown(delta):
-			ready.append(part)
-	for part in ready:
-		# A ready part asks its def's cost; an unaffordable part joins the queue and waits, which is
-		# what the queue is for. ChEnergy keeps one entry per requester, so a waiting part can be
-		# asked every tick without the queue growing, and its first cost is the one it keeps.
-		chariot.energy.request(part, part.def.energy_cost if part.def != null else 0.0)
+		# A cooldown only counts down here; whether the part fires is the press's call.
+		part.tick_cooldown(delta)
 	var result: Dictionary = chariot.energy.tick(delta, direction != 0.0)
-	for part in result["paid"]:
-		var behaviour = part.behaviour
-		if behaviour != null:
-			behaviour.fire(self)
-		# The cooldown and the charge belong to the loop, not to the behaviour, so a part cannot
-		# fire twice on one payment: its countdown restarts here and ready is a countdown again.
-		if part.def != null:
+	var fired_count := 0
+	if pressed:
+		# The volley: ready triggered parts, dearest first so the big weapons get the energy before
+		# the small ones can eat it. A part that does not fit is skipped and a cheaper one after it
+		# can still pay; the skipped part stays ready and nothing is remembered to the next press.
+		var volley: Array[ChPartRuntime] = []
+		for part in chariot.parts:
+			if part.is_ready():
+				volley.append(part)
+		# sort_custom is not stable, so ties break on mount order (index in chariot.parts) here.
+		var order: Dictionary = {}
+		for at in chariot.parts.size():
+			order[chariot.parts[at]] = at
+		volley.sort_custom(func(a: ChPartRuntime, b: ChPartRuntime) -> bool:
+			if a.def.energy_cost != b.def.energy_cost:
+				return a.def.energy_cost > b.def.energy_cost
+			return order[a] < order[b])
+		for part in volley:
+			if not chariot.energy.try_pay(part.def.energy_cost):
+				continue
+			var behaviour = part.behaviour
+			if behaviour != null:
+				behaviour.fire(self)
+			# The cooldown and the charge belong to the loop, not to the behaviour, so a part cannot
+			# fire twice on one payment: its countdown restarts here and is_ready is false again.
 			part.cooldown_left = part.def.cooldown
-		if part.charges_left > 0:
-			part.charges_left -= 1
-			# charges_left -1 is unlimited, so an unlimited part never enters this branch. A limited
-			# part stops counting at its last charge rather than stepping from 0 into that sentinel,
-			# which would read as unlimited to Tasks 12-14 and to the HUD. A limited part at 0 charges
-			# is still ready and still asks for energy: stopping the request is what a limited
-			# behaviour does, in Task 13, rather than a rule this task adds here.
-		_emit_fired(part)
+			if part.charges_left > 0:
+				# charges_left -1 is unlimited, so an unlimited part never enters this branch. A
+				# limited part stops at 0, where is_ready turns false, rather than stepping into
+				# the sentinel.
+				part.charges_left -= 1
+			_emit_fired(part)
+			fired_count += 1
 	for part in chariot.parts:
 		if part.broken:
 			continue
@@ -271,4 +296,5 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float) ->
 		# The drive was not paid, so the input is ignored: drive(0.0) takes the motors off, which is
 		# the same condition ChChariotRuntime.drive makes for a broken or frozen wheel.
 		chariot.drive(0.0)
+	return fired_count
 

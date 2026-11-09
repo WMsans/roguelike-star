@@ -12,6 +12,7 @@ extends ChTest
 const GROUND_TOP := 160  # first rock row: the bottom 20 rows of ChTest's 480x180 arena
 const ORIGIN := Vector2(120, 140)  # the player's rig origin (Task 9's spawn ruling)
 const TICK := 1.0 / 60.0  # the fight's clock per engine tick
+const PRESS := [true, true]  # both sides press every tick: a part fires the moment it is ready
 const SETTLE := 90  # awaited frames that let a rig join the world and fall onto the floor
 
 # The rig body every test's chariot sits on: a 10x6 hull with four slots, so the distances the
@@ -147,7 +148,7 @@ func test_flamethrower_sets_target_burning() -> void:
 		# The sim and the fight tick together, one step per fight tick: no awaited frames here,
 		# so a physics frame cannot add an extra sim tick and make the fire read frame-rate dependent.
 		world.step(1)
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 		var counts: Dictionary = world.count_materials(foe_part.sample_rect())
 		# The peak is what ChPartRuntime's 3-cell threshold gets to see, so the assert below names it.
 		peak = maxi(peak, counts.get(&"fire", 0) + counts.get(&"lava", 0) + counts.get(&"burning", 0))
@@ -200,14 +201,14 @@ func test_hearth_damages_touching_enemy_only_after_charge() -> void:
 	var near_hp := near.hp
 	var far_hp := far.hp
 	for _charge in HEARTH_CHARGE_TICKS:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 	# Nothing of the charge may pay: the ring only opens once the 1 s charge is done.
 	assert_eq(hits.size(), 0, "the charge dealt nothing")
 	assert_eq(near.hp, near_hp, "so the touching hull is unharmed")
 	assert_eq(far.hp, far_hp, "and so is the control hull")
 	var peak := 0
 	for _pulse in HEARTH_PULSE_TICKS:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 		# The ring's own readback: fire cells inside the band the hearth fills.
 		peak = maxi(peak, world.count_materials(Rect2i(band)).get(&"fire", 0))
 	var paid := 0
@@ -267,7 +268,7 @@ func test_ring_of_fire_hits_enemy_once_not_self() -> void:
 	var ring_rect := Rect2i(Vector2i(anchor) - Vector2i(36, 36), Vector2i(73, 73))
 	var peak := 0
 	for _tick in RING_TICKS:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 		# The ring's fill read back during the run: a post-loop read would miss consumed fire.
 		peak = maxi(peak, world.count_materials(ring_rect).get(&"fire", 0))
 	var paid := 0
@@ -331,7 +332,7 @@ func test_ember_battery_pays_for_own_hearth() -> void:
 	var hull := Rect2(at.chassis.global_position - Vector2(at.body_def.size) * 0.5, Vector2(at.body_def.size))
 	var band := Rect2i(hull.grow(float(RING)))
 	for _tick in EMBER_TICKS:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 		# The ring's fill read where the own parts sample it.
 		peak = maxi(peak, world.count_materials(band).get(&"fire", 0))
 	# Chain 3 read: the hearth's own ring lights the chariot, and the battery pays for that risk.

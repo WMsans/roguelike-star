@@ -185,10 +185,17 @@ func apply_sample(counts: Dictionary, delta: float, bus: ChEventBus) -> void:
 		_emit(bus, ChEvent.THAWED)
 
 
+func is_ready() -> bool:
+	# A triggered part (cooldown > 0) that a press may fire: counted down, intact, not frozen and
+	# with a charge left. charges_left -1 is unlimited, so only 0 means spent.
+	return def != null and def.cooldown > 0.0 and not broken and cooldown_left <= 0.0 \
+		and charges_left != 0 and not is_frozen()
+
+
 func tick_cooldown(delta: float) -> bool:
-	# Count the cooldown down by one tick and report whether the part is ready to fire. ChBattleContext
-	# (Task 10) asks for energy only for a ready part and resets cooldown_left to def.cooldown when
-	# the part fires.
+	# Count the cooldown down by one tick and report whether the part is ready to fire. It no
+	# longer implies a fire: ChBattleContext fires only on a press, and resets cooldown_left to
+	# def.cooldown when the part fires.
 	# A passive part has no cooldown to gate (cooldown 0 in the def), so it never becomes ready and
 	# never asks for energy. A part with no def has nothing to gate either.
 	if def == null or def.cooldown <= 0.0:
@@ -196,8 +203,8 @@ func tick_cooldown(delta: float) -> bool:
 	# A frozen part's countdown pauses (spec §5.7: a weapon's cooldown pauses; the wheel motor is
 	# Task 9's drive). cooldown_left keeps what a frozen part's countdown would have spent, so a thaw
 	# resumes from where it stopped rather than restarting.
-	# shortcut: a frozen part reports not ready whatever cooldown_left is, so Task 10 never requests
-	# energy for it; a caller that thaws it has to call tick_cooldown again.
+	# shortcut: a frozen part reports not ready whatever cooldown_left is, so a press never
+	# fires it; a caller that thaws it has to call tick_cooldown again.
 	if is_frozen():
 		return false
 	# clamp at 0 rather than negative, so an over-tick reports ready once and stays ready.

@@ -64,10 +64,6 @@ func break_part(part: ChPartRuntime, ctx: ChBattleContext) -> void:
 		# second path through the tree cannot double the event a listener counts.
 		return
 	part.broken = true
-	# The part leaves the energy queue before it can be asked again: a waiting entry for a part that
-	# is no longer in the fight would fire it later. The requester is the part itself, per
-	# ChBattleContext.tick's request, which is what lets cancel find the entry by identity.
-	energy.cancel(part)
 	var behaviour = part.behaviour
 	if behaviour != null:
 		# The behaviour is the listener it subscribed as, per ChBehaviour.setup's contract, and the

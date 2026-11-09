@@ -11,6 +11,7 @@ const GROUND_TOP := 160  # first rock row: the bottom 20 rows of ChTest's 480x18
 const ORIGIN := Vector2(120, 140)  # the player's rig origin (Task 9's spawn ruling)
 const APART := 40  # rig origins this far apart, so the chassis sit 24 cells apart
 const TICK := 1.0 / 60.0  # the fight's clock per awaited frame
+const PRESS := [true, true]  # both sides press every tick: a part fires the moment it is ready
 const SETTLE := 90  # awaited frames that let a rig join the world and fall onto the floor
 
 # The rig body every test's chariot sits on: a 10x10 hull so the settled chassis spans the launch
@@ -133,7 +134,7 @@ func test_rocket_explodes_and_damages() -> void:
 	for _frame in FLIGHT_FRAMES:
 		await Engine.get_main_loop().process_frame
 		if ctx.time < TICKS_TO_FIRE * TICK:
-			ctx.tick(TICK, [0.0, 0.0])
+			ctx.tick(TICK, [0.0, 0.0], PRESS)
 	assert_eq(hits.size(), 1, "one fire, one landed hit")
 	assert_true(hits[0].source == rocket, "the rocket dealt it")
 	# A bare rig answers no part, so ChDamage puts the whole damage on the chassis' HP.
@@ -176,7 +177,7 @@ func test_rocket_ignition_halves_cooldown() -> void:
 	# Tick until the first fire (90 ticks of 1/60 can sum a hair short of 1.5 s), and stop on that tick
 	# so the countdown still reads the reset the loop gave it.
 	for _tick in 91:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 		if fired.size() == 1:
 			break
 	assert_eq(fired.size(), 1, "one fire in the first 1.5 s of clock")
@@ -188,15 +189,14 @@ func test_rocket_ignition_halves_cooldown() -> void:
 		"Ignition: the caught fire halved the countdown to 0.75 s")
 	# Past the halved countdown the rocket is ready again well before its full 1.5 s cooldown.
 	for _tick in 46:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 	assert_eq(fired.size(), 2, "the halved countdown paid for a second fire 0.77 s after the first")
 	_complete()
 
 # The Firebolt is the charge-limited part: charges_left counts down once per fire (the battle loop
-# owns that), and at 0 the behaviour stops asking for energy. ChBattleContext asks every ready part,
-# so the part's answer is to stop being ready: it parks its countdown at something that never runs
-# out, so no request is made, nothing is paid and no PART_FIRED announces a shot that never happened.
-# The queue, the pool's value and the PART_FIRED count are the three reads of that rule.
+# owns that), and at 0 the part is no longer ready (ChPartRuntime.is_ready), so a press neither pays
+# nor fires it and no PART_FIRED announces a shot that never happened.
+# The pool's value and the PART_FIRED count are the two reads of that rule.
 func test_firebolt_charges_run_out() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
@@ -214,18 +214,15 @@ func test_firebolt_charges_run_out() -> void:
 	# No awaited frames: the charges are the fight's clock, so the ticks run synchronously.
 	# 11 s of clock is one fire per 2 s cooldown, five fires, and no sixth (that needs 12 s).
 	for _tick in int(11.0 / TICK):
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 	assert_eq(fired.size(), shots, "five fires, five PART_FIRED")
 	assert_eq(bolt.charges_left, 0, "the charges ran out after five fires")
-	assert_eq(at.energy.queue_size(), 0, "nothing left waiting in the pool")
 	assert_eq(at.energy.value, at.energy.cap - float(shots) * bolt.def.energy_cost, "five costs went out of the pool")
-	# The 6th ready tick: the part is out of charges, so the loop must not ask it again. Two seconds
-	# of clock past the 5th fire is where the reset 2 s cooldown goes ready again; the queue being
-	# empty is not enough on its own, since an entry can be requested, paid and popped inside one
-	# tick, so the pool's value and the PART_FIRED count are the evidence that no 6th cycle ran.
+	# The 6th ready tick: the part is out of charges, so a press must not fire it. Two seconds of
+	# clock past the 5th fire is where the reset 2 s cooldown goes ready again; the pool's value and
+	# the PART_FIRED count are the evidence that no 6th cycle ran.
 	for _tick in int(2.0 / TICK):
-		ctx.tick(TICK, [0.0, 0.0])
-	assert_eq(at.energy.queue_size(), 0, "the 6th ready tick left nothing queued")
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 	assert_eq(at.energy.value, at.energy.cap - float(shots) * bolt.def.energy_cost,
 		"and the 6th cycle paid nothing out of the pool")
 	assert_eq(fired.size(), shots, "and no PART_FIRED announced a shot that never happened")
@@ -257,7 +254,7 @@ func test_firebolt_starts_fire() -> void:
 	for _frame in LOB_FRAMES:
 		await Engine.get_main_loop().process_frame
 		if ctx.time < 3.5:
-			ctx.tick(TICK, [0.0, 0.0])
+			ctx.tick(TICK, [0.0, 0.0], PRESS)
 		var counts: Dictionary = world.count_materials(LOB_BAND)
 		seen = maxi(seen, counts.get(&"fire", 0) + counts.get(&"burning", 0))
 	assert_eq(fired.size(), 1, "one fire in the window")
@@ -294,7 +291,7 @@ func test_harpoon_pulls_enemy_closer() -> void:
 	for _frame in HUNT_FRAMES:
 		await Engine.get_main_loop().process_frame
 		if ctx.time < (HOOK_TICKS + PULL_TICKS) * TICK:
-			ctx.tick(TICK, [0.0, 0.0])
+			ctx.tick(TICK, [0.0, 0.0], PRESS)
 		seen_line = seen_line or _attached(ctx)
 	assert_true(seen_line, "a Line2D drew while the line was attached")
 	assert_true(not _attached(ctx), "and it went when the attach window ended")
@@ -327,7 +324,7 @@ func test_harpoon_misses_out_of_range() -> void:
 	for _frame in HUNT_FRAMES:
 		await Engine.get_main_loop().process_frame
 		if ctx.time < (HOOK_TICKS + PULL_TICKS) * TICK:
-			ctx.tick(TICK, [0.0, 0.0])
+			ctx.tick(TICK, [0.0, 0.0], PRESS)
 		seen_line = seen_line or _attached(ctx)
 	assert_true(not seen_line, "so no line was ever attached")
 	assert_eq(foe.hp, foe_hp, "and the hull paid no damage")
@@ -359,7 +356,7 @@ func test_harpoon_line_ends_when_the_hook_goes() -> void:
 	for _frame in HUNT_FRAMES:
 		await Engine.get_main_loop().process_frame
 		if ctx.time < (HOOK_TICKS + PULL_TICKS) * TICK:
-			ctx.tick(TICK, [0.0, 0.0])
+			ctx.tick(TICK, [0.0, 0.0], PRESS)
 		if not freed and _attached(ctx):
 			# The line is hooked, so the hull goes mid-window: queue_free lands at the frame's end.
 			foe.chassis.queue_free()
