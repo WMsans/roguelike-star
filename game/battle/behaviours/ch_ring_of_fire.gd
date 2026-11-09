@@ -13,6 +13,7 @@ const STEP_SECONDS := 0.1
 var steps_left := 0  # steps of the expansion left to run
 var step_left := 0.0  # seconds until the next step
 var crossed: Array = []  # the bodies the ring has already paid
+var nova: ChFx = null  # the ring's look; its baked front matches RADIUS and the 0.1 s steps
 
 
 func fire(ctx: ChBattleContext) -> void:
@@ -21,11 +22,15 @@ func fire(ctx: ChBattleContext) -> void:
 	steps_left = STEPS
 	step_left = 0.0
 	crossed.clear()
+	nova = ChFx.spawn(ctx.world, &"fire_nova", part.anchor_world())
 
 func process(ctx: ChBattleContext, delta: float) -> void:
 	# A ring that finished expanding does nothing until the loop fires the part again.
 	if steps_left <= 0:
 		return
+	# The ring is centred on the anchor each step (see _expand), so its look follows the part too.
+	if nova != null and is_instance_valid(nova):
+		nova.position = part.anchor_world()
 	step_left -= delta
 	if step_left > 0.0:
 		return

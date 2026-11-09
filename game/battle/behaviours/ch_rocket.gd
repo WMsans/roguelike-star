@@ -25,6 +25,9 @@ func fire(ctx: ChBattleContext) -> void:
 	ctx.world.add_child(bolt)
 	bolt.global_position = part.anchor_world()
 	bolt.setup(ctx, part, part.facing() * SPEED, 0.0, func(shot: Dictionary): _impact(ctx, shot))
+	# The look: a launch flash at the mount and the rocket sprite riding the bolt.
+	ChFx.spawn(ctx.world, &"muzzle", part.anchor_world(), part.facing())
+	bolt.trail = ChFx.spawn(bolt, &"rocket", Vector2.ZERO, part.facing())
 
 func _ignite() -> void:
 	# Ignition: the countdown left before the next shot is halved, so a caught fire buys speed
@@ -38,6 +41,7 @@ func _impact(ctx: ChBattleContext, shot: Dictionary) -> void:
 	var at: Vector2i = shot["position"]
 	# The blast goes off whatever was met, so a miss still digs.
 	ctx.world.explode(at, BLAST_RADIUS, BLAST_POWER)
+	ChFx.spawn(ctx.world, &"blast", Vector2(at))
 	var met: Object = shot.get("collider")
 	if met != null and is_instance_valid(met):
 		# A body hit is a fight hit, so it pays through the fight's one damage entry point.

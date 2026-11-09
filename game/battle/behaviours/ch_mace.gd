@@ -8,6 +8,9 @@ extends ChBehaviour
 func fire(ctx: ChBattleContext) -> void:
 	var target := _nearest_enemy_body(ctx, _reach_box())
 	if target != null:
+		# The thud lands at the far edge of the reach box, where the swing meets the target.
+		var box := _reach_box()
+		ChFx.spawn(ctx.world, &"blunt_hit", box.get_center() + box.size * 0.5 * part.facing(), part.facing())
 		# deal_hit is the fight's one damage entry point: it asks the passives near the source, then this
 		# behaviour's modify_hit, then applies ChDamage.
 		ctx.deal_hit(part, target, part.def.damage)
@@ -35,4 +38,6 @@ func modify_hit(ctx: ChBattleContext, hit: Dictionary) -> void:
 	event.side = target.side
 	event.source = target
 	event.position = target.anchor_world()
+	# Marks this thaw as a Shatter, so feedback can break the ice rather than let it melt.
+	event.data = {"shatter": true}
 	ctx.bus.emit(event)

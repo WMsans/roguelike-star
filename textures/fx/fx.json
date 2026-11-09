@@ -1,0 +1,170 @@
+{
+ "rocket": {
+  "fps": 30,
+  "loop": true,
+  "frames": 36,
+  "size": [
+   128,
+   48
+  ],
+  "pivot": [
+   112,
+   24
+  ],
+  "columns": 4
+ },
+ "fireball": {
+  "fps": 30,
+  "loop": true,
+  "frames": 36,
+  "size": [
+   136,
+   56
+  ],
+  "pivot": [
+   112,
+   28
+  ],
+  "columns": 4
+ },
+ "blast": {
+  "fps": 30,
+  "loop": false,
+  "frames": 61,
+  "size": [
+   128,
+   120
+  ],
+  "pivot": [
+   64,
+   68
+  ],
+  "columns": 8
+ },
+ "fire_blast": {
+  "fps": 30,
+  "loop": false,
+  "frames": 61,
+  "size": [
+   128,
+   120
+  ],
+  "pivot": [
+   64,
+   68
+  ],
+  "columns": 8
+ },
+ "fire_nova": {
+  "fps": 30,
+  "loop": false,
+  "frames": 79,
+  "size": [
+   120,
+   128
+  ],
+  "pivot": [
+   60,
+   66
+  ],
+  "columns": 10
+ },
+ "flamethrower": {
+  "fps": 30,
+  "loop": true,
+  "frames": 48,
+  "size": [
+   184,
+   104
+  ],
+  "pivot": [
+   30,
+   60
+  ],
+  "columns": 6
+ },
+ "spark_hit": {
+  "fps": 30,
+  "loop": false,
+  "frames": 16,
+  "size": [
+   120,
+   80
+  ],
+  "pivot": [
+   34,
+   40
+  ],
+  "columns": 4
+ },
+ "blunt_hit": {
+  "fps": 30,
+  "loop": false,
+  "frames": 28,
+  "size": [
+   128,
+   88
+  ],
+  "pivot": [
+   64,
+   72
+  ],
+  "columns": 5
+ },
+ "frost": {
+  "fps": 30,
+  "loop": false,
+  "frames": 40,
+  "size": [
+   84,
+   84
+  ],
+  "pivot": [
+   42,
+   42
+  ],
+  "columns": 7
+ },
+ "shatter": {
+  "fps": 30,
+  "loop": false,
+  "frames": 37,
+  "size": [
+   128,
+   112
+  ],
+  "pivot": [
+   64,
+   48
+  ],
+  "columns": 6
+ },
+ "ignite": {
+  "fps": 30,
+  "loop": false,
+  "frames": 61,
+  "size": [
+   60,
+   96
+  ],
+  "pivot": [
+   30,
+   70
+  ],
+  "columns": 10
+ },
+ "muzzle": {
+  "fps": 30,
+  "loop": false,
+  "frames": 25,
+  "size": [
+   56,
+   40
+  ],
+  "pivot": [
+   10,
+   22
+  ],
+  "columns": 5
+ }
+}

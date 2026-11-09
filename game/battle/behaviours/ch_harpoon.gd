@@ -40,6 +40,7 @@ func fire(ctx: ChBattleContext) -> void:
 		return
 	# The hook belongs to the fight, so it pays through the fight's one damage entry point.
 	ctx.deal_hit(part, met, part.def.damage)
+	ChFx.spawn(ctx.world, &"spark_hit", Vector2(shot["position"]), part.facing())
 	hook = met
 	attach_left = ATTACH
 	_draw_line(ctx, anchor)
