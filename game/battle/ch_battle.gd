@@ -10,7 +10,7 @@ class_name ChBattle extends Node2D
 # headless test drives the same loop the game runs on screen: the fight's clock is the fixed TICK,
 # not the host's frame rate, which is what makes a 60 s fight deterministic.
 # HUD and camera follow the brief: the HUD (ChBattleHud, on ChUi's shared theme) shows both sides'
-# names and HP, the player's energy as pips and the parts waiting behind it; the camera frames the two
+# names and HP, the player's energy as pips with the volley a press would spend marked on them; the camera frames the two
 # chariots (the shot lives on the scene's PhantomCamera2D, `pcam`, which the Camera2D's host copies), a
 # marker sits on every part, and the bus's events are played by the battle's own ChBattleFeedback.
 # Feedback's screen shake lands on the scene's own noise emitter while a fight runs.
@@ -64,6 +64,12 @@ var ticking := false  # read-only: start()'s tick loop is running now (see the c
 # shortcut: untyped, because a caller holding the battle as Node2D assigns a plain Array literal and
 # Godot refuses that for an Array[Callable] property.
 var drivers: Array = [Callable(), Callable()]
+var _fire_held := false  # the fire key's state at the previous fight tick: _player_press's edge
+# CONTRACT: the same shape for the button: a valid `func(battle: ChBattle, side: int) -> bool`
+# replaces that side's press (true = the button went down this tick). The defaults are the Space key's
+# edge for side 0 and ChEnemyAI.should_press for side 1. A headless run has no keys, so tests and the
+# balance runner press the player through here.
+var pressers: Array = [Callable(), Callable()]
 
 
 func _init() -> void:
@@ -81,13 +87,20 @@ func _enter_tree() -> void:
 
 func _add_input_actions() -> void:
 	# The brief's input actions: ui_left/ui_right are built in, A/D are not, and both are added
-	# only when missing so a project that already binds them keeps its own binding.
+	# only when missing so a project that already binds them keeps its own binding. `fire` (Space) is
+	# the one button: it is a new action, so it is added first when missing.
 	# shortcut: physical_keycode only, so an "A" with a modifier key reads as a different event.
 	for pair in [[&"ui_left", KEY_A], [&"ui_right", KEY_D]]:
 		var key := InputEventKey.new()
 		key.physical_keycode = pair[1]
 		if not InputMap.action_has_event(pair[0], key):
 			InputMap.action_add_event(pair[0], key)
+	if not InputMap.has_action(&"fire"):
+		InputMap.add_action(&"fire")
+	var space := InputEventKey.new()
+	space.physical_keycode = KEY_SPACE
+	if not InputMap.action_has_event(&"fire", space):
+		InputMap.action_add_event(&"fire", space)
 
 
 func _build_hud() -> void:
@@ -279,7 +292,15 @@ func _step(delta: float) -> void:
 	var drives: Array[float] = [
 		drivers[0].call(self, 0) if drivers[0].is_valid() else _player_drive(),
 		drivers[1].call(self, 1) if drivers[1].is_valid() else ai_drive(1)]
-	ctx.tick(delta, drives)
+	var presses: Array = [
+		pressers[0].call(self, 0) if pressers[0].is_valid() else _player_press(),
+		pressers[1].call(self, 1) if pressers[1].is_valid() else ai_press(1)]
+	var fired := ctx.tick(delta, drives, presses)
+	# A press that fired nothing is a dud: the hull flinches, so the button always answers. Feedback
+	# is visual only, so a hull without a visual (a fake rig, a freed body) just skips it.
+	if presses[0] and fired[0] == 0 and player.chassis_visual != null \
+			and is_instance_valid(player.chassis_visual):
+		Feedback.play(&"nudge", player.chassis_visual)
 	stepped.emit(ctx)
 	# The world runs its own simulation steps on the physics frames this tick awaited, which is the
 	# seam ChProjectile flies on (Task 13's ruling): adding world.step here would run the sim twice
@@ -302,6 +323,26 @@ func ai_drive(side: int) -> float:
 		ai.reach(me), _half_width(me), _half_width(other))
 
 
+func ai_press(side: int) -> bool:
+	# ChEnemyAI's press decision for either side, toward the other chariot (see ai_drive).
+	var me := player if side == 0 else enemy
+	var other := enemy if side == 0 else player
+	return ChEnemyAI.should_press(me, other.chassis.global_position.x, _half_width(me),
+		_half_width(other))
+
+
+func _player_press() -> bool:
+	# The button's edge: holding Space fires once, so the volley is a decision and not a held key.
+	# The edge is derived from the held state against the previous fight tick's, not read from
+	# is_action_just_pressed: that one is keyed to the engine's own frame, and the fight ticks on
+	# process frames, so a press injected between them (a test's, or a key tapped inside one
+	# physics frame) could be missed or counted twice. The fight's own clock is the one that counts.
+	var held := Input.is_action_pressed(&"fire")
+	var edge := held and not _fire_held
+	_fire_held = held
+	return edge
+
+
 func _player_drive() -> float:
 	# The held direction, -1/0/1: ui_left/ui_right plus the A/D keys _add_input_actions put in.
 	var left := -1.0 if Input.is_action_pressed(&"ui_left") else 0.0
@@ -310,7 +351,7 @@ func _player_drive() -> float:
 
 func _hud_tick() -> void:
 	# The HUD reads the fight's numbers, then the markers redraw over the parts they mark.
-	hud.show_state(player, enemy)
+	hud.show_state(player, enemy, ctx.volley_cost(player))
 	marks.queue_redraw()
 
 

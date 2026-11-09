@@ -269,6 +269,10 @@ func _battle_scene() -> Node2D:
 	var scene: PackedScene = ResourceLoader.load("res://game/battle/battle.tscn")
 	assert_true(scene != null, "battle.tscn loads")
 	var battle: Node2D = scene.instantiate()
+	# A headless run has no Space key, and since the volley is press-driven a fight nobody presses
+	# in is a draw. The fights below pin what the player's parts do, so the player presses by the
+	# enemy's own rule; the tests that pin the press itself replace this.
+	battle.pressers[0] = func(b, s): return b.ai_press(s)
 	Engine.get_main_loop().get_root().add_child(battle)
 	return battle
 
@@ -573,5 +577,66 @@ func test_ai_drive_is_symmetric() -> void:
 	battle.drivers = [func(b, s): return b.ai_drive(s), Callable()]
 	var results := await _fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP), 12345)
 	assert_eq(results.size(), 1, "an AI-driven player still finishes the fight")
+	battle.free()
+	_complete()
+
+
+# --- The button (Task 2) ----------------------------------------------------------------------------
+func _count_fired(battle: Node2D, side_counts: Array) -> void:
+	var key := RefCounted.new()
+	battle.ctx.bus.subscribe(key, ChEvent.PART_FIRED, func(event: ChEvent): side_counts[event.side] += 1)
+	battle.set_meta("fire_key", key)  # the bus holds the key weakly: keep it alive with the battle
+
+
+func test_never_press_fires_nothing() -> void:
+	var battle := _battle_scene()
+	battle.pressers = [func(_b, _s): return false, func(_b, _s): return false]
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
+	await _frames_ready(battle)
+	var counts := [0, 0]
+	_count_fired(battle, counts)
+	for _i in 120:
+		await Engine.get_main_loop().process_frame
+	assert_eq(counts, [0, 0], "ready parts sit unfired for 2 s when nobody presses")
+	battle.free()
+	_complete()
+
+
+func _frames_ready(battle: Node2D) -> void:
+	await Engine.get_main_loop().process_frame
+
+
+func test_held_key_fires_once() -> void:
+	var battle := _battle_scene()
+	battle.pressers[0] = Callable()  # the real key
+	battle.pressers[1] = func(_b, _s): return false
+	var layout := _garage_built(&"corsair", [[[6], &"cutter_chainsaw"]])
+	_start_fight(battle, layout, _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
+	await _frames_ready(battle)
+	var counts := [0, 0]
+	_count_fired(battle, counts)
+	# Parts start on a full cooldown; ready the saw so the press has something to fire (a press
+	# at tick 1 would be a dud, and a held key never presses again).
+	for part in battle.player.parts:
+		part.cooldown_left = 0.0
+	Input.action_press(&"fire")
+	for _i in 120:
+		await Engine.get_main_loop().process_frame
+	Input.action_release(&"fire")
+	assert_eq(counts[0], 1, "Space held for 120 ticks is one press: one volley, the Chainsaw once")
+	battle.free()
+	_complete()
+
+
+func test_dud_press_nudges_hull() -> void:
+	var battle := _battle_scene()
+	battle.pressers = [func(_b, _s): return true, func(_b, _s): return false]
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
+	# Every part cooling down: nothing is ready, so each press is a dud.
+	for part in battle.player.parts:
+		part.cooldown_left = 100.0
+	var juice := ChJuice.of(battle.player.chassis_visual)
+	await Engine.get_main_loop().process_frame
+	assert_true(not is_zero_approx(juice.scale_spring.velocity), "a dud press kicked the hull")
 	battle.free()
 	_complete()

@@ -14,15 +14,13 @@ func _body(display_name: String, hp: int) -> ChBodyDef:
 	return body
 
 
-func _chariot(body: ChBodyDef, hp: int, cap := 20.0, value := 0.0, waiting := 0) -> ChChariotRuntime:
+func _chariot(body: ChBodyDef, hp: int, cap := 20.0, value := 0.0) -> ChChariotRuntime:
 	# A runtime with the fields the HUD reads and nothing else: no world, no parts, no joint.
 	var rig := ChChariotRuntime.new()
 	rig.body_def = body
 	rig.hp = hp
 	rig.energy = ChEnergy.new(cap, 0.0)
 	rig.energy.value = value
-	for _at in waiting:
-		rig.energy.request(RefCounted.new(), 1.0)
 	return rig
 
 
@@ -59,14 +57,15 @@ func test_hud_energy_pips() -> void:
 	_complete()
 
 
-func test_hud_waiting_hidden_when_empty() -> void:
+func test_hud_marks_the_volley_on_the_pips() -> void:
+	# The queue line is gone: the pool shows what a press would spend instead, painted on the top of
+	# the lit run (pips 3-6 of 6 lit for a volley of 4), the rest of the lit pips staying ACCENT.
 	var hud := _hud()
-	hud.show_state(_chariot(_body("Cutter", 100), 100, 20.0, 20.0), _chariot(_body("Dozer", 200), 200))
-	assert_true(not hud.waiting.visible, "nothing queued: nothing to say about it")
-	hud.show_state(_chariot(_body("Cutter", 100), 100, 20.0, 20.0, 2),
-		_chariot(_body("Dozer", 200), 200))
-	assert_true(hud.waiting.visible, "a queue is shown")
-	assert_eq(hud.waiting.text, "2 parts waiting", "and counted")
+	assert_true(hud.get("waiting") == null, "the HUD has no waiting label")
+	hud.show_state(_chariot(_body("Cutter", 100), 100, 8.0, 6.0), _chariot(_body("Dozer", 200), 200), 4)
+	for at in 8:
+		var want := ChUi.ACCENT if at < 2 else (ChBattleHud.VOLLEY if at < 6 else ChBattleHud.PIP_OFF)
+		assert_eq(hud.energy_pips[at].color, want, "pip %d of the 6 lit, volley 4" % (at + 1))
 	_complete()
 
 
@@ -86,6 +85,7 @@ func test_battle_has_no_ticker() -> void:
 	assert_true(scene != null, "battle.tscn loads")
 	var battle: Node2D = scene.instantiate()
 	Engine.get_main_loop().get_root().add_child(battle)
+	battle.pressers[0] = func(b, s): return b.ai_press(s)  # no Space key headless
 	battle.start(_player_layout(), _enemy_layout(), _fight_catalog(DOZER_HP), 12345)
 	# start() builds the HUD before its arena streams, so the HUD exists from the first tick on; the
 	# bus is read from ctx, which is the resume that ran tick 1, so the subscription sees everything

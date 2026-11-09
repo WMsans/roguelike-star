@@ -415,6 +415,8 @@ func test_main_round_trip() -> void:
 	main.garage.request_fight()
 	assert_true(main.battle != null, "the fight started, as an instantiated battle.tscn")
 	assert_eq(main.screen, &"fight", "and the loop left the garage for it")
+	# No Space key headless, and the volley is press-driven: the player presses by the enemy's rule.
+	main.battle.pressers[0] = func(b, s): return b.ai_press(s)
 	# ChBattle is an awaited coroutine, so the battle exists before its arena has loaded; the
 	# signal is watched from outside as well, so the result ChMain read is the one it announced.
 	main.battle.finished.connect(func(result: StringName): sink.append(result))

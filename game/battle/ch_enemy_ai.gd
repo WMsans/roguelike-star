@@ -56,3 +56,34 @@ static func decide(self_x: float, target_x: float, preferred_range: float,
 	if absf(dx) <= hold:
 		return 0.0
 	return -1.0 if dx < 0.0 else 1.0
+
+# The enemy's finger. The share of the ready volley's cost the pool must hold before the enemy
+# spends it on a target in reach: below it a press would fire only the cheap part of the volley
+# (try_pay skips what it cannot afford), above it the wait costs more than the shots it saves.
+const PRESS_SHARE := 0.6
+
+static func should_press(chariot: ChChariotRuntime, target_x: float, own_half: float,
+		target_half: float) -> bool:
+	# Press when a ready part has the target in reach and the pool holds PRESS_SHARE of the ready
+	# volley's cost, or when the pool is at cap (regen is wasted above it, so waiting buys nothing).
+	# A press with nothing ready is a dud, so no ready part never presses, whatever the pool holds.
+	# Distances are measured from the part's own position, so a rig needs no chassis to be asked
+	# (the same fake bodies test_part_runtime.gd uses); the hull halves are the same clearance
+	# decide holds at.
+	var cost := 0
+	var in_reach := false
+	for part in chariot.parts:
+		if not part.is_ready():
+			continue
+		cost += part.def.energy_cost
+		var range_cells := HARPOON_RANGE if part.def.id == HARPOON_ID else part.def.proximity_range
+		var dx := target_x - part.anchor_world().x
+		if range_cells > 0.0:
+			in_reach = in_reach or absf(dx) <= range_cells + own_half + target_half
+		else:
+			# A ranged part's shot flies where its slot faces, so facing the target is its reach.
+			in_reach = in_reach or signf(part.facing().x) == signf(dx)
+	if cost == 0:
+		return false
+	var pool := chariot.energy
+	return pool.value >= pool.cap or (in_reach and pool.value >= PRESS_SHARE * cost)
