@@ -805,7 +805,7 @@ func test_cycle_body_rebuilds_hull() -> void:
 	# Cutter 34x9 cells, Dozer 22x30: the piece has to show the new body, not the one it started on.
 	assert_eq(garage.hull_piece().body_def.size, catalog.body(&"dozer").size,
 		"and it shows the Dozer's taller hull")
-	# swap_body reseats the wheel on Dozer slot 0 at (-9,15), so its piece keeps its path and its part
+	# swap_body reseats the wheel on Dozer slot 0 at (-11,15), so its piece keeps its path and its part
 	# and still has to move: the position comes from the layout, never from where the piece was.
 	var piece: ChPitPiece = garage.piece_at(_typed_path([0]))
 	assert_true(piece != null, "the wheel kept a piece on the new hull")

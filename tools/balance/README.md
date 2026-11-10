@@ -80,7 +80,7 @@ On every body the first two slots are the bottom wheel mounts. Today's bodies:
 | body | hp | slots `[0]`, `[1]`, ... |
 |---|---|---|
 | `cutter` | 450 | (-10, 4.5) (9, 4.5) · (-6, -3) rear-top · (6, -3) front, on the nose slope |
-| `dozer` | 700 | (-9, 15) (9, 15) · (-9, -3) rear · (9, -3) front · (-5, -15) rear-top · (5, -15) front-top |
+| `dozer` | 700 | (-11, 15) (11, 15) · (-9, -3) rear · (9, -3) front · (-5, -15) rear-top · (5, -15) front-top |
 | `corsair` | 900 | (-21, 5) (21, 5) · then five top slots from rear (-20, -5) to front (22, -5) |
 
 (Check the `.tres` for current numbers; this table is a guide.) A `layout` side uses the HP of its

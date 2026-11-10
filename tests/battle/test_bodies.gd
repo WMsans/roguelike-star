@@ -9,9 +9,11 @@ const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 const TALL_HP := 100000
 
 
-func _run(body_id: StringName, drive: float, ticks: int, later_mass: float = 0.0) -> Dictionary:
+func _run(body_id: StringName, drive: float, ticks: int, later_mass: float = 0.0,
+		frame_ms: int = 0) -> Dictionary:
 	# later_mass > 0 sets the player's chassis mass by hand halfway through, the way a part loss or a
-	# mass payoff would.
+	# mass payoff would. frame_ms > 0 stalls every fight tick that long, the way a loaded machine
+	# does: the physics then runs several steps per tick, so the same ticks cover more ground.
 	# Both sides drive the same way, so the enemy pulls away instead of standing in the way.
 	var battle: Node2D = ResourceLoader.load("res://game/battle/battle.tscn").instantiate()
 	battle.pressers = [func(_b, _s): return false, func(_b, _s): return false]
@@ -28,6 +30,8 @@ func _run(body_id: StringName, drive: float, ticks: int, later_mass: float = 0.0
 		seen.end_rot = rot
 		seen.mass = ctx.chariots[0].chassis.get_mass()
 		seen.ticks += 1
+		if frame_ms > 0:
+			OS.delay_msec(frame_ms)
 		if later_mass > 0.0 and seen.ticks == ticks / 2:
 			ctx.chariots[0].chassis.mass = later_mass
 		if seen.ticks >= ticks:
@@ -46,6 +50,21 @@ func test_each_body_drives_the_arena() -> void:
 		var seen := await _run(id, 1.0, 600)
 		assert_true(seen.moved >= 100.0, "%s drove %.1f cells in 600 ticks" % [id, seen.moved])
 		assert_true(seen.max_rot < PI / 2, "%s stayed wheels-down (max |rotation| %.2f)" % [id, seen.max_rot])
+	_complete()
+
+
+# The suite flake behind test_each_body_drives_the_arena: on slow frames the same 600 ticks carry
+# the Tower further, over the arena's bumps near x 215-280 (seed 12345), where an 18-cell wheelbase
+# under a 30-cell hull rocked it onto its back (|rotation| 1.92, the value the flake reported).
+# 120 stalled ticks reach those bumps but stop short of the far wall, where the enemy is pinned.
+const SLOW_FRAME_MS := 30
+const SLOW_TICKS := 120
+
+
+func test_tower_drives_upright_on_slow_frames() -> void:
+	var seen := await _run(&"dozer", 1.0, SLOW_TICKS, 0.0, SLOW_FRAME_MS)
+	assert_true(seen.moved >= 100.0, "dozer drove %.1f cells" % seen.moved)
+	assert_true(seen.max_rot < PI / 2, "dozer stayed wheels-down on slow frames (max |rotation| %.2f)" % seen.max_rot)
 	_complete()
 
 
