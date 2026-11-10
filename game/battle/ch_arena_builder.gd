@@ -100,14 +100,15 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 	# TNT crate buried 3 under the lowest surface cell over it, clear of the spawn hull (144-196).
 	var crate_top: int = surface.slice(118, 124).max() + 3
 	_both(world, Rect2i(118, crate_top, 6, 6), &"tnt")
-	# The gunpowder seam: a fuse 2 under the surface from the crate toward the spawn, under a 1-cell
-	# wood plank. Gunpowder is not collision-solid, and the terrain collider (outline.cpp
+	# The gunpowder seam: a fuse 2 rows deep, 2 under the surface, from the crate toward the spawn,
+	# under a 1-cell wood plank. One row did not carry: each blast's ragged crater dropped the next
+	# grains out of reach and the chain died halfway (test_arena's test_lit_seam_sets_off_its_crate). Gunpowder is not collision-solid, and the terrain collider (outline.cpp
 	# chunk_solid_mask) only counts powder held up by solid ground, so sand straight on the seam
 	# drops out of the collision shape: measured, the Dozer tipped in that 3-cell dip. The plank
 	# holds the sand up, and a flame that reaches it burns down into the fuse.
 	for x in range(124, 151):
 		_both(world, Rect2i(x, surface[x] + 1, 1, 1), &"wood")
-		_both(world, Rect2i(x, surface[x] + 2, 1, 1), &"gunpowder")
+		_both(world, Rect2i(x, surface[x] + 2, 1, 2), &"gunpowder")
 	# Lava 6 deep under a crust, spanning the middle once mirrored (x 210-269). The crust is sand on
 	# a 1-cell rock lid: sand straight on lava drops out of the collider for the same reason as the
 	# seam, and the measured Dozer fell through it and rolled. The lid is a blast's to break. The

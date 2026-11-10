@@ -8,5 +8,6 @@ color = Color(0.8, 0.15, 0.12, 1)
 collision_solid = true
 light_opacity = 1.0
 ignite_temperature = 250
+burn_heat = 600
 explode_radius = 12
 explode_power = 400.0

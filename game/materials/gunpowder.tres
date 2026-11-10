@@ -7,5 +7,6 @@ density = 1.4
 color = Color(0.22, 0.22, 0.24, 1)
 light_opacity = 0.9
 ignite_temperature = 150
-explode_radius = 3
+burn_heat = 600
+explode_radius = 5
 explode_power = 150.0

@@ -170,3 +170,23 @@ func test_nothing_explodes_on_its_own() -> void:
 	assert_eq(went_off, [], "explosives that went off with nobody near them")
 	world.free()
 	_complete()
+
+
+func test_lit_seam_sets_off_its_crate() -> void:
+	# The spec's fuse: a lit seam walks to its TNT crate. A 1-cell blast on the seam's far end
+	# (x 150, the spawn side) lights it; the chain has to reach the crate at x 118-123.
+	var world: PixelWorld = await make_world()
+	ChArenaBuilder.build(world, 12345)
+	world.take_blasts()
+	var y := _surface_y(world, 150) + 2
+	assert_eq(world.get_material_at(Vector2i(150, y)), &"gunpowder", "the seam's far end is gunpowder")
+	world.explode(Vector2i(150, y), 1, 50)
+	var tnt := false
+	for i in range(60):  # 600 ticks, 10 s
+		world.step(10)
+		if world.take_blasts().any(func(b): return b["material"] == &"tnt"):
+			tnt = true
+			break
+	assert_true(tnt, "the lit seam set off its crate within 600 ticks")
+	world.free()
+	_complete()
