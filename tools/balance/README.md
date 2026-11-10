@@ -153,10 +153,12 @@ Per part:
 
 - `smoke`: the Cutter with wheels and a `cutter_rocket` against `dozer_cook.tres`, seeds 1–3, and
   it fails if any fight aborts. A quick "does the runner work" check (~2 s).
-- `standalone`: each damaging part alone at the Cutter's `[3]`, AI-driven, against a dummy Dozer
-  (two wheels, 100000 HP, drive `hold`), seeds 1–5. The dummy can't die or fight back, so every
-  fight runs the full 60 s and each part's damage per energy is measured over the same window.
-  No `expect`: it measures (~1 minute).
+- `standalone`: each damaging part alone at the Cutter's `[3]`, AI-driven, against a dummy Corsair
+  (two wheels, 100000 HP, drive `hold`), seeds 1–5. Both sides use `plain_hull`: with the shaped
+  hulls the Cutter climbed the dummy and spent 11–46 s of each fight flipped, which measured the
+  flip rather than the part. The dummy can't die or fight back, so every fight runs the full 60 s
+  and each part's damage per energy is measured over the same window. No `expect`: it measures
+  (~1 minute).
 - `bodies`: every body against every body (9 pairs, seeds 1–8), `ai` driving and pressing. Each
   side carries two wheels, a Rocket and a Chainsaw on the body's two highest front-facing non-wheel
   slots, Chainsaw in front (Cutter `[2]`/`[3]`, Dozer `[5]`/`[3]`, Corsair `[5]`/`[6]`; the Dozer's
@@ -272,6 +274,11 @@ matrix = round-robin score under `ai`; bodies = cutter / dozer / corsair; MAD as
 | 12 | Wedge regen 2.75 | | | .38 / .53 / .59 | .41 .34 .47 | .094 vs .042 | 7/16 |
 | 13 | Flamethrower back to 2 energy (its damage is the behaviour's `PULSE_DAMAGE`, so tries 2–11 raised its cost for nothing) — **kept** | .50/.50 0/.25 .88/.50 1/.88 .88/.12 | .50 .44 .67 .28 .61 | (= 12) | | | |
 
+| F0 | fix round: Flamethrower and Hearth pulses now read `def.damage` (`pulse_damage()`, 45 → 9 x 5, no change at the old data) | | | | | | |
+| F1 | Flamethrower damage 45→63 | .50/.50 0/.25 .88/.50 .88/1 .88/.12 | .50 .41 .67 .34 .58 | (= 12) | | | |
+| F2 | Flamethrower damage 81 | same but artillery t=21 | .50 .42 .67 .38 .53 (hotmelee ai−mash in the matrix drops to +.10) | | | | |
+| F3 | Flamethrower damage 72 — **kept** | .50/.50 0/.25 .88/.50 .88/1 .88/.12 | .50 .41 .67 .38 .55 | (= 12) | | | |
+
 Kept (try 13): what holds and what doesn't is in the Task 9 section of
 `docs/superpowers/handoffs/2026-11-07-demo-balance-handoff.md`. What blocks the rest, measured:
 
@@ -287,3 +294,22 @@ Kept (try 13): what holds and what doesn't is in the Task 9 section of
   and pressing on every tick spends the same energy as waiting; raising the Rocket's damage per
   energy over the Chainsaw's (25 against 12) did not make waiting pay. Only the builds whose dear
   part has a long cooldown and a big hit (Hearth, Ring of Fire: hotmelee, selfburn) need the timing.
+
+## Known-fail (Task 9)
+
+The suites pass (`ok: true`) while these spec §4 criteria fail. Their `expect` ranges pin today's
+measured values so a change shows up, not because the values are right. Values are from the kept
+state (Task 9 fix round, Flamethrower 72).
+
+| criterion (spec §4) | bound | measured | scenarios whose pins encode the miss |
+|---|---|---|---|
+| `ai` beats `mash` per build, `demo` | gap ≥ +0.15 | sparks 0.00 (.50/.50), freeze −0.25 (0/.25), artillery −0.12 (.88/1.00); selfburn +0.38 and hotmelee +0.75 pass | `demo`: `vs-cook-sparks`, `-freeze`, `-artillery` and their `-mash` twins (win-rate pins within one fight of the values) |
+| `ai` beats `mash` per build, `demo-matrix` (player win rate) | gap ≥ +0.15 | sparks −0.10 (.35/.45), freeze +0.05 (.05/0), selfburn −0.05 (.70/.75), artillery −0.25 (.20/.45); hotmelee +0.15 passes | `demo-matrix`: `matrix` and `matrix-mash` (pins only `aborted`, so nothing there guards the gap) |
+| round-robin band | every build 0.35–0.65 | selfburn 0.67 (sparks .50, freeze .41, artillery .38, hotmelee .55) | `demo-matrix` `matrix` (no win-rate pin) |
+| body cycle Wedge > Tower > Barge > Wedge | each body wins one pair ≥ 0.60 and loses one ≥ 0.60 | pairs Cutter–Dozer .41, Cutter–Corsair .34 (the Barge's win, .66, holds), Dozer–Corsair .47 | `bodies`: `bodies/0x1`, `bodies/1x0`, `bodies/1x2`, `bodies/2x1` (win-rate pins) |
+| Dozer flipped in most Cutter–Dozer fights | > 8 of 16 | 7 of 16 | `bodies/0x1` `enemy.flipped_seconds`, `bodies/1x0` `player.flipped_seconds` (pin the mean seconds, not the count) |
+
+Check the button criterion on any `demo` or `demo-matrix` `--out` file with
+`analysis/summary.py --press-gap out.json`. It prints the `ai` and `mash` win rates and the gap per
+build, flags each gap under 0.15, and exits 1 if any is. Today it exits 1 on both suites.
+

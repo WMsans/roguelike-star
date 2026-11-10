@@ -1,6 +1,6 @@
 extends ChBehaviour
 
-# The Flamethrower (spec §5.4): a 1 s burst of fire particles out along facing() and 45 damage spread
+# The Flamethrower (spec §5.4): a 1 s burst of fire particles out along facing() and the def's damage spread
 # over that burst. The particles fly in the particle pool, so the burn itself is the sim's: they write
 # grid cells once something blocks them, and ChPartRuntime's sampling turns those cells into `burning`.
 # The reach numbers live here, not on ChPartDef (Task 4b's ruling): proximity_range 0 on the def means
@@ -23,7 +23,6 @@ const PARTICLES_PER_TICK := 3
 const PARTICLE_SPREAD := 0.25  # radians, the cone the shot fans over
 const REACH := 40.0
 const PULSES := 9
-const PULSE_DAMAGE := 5  # 9 x 5 = 45, the def's damage spread over the burst
 
 var burst_left := 0.0  # seconds of burst left to spray
 var pulse_gap := 0.0  # seconds between damage pulses
@@ -69,8 +68,9 @@ func process(ctx: ChBattleContext, delta: float) -> void:
 		var nozzle := part.anchor_world() + part.facing() * NOZZLE
 		ctx.world.spawn_particles(&"fire", nozzle, part.facing() * PARTICLE_SPEED,
 			PARTICLES_PER_TICK, PARTICLE_SPREAD)
-	# The damage pulses land every pulse_gap seconds over the burst, so 9 pulses x 5 spread the
-	# def's 45 across the 1 s. A pulse that met nothing spends itself rather than banking a hit.
+	# The damage pulses land every pulse_gap seconds over the burst, so the def's damage is spread as
+	# PULSES equal pulses across the 1 s (45 -> 9 x 5). A pulse that met nothing spends itself rather
+	# than banking a hit.
 	if pulses_left <= 0:
 		return
 	pulse_left -= delta
@@ -80,4 +80,10 @@ func process(ctx: ChBattleContext, delta: float) -> void:
 	pulses_left -= 1
 	var target := _nearest_enemy_body(ctx, _flame_box())
 	if target != null:
-		ctx.deal_hit(part, target, PULSE_DAMAGE)
+		ctx.deal_hit(part, target, pulse_damage())
+
+
+func pulse_damage() -> int:
+	# One pulse's share of the def's damage. Integer hits: a damage that does not split evenly
+	# rounds per pulse, so the burst total can differ from def.damage by up to PULSES / 2.
+	return roundi(float(part.def.damage) / PULSES)

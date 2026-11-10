@@ -31,18 +31,32 @@ func _rig() -> ChBodyDef:
 # The real defs from res://game/data/parts under that rig body, so a build reads the emitters'
 # numbers (cost, cooldown, damage, proximity_range as reach) off the .tres and gets the behaviour
 # the .tres names.
-func _catalog() -> ChCatalog:
+# damage_scale > 1 hands the Flamethrower and the Hearth a copy of their def with that many times the
+# damage, so a test can show the pulses are cut from def.damage rather than from a constant.
+func _catalog(damage_scale: int = 1) -> ChCatalog:
 	var loaded := ChCatalog.load_default()
 	var defs: Array[ChPartDef] = []
 	for id in [&"flamethrower", &"hearth", &"ring_of_fire", &"ember_battery", &"strut"]:
 		var def: ChPartDef = loaded.part(id)
 		assert_true(def != null, "%s loads from res://game/data/parts" % id)
+		if damage_scale != 1 and id in [&"flamethrower", &"hearth"]:
+			# ChPartDef's fields are plain vars, which Resource.duplicate() does not copy, so the copy
+			# is made field by field.
+			var copy := ChPartDef.new()
+			for prop in def.get_property_list():
+				if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+					copy.set(prop.name, def.get(prop.name))
+			copy.damage *= damage_scale
+			def = copy
 		# The emitters stay unlimited-charge parts: the brief never spends charges on them.
 		# A charge-limited emitter would read charges_left in process, and the loop's -1 sentinel
 		# means unlimited, so a limited behaviour would have to park cooldown_left at INF (Task 13's
 		# convention). Not tested here because no fire emitter in the slice is limited.
 		defs.append(def)
-	var catalog := ChCatalog.from_defs(defs, [_rig()])
+	# The rig's HP grows with the scale, so a scaled burst still lands whole on a live target.
+	var rig := _rig()
+	rig.hp *= damage_scale
+	var catalog := ChCatalog.from_defs(defs, [rig])
 	for pair in [[&"flamethrower", true], [&"hearth", true], [&"ring_of_fire", true],
 	 [&"ember_battery", true], [&"strut", false]]:
 		# A part the brief leaves behaviour-less (the strut) stays a plain mountable shell.
@@ -117,9 +131,16 @@ const FLAME_TICKS := 272  # 3.03 s to the first fire (def.cooldown 3.0) plus 1.5
 # that same assert reads peak 0 and the burst never leaves the chariot. So the nozzle clearing the body it
 # is mounted on is pinned by an assert, not by prose.
 func test_flamethrower_sets_target_burning() -> void:
+	await _flamethrower_case(1)
+
+# The pulses split the def's damage: twice the def damage pays twice per pulse.
+func test_flamethrower_pulses_follow_def_damage() -> void:
+	await _flamethrower_case(2)
+
+func _flamethrower_case(scale: int) -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
-	var catalog := _catalog()
+	var catalog := _catalog(scale)
 	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"flamethrower"]]), catalog, 0, ORIGIN, false)
 	var foe: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[0], &"strut"]]), catalog, 1, ORIGIN + Vector2(FLAME_GAP, 0), false)
 	var flame := _part_of(at, [1])
@@ -162,11 +183,15 @@ func test_flamethrower_sets_target_burning() -> void:
 	assert_true(burn_at >= 0.0, "the target read as burning during the window")
 	assert_true(fired_at.size() == 1 and burn_at >= 0.0 and burn_at - fired_at[0] <= 1.5,
 		"the target caught within 1.5 s of the burst")
+	# The pulse is the def's damage over the 9 pulses (72 -> 8 at today's .tres), read off the def the
+	# rig was built with, so a scaled def has to scale every pulse.
+	var pulse := roundi(flame.def.damage / 9.0)
 	assert_eq(hits.size(), 9, "the burst spends 9 damage pulses")
-	assert_eq(paid, 45, "the 45 direct damage lands as 9 x 5")
+	assert_eq(paid, 9 * pulse, "the def's %d direct damage lands as 9 x %d" % [flame.def.damage, pulse])
 	assert_true(hits[0].data["target_part"] == foe_part, "the pulses went to the enemy's part")
-	assert_true(foe_part.def != null and foe_part.integrity == foe_part.def.integrity - 27,
-		"the part wore ChDamage's half of each pulse (9 x round(5 x 0.5))")
+	var wear := 9 * roundi(pulse * 0.5)
+	assert_true(foe_part.def != null and foe_part.integrity == foe_part.def.integrity - wear,
+		"the part wore ChDamage's half of each pulse (9 x round(%d x 0.5))" % pulse)
 	assert_true(foe.chassis.global_position.distance_to(flame.anchor_world()) <= 40.0,
 		"the enemy stayed inside the flamethrower's 40-cell reach")
 	_complete()
@@ -184,9 +209,16 @@ const HEARTH_PULSE_TICKS := 135  # 2.25 s: 9 pulses at 0.25 s plus margin
 const RING := 2  # cells the ring sits out from the own hull, the brief's number
 
 func test_hearth_damages_touching_enemy_only_after_charge() -> void:
+	await _hearth_case(1)
+
+# The pulses split the def's damage: twice the def damage pays twice per pulse.
+func test_hearth_pulses_follow_def_damage() -> void:
+	await _hearth_case(2)
+
+func _hearth_case(scale: int) -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
-	var catalog := _catalog()
+	var catalog := _catalog(scale)
 	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[0], &"hearth"]]), catalog, 0, ORIGIN, false)
 	var near: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([]), catalog, 1, ORIGIN + Vector2(HEARTH_GAP, 0), false)
 	var far: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([]), catalog, 1, ORIGIN + Vector2(HEARTH_FAR, 0), false)
@@ -222,8 +254,8 @@ func test_hearth_damages_touching_enemy_only_after_charge() -> void:
 		% [hull.get_center(), band, near_box])
 	assert_true(peak >= 1, "the ring left fire cells in the band (peak %d)" % peak)
 	assert_eq(hits.size(), 9, "9 pulses paid the touching hull")
-	assert_eq(paid, 45, "the hearth's 45 lands as 9 x 5")
-	assert_eq(near.hp, near_hp - 45, "all of it on the near hull")
+	assert_eq(paid, 45 * scale, "the hearth's %d lands as 9 x %d" % [45 * scale, 5 * scale])
+	assert_eq(near.hp, near_hp - 45 * scale, "all of it on the near hull")
 	assert_eq(far.hp, far_hp, "and the control hull paid nothing")
 	_complete()
 

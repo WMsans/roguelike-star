@@ -376,3 +376,18 @@ above 65%. Shaped bodies are further from even than the box control.
 2. A reach for straight-shot parts in the press rule, or a Rocket that arcs.
 3. The Flamethrower and the Hearth reading `def.damage`.
 4. Whether the press criterion is meant to hold for melee brawlers at all.
+
+**Fix round (same day):**
+- **Pulse damage.** The Flamethrower's and the Hearth's pulses now split `def.damage` over their 9
+  pulses (`pulse_damage()`; 45 → 9 x 5, so nothing changes at the old data).
+- **Flamethrower re-tune:** damage 45→72, cost still 2. Artillery moves into the band at .38. Matrix
+  scores are now sparks .50, freeze .41, selfburn .67, artillery .38, hotmelee .55; selfburn is
+  the only build still outside 0.35–0.65.
+- **`standalone`** now fights a plain-hull dummy Corsair, with the player on a plain hull too.
+  - Under the shaped hulls the Cutter flipped itself: 11–46 s per fight at 2729c8a and at this task
+    alike, so the suite measured flips rather than DPS.
+  - With plain hulls, part DPS is: Flamethrower 21.3, Ring 12.9, Rocket 8.3, Chainsaw 4.7, Hearth
+    2.7, Firebolt 2.0, Mace 0, Harpoon 0.2 (see the Task 9 report).
+- **Known fails:** every criterion the suites pass while failing is listed in
+  `tools/balance/README.md`, "Known-fail (Task 9)". `analysis/summary.py --press-gap` checks the
+  `ai`−`mash` gap on a `demo` or `demo-matrix` run.

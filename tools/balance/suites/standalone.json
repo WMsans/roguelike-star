@@ -24,11 +24,13 @@
             ],
             "part": "cutter_rocket"
           }
-        ]
+        ],
+        "plain_hull": true
       },
       "enemy": {
-        "body_id": "dozer",
+        "body_id": "corsair",
         "hp": 100000,
+        "plain_hull": true,
         "parts": [
           {
             "slot": [
@@ -76,11 +78,13 @@
             ],
             "part": "cutter_chainsaw"
           }
-        ]
+        ],
+        "plain_hull": true
       },
       "enemy": {
-        "body_id": "dozer",
+        "body_id": "corsair",
         "hp": 100000,
+        "plain_hull": true,
         "parts": [
           {
             "slot": [
@@ -128,11 +132,13 @@
             ],
             "part": "flamethrower"
           }
-        ]
+        ],
+        "plain_hull": true
       },
       "enemy": {
-        "body_id": "dozer",
+        "body_id": "corsair",
         "hp": 100000,
+        "plain_hull": true,
         "parts": [
           {
             "slot": [
@@ -180,11 +186,13 @@
             ],
             "part": "firebolt_launcher"
           }
-        ]
+        ],
+        "plain_hull": true
       },
       "enemy": {
-        "body_id": "dozer",
+        "body_id": "corsair",
         "hp": 100000,
+        "plain_hull": true,
         "parts": [
           {
             "slot": [
@@ -232,11 +240,13 @@
             ],
             "part": "hearth"
           }
-        ]
+        ],
+        "plain_hull": true
       },
       "enemy": {
-        "body_id": "dozer",
+        "body_id": "corsair",
         "hp": 100000,
+        "plain_hull": true,
         "parts": [
           {
             "slot": [
@@ -284,11 +294,13 @@
             ],
             "part": "ice_cream_mace"
           }
-        ]
+        ],
+        "plain_hull": true
       },
       "enemy": {
-        "body_id": "dozer",
+        "body_id": "corsair",
         "hp": 100000,
+        "plain_hull": true,
         "parts": [
           {
             "slot": [
@@ -336,11 +348,13 @@
             ],
             "part": "ring_of_fire"
           }
-        ]
+        ],
+        "plain_hull": true
       },
       "enemy": {
-        "body_id": "dozer",
+        "body_id": "corsair",
         "hp": 100000,
+        "plain_hull": true,
         "parts": [
           {
             "slot": [
@@ -388,11 +402,13 @@
             ],
             "part": "corsair_harpoon"
           }
-        ]
+        ],
+        "plain_hull": true
       },
       "enemy": {
-        "body_id": "dozer",
+        "body_id": "corsair",
         "hp": 100000,
+        "plain_hull": true,
         "parts": [
           {
             "slot": [
