@@ -224,6 +224,7 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 	# out of the joints, so this pass must not fire it, re-process it or count its burning as
 	# damage. One flag, part.broken, closes all three, and the dead joint is never read here at
 	# all, which is what Review Focus 3 asks for.
+	chariot.settle_mass()
 	for part in chariot.parts:
 		if part.broken:
 			continue

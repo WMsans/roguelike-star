@@ -15,7 +15,7 @@ func _run(body_id: StringName, drive: float, ticks: int) -> Dictionary:
 	battle.pressers = [func(_b, _s): return false, func(_b, _s): return false]
 	battle.drivers = [func(_b, _s): return drive, func(_b, _s): return drive]
 	Engine.get_main_loop().get_root().add_child(battle)
-	var seen := {"start": NAN, "moved": 0.0, "max_rot": 0.0, "end_rot": 0.0, "ticks": 0}
+	var seen := {"start": NAN, "moved": 0.0, "max_rot": 0.0, "end_rot": 0.0, "ticks": 0, "mass": 0.0}
 	battle.stepped.connect(func(ctx: ChBattleContext):
 		var hull: Node2D = ctx.chariots[0].chassis
 		if is_nan(seen.start):
@@ -24,6 +24,7 @@ func _run(body_id: StringName, drive: float, ticks: int) -> Dictionary:
 		seen.moved = maxf(seen.moved, absf(hull.global_position.x - seen.start))
 		seen.max_rot = maxf(seen.max_rot, rot)
 		seen.end_rot = rot
+		seen.mass = ctx.chariots[0].chassis.get_mass()
 		seen.ticks += 1
 		if seen.ticks >= ticks:
 			ctx.chariots[1].hp = 0)
@@ -48,4 +49,16 @@ func test_each_body_lands_upright() -> void:
 	for id in BODY_IDS:
 		var seen := await _run(id, 0.0, 120)
 		assert_true(seen.end_rot < 0.3, "%s landed at |rotation| %.2f" % [id, seen.end_rot])
+	_complete()
+
+
+func test_body_mass_reaches_the_physics() -> void:
+	# A pixel body joins with the mass of its pixels; a def's mass has to win over it once joined, or
+	# the Barge is no heavier than its outline and nothing it shoves feels the difference.
+	for id in BODY_IDS:
+		var def: ChBodyDef = ChCatalog.load_default().body(id)
+		if def.mass <= 0.0:
+			continue
+		var seen := await _run(id, 0.0, 30)
+		assert_near(seen.mass, def.mass, 0.5, "%s chassis mass" % id)
 	_complete()

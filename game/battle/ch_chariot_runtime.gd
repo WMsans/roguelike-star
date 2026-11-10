@@ -51,6 +51,16 @@ func drive(direction: float) -> void:
 		joint.enable_motor = not disabled and direction != 0.0
 		joint.motor_speed = 0.0 if disabled else direction * MOTOR_SPEED
 
+func settle_mass() -> void:
+	# A pixel body joins with its pixels' mass (the engine reads props.mass at join only for a
+	# texture-less box), so the def's mass is set again once the chassis has joined: on a joined body
+	# set_mass rescales the mass data, inertia with it. After that the masses agree and this is a read.
+	if body_def == null or body_def.mass <= 0.0 or not is_instance_valid(chassis):
+		return
+	var now := chassis.get_mass()
+	if now > 0.0 and not is_equal_approx(now, body_def.mass):
+		chassis.mass = body_def.mass
+
 func is_dead() -> bool:
 	return hp <= 0
 
