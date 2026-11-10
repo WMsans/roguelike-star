@@ -347,8 +347,7 @@ func ai_press(side: int) -> bool:
 	# ChEnemyAI's press decision for either side, toward the other chariot (see ai_drive).
 	var me := player if side == 0 else enemy
 	var other := enemy if side == 0 else player
-	return ChEnemyAI.should_press(me, other.chassis.global_position.x, _half_width(me),
-		_half_width(other))
+	return ChEnemyAI.should_press(me, other.chassis.global_position.x, _half_width(other))
 
 
 func _player_press() -> bool:
