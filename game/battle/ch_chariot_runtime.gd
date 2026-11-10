@@ -22,6 +22,7 @@ var chassis: PixelRigidBody = null  # the one body that carries the whole chario
 var chassis_visual: Node2D = null  # the chassis body's "Visual" child (the builder's, Task 6)
 var parts: Array[ChPartRuntime] = []  # every part, in the order the builder mounted them
 
+var _mass_settled := false  # settle_mass has applied the def mass
 var burn_damage_left: float = 0.0  # burn damage held back until it adds up to a whole HP point
 
 const MOTOR_SPEED := 12.0  # rad/s at full drive, as the demo car's export
@@ -53,13 +54,14 @@ func drive(direction: float) -> void:
 
 func settle_mass() -> void:
 	# A pixel body joins with its pixels' mass (the engine reads props.mass at join only for a
-	# texture-less box), so the def's mass is set again once the chassis has joined: on a joined body
-	# set_mass rescales the mass data, inertia with it. After that the masses agree and this is a read.
-	if body_def == null or body_def.mass <= 0.0 or not is_instance_valid(chassis):
+	# texture-less box), so the def's mass is set once, on the first call after the chassis has
+	# joined (set_mass on a joined body rescales its mass data, inertia with it). One-shot: anything
+	# that changes the chassis mass later (a part loss, a payoff) is never put back.
+	if _mass_settled or body_def == null or body_def.mass <= 0.0 or not is_instance_valid(chassis):
 		return
-	var now := chassis.get_mass()
-	if now > 0.0 and not is_equal_approx(now, body_def.mass):
+	if chassis.get_mass() > 0.0:
 		chassis.mass = body_def.mass
+		_mass_settled = true
 
 func is_dead() -> bool:
 	return hp <= 0

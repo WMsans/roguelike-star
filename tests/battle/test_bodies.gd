@@ -9,7 +9,9 @@ const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 const TALL_HP := 100000
 
 
-func _run(body_id: StringName, drive: float, ticks: int) -> Dictionary:
+func _run(body_id: StringName, drive: float, ticks: int, later_mass: float = 0.0) -> Dictionary:
+	# later_mass > 0 sets the player's chassis mass by hand halfway through, the way a part loss or a
+	# mass payoff would.
 	# Both sides drive the same way, so the enemy pulls away instead of standing in the way.
 	var battle: Node2D = ResourceLoader.load("res://game/battle/battle.tscn").instantiate()
 	battle.pressers = [func(_b, _s): return false, func(_b, _s): return false]
@@ -26,6 +28,8 @@ func _run(body_id: StringName, drive: float, ticks: int) -> Dictionary:
 		seen.end_rot = rot
 		seen.mass = ctx.chariots[0].chassis.get_mass()
 		seen.ticks += 1
+		if later_mass > 0.0 and seen.ticks == ticks / 2:
+			ctx.chariots[0].chassis.mass = later_mass
 		if seen.ticks >= ticks:
 			ctx.chariots[1].hp = 0)
 	var layout := ChChariotLayout.new()
@@ -61,4 +65,7 @@ func test_body_mass_reaches_the_physics() -> void:
 			continue
 		var seen := await _run(id, 0.0, 30)
 		assert_near(seen.mass, def.mass, 0.5, "%s chassis mass" % id)
+		# The def's mass is applied once at join: a later change is not put back on the next tick.
+		var changed := await _run(id, 0.0, 30, 123.0)
+		assert_near(changed.mass, 123.0, 0.5, "%s keeps a mass set after join" % id)
 	_complete()
