@@ -273,7 +273,6 @@ matrix = round-robin score under `ai`; bodies = cutter / dozer / corsair; MAD as
 | 11 | Wedge regen 3.0 | same as 10 | same as 10 | .47 / .52 / .52 | .44 .50 .47 | .031 vs .021 | 6/16 |
 | 12 | Wedge regen 2.75 | | | .38 / .53 / .59 | .41 .34 .47 | .094 vs .042 | 7/16 |
 | 13 | Flamethrower back to 2 energy (its damage is the behaviour's `PULSE_DAMAGE`, so tries 2–11 raised its cost for nothing) — **kept** | .50/.50 0/.25 .88/.50 1/.88 .88/.12 | .50 .44 .67 .28 .61 | (= 12) | | | |
-
 | F0 | fix round: Flamethrower and Hearth pulses now read `def.damage` (`pulse_damage()`, 45 → 9 x 5, no change at the old data) | | | | | | |
 | F1 | Flamethrower damage 45→63 | .50/.50 0/.25 .88/.50 .88/1 .88/.12 | .50 .41 .67 .34 .58 | (= 12) | | | |
 | F2 | Flamethrower damage 81 | same but artillery t=21 | .50 .42 .67 .38 .53 (hotmelee ai−mash in the matrix drops to +.10) | | | | |
@@ -308,6 +307,16 @@ state (Task 9 fix round, Flamethrower 72).
 | round-robin band | every build 0.35–0.65 | selfburn 0.67 (sparks .50, freeze .41, artillery .38, hotmelee .55) | `demo-matrix` `matrix` (no win-rate pin) |
 | body cycle Wedge > Tower > Barge > Wedge | each body wins one pair ≥ 0.60 and loses one ≥ 0.60 | pairs Cutter–Dozer .41, Cutter–Corsair .34 (the Barge's win, .66, holds), Dozer–Corsair .47 | `bodies`: `bodies/0x1`, `bodies/1x0`, `bodies/1x2`, `bodies/2x1` (win-rate pins) |
 | Dozer flipped in most Cutter–Dozer fights | > 8 of 16 | 7 of 16 | `bodies/0x1` `enemy.flipped_seconds`, `bodies/1x0` `player.flipped_seconds` (pin the mean seconds, not the count) |
+| standalone part DPS (brief) | about 10–20 DPS | Flamethrower 21.3 is over 20. Rocket 8.3, Chainsaw 4.7, Hearth 2.7, Firebolt 2.0, Harpoon 0.2 and Mace 0 are under 10; only the Ring (12.9) is in range. The Mace and Harpoon reading about 0 may be an artifact of the plain-hull Corsair target rather than of the parts (not checked) | `standalone` (no `expect`; it measures) |
+
+A test fails for the same reason. `tests/battle/test_bodies.gd`
+`test_each_body_drives_the_arena` fails about half the time in suite runs: 6 of the 12 suite and
+subset runs made in the Task 9 fix rounds, on the Task 9 data, and 0 of 7 isolated runs. It fails
+with `dozer stayed wheels-down (max |rotation| 1.92)`. The Dozer (Tower) wheelies over when it lands
+with its motor already running, and whether it does depends on how its join lines up with the fight
+ticks, which the frame timing decides (the tests run without `--fixed-fps`). This is the real
+self-flip defect, so the test is left as it is. No Dozer mass fixes it: 600 tips, and 1000 or 1100
+cannot drive the 100 cells.
 
 Check the button criterion on any `demo` or `demo-matrix` `--out` file with
 `analysis/summary.py --press-gap out.json`. It prints the `ai` and `mash` win rates and the gap per

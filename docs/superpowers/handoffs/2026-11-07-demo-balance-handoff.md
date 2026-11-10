@@ -359,7 +359,8 @@ above 65%. Shaped bodies are further from even than the box control.
   - The press only pays where the dear part has a long cooldown and a big hit: Hearth and Ring.
 - **Band 0.35–0.65:** artillery is at .28 and selfburn at .67. The Flamethrower's damage is the
   behaviour's hard-coded `PULSE_DAMAGE` (5 × 9), not `def.damage`, so raising its def damage did
-  nothing (left at 45 / 2 energy).
+  nothing (left at 45 / 2 energy). *(Resolved in the fix round below: the pulses now read
+  `def.damage`; the Flamethrower is 72 and artillery is at .38.)*
 - **freeze (the only Dozer build) barely wins.** The Tower spends most fights flipped (40–58 s in
   the matrix). It wheelies over when it lands with its motor running.
 - **No body cycle.** Every body spends 25–40 s of a fight flipped, mirrors included, so most pairs
@@ -374,7 +375,7 @@ above 65%. Shaped bodies are further from even than the box control.
 1. Body stability: the self-flips and the Tower's landing wheelie. These are shape or physics
    work, not numbers.
 2. A reach for straight-shot parts in the press rule, or a Rocket that arcs.
-3. The Flamethrower and the Hearth reading `def.damage`.
+3. ~~The Flamethrower and the Hearth reading `def.damage`.~~ **Resolved** in the fix round below: their pulses now split `def.damage`.
 4. Whether the press criterion is meant to hold for melee brawlers at all.
 
 **Fix round (same day):**

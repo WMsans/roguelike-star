@@ -356,8 +356,11 @@ const CHAIN_FRAMES := 4000  # the 3600-frame budget, plus the frames the arena t
 const DRIVE_ON := 0.9  # seconds of held direction
 const DRIVE_OFF := 0.3  # seconds released, so the queued parts are paid (drive is paid first)
 # 3 s of fight: the player has driven, the cook has not arrived. It was 2 s on the old box Corsair; the
-# Barge (2x its hull mass) gets two 0.3 s key bursts in 3 s and is still sliding off its landing at 1 s.
-const PLAYER_MARK_FRAMES := 180
+# Barge (2x its hull mass) is still sliding off its landing at 1 s, then holds the key 0.9 s at a time.
+# Read off the fight's clock (ctx.time), not a frame count, so the mark means "3 s of fight" however
+# frames and ticks line up. Today the fight ticks once per frame, so this alone moved nothing: the
+# flake was the drive pattern (see _drive_fight_out).
+const PLAYER_MARK_SECONDS := 3.0
 
 
 func _garage_built(body_id: StringName, mounts: Array) -> ChChariotLayout:
@@ -398,12 +401,13 @@ func _start_fight(battle: Node2D, player_layout: ChChariotLayout,
 # keyboard is. Bursting it is what a player learns, because ChEnergy pays the drive before the queued
 # parts and a direction held for ever starves the weapons. Returns `min_gap`, the narrowest the two
 # hulls ever got centre to centre (the number the reach pins below read), and `mark`, the player's
-# hull x at PLAYER_MARK_FRAMES: where its own driving had got it before the Dozer arrived, which is
+# hull x at PLAYER_MARK_SECONDS of fight time: where its own driving had got it before the Dozer arrived, which is
 # the only stretch of the fight that is the player's driving alone.
 func _drive_fight_out(battle: Node2D) -> Dictionary:
 	var frames := 0
 	var min_gap := INF
 	var mark := 0.0
+	var marked := false
 	var held := false
 	var next_flip := DRIVE_ON
 	while battle.ticking and frames < CHAIN_FRAMES:
@@ -412,14 +416,20 @@ func _drive_fight_out(battle: Node2D) -> Dictionary:
 		var t: float = battle.ctx.time
 		if t >= next_flip:
 			held = not held
-			next_flip = t + (DRIVE_OFF if held else DRIVE_ON)
+			# Held for DRIVE_ON, released for DRIVE_OFF, as the two constants say. It was the other
+			# way round (0.3 s taps, 0.9 s rests), and on the Barge (mass 500 since Task 8's mass fix)
+			# a 0.3 s tap rolled back onto its spawn between taps in 3 of 4 runs, so whether it ever
+			# left turned on the landing (Task 9 fix round 2). The first DRIVE_ON stays a rest: the
+			# chariot is still landing.
+			next_flip = t + (DRIVE_ON if held else DRIVE_OFF)
 			if held:
 				Input.action_press(&"ui_right")
 			else:
 				Input.action_release(&"ui_right")
 		min_gap = minf(min_gap, absf(battle.enemy.chassis.global_position.x
 			- battle.player.chassis.global_position.x))
-		if frames == PLAYER_MARK_FRAMES:
+		if not marked and t >= PLAYER_MARK_SECONDS:
+			marked = true
 			mark = battle.player.chassis.global_position.x
 	Input.action_release(&"ui_right")
 	assert_true(frames < CHAIN_FRAMES, "the fight spent its own tick loop rather than the frame cap")
