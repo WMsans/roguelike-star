@@ -53,7 +53,7 @@ func test_hud_energy_pips() -> void:
 	for pip in hud.energy_pips:
 		if pip.color == ChUi.ACCENT:
 			lit += 1
-	assert_eq(lit, 3, "round(3.2) of them lit, the rest left as sockets")
+	assert_eq(lit, 3, "floor(3.2) of them lit, the rest left as sockets")
 	_complete()
 
 
@@ -66,6 +66,32 @@ func test_hud_marks_the_volley_on_the_pips() -> void:
 	for at in 8:
 		var want := ChUi.ACCENT if at < 2 else (ChBattleHud.VOLLEY if at < 6 else ChBattleHud.PIP_OFF)
 		assert_eq(hud.energy_pips[at].color, want, "pip %d of the 6 lit, volley 4" % (at + 1))
+	_complete()
+
+
+func test_hud_lights_only_whole_energy() -> void:
+	# try_pay(3) fails at 2.6, so 2.6 lights two pips, not three: a lit pip is a unit a press can spend.
+	var hud := _hud()
+	hud.show_state(_chariot(_body("Cutter", 100), 100, 6.0, 2.6), _chariot(_body("Dozer", 200), 200))
+	var lit := 0
+	for pip in hud.energy_pips:
+		if pip.color != ChBattleHud.PIP_OFF:
+			lit += 1
+	assert_eq(lit, 2, "floor(2.6) pips lit")
+	_complete()
+
+
+func test_hud_shows_the_volley_shortfall() -> void:
+	# A volley of 4 on a pool of 2 of 8: both lit pips are what the press would spend, and the two
+	# unlit pips above them are the shortfall, in their own colour, so the player sees it would not
+	# all pay.
+	var hud := _hud()
+	hud.show_state(_chariot(_body("Cutter", 100), 100, 8.0, 2.0), _chariot(_body("Dozer", 200), 200), 4)
+	for at in 8:
+		var want := ChBattleHud.VOLLEY if at < 2 else (ChBattleHud.SHORT if at < 4 else ChBattleHud.PIP_OFF)
+		assert_eq(hud.energy_pips[at].color, want, "pip %d of 8, 2 lit, volley 4" % (at + 1))
+	assert_true(ChBattleHud.SHORT != ChBattleHud.VOLLEY and ChBattleHud.SHORT != ChBattleHud.PIP_OFF,
+		"the shortfall has a colour of its own")
 	_complete()
 
 

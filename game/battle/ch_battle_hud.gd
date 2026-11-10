@@ -13,6 +13,7 @@ const PIP_GAP := 4
 const PIP_OFF := ChUi.BUTTON  # an unlit pip: the theme's button grey, so it reads as a socket
 const ROW_GAP := 6  # between a block's rows
 const VOLLEY := Color("#ffd166")  # the lit pips a press would spend right now
+const SHORT := Color("#7a2e2e")  # the unlit pips a ready volley would need but the pool lacks
 
 var player_name: Label
 var player_hp: Label
@@ -102,7 +103,7 @@ func _bar(fill: Color) -> ProgressBar:
 
 func show_state(player: ChChariotRuntime, enemy: ChChariotRuntime, volley_cost: int = 0) -> void:
 	# The whole HUD, off the fight's own numbers: both bodies' names and HP, the player's energy pool
-	# as pips, with the top `volley_cost` lit ones marked as what a press would spend.
+	# as pips, with the top `volley_cost` lit ones marked as what a press would spend (see _energy).
 	player_name.text = player.body_def.display_name
 	player_hp.text = _hp_text(player)
 	player_bar.value = _hp_percent(player)
@@ -123,17 +124,19 @@ static func _hp_percent(rig: ChChariotRuntime) -> float:
 
 
 func _energy(pool: ChEnergy, volley_cost: int) -> void:
-	# One pip per unit of cap, round(pool.value) of them lit. The volley a press would spend is
-	# painted on the top of the lit run, where the pool drains from, so the player sees the price.
+	# One pip per unit of cap, floor(pool.value) of them lit: a lit pip is a unit try_pay can spend.
+	# The volley a press would spend is painted on the top of the lit run, where the pool drains
+	# from, and what it needs past the pool is painted SHORT on the unlit pips above, so the player
+	# sees whether a press would pay for all of it.
 	while energy_pips.size() < roundi(pool.cap):
 		var pip := ColorRect.new()
 		pip.custom_minimum_size = PIP
 		pip.color = PIP_OFF
 		_pips_row.add_child(pip)
 		energy_pips.append(pip)
-	var lit := roundi(pool.value)
+	var lit := floori(pool.value)
 	for at in energy_pips.size():
 		if at >= lit:
-			energy_pips[at].color = PIP_OFF
+			energy_pips[at].color = SHORT if at < volley_cost else PIP_OFF
 		else:
 			energy_pips[at].color = VOLLEY if at >= lit - volley_cost else ChUi.ACCENT
