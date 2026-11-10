@@ -39,6 +39,10 @@ struct MaterialDef {
 	uint8_t lifetime = 0;  // 0 = permanent
 	std::string decays_into;
 	bool indestructible = false;  // blasts leave these cells alone
+	// > 0: a burning cell of this material detonates (PixelWorld's scan), and a blast lights it
+	// instead of removing it. Power is in cells per second, as PixelWorld.explode takes it.
+	int explode_radius = 0;
+	float explode_power = 0;
 };
 
 struct ReactionDef {
@@ -73,6 +77,8 @@ struct CompiledMaterial {
 	uint8_t lifetime;
 	MatId decays_into;
 	bool indestructible;
+	int explode_radius;
+	float explode_power;
 	bool has_reactions;
 };
 

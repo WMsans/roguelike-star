@@ -9,6 +9,7 @@
 #include <godot_cpp/classes/quad_mesh.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/classes/texture2drd.hpp>
+#include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/color.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/node_path.hpp>
@@ -173,10 +174,13 @@ class PixelWorld : public Node2D {
 	double gen_ms = 0.0;
 	int64_t chunks_generated = 0;
 	int view_missing = 0;
+	Array blasts;  // take_blasts() hands these over and clears them
 
 	MatId material_id(const StringName &p_material) const;
 	Color cell_color(const Cell &p_cell) const;
 	void tick_world();
+	int blast(const Vector2i &p_position, int p_radius, float p_power, const StringName &p_material);
+	void detonate_lit();
 	void sync_bodies();
 	void create_particle_view();
 	void draw_particles();
@@ -364,6 +368,10 @@ public:
 	                           int p_count, float p_spread, float p_lifetime, float p_gravity_scale = 1.0f,
 	                           bool p_collides = true);
 	int explode(const Vector2i &p_position, int p_radius, float p_power);
+	// Every blast since the last call, oldest first, then clears the queue: explode() calls and
+	// detonated explosive cells alike. Each is {"position": Vector2i, "radius": int,
+	// "power": float, "material": StringName}; material is &"" for explode().
+	Array take_blasts();
 	// Hits on terrain carry "position", "material", "normal" (cells) and a null "collider";
 	// hits on a body carry the body as "collider" and the exact "point".
 	Dictionary raycast(const Vector2 &p_from, const Vector2 &p_to, int p_mask = RAY_SOLID | RAY_POWDER | RAY_BODIES) const;

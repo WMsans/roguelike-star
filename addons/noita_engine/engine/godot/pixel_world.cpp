@@ -55,6 +55,10 @@ constexpr float EXPLODE_FIRE_CHANCE = 0.06f;
 constexpr float EXPLODE_SMOKE_CHANCE = 0.12f;
 constexpr uint32_t EXPLODE_FLASH_COLOR = 0xFFB03CFF;
 constexpr int EXPLODE_FLASH_PER_RADIUS = 6;
+// Explosive cells set off per tick; the rest stay lit for the next. Lit cells near a chosen
+// centre merge into its blast or wait (see detonate_lit), so a chain costs about the same
+// however big the pile is.
+constexpr int MAX_DETONATIONS_PER_TICK = 16;
 
 // The batched grid queries' shared input check: one size per box, rounded to whole cells, each
 // one inside 1..MAX_QUERY_BOX. Reports why and returns false on anything else.
@@ -101,6 +105,7 @@ void PixelWorld::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("spawn_particles", "material", "position", "velocity", "count", "spread"), &PixelWorld::spawn_particles);
 	ClassDB::bind_method(D_METHOD("spawn_visual_particles", "color", "position", "velocity", "count", "spread", "lifetime", "gravity_scale", "collides"), &PixelWorld::spawn_visual_particles, DEFVAL(1.0f), DEFVAL(true));
 	ClassDB::bind_method(D_METHOD("explode", "position", "radius", "power"), &PixelWorld::explode);
+	ClassDB::bind_method(D_METHOD("take_blasts"), &PixelWorld::take_blasts);
 	ClassDB::bind_method(D_METHOD("raycast", "from", "to", "mask"), &PixelWorld::raycast, DEFVAL(RAY_SOLID | RAY_POWDER | RAY_BODIES));
 	ClassDB::bind_method(D_METHOD("sweep_boxes", "from", "to", "sizes", "mask"), &PixelWorld::sweep_boxes);
 	ClassDB::bind_method(D_METHOD("probe_boxes", "centres", "sizes", "mask"), &PixelWorld::probe_boxes);
@@ -347,6 +352,7 @@ void PixelWorld::tick_world() {
 	physics->place_cell_proxies();
 	physics->stamp();
 	sim->tick();
+	detonate_lit();
 	particles->step();
 	physics->unstamp();
 	sync_bodies();
@@ -1254,6 +1260,23 @@ int PixelWorld::explode(const Vector2i &p_position, int p_radius, float p_power)
 		UtilityFunctions::push_error(vformat("PixelWorld.explode: radius %d is over the limit of %d", p_radius, MAX_EXPLODE_RADIUS));
 		return 0;
 	}
+	return blast(p_position, p_radius, p_power, StringName());
+}
+
+Array PixelWorld::take_blasts() {
+	Array out = blasts;
+	blasts = Array();
+	return out;
+}
+
+// The styled crater, queued for take_blasts(). Main thread only: it writes the grid directly.
+int PixelWorld::blast(const Vector2i &p_position, int p_radius, float p_power, const StringName &p_material) {
+	Dictionary entry;
+	entry["position"] = p_position;
+	entry["radius"] = p_radius;
+	entry["power"] = p_power;
+	entry["material"] = p_material;
+	blasts.push_back(entry);
 	ExplodeStyle style;
 	style.spark_color = [this](const Cell &p_cell) { return cell_color(p_cell).to_rgba32(); };
 	style.rim_noise = EXPLODE_RIM_NOISE;
@@ -1266,6 +1289,57 @@ int PixelWorld::explode(const Vector2i &p_position, int p_radius, float p_power)
 	return ::explode(*grid, *particles, p_position.x, p_position.y, p_radius, p_power / TICKS_PER_SECOND,
 	                 sim->tick_count(), style)
 	    .removed;
+}
+
+// Sets off burning explosive cells, after sim->tick() so the sim's worker threads are done with
+// the grid. Row by row, at most MAX_DETONATIONS_PER_TICK. A lit cell inside its own radius of a
+// centre already chosen this tick is no centre: within half that radius it merges into the
+// centre's blast (it goes, with no blast of its own); further out it stays lit and carries the
+// chain to the next tick, since a merged cell's own reach is lost. Centres are all chosen before
+// any goes off, so a cell this tick's blasts light waits for the next tick: the fuse that makes a
+// pile ripple.
+// ponytail: scans the whole arena every tick, O(arena); keep a dirty-chunk list of lit explosive
+// cells instead if this ever shows in a profile.
+void PixelWorld::detonate_lit() {
+	if (!arena_generator) return;  // arena worlds only
+	struct Centre {
+		int x, y;
+		MatId mat;
+	};
+	std::vector<Centre> centres;
+	const int x_end = arena.position.x + arena.size.x;
+	auto choose = [&] {
+		for (int y = arena.position.y; y < arena.position.y + arena.size.y; ++y)
+			// One chunk lookup per 64-cell run, not per cell: this runs over the arena every tick.
+			for (int x = arena.position.x; x < x_end;) {
+				const int run_end = std::min(x_end, (floor_div(x, CHUNK) + 1) * CHUNK);
+				Chunk *chunk = grid->find(chunk_of(x, y));
+				for (; chunk && x < run_end; ++x) {
+					const Cell &cell = chunk->at(floor_mod(x, CHUNK), floor_mod(y, CHUNK));
+					if (!(cell.flags & FLAG_BURNING)) continue;
+					const int radius = std::min(table.get(cell.mat).explode_radius, MAX_EXPLODE_RADIUS);
+					if (radius <= 0) continue;
+					bool near = false, merged = false;
+					for (const Centre &c : centres) {
+						near = near || in_blast(x - c.x, y - c.y, radius);
+						merged = merged || in_blast(x - c.x, y - c.y, radius / 2);
+					}
+					const MatId mat = cell.mat;
+					if (merged) grid->set(x, y, MAT_AIR);
+					if (near) continue;
+					centres.push_back({ x, y, mat });
+					if ((int)centres.size() >= MAX_DETONATIONS_PER_TICK) return;
+				}
+				x = run_end;
+			}
+	};
+	choose();
+	for (const Centre &c : centres) {
+		const CompiledMaterial &def = table.get(c.mat);
+		grid->set(c.x, c.y, MAT_AIR);
+		blast(Vector2i(c.x, c.y), std::min(def.explode_radius, MAX_EXPLODE_RADIUS), def.explode_power,
+		      StringName(def.name.c_str()));
+	}
 }
 
 Dictionary PixelWorld::raycast(const Vector2 &p_from, const Vector2 &p_to, int p_mask) const {

@@ -21,8 +21,25 @@ func _make_world(arena := Rect2i(0, 0, 64, 64), border := &"rock") -> PixelWorld
 	sand.name = &"sand"
 	sand.material_class = PixelMaterial.CLASS_POWDER
 	sand.color = Color(0.85, 0.72, 0.4)
+	var gunpowder := PixelMaterial.new()
+	gunpowder.name = &"gunpowder"
+	gunpowder.material_class = PixelMaterial.CLASS_POWDER
+	gunpowder.color = Color(0.3, 0.3, 0.32)
+	gunpowder.ignite_temperature = 150
+	gunpowder.explode_radius = 3
+	gunpowder.explode_power = 150
+	var tnt := PixelMaterial.new()
+	tnt.name = &"tnt"
+	tnt.material_class = PixelMaterial.CLASS_SOLID
+	tnt.color = Color(0.8, 0.15, 0.1)
+	tnt.collision_solid = true
+	tnt.ignite_temperature = 250
+	tnt.explode_radius = 10
+	tnt.explode_power = 400
 	var material_set := PixelMaterialSet.new()
-	material_set.materials = [rock, concrete, sand]
+	# fire and smoke: the blast style's leftovers, and what a lit cell spreads, as in the game set.
+	material_set.materials = [rock, concrete, sand, gunpowder, tnt,
+		load("res://game/materials/fire.tres"), load("res://game/materials/smoke.tres")]
 	var world := PixelWorld.new()
 	world.material_set = material_set
 	world.arena = arena
@@ -62,6 +79,55 @@ func test_count_materials() -> void:
 	var counts: Dictionary = world.count_materials(Rect2i(0, 0, 20, 20))
 	assert_eq(counts.get(&"sand", 0), 16, "sand cells in the rect")
 	assert_eq(counts.get(&"burning", 0), 0, "burning cells in the rect")
+	_complete()
+
+
+# --- cook-and-arena Task 1: explosive materials, chained detonation and the blast queue ---
+
+
+func test_lit_tnt_detonates_and_reports() -> void:
+	var world := await _make_world()
+	world.fill_rect(Rect2i(30, 30, 4, 4), &"tnt")
+	world.take_blasts()
+	world.explode(Vector2i(28, 32), 2, 100)   # covers TNT cells: lights them
+	world.step(3)
+	var blasts := world.take_blasts()
+	var tnt := blasts.filter(func(b): return b["material"] == &"tnt")
+	assert_true(blasts.any(func(b): return b["material"] == &"" and b["radius"] == 2), "explode() is reported")
+	assert_true(tnt.size() >= 1, "lit TNT went off")
+	assert_eq(tnt[0]["radius"], 10)
+	assert_eq(world.count_materials(Rect2i(30, 30, 4, 4)).get(&"tnt", 0), 0, "the crate is gone")
+	assert_eq(world.take_blasts().size(), 0, "take_blasts clears the queue")
+	_complete()
+
+
+func test_gunpowder_pile_chains_past_the_cap() -> void:
+	var world := await _make_world()
+	# On the floor (the border starts at y 64): a pile dropped from mid-air scatters grains out of
+	# every blast's reach, which tests the fall rather than the chain.
+	world.fill_rect(Rect2i(10, 59, 40, 5), &"gunpowder")   # 200 cells
+	world.explode(Vector2i(10, 61), 2, 50)
+	world.step(120)
+	assert_eq(world.count_materials(Rect2i(0, 0, 64, 64)).get(&"gunpowder", 0), 0, "every cell went")
+	_complete()
+
+
+func test_unlit_tnt_is_inert() -> void:
+	var world := await _make_world()
+	world.fill_rect(Rect2i(30, 30, 4, 4), &"tnt")
+	world.step(60)
+	assert_eq(world.count_materials(Rect2i(30, 30, 4, 4)).get(&"tnt", 0), 16)
+	assert_eq(world.take_blasts().size(), 0)
+	_complete()
+
+
+func test_chain_next_to_border_keeps_the_wall() -> void:
+	var world := await _make_world(Rect2i(0, 0, 64, 64), &"concrete")
+	world.fill_rect(Rect2i(0, 20, 6, 6), &"tnt")
+	world.explode(Vector2i(4, 22), 2, 50)
+	world.step(5)
+	# The border sits just outside the arena rect (test_arena_border_material reads x -1).
+	assert_eq(world.get_material_at(Vector2i(-1, 22)), &"concrete", "the border survives")
 	_complete()
 
 

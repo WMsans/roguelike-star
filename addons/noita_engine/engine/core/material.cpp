@@ -35,6 +35,8 @@ CompiledMaterial compiled_from(const MaterialDef& d, MatId burns_into, MatId hig
 	c.lifetime = d.lifetime;
 	c.decays_into = decays_into;
 	c.indestructible = d.indestructible;
+	c.explode_radius = d.explode_radius;
+	c.explode_power = d.explode_power;
 	c.has_reactions = false;
 	return c;
 }
