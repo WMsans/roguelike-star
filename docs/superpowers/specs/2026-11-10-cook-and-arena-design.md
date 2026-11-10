@@ -167,7 +167,7 @@ Materials (data, in `game/materials/` and `game_set.tres`; numbers are the build
 |---|---|---|---|
 | Gunpowder | Powder | small radius (about 3) | Lights easily; chains through a pile |
 | TNT | Solid | large radius (about 10–14) | Placed as crates; lit by fire or by a blast |
-| Acid | Liquid | no | Reactions dissolve sand, wood, rock, gunpowder and TNT into air plus a little smoke (no acid gas this project) |
+| Acid | Liquid | no | Reactions dissolve sand, wood, gunpowder and TNT into air plus a little smoke (no acid gas this project). Not rock: rock is what holds acid in the arena's basins (plan-time call) |
 
 Acid touching a chariot does nothing in this project (Acid status is a non-goal). It changes the
 terrain only: it opens pits, uncovers TNT and lava, and eats ledges.
