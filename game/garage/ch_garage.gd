@@ -503,7 +503,8 @@ func _refresh_top() -> void:
 		_body_name.text = String(layout.body_id)
 		_stats.text = ""
 		return
-	_body_name.text = def.display_name
+	# The type is the subtitle (bodies spec §2): "Cutter · Wedge". A def with no type shows its name alone.
+	_body_name.text = def.display_name if def.type_name == "" else "%s · %s" % [def.display_name, def.type_name]
 	_stats.text = "HP %d · Energy %d" % [def.hp, def.energy_cap]
 
 

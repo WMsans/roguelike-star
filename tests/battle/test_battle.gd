@@ -73,15 +73,15 @@ func test_ai_holds_off_the_hulls() -> void:
 	var catalog := ChCatalog.load_default()
 	var dozer := float(catalog.body(&"dozer").size.x) * 0.5
 	var cutter := float(catalog.body(&"cutter").size.x) * 0.5
-	assert_near(dozer + cutter, 30.0, 0.001, "the two hulls need 30 cells between their centres")
-	# 30 apart centre to centre is the two hulls touching: the old rule read it as "6 cells to go" and
+	assert_near(dozer + cutter, 28.0, 0.001, "the two hulls need 28 cells between their centres")
+	# 28 apart centre to centre is the two hulls touching: the old rule read it as "6 cells to go" and
 	# drove the enemy into the player, which is the stalemate the fight tests kept landing in.
-	assert_eq(ai.decide(420.0, 390.0, 6.0, dozer, cutter), 0.0, "30 apart is inside the hulls: hold")
-	assert_eq(ai.decide(420.0, 384.0, 6.0, dozer, cutter), 0.0,
+	assert_eq(ai.decide(420.0, 392.0, 6.0, dozer, cutter), 0.0, "28 apart is inside the hulls: hold")
+	assert_eq(ai.decide(420.0, 386.0, 6.0, dozer, cutter), 0.0,
 		"reach + both half-widths is the hold, and |dx| <= hold holds there")
-	assert_eq(ai.decide(420.0, 383.0, 6.0, dozer, cutter), -1.0, "one cell further out: close in")
-	assert_eq(ai.decide(384.0, 420.0, 6.0, dozer, cutter), 0.0, "the other way round holds too")
-	assert_eq(ai.decide(383.0, 420.0, 6.0, dozer, cutter), 1.0, "and drives right to reach it")
+	assert_eq(ai.decide(420.0, 385.0, 6.0, dozer, cutter), -1.0, "one cell further out: close in")
+	assert_eq(ai.decide(386.0, 420.0, 6.0, dozer, cutter), 0.0, "the other way round holds too")
+	assert_eq(ai.decide(385.0, 420.0, 6.0, dozer, cutter), 1.0, "and drives right to reach it")
 	# The brief's rule is still the rule: the hold is the shortest reach the chariot can bring to bear,
 	# so a weapon that reaches further than the hulls keeps the fight at its own range, and a driver
 	# with no weapon that reaches anything still stays put.
@@ -269,6 +269,10 @@ func _battle_scene() -> Node2D:
 	var scene: PackedScene = ResourceLoader.load("res://game/battle/battle.tscn")
 	assert_true(scene != null, "battle.tscn loads")
 	var battle: Node2D = scene.instantiate()
+	# A headless run has no Space key, and since the volley is press-driven a fight nobody presses
+	# in is a draw. The fights below pin what the player's parts do, so the player presses by the
+	# enemy's own rule; the tests that pin the press itself replace this.
+	battle.pressers[0] = func(b, s): return b.ai_press(s)
 	Engine.get_main_loop().get_root().add_child(battle)
 	return battle
 
@@ -350,8 +354,13 @@ func test_finished_after_ticking_stops() -> void:
 # and both drive through the shipped scene's real tick loop.
 const CHAIN_FRAMES := 4000  # the 3600-frame budget, plus the frames the arena takes to stream
 const DRIVE_ON := 0.9  # seconds of held direction
-const DRIVE_OFF := 0.3  # seconds released, so the queued parts are paid (drive is paid first)
-const PLAYER_MARK_FRAMES := 120  # 2 s of fight: the player has driven, the Dozer has not arrived
+const DRIVE_OFF := 0.3  # seconds released, so a press can pay the ready parts (drive is paid first)
+# 3 s of fight: the player has driven, the cook has not arrived. It was 2 s on the old box Corsair; the
+# Barge (2x its hull mass) is still sliding off its landing at 1 s, then holds the key 0.9 s at a time.
+# Read off the fight's clock (ctx.time), not a frame count, so the mark means "3 s of fight" however
+# frames and ticks line up. Today the fight ticks once per frame, so this alone moved nothing: the
+# flake was the drive pattern (see _drive_fight_out).
+const PLAYER_MARK_SECONDS := 3.0
 
 
 func _garage_built(body_id: StringName, mounts: Array) -> ChChariotLayout:
@@ -389,15 +398,16 @@ func _start_fight(battle: Node2D, player_layout: ChChariotLayout,
 
 
 # The drive keys: ChBattle._player_drive reads Input, so action_press is what holding the key at the
-# keyboard is. Bursting it is what a player learns, because ChEnergy pays the drive before the queued
-# parts and a direction held for ever starves the weapons. Returns `min_gap`, the narrowest the two
+# keyboard is. Bursting it is what a player learns, because ChEnergy pays the drive before the volley
+# and a direction held for ever starves the weapons. Returns `min_gap`, the narrowest the two
 # hulls ever got centre to centre (the number the reach pins below read), and `mark`, the player's
-# hull x at PLAYER_MARK_FRAMES: where its own driving had got it before the Dozer arrived, which is
+# hull x at PLAYER_MARK_SECONDS of fight time: where its own driving had got it before the Dozer arrived, which is
 # the only stretch of the fight that is the player's driving alone.
 func _drive_fight_out(battle: Node2D) -> Dictionary:
 	var frames := 0
 	var min_gap := INF
 	var mark := 0.0
+	var marked := false
 	var held := false
 	var next_flip := DRIVE_ON
 	while battle.ticking and frames < CHAIN_FRAMES:
@@ -406,14 +416,20 @@ func _drive_fight_out(battle: Node2D) -> Dictionary:
 		var t: float = battle.ctx.time
 		if t >= next_flip:
 			held = not held
-			next_flip = t + (DRIVE_OFF if held else DRIVE_ON)
+			# Held for DRIVE_ON, released for DRIVE_OFF, as the two constants say. It was the other
+			# way round (0.3 s taps, 0.9 s rests), and on the Barge (mass 500 since Task 8's mass fix)
+			# a 0.3 s tap rolled back onto its spawn between taps in 3 of 4 runs, so whether it ever
+			# left turned on the landing (Task 9 fix round 2). The first DRIVE_ON stays a rest: the
+			# chariot is still landing.
+			next_flip = t + (DRIVE_ON if held else DRIVE_OFF)
 			if held:
 				Input.action_press(&"ui_right")
 			else:
 				Input.action_release(&"ui_right")
 		min_gap = minf(min_gap, absf(battle.enemy.chassis.global_position.x
 			- battle.player.chassis.global_position.x))
-		if frames == PLAYER_MARK_FRAMES:
+		if not marked and t >= PLAYER_MARK_SECONDS:
+			marked = true
 			mark = battle.player.chassis.global_position.x
 	Input.action_release(&"ui_right")
 	assert_true(frames < CHAIN_FRAMES, "the fight spent its own tick loop rather than the frame cap")
@@ -534,14 +550,14 @@ func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 		elif entry["type"] == ChEvent.FROZEN:
 			frozen += 1
 	assert_true(swung > 0, "the fight paid the Mace, so it swung on its own cooldown")
-	# Measured 2 s in, with the Dozer still 83-91 cells away: the player's hull sat at x 184-191, i.e.
-	# 14-21 cells off its 170 spawn, under nothing but its own wheels. That is the pin - not where the
+	# Measured on the Barge 3 s in, with the cook still 90 cells away: the player's hull sat at x 186,
+	# 16 cells off its 170 spawn (2 s in on the old box Corsair it was x 184-191, i.e. 14-21 cells off), under nothing but its own wheels. That is the pin - not where the
 	# fight leaves it: the Dozer comes to meet it at x ~206 and the pair shove each other from there, so
 	# the ends measured 206-296 over 14 runs (36-126 cells of travel). A loaded chariot whose wheels
 	# were buried moved 0 with these same keys; at the old x = 60 spawn the player crossed the pit
 	# alone (180-220 cells) because the Dozer started 360 away.
 	assert_true(float(driven["mark"]) - float(ChArenaBuilder.SPAWN_LEFT_X) > 10.0,
-		"the player's chariot drove off its spawn (at x %.0f two seconds in, hulls %.0f apart at the end)"
+		"the player's chariot drove off its spawn (at x %.0f three seconds in, hulls %.0f apart at the end)"
 			% [driven["mark"], min_gap])
 	assert_true(frozen > 0, "the Mace's hull hits froze the Dozer's parts (see above)")
 	battle.free()
@@ -573,5 +589,90 @@ func test_ai_drive_is_symmetric() -> void:
 	battle.drivers = [func(b, s): return b.ai_drive(s), Callable()]
 	var results := await _fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP), 12345)
 	assert_eq(results.size(), 1, "an AI-driven player still finishes the fight")
+	battle.free()
+	_complete()
+
+
+# --- The button (Task 2) ----------------------------------------------------------------------------
+func _count_fired(battle: Node2D, side_counts: Array) -> void:
+	var key := RefCounted.new()
+	battle.ctx.bus.subscribe(key, ChEvent.PART_FIRED, func(event: ChEvent): side_counts[event.side] += 1)
+	battle.set_meta("fire_key", key)  # the bus holds the key weakly: keep it alive with the battle
+
+
+func test_never_press_fires_nothing() -> void:
+	var battle := _battle_scene()
+	battle.pressers = [func(_b, _s): return false, func(_b, _s): return false]
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
+	await _frames_ready(battle)
+	var counts := [0, 0]
+	_count_fired(battle, counts)
+	for _i in 120:
+		await Engine.get_main_loop().process_frame
+	assert_eq(counts, [0, 0], "ready parts sit unfired for 2 s when nobody presses")
+	battle.free()
+	_complete()
+
+
+func _frames_ready(battle: Node2D) -> void:
+	await Engine.get_main_loop().process_frame
+
+
+func test_held_key_fires_once() -> void:
+	var battle := _battle_scene()
+	battle.pressers[0] = Callable()  # the real key
+	battle.pressers[1] = func(_b, _s): return false
+	var layout := _garage_built(&"corsair", [[[6], &"cutter_chainsaw"]])
+	_start_fight(battle, layout, _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
+	await _frames_ready(battle)
+	var counts := [0, 0]
+	_count_fired(battle, counts)
+	# Parts start on a full cooldown; ready the saw so the press has something to fire (a press
+	# at tick 1 would be a dud, and a held key never presses again).
+	for part in battle.player.parts:
+		part.cooldown_left = 0.0
+	Input.action_press(&"fire")
+	for _i in 120:
+		await Engine.get_main_loop().process_frame
+	Input.action_release(&"fire")
+	assert_eq(counts[0], 1, "Space held for 120 ticks is one press: one volley, the Chainsaw once")
+	battle.free()
+	_complete()
+
+
+func test_dud_press_nudges_hull() -> void:
+	var battle := _battle_scene()
+	battle.pressers = [func(_b, _s): return true, func(_b, _s): return false]
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
+	# Every part cooling down: nothing is ready, so each press is a dud.
+	for part in battle.player.parts:
+		part.cooldown_left = 100.0
+	var juice := ChJuice.of(battle.player.chassis_visual)
+	await Engine.get_main_loop().process_frame
+	assert_true(not is_zero_approx(juice.scale_spring.velocity), "a dud press kicked the hull")
+	battle.free()
+	_complete()
+
+
+func test_outline_shows_while_ready() -> void:
+	var battle := _battle_scene()
+	battle.pressers = [func(_b, _s): return false, func(_b, _s): return false]
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
+	await _frames_ready(battle)
+	var rocket: ChPartRuntime = null
+	for part in battle.player.parts:
+		if part.def.id == &"cutter_rocket":
+			rocket = part
+	assert_true(rocket != null and rocket.outline != null, "the player has a Rocket with an outline")
+	rocket.cooldown_left = 0.0
+	await Engine.get_main_loop().process_frame
+	assert_true(rocket.outline.visible, "a ready Rocket glows")
+	var presses := [true]
+	battle.pressers[0] = func(_b, _s):
+		var now: bool = presses[0]
+		presses[0] = false
+		return now
+	await Engine.get_main_loop().process_frame
+	assert_true(not rocket.outline.visible, "the press spent it, so the glow is off")
 	battle.free()
 	_complete()

@@ -18,6 +18,7 @@ const STRUT_MOUNTS: Array = [
 	[[0], &"wheel"], [[1], &"wheel"], [[2], &"strut"],
 	[[2, 0], &"cutter_chainsaw"], [[2, 1], &"flamethrower"]]
 const STRUT_HINGED: Array = [[2], [2, 0], [2, 1]]  # that build's parts, the wheels excepted
+const DRIFT_SPLIT := 0.6  # cells off the layout anchor: a grouped rig's parts sit inside it, a group-0 rig's outside
 
 
 func _ground(world: PixelWorld) -> void:
@@ -54,14 +55,14 @@ func _part_of(runtime: ChChariotRuntime, steps: Array[int]) -> ChPartRuntime:
 func test_builds_bodies_and_joints() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
-	# Dozer slots 0/1 are the two lowest (y = 6), so the wheels sit under the hull; slot 2 is (12,-3)
+	# Dozer slots 0/1 are the two lowest (y = 15), so the wheels sit under the hull; slot 2 is (-9,-3)
 	# and the mace hangs off the strut's first extension slot, one body further out.
 	var layout: ChChariotLayout = _mount(&"dozer", [
 		[[0], &"wheel"], [[1], &"wheel"], [[2], &"strut"], [[2, 0], &"ice_cream_mace"]])
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(
 		world, _parent(), layout, ChCatalog.load_default(), 0, ORIGIN, false)
 	assert_true(runtime != null, "the build returns a runtime")
-	assert_eq(runtime.chassis.get_body_size(), Vector2i(30, 18), "the chassis is the Dozer's 30x18 box")
+	assert_eq(runtime.chassis.get_body_size(), Vector2i(22, 30), "the chassis is the Dozer's 22x30 Tower")
 	assert_true(is_instance_of(runtime.chassis, PixelRigidBody), "the chassis is a PixelRigidBody")
 	var bodies := 1
 	var joints := 0
@@ -313,14 +314,15 @@ func test_strut_pair_holds_still() -> void:
 		world.step(1)
 		rotations.append(runtime.chassis.global_rotation)
 	# A hinged part (the builder limits its hinge to one angle) that has moved off its layout anchor was
-	# pushed out of the build. Measured at rest, in one group: strut 0.71, Chainsaw 1.37, Flamethrower
-	# 1.21 cells. The control rig's same three read 2.09, 3.28 and 3.43 once the group is off, so what
-	# the window below measures is the collision group, not just the sizes.
+	# pushed out of the build. Measured at rest on the Wedge Cutter (strut at slot 2, (-6,-3)), in one
+	# group: strut 0.25, Chainsaw 0.38, Flamethrower 0.30 cells. The control rig's same three read 1.03,
+	# 0.73 and 1.61 once the group is off, so what the split below measures is the collision group, not
+	# just the sizes. (On the old 30x10 box Cutter the two sides read 0.71-1.37 and 2.09-3.43, split at 1.5.)
 	for pair in _hinged_drift(runtime, layout, catalog):
-		assert_true(pair[1] < 1.5,
+		assert_true(pair[1] < DRIFT_SPLIT,
 			"%s still sits %.2f cells from its layout anchor" % [pair[0], pair[1]])
 	for pair in _hinged_drift(loose, loose_layout, catalog):
-		assert_true(pair[1] > 1.5,
+		assert_true(pair[1] > DRIFT_SPLIT,
 			"%s left its layout anchor by %.2f cells with its bodies in group 0" % [pair[0], pair[1]])
 	# The wheels are the exception that 1.5-cell rule cannot carry: PixelWheelJoint is a spring
 	# (WHEEL_FREQUENCY 5), so the distance from the layout anchor is the suspension compressing under the
@@ -352,7 +354,7 @@ func test_strut_pair_holds_still() -> void:
 
 
 func test_mirror_x_flips_anchor() -> void:
-	# Corsair slot 1 is body-local (10, 5): a mirrored build sits at the far side of the hull, so the
+	# Corsair slot 1 is body-local (21, 5): a mirrored build sits at the far side of the hull, so the
 	# x anchor negates and y stays (a flip turns the build left/right, not upside down).
 	var world: PixelWorld = await make_world()
 	_ground(world)
@@ -360,7 +362,7 @@ func test_mirror_x_flips_anchor() -> void:
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), layout, ChCatalog.load_default(), 1, ORIGIN, true)
 	var part := _part_of(runtime, [1])
 	# Read before any physics tick: the builder put the body where the layout said it sits.
-	assert_eq(part.body.global_position, Vector2(ORIGIN.x - 10, ORIGIN.y + 5), "mirrored to origin.x - 10")
+	assert_eq(part.body.global_position, Vector2(ORIGIN.x - 21, ORIGIN.y + 5), "mirrored to origin.x - 21")
 	world.free()
 	_complete()
 
@@ -485,4 +487,91 @@ func test_layout_max_hp_seeds_hp() -> void:
 	var plain: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount(&"dozer", []), catalog, 0,
 		ORIGIN + Vector2(60, 0), false)
 	assert_eq(plain.max_hp, catalog.body(&"dozer").hp, "no layout max_hp: the body's HP")
+	_complete()
+
+
+func test_triggered_parts_get_an_outline() -> void:
+	# Task 3: a part the button can fire carries a hidden Outline sprite one pixel bigger on every
+	# side; a passive part (the Wheel) has nothing to light, so it carries none.
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var layout: ChChariotLayout = _mount(&"cutter", [[[0], &"wheel"], [[3], &"cutter_rocket"]])
+	var runtime: ChChariotRuntime = ChChariotBuilder.build(
+		world, _parent(), layout, ChCatalog.load_default(), 0, ORIGIN, false)
+	var rocket := _part_of(runtime, _typed_path([3]))
+	var wheel := _part_of(runtime, _typed_path([0]))
+	assert_true(rocket.outline is Sprite2D, "the Rocket has an outline sprite")
+	if rocket.outline != null:
+		assert_eq(rocket.outline.get_parent(), rocket.body, "it hangs on the part's body")
+		assert_true(not rocket.outline.visible, "and starts hidden")
+		assert_eq(rocket.outline.texture.get_size(), Vector2(rocket.def.size) + Vector2(2, 2),
+			"2 px wider and taller than the part")
+	assert_true(wheel.outline == null, "the Wheel is passive, so it has no outline")
+	world.free()
+	_complete()
+
+
+func test_outline_texture_rings_the_shape() -> void:
+	var image := Image.create(3, 3, false, Image.FORMAT_RGBA8)
+	image.fill(Color.WHITE)
+	var out := ChTextures.outline(image, Color.RED).get_image()
+	assert_eq(out.get_size(), Vector2i(5, 5), "2 px larger on each axis")
+	assert_true(out.get_pixel(0, 2).a > 0.0, "left of the shape is ringed")
+	assert_true(out.get_pixel(0, 0).a == 0.0, "a corner has no 4-neighbour")
+	assert_true(out.get_pixel(2, 2).a == 0.0, "the shape's own pixels are not ringed")
+	_complete()
+
+
+func _wedge_catalog(extra: Callable = Callable()) -> ChCatalog:
+	# A one-body catalog: a right triangle on a 10x10 box, its nose at the top left.
+	var def := ChBodyDef.new()
+	def.id = &"wedge"
+	def.hp = 10
+	def.size = Vector2i(10, 10)
+	def.outline = PackedVector2Array([Vector2(-5, 5), Vector2(5, 5), Vector2(-5, -5)])
+	if extra.is_valid():
+		extra.call(def)
+	return ChCatalog.from_defs([] as Array[ChPartDef], [def] as Array[ChBodyDef])
+
+
+func _chassis_image(mirror: bool) -> Image:
+	var world: PixelWorld = await make_world()
+	var runtime: ChChariotRuntime = ChChariotBuilder.build(
+		world, _parent(), _mount(&"wedge", []), _wedge_catalog(), 0, ORIGIN, mirror)
+	var image: Image = runtime.chassis.texture.get_image()
+	world.free()
+	return image
+
+
+func test_outline_hull_is_drawn_from_polygon() -> void:
+	var image: Image = await _chassis_image(false)
+	assert_eq(image.get_pixel(8, 1).a, 0.0, "the triangle's empty corner is transparent")
+	assert_eq(image.get_pixel(1, 8).a, 1.0, "its body is opaque")
+	_complete()
+
+
+func test_mirrored_hull_flips_nose() -> void:
+	# The enemy is built mirrored; a hull that kept its nose on the same side would face away.
+	var image: Image = await _chassis_image(true)
+	assert_eq(image.get_pixel(1, 1).a, 0.0, "mirrored: the left corner is empty")
+	assert_eq(image.get_pixel(8, 8).a, 1.0, "mirrored: the right side is solid")
+	_complete()
+
+
+func test_body_physics_applied() -> void:
+	var world: PixelWorld = await make_world()
+	var catalog := _wedge_catalog(func(d: ChBodyDef) -> void:
+		d.mass = 50.0
+		d.friction = 0.2
+		d.restitution = 0.4)
+	var runtime: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount(&"wedge", []), catalog, 0, ORIGIN, false)
+	assert_near(runtime.chassis.mass, 50.0, 0.001, "mass reaches the chassis")
+	assert_near(runtime.chassis.friction, 0.2, 0.001, "friction reaches the chassis")
+	assert_near(runtime.chassis.restitution, 0.4, 0.001, "restitution reaches the chassis")
+	var plain: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount(&"wedge", []), _wedge_catalog(), 1, ORIGIN, false)
+	var engine := PixelRigidBody.new()
+	assert_near(plain.chassis.friction, engine.friction, 0.001, "default friction is the engine's")
+	assert_near(plain.chassis.restitution, engine.restitution, 0.001, "default restitution is the engine's")
+	engine.free()
+	world.free()
 	_complete()

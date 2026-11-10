@@ -48,9 +48,9 @@ func test_show_builds_main_and_keyword_boxes() -> void:
 	assert_true(tip.visible)
 	assert_eq(tip.name_label().text, "Flamethrower")
 	assert_eq(tip.line_label().text, "Cost 2 · Cooldown 3.0s")
-	assert_eq(tip.keyword_keys(), [&"burn"])
-	assert_eq(tip.boxes().size(), 2, "main + Burning")
-	var style := tip.boxes()[1].get_theme_stylebox("panel") as StyleBoxFlat
+	assert_eq(tip.keyword_keys(), [&"press", &"burn"])
+	assert_eq(tip.boxes().size(), 3, "main + Press + Burning")
+	var style := tip.boxes()[2].get_theme_stylebox("panel") as StyleBoxFlat
 	assert_eq(style.bg_color, ChKeywords.color_of(&"burn"), "the keyword box wears its colour")
 	_complete()
 
@@ -59,18 +59,20 @@ func test_passive_hides_cost_line() -> void:
 	tip.show_part(_def(&"ember_battery"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	await _frames()
 	assert_true(not tip.line_label().visible)
-	assert_eq(tip.keyword_keys(), [&"burn", &"energy"])
+	assert_eq(tip.keyword_keys(), [&"passive", &"burn", &"energy"])
 	_complete()
 
 func test_switch_def_reuses_boxes_and_hide() -> void:
 	var tip := _tooltip()
 	tip.show_part(_def(&"ember_battery"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
-	var first_kw := tip.boxes()[1]
+	# boxes()[1] is the Passive box for both parts, so the reuse is read on [2]: the ember's second
+	# keyword box, which the freeze charge must refill rather than rebuild.
+	var second_kw := tip.boxes()[2]
 	tip.show_part(_def(&"freeze_charge"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
-	assert_eq(tip.keyword_keys(), [&"proximity", &"freeze"])
-	assert_eq(tip.boxes()[1], first_kw, "pooled box reused")
+	assert_eq(tip.keyword_keys(), [&"passive", &"proximity", &"freeze"])
+	assert_eq(tip.boxes()[2], second_kw, "pooled box reused")
 	tip.show_part(_def(&"wheel"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
-	assert_eq(tip.boxes().size(), 1, "extra keyword boxes hidden")
+	assert_eq(tip.boxes().size(), 2, "extra keyword boxes hidden")
 	tip.hide_tooltip()
 	assert_true(not tip.visible and tip.def == null)
 	_complete()
@@ -119,4 +121,16 @@ func test_keyword_bbcode_renders_clean() -> void:
 
 func test_tooltip_profile_loads() -> void:
 	assert_true(Feedback.profile(&"tooltip") != null)
+	_complete()
+
+func test_every_line_is_press_or_passive() -> void:
+	var catalog := ChCatalog.load_default()
+	for id in catalog.parts:
+		var def: ChPartDef = catalog.parts[id]
+		var presses := 0
+		for line in def.description:
+			var is_press := line.begins_with("{press}")
+			assert_true(is_press or line.begins_with("{passive}"), "%s: '%s' is tagged" % [id, line])
+			presses += int(is_press)
+		assert_eq(presses > 0, def.cooldown > 0.0, "%s: press lines iff triggered" % id)
 	_complete()

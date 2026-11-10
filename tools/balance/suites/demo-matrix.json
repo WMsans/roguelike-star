@@ -468,6 +468,978 @@
    "seeds": {
     "from": 1,
     "count": 4
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "matrix-mash",
+   "player": [
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "ember_battery"
+      }
+     ]
+    },
+    {
+     "body_id": "dozer",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "ice_cream_mace"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "corsair_harpoon"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "freeze_charge"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "cutter_rocket"
+      }
+     ]
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "hearth"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "ember_battery"
+      }
+     ]
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "flamethrower"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "flamethrower"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "firebolt_launcher"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "firebolt_launcher"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "cutter_rocket"
+      }
+     ]
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "ring_of_fire"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "hearth"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "hearth"
+      }
+     ]
+    }
+   ],
+   "enemy": [
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "ember_battery"
+      }
+     ]
+    },
+    {
+     "body_id": "dozer",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "ice_cream_mace"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "corsair_harpoon"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "freeze_charge"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "cutter_rocket"
+      }
+     ]
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "hearth"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "ember_battery"
+      }
+     ]
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "flamethrower"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "flamethrower"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "firebolt_launcher"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "firebolt_launcher"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "cutter_rocket"
+      }
+     ]
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "ring_of_fire"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "hearth"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "hearth"
+      }
+     ]
+    }
+   ],
+   "seeds": {
+    "from": 1,
+    "count": 4
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "matrix-never",
+   "player": [
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "ember_battery"
+      }
+     ]
+    },
+    {
+     "body_id": "dozer",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "ice_cream_mace"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "corsair_harpoon"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "freeze_charge"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "cutter_rocket"
+      }
+     ]
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "hearth"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "ember_battery"
+      }
+     ]
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "flamethrower"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "flamethrower"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "firebolt_launcher"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "firebolt_launcher"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "cutter_rocket"
+      }
+     ]
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "ring_of_fire"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "hearth"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "hearth"
+      }
+     ]
+    }
+   ],
+   "enemy": [
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "ember_battery"
+      }
+     ]
+    },
+    {
+     "body_id": "dozer",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "ice_cream_mace"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "corsair_harpoon"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "freeze_charge"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "cutter_rocket"
+      }
+     ]
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "hearth"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "ember_battery"
+      }
+     ]
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "flamethrower"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "flamethrower"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "firebolt_launcher"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "firebolt_launcher"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "cutter_rocket"
+      }
+     ]
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_chainsaw"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "ring_of_fire"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "hearth"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "hearth"
+      }
+     ]
+    }
+   ],
+   "seeds": {
+    "from": 1,
+    "count": 4
+   },
+   "press": {
+    "player": "never",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0
+    ],
+    "aborted": [
+     0,
+     0
+    ]
    }
   }
  ]

@@ -18,3 +18,23 @@ var size: Vector2i = Vector2i(1, 1)  # cells
 var material: StringName = &""
 var color: Color = Color(0.8, 0.8, 0.8)
 var slots: PackedVector2Array = []  # body-local cells, index is the body slot index
+# A convex hull in body-local cells; empty means the hull is the size box. size must equal its
+# bounding box, so every reader of size (hull box, half-width, camera, pit) stays right.
+var outline: PackedVector2Array = []
+# 0 / -1 leave the engine's own value alone.
+var mass: float = 0.0
+var friction: float = 0.0
+var restitution: float = -1.0
+var drive_style: StringName = &""  # &"brawler", &"kiter" or empty
+var type_name: String = ""  # "Wedge", "Tower", "Barge": shown in the garage
+
+
+func copy() -> ChBodyDef:
+	# Field by field: duplicate() drops a script resource's own (non-exported) properties on this
+	# build (the copy answers an empty id and 0 HP). Walking the script variables keeps a field added
+	# later from being forgotten here.
+	var out := ChBodyDef.new()
+	for prop in get_property_list():
+		if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			out.set(prop.name, get(prop.name))
+	return out

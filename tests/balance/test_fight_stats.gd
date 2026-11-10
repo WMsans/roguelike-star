@@ -3,6 +3,7 @@ extends ChTest
 func test_stats_invariants_on_a_won_fight() -> void:
 	var battle: Node2D = ResourceLoader.load("res://game/battle/battle.tscn").instantiate()
 	Engine.get_main_loop().get_root().add_child(battle)
+	battle.pressers[0] = ChBalanceDrivers.make_press("mash")
 	var stats := ChFightStats.new()
 	stats.bind(battle)
 	var results: Array[StringName] = []
@@ -22,6 +23,32 @@ func test_stats_invariants_on_a_won_fight() -> void:
 	assert_eq(f.sides[1].hp_left, 0)
 	assert_near(f.fight_seconds, battle.ctx.time, 0.0001)
 	assert_true(me.energy_spent > 0.0, "the winner paid for its shots")
+	battle.free()
+	_complete()
+
+
+func test_never_pressing_leaves_every_triggered_part_ready_and_unfired() -> void:
+	var battle: Node2D = ResourceLoader.load("res://game/battle/battle.tscn").instantiate()
+	Engine.get_main_loop().get_root().add_child(battle)
+	battle.pressers = [ChBalanceDrivers.make_press("never"), ChBalanceDrivers.make_press("never")]
+	var stats := ChFightStats.new()
+	stats.bind(battle)
+	var results: Array[StringName] = []
+	battle.finished.connect(func(r): results.append(r))
+	var catalog := _fight_catalog(100000, 100000)
+	await battle.start(_player_layout(), _enemy_layout(), catalog, 12345)
+	var f := stats.fight(12345, results[0])
+	var checked := 0
+	for side in 2:
+		for key in f.sides[side].parts:
+			var p: Dictionary = f.sides[side].parts[key]
+			var cooldown := catalog.part(StringName(p.part)).cooldown
+			if cooldown <= 0.0:
+				continue
+			checked += 1
+			assert_eq(p.firings, 0, key)
+			assert_true(p.seconds_ready_unfired >= f.fight_seconds - cooldown - 0.05, "%s %s" % [key, p.seconds_ready_unfired])
+	assert_true(checked > 0, "at least one triggered part")
 	battle.free()
 	_complete()
 

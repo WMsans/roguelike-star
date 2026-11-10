@@ -5,8 +5,8 @@ class_name ChBalanceScenario extends RefCounted
 # naming the valid values when a value is unknown, so a typo is fixed in one round trip and no
 # fight ever runs on a half-understood scenario.
 
-const SCENARIO_KEYS := ["name", "player", "enemy", "seeds", "drive", "expect"]
-const SIDE_KEYS := ["layout", "body_id", "parts", "hp", "body_type", "body_seed"]
+const SCENARIO_KEYS := ["name", "player", "enemy", "seeds", "drive", "press", "expect"]
+const SIDE_KEYS := ["layout", "body_id", "parts", "hp", "plain_hull", "body_type", "body_seed"]
 const PART_KEYS := ["slot", "part", "flipped"]
 const SUITE_KEYS := ["name", "scenarios"]
 
@@ -54,7 +54,8 @@ static func _scenario(data: Variant, base: ChCatalog, where: String, root: Strin
 	if not (name is String and name != ""):
 		errors.append("%s: %s: required, a non-empty string" % [where, _at(root, "name")])
 	var seeds := _seeds(data.get("seeds", {}), where, _at(root, "seeds"), errors)
-	var drive := _drive(data.get("drive", {}), where, _at(root, "drive"), errors)
+	var drive := _policies(data.get("drive", {}), ChBalanceDrivers.POLICIES, where, _at(root, "drive"), errors)
+	var press := _policies(data.get("press", {}), ChBalanceDrivers.PRESS_POLICIES, where, _at(root, "press"), errors)
 	var expect := _expect(data.get("expect", {}), where, _at(root, "expect"), errors)
 	# Hp overrides collect here; their ids are unique per (body, hp), so one catalog holds them all.
 	var extra_bodies: Dictionary = {}
@@ -78,6 +79,7 @@ static func _scenario(data: Variant, base: ChCatalog, where: String, root: Strin
 			m.catalog = catalog
 			m.seeds = seeds
 			m.drive = drive
+			m.press = press
 			m.expect = expect
 			out.append(m)
 	return out
@@ -120,7 +122,7 @@ static func _seeds(value: Variant, where: String, field: String, errors: PackedS
 	return seeds
 
 
-static func _drive(value: Variant, where: String, field: String, errors: PackedStringArray) -> PackedStringArray:
+static func _policies(value: Variant, known: Array, where: String, field: String, errors: PackedStringArray) -> PackedStringArray:
 	var drive := PackedStringArray(["ai", "ai"])
 	if not value is Dictionary:
 		errors.append("%s: %s: must be {\"player\": policy, \"enemy\": policy}" % [where, field])
@@ -129,9 +131,9 @@ static func _drive(value: Variant, where: String, field: String, errors: PackedS
 	for at in 2:
 		var key: String = ["player", "enemy"][at]
 		var policy = value.get(key, "ai")
-		if not ChBalanceDrivers.POLICIES.has(policy):
+		if not known.has(policy):
 			errors.append("%s: %s.%s: unknown policy '%s'; known: %s" % [where, field, key, policy,
-				", ".join(ChBalanceDrivers.POLICIES)])
+				", ".join(known)])
 			continue
 		drive[at] = policy
 	return drive
@@ -189,17 +191,30 @@ static func _side(value: Variant, base: ChCatalog, where: String, field: String,
 		# A layout brings its own parts, so parts beside it would be silently dropped.
 		if value.has("parts"):
 			errors.append("%s: %s.parts: only with body_id; a layout side uses the layout's parts" % [where, field])
+		if value.has("plain_hull"):
+			errors.append("%s: %s.plain_hull: only with body_id" % [where, field])
 		layout = _layout_file(value["layout"], base, where, field + ".layout", errors)
 	else:
 		layout = _inline(value, base, where, field, errors)
+	var plain = value.get("plain_hull", false)
+	if not plain is bool:
+		errors.append("%s: %s.plain_hull: must be true or false" % [where, field])
 	if layout == null or errors.size() > before:
 		return null
+	# Overrides make a new body under its own id, so two sides on one body never share a def, and
+	# the def on disk (shared by the whole process) is never touched.
+	var def: ChBodyDef = base.body(layout.body_id)
+	if plain:
+		# The box control: every field kept but the outline, so only the shape differs.
+		def = def.copy()
+		def.id = StringName("%s_box" % def.id)
+		def.outline = PackedVector2Array()
 	if value.has("hp"):
-		# The override is a new body under its own id, so two sides on one body with different hp
-		# never share a def, and the def on disk (shared by the whole process) is never touched.
-		var def := _body_with_hp(base.body(layout.body_id), int(hp))
+		def = _body_with_hp(def, int(hp))
+	if def != base.body(layout.body_id):
 		extra_bodies[def.id] = def
 		layout.body_id = def.id
+	if value.has("hp"):
 		# A layout's own max_hp would win over its body's hp, so the override is set there too.
 		layout.max_hp = int(hp)
 	return layout
@@ -301,13 +316,8 @@ static func _known(table: Dictionary) -> String:
 
 
 static func _body_with_hp(loaded: ChBodyDef, hp: int) -> ChBodyDef:
-	# Copied field by field: duplicate() drops a script resource's own (non-exported) properties on
-	# this build (see ChTest._body_with_hp). Walking the script's variables keeps fields a later
-	# plan adds to ChBodyDef without touching this.
-	var copy := ChBodyDef.new()
-	for prop in loaded.get_property_list():
-		if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
-			copy.set(prop.name, loaded.get(prop.name))
+	# ChBodyDef.copy() carries every field (duplicate() drops a script resource's own properties).
+	var copy := loaded.copy()
 	copy.id = StringName("%s__hp%d" % [loaded.id, hp])
 	copy.hp = hp
 	return copy

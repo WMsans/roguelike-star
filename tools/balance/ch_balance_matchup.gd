@@ -10,4 +10,5 @@ var enemy: ChChariotLayout = null
 var catalog: ChCatalog = null
 var seeds: Array[int] = []
 var drive: PackedStringArray = ["ai", "ai"]  # [player, enemy], each one of ChBalanceDrivers.POLICIES
+var press: PackedStringArray = ["ai", "ai"]  # [player, enemy], each one of ChBalanceDrivers.PRESS_POLICIES
 var expect: Dictionary = {}  # dotted metric path -> [min, max], checked by ChBalanceReport

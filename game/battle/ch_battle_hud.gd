@@ -12,13 +12,13 @@ const PIP := Vector2(10, 12)  # one energy unit
 const PIP_GAP := 4
 const PIP_OFF := ChUi.BUTTON  # an unlit pip: the theme's button grey, so it reads as a socket
 const ROW_GAP := 6  # between a block's rows
-const STATUS_GAP := 12  # between the pips and the waiting count
+const VOLLEY := Color("#ffd166")  # the lit pips a press would spend right now
+const SHORT := Color("#7a2e2e")  # the unlit pips a ready volley would need but the pool lacks
 
 var player_name: Label
 var player_hp: Label
 var player_bar: ProgressBar
 var energy_pips: Array[ColorRect] = []  # one per energy unit of cap, lit up to the pool's value
-var waiting: Label
 var enemy_name: Label
 var enemy_hp: Label
 var enemy_bar: ProgressBar
@@ -57,23 +57,17 @@ func _ready() -> void:
 
 
 func _player_block() -> PanelContainer:
-	# Name, then the HP bar, then the pips and how many parts are queued behind the pool.
+	# Name, then the HP bar, then the pips.
 	var rows := VBoxContainer.new()
 	rows.add_theme_constant_override("separation", ROW_GAP)
 	player_name = Label.new()
 	player_hp = Label.new()
 	player_bar = _bar(ChUi.HP_PLAYER)
-	var status := HBoxContainer.new()
-	status.add_theme_constant_override("separation", STATUS_GAP)
 	_pips_row = HBoxContainer.new()
 	_pips_row.add_theme_constant_override("separation", PIP_GAP)
-	waiting = Label.new()
-	waiting.visible = false
 	for piece in [player_name, player_hp, player_bar]:
 		rows.add_child(piece)
-	status.add_child(_pips_row)
-	status.add_child(waiting)
-	rows.add_child(status)
+	rows.add_child(_pips_row)
 	var panel := PanelContainer.new()
 	panel.add_child(rows)
 	return panel
@@ -107,15 +101,13 @@ func _bar(fill: Color) -> ProgressBar:
 	return bar
 
 
-func show_state(player: ChChariotRuntime, enemy: ChChariotRuntime) -> void:
+func show_state(player: ChChariotRuntime, enemy: ChChariotRuntime, volley_cost: int = 0) -> void:
 	# The whole HUD, off the fight's own numbers: both bodies' names and HP, the player's energy pool
-	# as pips, and the parts queued behind it.
+	# as pips, with the top `volley_cost` lit ones marked as what a press would spend (see _energy).
 	player_name.text = player.body_def.display_name
 	player_hp.text = _hp_text(player)
 	player_bar.value = _hp_percent(player)
-	_energy(player.energy)
-	waiting.text = "%d parts waiting" % player.energy.queue_size()
-	waiting.visible = player.energy.queue_size() > 0
+	_energy(player.energy, volley_cost)
 	enemy_name.text = enemy.body_def.display_name
 	enemy_hp.text = _hp_text(enemy)
 	enemy_bar.value = _hp_percent(enemy)
@@ -131,15 +123,20 @@ static func _hp_percent(rig: ChChariotRuntime) -> float:
 	return clampf(100.0 * float(rig.hp) / maxf(1.0, float(rig.max_hp)), 0.0, 100.0)
 
 
-func _energy(pool: ChEnergy) -> void:
-	# One pip per unit of cap, round(pool.value) of them lit: the queue is what makes a part visibly
-	# wait, and the pips are what show the pool it is waiting on.
+func _energy(pool: ChEnergy, volley_cost: int) -> void:
+	# One pip per unit of cap, floor(pool.value) of them lit: a lit pip is a unit try_pay can spend.
+	# The volley a press would spend is painted on the top of the lit run, where the pool drains
+	# from, and what it needs past the pool is painted SHORT on the unlit pips above, so the player
+	# sees whether a press would pay for all of it.
 	while energy_pips.size() < roundi(pool.cap):
 		var pip := ColorRect.new()
 		pip.custom_minimum_size = PIP
 		pip.color = PIP_OFF
 		_pips_row.add_child(pip)
 		energy_pips.append(pip)
-	var lit := roundi(pool.value)
+	var lit := floori(pool.value)
 	for at in energy_pips.size():
-		energy_pips[at].color = ChUi.ACCENT if at < lit else PIP_OFF
+		if at >= lit:
+			energy_pips[at].color = SHORT if at < volley_cost else PIP_OFF
+		else:
+			energy_pips[at].color = VOLLEY if at >= lit - volley_cost else ChUi.ACCENT

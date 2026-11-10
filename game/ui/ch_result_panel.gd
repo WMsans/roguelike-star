@@ -16,6 +16,7 @@ const TITLES := {
 	&"aborted": "No fight: the battle could not start",
 }
 const ROW_GAP := 12  # between the title and the button
+const FOCUS_DELAY := 0.5  # seconds before Back takes focus
 
 var title: Label
 var back: Button
@@ -46,8 +47,10 @@ func _ready() -> void:
 	_center()
 	minimum_size_changed.connect(_center)
 	# The result screen is the only thing to press: Enter and Space work without reaching for the
-	# pointer, which is how the rest of the game is played.
-	back.grab_focus()
+	# pointer, which is how the rest of the game is played. Space is also the fire key, so focus
+	# waits FOCUS_DELAY: a player still mashing fire as the enemy dies does not skip the result.
+	# The timer's connection goes with this panel if it is freed first.
+	get_tree().create_timer(FOCUS_DELAY).timeout.connect(back.grab_focus)
 
 
 func show_result(result: StringName) -> void:

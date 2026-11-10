@@ -13,6 +13,7 @@ const IN_REACH := 12  # origins this far apart put the enemy's front part inside
 const APART := 20  # the brief's setup: origins this far apart, which a Mace now reaches (see the far pair)
 const OUT_OF_REACH := 25  # the tightest miss this rig shows: the foe's nearest body starts 3 cells clear of the box's x = 135.5 edge
 const TICK := 1.0 / 60.0
+const PRESS := [true, true]  # both sides press every tick: a part fires the moment it is ready
 const MACE_TICKS := 62  # 1.03 s: ChChariotBuilder starts a part at def.cooldown, so a 1 s cooldown goes ready here
 const SAW_TICKS := 50  # 0.83 s: the saw's 0.75 s cooldown gets one fire, not a second
 const FREEZE_HIT := 1.0  # the Freeze Charge's freeze per hit: one hit fills the meter
@@ -119,7 +120,7 @@ func test_mace_hits_in_reach_only() -> void:
 	# ChChariotBuilder starts a part at def.cooldown, so the 1 s countdown runs over these ticks: the mace
 	# gets one payment, one fire and one landed hit, and its second fire would need another full second.
 	for _tick in MACE_TICKS:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 	assert_eq(hits.size(), 1, "one fire, one landed hit")
 	assert_true(hits[0] == foe_part, "on the foe's part, the nearest body in the box")
 	assert_eq(foe.hp, foe_hp - mace.def.damage, "an unfrozen target takes the plain damage")
@@ -140,7 +141,7 @@ func test_mace_hits_in_reach_only() -> void:
 	far_ctx.bus.subscribe(RefCounted.new(), ChEvent.HIT, func(event: ChEvent): far_sink.append(event.data["target_part"]))
 	var far_hp := far_foe.hp
 	for _tick in MACE_TICKS:
-		far_ctx.tick(TICK, [0.0, 0.0])
+		far_ctx.tick(TICK, [0.0, 0.0], PRESS)
 	assert_true(far_foe_part.anchor_world().x > far_mace.anchor_world().x + far_mace.def.proximity_range, "the foe sits past the box")
 	assert_eq(far_hits, [], "so the fire landed nothing")
 	assert_eq(far_foe.hp, far_hp, "and paid no HP")
@@ -197,7 +198,7 @@ func test_mace_shatters_only_its_own_hit() -> void:
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.THAWED, func(event: ChEvent): sink.append(event))
 	var foe_hp := foe.hp
 	saw.behaviour.fire(ctx)
-	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut pays its own 16 damage: no mace shatter on someone else's hit")
+	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut pays its own 12 damage: no mace shatter on someone else's hit")
 	assert_eq(thawed, [], "and nothing thawed: the mace never shattered the saw's cut")
 	assert_near(foe_part.freeze, 1.0, 0.0001, "the target keeps the freeze it was built with")
 	assert_eq(foe_part.integrity, foe_part.def.integrity - saw.def.damage / 2, "while the part wore the unmultiplied half")
@@ -342,7 +343,7 @@ func test_ember_battery_gains_on_own_caught_fire() -> void:
 	# emits a CAUGHT_FIRE with the foe's side on it, which the battery hears and ignores.
 	world.fill_circle(Vector2i(burner.anchor_world()), 3, &"fire")
 	for _tick in ENERGY_TICKS:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 	assert_true(caught.size() >= 1 and caught[0].side == foe.side, "the foe's part caught fire")
 	assert_near(at.energy.value, 10.0, 0.0001, "and the enemy's catch bought nothing")
 	assert_eq(gained.size(), 0, "nor announced a gain")
@@ -358,7 +359,7 @@ func test_ember_battery_gains_on_own_caught_fire() -> void:
 	# the pool sits 2 below cap, so the gain is clamped rather than spent in full. One tick past
 	# PAST_TICKS, since 30 ticks of 1/60 can leave the 0.5 s a hair above 0.
 	for _tick in PAST_TICKS + 1:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 	at.energy.value = 18.0
 	_catch_fire(ctx, battery)
 	assert_near(at.energy.value, 20.0, 0.0001, "so the gain clamps to the cap")
@@ -366,7 +367,7 @@ func test_ember_battery_gains_on_own_caught_fire() -> void:
 	_complete()
 
 # The Chainsaw cuts what is in its 14-cell reach: a landed hit announces CELLS_CUT and reports the
-# fire sparks it threw (spawn_particles's pooled count), and it pays the plain 16 damage.
+# fire sparks it threw (spawn_particles's pooled count), and it pays the plain 12 damage.
 # With nothing of the enemy inside the box and solid ground at the tip, the cut goes to the terrain:
 # explode(tip, 2, 50) digs, and CELLS_CUT still announces the cut.
 func test_chainsaw_sparks_emit_cells_cut() -> void:
@@ -387,10 +388,10 @@ func test_chainsaw_sparks_emit_cells_cut() -> void:
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.CELLS_CUT, func(event: ChEvent): sink.append(event))
 	var foe_hp := foe.hp
 	for _tick in SAW_TICKS:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 	assert_eq(cut.size(), 1, "the cut announced itself once")
 	assert_eq(cut[0].data["sparks"], 4, "and threw the 4 fire sparks the brief names")
-	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut paid the saw's 16 damage")
+	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut paid the saw's 12 damage")
 
 # Now nothing of the enemy reaches the box, and the tip stands in solid rock.
 	var at2: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"cutter_chainsaw"]]), catalog, 0, ORIGIN, false)
@@ -405,7 +406,7 @@ func test_chainsaw_sparks_emit_cells_cut() -> void:
 	var sink2 := cut2
 	ctx2.bus.subscribe(RefCounted.new(), ChEvent.CELLS_CUT, func(event: ChEvent): sink2.append(event))
 	for _tick in SAW_TICKS:
-		ctx2.tick(TICK, [0.0, 0.0])
+		ctx2.tick(TICK, [0.0, 0.0], PRESS)
 	assert_eq(cut2.size(), 1, "the terrain cut still announced CELLS_CUT")
 	assert_eq(cut2[0].data["sparks"], 4, "with the same sparks")
 	assert_eq(foe2.hp, 100, "no enemy body was in reach, so no HP went")

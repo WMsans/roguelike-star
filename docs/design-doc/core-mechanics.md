@@ -40,18 +40,17 @@ References:
 
 ### 3.2 Control
 
-- The player only drives left and right.
-- Parts fire on their own, on cooldowns or on triggers, as in CATS. The player never fires parts
-  manually.
-- The enemy chariot follows the same rules.
+- The player drives left and right and presses one button. A press fires every ready part's
+  triggered ability; passive abilities run on their own. The enemy follows the same rules.
 
 ### 3.3 Energy
 
 - Everything costs energy, including moving.
-- A part that is ready when energy is short waits in a queue until energy regenerates. Waiting
-  parts are paid in strict first-in, first-out order.
-- Driving is paid first. While the player holds a direction, driving takes energy before any
-  waiting part gets paid. Moving visibly costs firepower, and that trade-off is the main decision
+- On a press, ready triggered parts are paid dearest energy cost first, ties broken by mount
+  order. A part that doesn't fit is skipped, and cheaper parts after it can still pay. Unpaid
+  parts stay ready, and nothing carries over between presses.
+- Driving is paid first. While the player holds a direction, driving takes energy before the
+  volley. Moving visibly costs firepower, and that trade-off is the main decision
   the player makes during a battle.
 - Driving costs energy per second for each wheel, set by the wheel (for instance, 1/s for a
   plain wheel). More wheels make driving more expensive.
@@ -275,7 +274,7 @@ Each theme can appear as a shop or as a pack:
 - Placement must matter. If every layout plays the same, the slot system has failed.
 - Chains must be visible in the fight as well as in text. When an ability triggers, the part
   reacts on screen, similar to the jokers in Balatro.
-- The player must be able to tell why they won or lost. Energy, HP, part states and waiting parts
+- The player must be able to tell why they won or lost. Energy, HP, part states and ready parts
   are all readable on screen.
 - The sim can change the outcome. Terrain, fire, water and lava can turn a fight in ways nobody
   scripted.

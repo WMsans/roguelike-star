@@ -56,6 +56,24 @@
    "seeds": {
     "from": 1,
     "count": 8
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0.375,
+     0.625
+    ],
+    "mean_fight_seconds": [
+     22.1,
+     32.1
+    ],
+    "aborted": [
+     0,
+     0
+    ]
    }
   },
   {
@@ -107,6 +125,24 @@
    "seeds": {
     "from": 1,
     "count": 8
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0.0,
+     0.125
+    ],
+    "mean_fight_seconds": [
+     34.3,
+     44.3
+    ],
+    "aborted": [
+     0,
+     0
+    ]
    }
   },
   {
@@ -164,6 +200,24 @@
    "seeds": {
     "from": 1,
     "count": 8
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0.75,
+     1.0
+    ],
+    "mean_fight_seconds": [
+     13.5,
+     23.5
+    ],
+    "aborted": [
+     0,
+     0
+    ]
    }
   },
   {
@@ -221,6 +275,24 @@
    "seeds": {
     "from": 1,
     "count": 8
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0.75,
+     1.0
+    ],
+    "mean_fight_seconds": [
+     16.9,
+     26.9
+    ],
+    "aborted": [
+     0,
+     0
+    ]
    }
   },
   {
@@ -278,6 +350,742 @@
    "seeds": {
     "from": 1,
     "count": 8
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0.75,
+     1.0
+    ],
+    "mean_fight_seconds": [
+     16.3,
+     26.3
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "vs-cook-sparks-mash",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "ember_battery"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0.625,
+     0.875
+    ],
+    "mean_fight_seconds": [
+     11.8,
+     21.8
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "vs-cook-freeze-mash",
+   "player": {
+    "body_id": "dozer",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "ice_cream_mace"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "corsair_harpoon"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "freeze_charge"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "mean_fight_seconds": [
+     43.8,
+     53.8
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "vs-cook-selfburn-mash",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "hearth"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "ember_battery"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0.625,
+     0.875
+    ],
+    "mean_fight_seconds": [
+     15.7,
+     25.7
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "vs-cook-artillery-mash",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "flamethrower"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "flamethrower"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "firebolt_launcher"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "firebolt_launcher"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0.875,
+     1.0
+    ],
+    "mean_fight_seconds": [
+     14.3,
+     24.3
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "vs-cook-hotmelee-mash",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "ring_of_fire"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "hearth"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "hearth"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0.0,
+     0.25
+    ],
+    "mean_fight_seconds": [
+     28.9,
+     38.9
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "vs-cook-sparks-never",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "ember_battery"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "never",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "vs-cook-freeze-never",
+   "player": {
+    "body_id": "dozer",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "ice_cream_mace"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "corsair_harpoon"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "freeze_charge"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "never",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "vs-cook-selfburn-never",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "hearth"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "ember_battery"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "never",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "vs-cook-artillery-never",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "flamethrower"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "flamethrower"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "firebolt_launcher"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "firebolt_launcher"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "never",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "vs-cook-hotmelee-never",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "ring_of_fire"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "hearth"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "hearth"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "never",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0
+    ],
+    "aborted": [
+     0,
+     0
+    ]
    }
   }
  ]

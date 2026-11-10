@@ -5,7 +5,7 @@ func _fight(result: String, seconds: float, dealt: int) -> Dictionary:
 		"energy_spent": 10.0, "energy_starved_seconds": 0.0, "flipped_seconds": 0.0, "rams": 0,
 		"parts": {"cutter_rocket@[2]": {"part": "cutter_rocket", "path": [2], "firings": 4, "hits": 2, "misses": 2,
 			"damage_dealt": dealt, "energy_spent": 8.0, "damage_per_energy": dealt / 8.0,
-			"seconds_waiting": 0.0, "broke_at_seconds": -1.0}}}
+			"seconds_ready_unfired": 0.0, "broke_at_seconds": -1.0}}}
 	return {"seed": 1, "result": result, "fight_seconds": seconds, "sides": [side, side.duplicate(true)]}
 
 func test_draws_count_and_aborts_do_not() -> void:

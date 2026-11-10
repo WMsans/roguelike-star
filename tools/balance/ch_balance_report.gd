@@ -110,11 +110,11 @@ static func summary_text(aggs: Array[Dictionary]) -> String:
 			if s.parts.is_empty():
 				continue
 			lines.append("    %-28s %8s %6s %8s %10s %9s" % ["part", "firings", "hits", "damage",
-				"dmg/energy", "waiting_s"])
+				"dmg/energy", "ready_s"])
 			for key in s.parts:
 				var p: Dictionary = s.parts[key]
 				lines.append("    %-28s %8s %6s %8s %10s %9s" % [key, _num(p.firings), _num(p.hits),
-					_num(p.damage_dealt), _num(p.damage_per_energy), _num(p.seconds_waiting)])
+					_num(p.damage_dealt), _num(p.damage_per_energy), _num(p.seconds_ready_unfired)])
 	return "\n".join(lines)
 
 

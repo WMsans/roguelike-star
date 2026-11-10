@@ -156,21 +156,21 @@ func test_click_flips() -> void:
 	var inventory := _inventory([&"strut", &"wheel", &"wheel"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, catalog)
-	assert_true(garage.drop_part(&"strut", [1]), "the strut takes cutter slot 1 at (6,5)")
+	assert_true(garage.drop_part(&"strut", [1]), "the strut takes cutter slot 1 at (9,4.5)")
 	assert_true(garage.drop_part(&"wheel", [1, 1]), "the wheel sits on the strut's extension 1 at (4,-6)")
-	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(10, -1), "unflipped parent: 6+4 across, 5-6 up")
+	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(13, -1.5), "unflipped parent: 9+4 across, 4.5-6 up")
 	garage.click_part([1])
 	# A flip turns the mount the other way, so the child's extension x negates: the anchor moves,
 	# which is the only visible effect a flip has on a part that owns no range of its own.
 	assert_true(layout.get_node([1]).flipped, "the flag toggled")
-	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(2, -1), "flipped parent: 6-4 across")
+	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(5, -1.5), "flipped parent: 9-4 across")
 	# The pit reads the layout's own walk now, so this pins the wiring: a second copy in the garage
 	# would be free to drift again without it.
 	assert_eq(garage.screen_of([1, 1]), garage.CHARIOT_AT + layout.anchor_of([1, 1], catalog) * garage.ZOOM,
 		"a flipped nested part sits where the layout says it does")
 	garage.click_part([1])
 	assert_true(not layout.get_node([1]).flipped, "a second click toggles back")
-	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(10, -1), "and the child returns to its cell")
+	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(13, -1.5), "and the child returns to its cell")
 	# ChChariotLayout.toggle_flip answers silently for a path nothing holds; the garage does not
 	# add its own check, so a stray click changes nothing rather than losing a part.
 	garage.click_part([2])
@@ -305,7 +305,7 @@ func test_fight_while_holding_keeps_inventory() -> void:
 
 func test_drop_onto_strut_extension() -> void:
 	# A free extension slot is a marker like any body slot, so the same click places into it: the
-	# strut at Cutter slot 2 (-4,-3) hangs its extension 0 one part up.
+	# strut at Cutter slot 2 (-6,-3) hangs its extension 0 one part up.
 	var inventory := _inventory([&"strut", &"cutter_chainsaw"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
@@ -321,19 +321,20 @@ func test_drop_onto_strut_extension() -> void:
 
 
 func test_cycle_body_keeps_parts_and_returns_leftovers() -> void:
-	# Corsair slots sit at (-8,5),(10,5),(-18,-5),(-8,-5),(2,-5),... and the Cutter's four at
-	# (-4,5),(6,5),(-4,-3),(6,-3), so swap_body's greedy nearest pairing moves every mount except
-	# the strut at Corsair slot 2 (-18,-5), which is 14 cells from the closest Cutter slot.
+	# Corsair slots sit at (-21,5),(21,5),(-20,-5),(-10,-5),(4,-5),... and the Cutter's four at
+	# (-10,4.5),(9,4.5),(-6,-3),(6,-3). swap_body pairs them greedily by distance as a share of each
+	# hull's size, so every mount moves except the strut at Corsair slot 2 (-20,-5): the Battery at
+	# slot 3 is nearer the Cutter's rear top slot and takes it first.
 	var inventory := _inventory([&"wheel", &"wheel", &"strut", &"wheel", &"ember_battery",
 	    &"cutter_rocket"])
 	var layout := _layout(&"corsair")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
-	assert_true(garage.drop_part(&"wheel", [0]), "Corsair slot 0 at (-8,3)")
-	assert_true(garage.drop_part(&"wheel", [1]), "Corsair slot 1 at (10,3)")
-	assert_true(garage.drop_part(&"strut", [2]), "Corsair slot 2 at (-18,-5)")
+	assert_true(garage.drop_part(&"wheel", [0]), "Corsair slot 0 at (-21,5)")
+	assert_true(garage.drop_part(&"wheel", [1]), "Corsair slot 1 at (21,5)")
+	assert_true(garage.drop_part(&"strut", [2]), "Corsair slot 2 at (-20,-5)")
 	assert_true(garage.drop_part(&"wheel", [2, 0]), "a wheel bolted under that strut")
-	assert_true(garage.drop_part(&"ember_battery", [3]), "Corsair slot 3 at (-8,-5)")
-	assert_true(garage.drop_part(&"cutter_rocket", [4]), "Corsair slot 4 at (2,-5)")
+	assert_true(garage.drop_part(&"ember_battery", [3]), "Corsair slot 3 at (-10,-5)")
+	assert_true(garage.drop_part(&"cutter_rocket", [4]), "Corsair slot 4 at (4,-5)")
 	assert_true(inventory.part_ids.is_empty(), "six drops left the inventory empty")
 	garage.cycle_body()
 	# Cutter -> Dozer -> Corsair -> Cutter, so a build starting on Corsair wraps to Cutter.
@@ -347,13 +348,16 @@ func test_cycle_body_keeps_parts_and_returns_leftovers() -> void:
 	# A leftover comes back as its whole subtree, so the ids travel parent first.
 	assert_eq(inventory.part_ids, [&"strut", &"wheel"], "the branch came back whole, parent first")
 	garage.cycle_body()
-	# Cutter -> Dozer: both bodies have six slots, so the nearest pairing keeps each index
-	# (a Dozer slot sits under the Cutter slot it answers for), so nothing is left over.
+	# Cutter -> Dozer: the Tower has six slots for four mounts, so nothing is left over. Scaled to
+	# each hull, the wheels stay on the bottom edge and the Cutter's two top slots sit nearest the
+	# Tower's roof slots (4, 5), not its mid-side ones (2, 3).
 	assert_eq(layout.body_id, &"dozer", "and the cycle keeps going")
 	assert_eq(layout.slots.size(), 4, "all four fit the Dozer")
 	assert_eq(inventory.part_ids, [&"strut", &"wheel"], "and the same two carried parts")
+	assert_eq(layout.get_node([0]).part_id, &"wheel", "the wheels stayed on the bottom edge")
+	assert_eq(layout.get_node([1]).part_id, &"wheel", "both of them")
 	assert_eq(layout.get_node([4]).part_id, &"ember_battery", "the Ember Battery moved to slot 4")
-	assert_eq(layout.get_node([3]).part_id, &"cutter_rocket", "and the Rocket stayed at 3")
+	assert_eq(layout.get_node([5]).part_id, &"cutter_rocket", "and the Rocket to slot 5")
 	garage.free()
 	_complete()
 
@@ -415,6 +419,8 @@ func test_main_round_trip() -> void:
 	main.garage.request_fight()
 	assert_true(main.battle != null, "the fight started, as an instantiated battle.tscn")
 	assert_eq(main.screen, &"fight", "and the loop left the garage for it")
+	# No Space key headless, and the volley is press-driven: the player presses by the enemy's rule.
+	main.battle.pressers[0] = func(b, s): return b.ai_press(s)
 	# ChBattle is an awaited coroutine, so the battle exists before its arena has loaded; the
 	# signal is watched from outside as well, so the result ChMain read is the one it announced.
 	main.battle.finished.connect(func(result: StringName): sink.append(result))
@@ -621,8 +627,8 @@ func test_no_hint_labels() -> void:
 		if text.begins_with("Click") or text.begins_with("Holding"):
 			hints.append(text)
 	assert_eq(hints, [], "no label tells the player what to click")
-	assert_eq(garage.get_node("TopBar/BodyName").text, "Cutter", "the bar names the hull")
-	assert_eq(garage.get_node("TopBar/Stats").text, "HP 650 · Energy 10", "and its fight stats")
+	assert_eq(garage.get_node("TopBar/BodyName").text, "Cutter · Wedge", "the bar names the hull and its type")
+	assert_eq(garage.get_node("TopBar/Stats").text, "HP 450 · Energy 10", "and its fight stats")
 	assert_true(not garage.tooltip.visible, "the tooltip is away until something is hovered")
 	_complete()
 
@@ -673,7 +679,7 @@ func test_mouse_chain_plays_a_round_trip() -> void:
 	# 4. swap the body: the top bar's next-body button.
 	_press(garage.get_node("TopBar/NextBody").get_global_rect().get_center())
 	assert_eq(main.layout.body_id, &"dozer", "the next-body button walked the cycle on")
-	assert_eq(garage.get_node("TopBar/BodyName").text, "Dozer", "and the bar named the new hull")
+	assert_eq(garage.get_node("TopBar/BodyName").text, "Dozer · Tower", "and the bar named the new hull and its type")
 	assert_eq(main.layout.slots.size(), 1, "the wheel came across with the hull")
 	# 5. ask for a fight, and watch it end.
 	_press(garage.get_node("TopBar/FightButton").get_global_rect().get_center())
@@ -791,15 +797,15 @@ func test_cycle_body_rebuilds_hull() -> void:
 		_complete()
 		return
 	assert_eq(hull.body_def.size, catalog.body(&"cutter").size, "drawing the Cutter's hull")
-	assert_true(garage.drop_part(&"wheel", [0]), "a wheel mounts in Cutter slot 0 at (-4,5)")
+	assert_true(garage.drop_part(&"wheel", [0]), "a wheel mounts in Cutter slot 0 at (-10,4.5)")
 	var before: Vector2 = garage.piece_at(_typed_path([0])).position
 	garage.cycle_body(1)
 	assert_eq(layout.body_id, &"dozer", "the cycle walked to the Dozer")
 	assert_true(garage.hull_piece() == hull, "the hull piece is reused, not rebuilt")
-	# Cutter 30x10 cells, Dozer 30x18: the piece has to show the new body, not the one it started on.
+	# Cutter 34x9 cells, Dozer 22x30: the piece has to show the new body, not the one it started on.
 	assert_eq(garage.hull_piece().body_def.size, catalog.body(&"dozer").size,
 		"and it shows the Dozer's taller hull")
-	# swap_body reseats the wheel on Dozer slot 0 at (-9,9), so its piece keeps its path and its part
+	# swap_body reseats the wheel on Dozer slot 0 at (-11,15), so its piece keeps its path and its part
 	# and still has to move: the position comes from the layout, never from where the piece was.
 	var piece: ChPitPiece = garage.piece_at(_typed_path([0]))
 	assert_true(piece != null, "the wheel kept a piece on the new hull")

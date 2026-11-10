@@ -15,6 +15,7 @@ func test_valid_scenario_builds_one_matchup() -> void:
 	var m: ChBalanceMatchup = out.matchups[0]
 	assert_eq(m.seeds, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "default seeds")
 	assert_eq(Array(m.drive), ["ai", "ai"], "default drive")
+	assert_eq(Array(m.press), ["ai", "ai"], "default press")
 	assert_eq(m.player.get_node([2]).part_id, &"cutter_rocket")
 	_complete()
 
@@ -40,6 +41,17 @@ func test_missing_name_and_bad_drive_are_both_reported() -> void:
 		_base(), "s.json")
 	assert_true(not out.ok)
 	assert_eq(out.errors.size(), 2, str(out.errors))
+	_complete()
+
+func test_press_parses_and_rejects_unknown_policy() -> void:
+	var ok := ChBalanceScenario.parse({"name": "s", "player": _side(), "enemy": _side(),
+		"press": {"player": "mash", "enemy": "never"}}, _base(), "s.json")
+	assert_true(ok.ok, str(ok.errors))
+	assert_eq(Array(ok.matchups[0].press), ["mash", "never"])
+	var bad := ChBalanceScenario.parse({"name": "s", "player": _side(), "enemy": _side(),
+		"press": {"player": "spam"}}, _base(), "s.json")
+	assert_true(not bad.ok)
+	assert_true(bad.errors[0].contains("press.player"), str(bad.errors))
 	_complete()
 
 func test_matrix_expands_every_pair() -> void:
@@ -73,4 +85,27 @@ func test_parts_on_a_layout_side_are_an_error() -> void:
 		_base(), "s.json")
 	assert_true(not out.ok)
 	assert_true(not out.errors.is_empty() and out.errors[0].contains("enemy.parts"), str(out.errors))
+	_complete()
+
+func test_plain_hull_side_gets_a_box_copy_of_its_body() -> void:
+	# The box control: same body in every field but the outline, under its own id.
+	var a := _side(); a.plain_hull = true
+	var out := ChBalanceScenario.parse({"name": "s", "player": a, "enemy": _side()}, _base(), "s.json")
+	assert_true(out.ok, str(out.errors))
+	var m: ChBalanceMatchup = out.matchups[0]
+	var box: ChBodyDef = m.catalog.body(m.player.body_id)
+	var orig: ChBodyDef = _base().body(&"cutter")
+	assert_eq(box.id, &"cutter_box")
+	assert_true(box.outline.is_empty(), "outline cleared")
+	assert_true(not orig.outline.is_empty(), "the def on disk keeps its outline")
+	for f in ["hp", "size", "slots", "mass", "friction", "restitution", "drive_style", "energy_cap"]:
+		assert_eq(box.get(f), orig.get(f), f)
+	assert_eq(m.enemy.body_id, &"cutter", "the other side keeps its shape")
+	_complete()
+
+func test_plain_hull_on_a_layout_side_is_an_error() -> void:
+	var out := ChBalanceScenario.parse({"name": "s", "player": _side(),
+		"enemy": {"layout": "res://game/data/enemies/dozer_cook.tres", "plain_hull": true}}, _base(), "s.json")
+	assert_true(not out.ok)
+	assert_true(not out.errors.is_empty() and out.errors[0].contains("enemy.plain_hull: only with body_id"), str(out.errors))
 	_complete()

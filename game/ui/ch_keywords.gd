@@ -19,6 +19,10 @@ const ENTRIES := {
 		"text": "Fires this many times per battle, then stops."},
 	&"proximity": {"name": "Proximity", "color": Color("#5fbf8f"),
 		"text": "Affects your own parts within range. The garage shows the range as a circle while you hover."},
+	&"press": {"name": "Press", "color": ChUi.ACCENT,
+		"text": "Fires when you press Space, if it's ready and you have the energy. Ready parts glow."},
+	&"passive": {"name": "Passive", "color": Color("#9aa0aa"),
+		"text": "Works on its own. No press needed."},
 	&"extension": {"name": "Extension slots", "color": Color("#9aa0aa"),
 		"text": "Parts bolted onto this one. They move with it, and fall off if it breaks."},
 }

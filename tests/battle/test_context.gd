@@ -14,6 +14,7 @@ const GROUND_TOP := 160  # first rock row: the bottom 20 rows of ChTest's 480x18
 const ORIGIN := Vector2(120, 140)  # near the surface, per Task 9's spawn ruling
 const FAR_ORIGIN := Vector2(320, 140)  # a second rig, clear of the first
 const TICK := 1.0 / 60.0  # one 60 fps frame: the delta the live game ticks at
+const PRESS := [true]  # the one rig presses every tick: a part fires the moment it is ready
 const READY_TICKS := 78  # over 1 s: a 1 s cooldown has gone ready and asked for energy
 const TWO_S_TICKS := 126  # 2.1 s: a 1 s cooldown gets two fires into this window
 const AFTER_BREAK_TICKS := 60  # the ticks a fight keeps running after something broke
@@ -49,6 +50,17 @@ class FireDouble:
 	var fired := 0
 
 	func fire(ctx) -> void: fired += 1
+
+# A double whose fire takes another part out of the fight, the way a shot can break or freeze a
+# part mid-volley: the volley must not then pay for or fire that part.
+class BreakerDouble:
+	extends FireDouble
+
+	var victim: ChPartRuntime = null
+
+	func fire(ctx) -> void:
+		fired += 1
+		victim.broken = true
 
 # A double that subscribes where a real behaviour subscribes (in setup, listener = self) and
 # counts what it still hears. break_part unsubscribes that listener, so the count stays empty.
@@ -101,8 +113,8 @@ func _part(id: StringName, cost: int, cooldown: float, integrity: int, extension
 # The body every rig sits on: four slots, 6 and 12 cells from the first (inside the modifier's
 # range) and 30 (outside it), so a test picks a range case by picking a slot.
 func _body(cap: int) -> ChBodyDef:
-	# energy_cap is what the chariot starts its pool at, so 0 leaves a ready part waiting in
-	# the queue instead of firing, which is what Review Focus 3 sets up.
+	# energy_cap is what the chariot starts its pool at, so 0 leaves a ready part unpaid by a press
+	# instead of firing, which is what Review Focus 3 sets up.
 	var def := ChBodyDef.new()
 	def.id = &"rig"
 	def.hp = BODY_HP
@@ -177,10 +189,10 @@ func _battle(world: PixelWorld, catalog: ChCatalog, rigs: Array[ChChariotRuntime
 				part.behaviour.setup(ctx)
 	return ctx
 
-# A ready part asks for energy, gets paid and fires. Two fires in 2.1 s is the whole loop: asked,
+# A ready part fires on a press and is paid for it. Two fires in 2.1 s is the whole loop: pressed,
 # paid, called fire, then reset the cooldown. A cooldown left at 0 would report ready every tick
 # after the first, so the count of 2 is also the proof of the reset.
-func test_ready_part_requests_and_fires() -> void:
+func test_ready_part_fires_on_press() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var catalog := _catalog(20)
@@ -198,18 +210,14 @@ func test_ready_part_requests_and_fires() -> void:
 	# ChEnergy.new starts the pool at cap, which the builder calls from the body def.
 	assert_near(rig.energy.value, 20.0, 0.001, "the pool starts at cap")
 	for _tick in TWO_S_TICKS:
-		# A part that gets its energy never waits, so the queue is empty on every one of these
-		# ticks. A part that had to wait would leave an entry for at least one tick.
-		# shortcut: 126 asserts are free on a passing run, which is why the check is per tick.
-		assert_eq(rig.energy.queue_size(), 0, "an affordable part never waits in the queue")
-		ctx.tick(TICK, [0.0])
+		ctx.tick(TICK, [0.0], PRESS)
 	assert_eq(double.fired, 2, "two fires in 2.1 s of ticks")
 	_complete()
 
-# Review Focus 3. The rig's pool cap is 0, so the strut's child asks for 1 energy it cannot pay
-# and waits in the queue. Breaking the strut breaks the child too, takes both out of the queue,
-# frees both joints, and 60 more ticks of the fight raise nothing.
-func test_break_removes_from_queue_and_cascades() -> void:
+# Review Focus 3. The rig's pool cap is 0, so the strut's child is ready but cannot pay its 1
+# energy. Breaking the strut breaks the child too and frees both joints; 60 more pressed ticks
+# of the fight raise nothing and fire nothing, because a broken part is not ready.
+func test_break_cascades_and_broken_parts_stay_quiet() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var catalog := _catalog(0)
@@ -232,22 +240,21 @@ func test_break_removes_from_queue_and_cascades() -> void:
 	var sink := events
 	(ctx.bus).subscribe(watcher, ChEvent.PART_BROKEN, func(event: ChEvent): sink.append(event))
 	for _tick in READY_TICKS:
-		# The child's 1 s cooldown counts down here; past 0 it asks for 1 energy it cannot pay.
+		# The child's 1 s cooldown counts down here; past 0 it is ready but cannot pay its 1 energy.
 		# shortcut: the same call runs again after the break below, which is what has to be proven
-		# quiet: a broken part must never ask again, or the queue would grow back.
-		ctx.tick(TICK, [0.0])
-	# The child is ready and waiting, so its entry is the whole queue.
-	assert_eq(rig.energy.queue_size(), 1, "the ready child waits in the queue for its 1 energy")
+		# quiet: a broken part must never fire.
+		ctx.tick(TICK, [0.0], PRESS)
+	assert_true(child.is_ready(), "the child is ready and unpaid")
 	assert_near(child.cooldown_left, 0.0, 0.0001, "it reached ready and stayed there")
 	# The pool cannot pay it: cap 0, 0 regen, and no direction held to spend the drive cost.
 	assert_near(rig.energy.value, 0.0, 0.0001, "the pool is empty")
 	# Review Focus 3: a part breaking mid-fight with a queued child hanging off it.
 	# shortcut: the brief names break_part(part); the ctx argument is provisional, since the steps
-	# it owes need the bus for unsubscribe_all and emit, and ChEnergy.cancel alone cannot do either.
+	# it owes need the bus for unsubscribe_all and emit.
 	rig.break_part(strut, ctx)
 	assert_true(strut.broken, "the strut is broken")
 	assert_true(child.broken, "the child broke with it, from the recursion")
-	assert_eq(rig.energy.queue_size(), 0, "both left the queue: the child's waiting entry is gone")
+	assert_true(not (child.is_ready()), "a broken child is no longer ready")
 	assert_eq(events.size(), 2, "one PART_BROKEN each for the strut and its child")
 	# The strut's own behaviour unsubscribed before the emit, so it heard neither event.
 	# shortcut: zero rather than one is the ordering's observable, as noted above.
@@ -256,8 +263,8 @@ func test_break_removes_from_queue_and_cascades() -> void:
 		# shortcut: the world steps too, so the freed joints are processed and the bodies fall.
 		await Engine.get_main_loop().process_frame
 		world.step(1)
-		ctx.tick(TICK, [0.0])
-	assert_eq(rig.energy.queue_size(), 0, "no broken part re-queued in those ticks")
+		var fired := ctx.tick(TICK, [0.0], PRESS)
+		assert_eq(fired, [0], "a broken part never fires")
 	assert_true(not is_instance_valid(strut.joint), "the strut's joint is freed")
 	assert_true(not is_instance_valid(child.joint), "and so is the child's, so no joint is orphaned")
 	_complete()
@@ -353,7 +360,7 @@ func test_burning_damages_hp_once() -> void:
 		world.fill_circle(Vector2i(modifier.anchor_world()), 3, &"fire")
 		await Engine.get_main_loop().process_frame
 		world.step(1)
-		ctx.tick(TICK, [0.0])
+		ctx.tick(TICK, [0.0], PRESS)
 		# hp is an int per the plan, so a fraction reaching it would be a house-rule break.
 		# shortcut: the fraction reaching hp would also leave the accumulator at 0 below.
 		assert_eq(rig.hp, int(rig.hp), "hp stays an int, so the fraction lives elsewhere")
@@ -365,9 +372,8 @@ func test_burning_damages_hp_once() -> void:
 	_complete()
 
 # Finding 1: ChPartRuntime.charges_left reads -1 as unlimited, so `>= 0` in the loop drove a part
-# that ran out of charges from 0 straight into that sentinel. The loop never gates a fire on the
-# counter (stopping the request is Task 13's limited behaviour, not a rule this task adds), so this
-# test pins the counter: it stops at 0 and never equals the unlimited sentinel.
+# that ran out of charges from 0 straight into that sentinel. is_ready now gates on the counter, so
+# this test pins it: it stops at 0 and never equals the unlimited sentinel.
 func test_charges_stop_at_zero_never_become_unlimited() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
@@ -386,10 +392,9 @@ func test_charges_stop_at_zero_never_become_unlimited() -> void:
 	var rigs: Array[ChChariotRuntime] = [rig]
 	var ctx: ChBattleContext = _battle(world, catalog, rigs)
 	for _tick in THREE_S_TICKS:
-		ctx.tick(TICK, [0.0])
-	# The pool starts at cap 20 and costs 1 a fire, so all three payments went through even though
-	# the part only had one charge: the counter is what has to hold, not the fire count.
-	assert_eq(double.fired, 3, "three payments in 3.1 s, one charge and two past it")
+		ctx.tick(TICK, [0.0], PRESS)
+	# One charge buys one fire: at 0 charges the part is no longer ready, so presses stop paying it.
+	assert_eq(double.fired, 1, "one charge, one fire in 3.1 s of presses")
 	assert_eq(gun.charges_left, 0, "the counter stopped at the last charge rather than at -1")
 	assert_true(gun.charges_left != -1, "so it never reads as unlimited to Tasks 12-14 or the HUD")
 	_complete()
@@ -444,4 +449,143 @@ func test_hit_names_the_side_it_landed_on() -> void:
 	(ctx.bus).subscribe(RefCounted.new(), ChEvent.HIT, func(event: ChEvent): sides.append(event.data.get("target_side")))
 	ctx.deal_hit(_part_of(rig, [0]), _part_of(rig, [1]).body, DAMAGE)
 	assert_eq(sides, [0], "a hit on its own chariot names side 0")
+	_complete()
+
+# --- The volley: a press fires every ready part the pool can pay, dearest first ---
+
+# A rig whose gun-like parts have the given costs, mounted in the given order, over a pool of
+# `pool` energy and 0 regen. Parts hang off one strut with enough extension slots.
+func _volley_rig(world: PixelWorld, costs: Array, pool: int) -> Array:
+	var defs: Array[ChPartDef] = [_part(&"strut", 0, 0.0, 100, costs.size())]
+	var mounts := [[[0], &"strut"]]
+	for at in costs.size():
+		var id := StringName("p%d" % at)
+		defs.append(_part(id, costs[at], 1.0, 100, 0))
+		mounts.append([[0, at], id])
+	var catalog := ChCatalog.from_defs(defs, [_body(pool)])
+	var rig: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount(mounts), catalog, 0, ORIGIN, false)
+	var doubles: Array = []
+	for at in costs.size():
+		var part := _part_of(rig, [0, at])
+		part.cooldown_left = 0.0
+		var double := FireDouble.new()
+		part.behaviour = double
+		doubles.append(double)
+	var rigs: Array[ChChariotRuntime] = [rig]
+	return [rig, _battle(world, catalog, rigs), doubles]
+
+func test_no_press_fires_nothing() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var set := _volley_rig(world, [1], 10)
+	var rig: ChChariotRuntime = set[0]
+	var fired := (set[1] as ChBattleContext).tick(TICK, [0.0], [false])
+	assert_eq(fired, [0], "no press, no fire")
+	assert_eq(_part_of(rig, [0, 0]).cooldown_left, 0.0, "the part is still ready")
+	assert_eq(rig.energy.value, 10.0, "the pool is unchanged")
+	_complete()
+
+func test_press_fires_every_ready_part() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var set := _volley_rig(world, [2, 1], 10)
+	var rig: ChChariotRuntime = set[0]
+	var fired := (set[1] as ChBattleContext).tick(TICK, [0.0], PRESS)
+	assert_eq(fired, [2], "both ready parts fired")
+	assert_near(rig.energy.value, 7.0, 0.0001, "10 minus 2 and 1")
+	for at in 2:
+		assert_eq(_part_of(rig, [0, at]).cooldown_left, 1.0, "cooldown reset to def.cooldown")
+	_complete()
+
+func test_press_pays_dearest_first_and_skips() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	# The 3 is mounted second; the 2 is skipped once the 3 has paid and leaves 1.
+	var set := _volley_rig(world, [2, 3, 1], 4)
+	var rig: ChChariotRuntime = set[0]
+	var doubles: Array = set[2]
+	var fired := (set[1] as ChBattleContext).tick(TICK, [0.0], PRESS)
+	assert_eq(fired, [2], "the 3 and the 1 fired")
+	assert_eq([doubles[0].fired, doubles[1].fired, doubles[2].fired], [0, 1, 1], "the 2 did not")
+	assert_eq(_part_of(rig, [0, 0]).cooldown_left, 0.0, "the skipped part stays ready")
+	assert_near(rig.energy.value, 0.0, 0.0001, "the pool is spent")
+	_complete()
+
+func test_unpaid_part_does_not_fire_later_without_press() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var set := _volley_rig(world, [2, 3, 1], 4)
+	var ctx: ChBattleContext = set[1]
+	var rig: ChChariotRuntime = set[0]
+	ctx.tick(TICK, [0.0], PRESS)
+	rig.energy.regen = 5.0
+	var counts := {"n": 0}
+	var watcher := RefCounted.new()
+	ctx.bus.subscribe(watcher, ChEvent.PART_FIRED, func(_event: ChEvent): counts["n"] += 1)
+	for _tick in 120:
+		ctx.tick(TICK, [0.0], [false])
+	assert_eq(counts["n"], 0, "nothing is remembered between presses")
+	assert_eq((set[2][0] as FireDouble).fired, 0, "the 2-cost part has still not fired")
+	_complete()
+
+func test_press_skips_frozen_broken_and_spent() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var set := _volley_rig(world, [1, 1, 1], 10)
+	var rig: ChChariotRuntime = set[0]
+	_part_of(rig, [0, 0]).freeze = 100.0
+	_part_of(rig, [0, 1]).broken = true
+	_part_of(rig, [0, 2]).charges_left = 0
+	assert_true(_part_of(rig, [0, 0]).is_frozen(), "the first part is frozen")
+	var fired := (set[1] as ChBattleContext).tick(TICK, [0.0], PRESS)
+	assert_eq(fired, [0], "none of the three is ready")
+	assert_eq(rig.energy.value, 10.0, "the pool is unchanged")
+	_complete()
+
+func test_volley_cost_sums_ready_parts() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var set := _volley_rig(world, [3, 1, 2], 10)
+	var rig: ChChariotRuntime = set[0]
+	_part_of(rig, [0, 2]).cooldown_left = 1.0
+	assert_eq((set[1] as ChBattleContext).volley_cost(rig), 4, "3 and 1; the cooling 2 is left out")
+	_complete()
+
+func test_drive_is_paid_before_the_volley() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var set := _volley_rig(world, [2, 3], 10)
+	var rig: ChChariotRuntime = set[0]
+	# The 0.001 absorbs float rounding in (drive + 2) - drive, which would land a hair under 2.
+	rig.energy.value = rig.energy.drive_cost * TICK + 2.0 + 0.001
+	var fired := (set[1] as ChBattleContext).tick(TICK, [1.0], PRESS)
+	assert_eq(fired, [1], "one part fired")
+	assert_eq([set[2][0].fired, set[2][1].fired], [1, 0], "the 2-cost fired, the 3-cost could not")
+	assert_near(rig.energy.value, 0.001, 0.0001, "drive and the 2 took the rest")
+	_complete()
+
+func test_press_ties_break_on_mount_order() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	# Three parts of equal cost over a pool for two: the first two mounted pay, the third does not.
+	var set := _volley_rig(world, [2, 2, 2], 4)
+	var doubles: Array = set[2]
+	var fired := (set[1] as ChBattleContext).tick(TICK, [0.0], PRESS)
+	assert_eq(fired, [2], "two of the three fired")
+	assert_eq([doubles[0].fired, doubles[1].fired, doubles[2].fired], [1, 1, 0], "in mount order")
+	_complete()
+
+func test_part_taken_out_mid_volley_is_not_paid() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	# The 3 fires first and breaks the 1, which was ready when the press began.
+	var set := _volley_rig(world, [3, 1], 10)
+	var rig: ChChariotRuntime = set[0]
+	var breaker := BreakerDouble.new()
+	breaker.victim = _part_of(rig, [0, 1])
+	_part_of(rig, [0, 0]).behaviour = breaker
+	var fired := (set[1] as ChBattleContext).tick(TICK, [0.0], PRESS)
+	assert_eq(fired, [1], "only the 3 fired")
+	assert_eq((set[2][1] as FireDouble).fired, 0, "the broken 1 did not fire")
+	assert_near(rig.energy.value, 7.0, 0.0001, "and was not paid for")
 	_complete()

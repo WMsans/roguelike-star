@@ -27,7 +27,9 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 	# so a part that overlaps its own hull or another part costs nothing, while terrain, projectiles
 	# and the other chariot (whose group is side + 1 too) still hit every body here.
 	var group := side + 1
-	runtime.chassis = _body(parent, world, ChTextures.box(body_def.size.x, body_def.size.y, body_def.color), _material(body_def.material), body_def.size, origin, PixelRigidBody.SHAPE_HULL, group)
+	var hull := ChTextures.polygon(body_def.outline, body_def.size, body_def.color, mirror_x) if not body_def.outline.is_empty() \
+			else ChTextures.box(body_def.size.x, body_def.size.y, body_def.color)
+	runtime.chassis = _body(parent, world, hull, _material(body_def.material), body_def.size, origin, PixelRigidBody.SHAPE_HULL, group, body_def)
 	runtime.chassis_visual = visual_of(runtime.chassis)
 	# all_paths is depth-first, parent before child, so a joint always names a body already mounted.
 	var mounted: Dictionary = {}  # layout path -> the part runtime built there
@@ -75,6 +77,17 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		part_runtime.charges_left = def.charges
 		part_runtime.body = body
 		part_runtime.visual = visual_of(body)
+		if def.cooldown > 0.0:
+			# Only a part the button fires can be "ready". White, because ChBattle tints it (HDR) when lit.
+			# z -1 under the Visual so the ring never covers the art; hidden until a part is ready.
+			var ring := Sprite2D.new()
+			ring.name = "Outline"
+			ring.texture = ChTextures.outline(texture.get_image(), Color.WHITE)
+			ring.centered = true
+			ring.z_index = -1
+			ring.visible = false
+			body.add_child(ring)
+			part_runtime.outline = ring
 		part_runtime.joint = joint
 		part_runtime.parent = holder
 		if holder != null:
@@ -103,7 +116,7 @@ static func _material(def_material: StringName) -> StringName:
 	return def_material
 
 
-static func _body(parent: Node, world: PixelWorld, texture: Texture2D, material: StringName, size: Vector2i, at: Vector2, shape: int, group: int) -> PixelRigidBody:
+static func _body(parent: Node, world: PixelWorld, texture: Texture2D, material: StringName, size: Vector2i, at: Vector2, shape: int, group: int, def: ChBodyDef = null) -> PixelRigidBody:
 	var body := PixelRigidBody.new()
 	body.texture = texture
 	body.pixel_material = material
@@ -112,6 +125,17 @@ static func _body(parent: Node, world: PixelWorld, texture: Texture2D, material:
 	# joins the world on its first physics tick once it is in the tree, so the group is already on
 	# the shape when Box2D first filters it.
 	body.collision_group = group
+	# A body def's grip and weight go on before add_child too; 0 / -1 keep the engine's own values.
+	if def != null:
+		# No-op for the physics: a pixel body joins with its pixels' mass, so Box2D never reads this.
+		# It only records the def's mass on the node; ChChariotRuntime.settle_mass applies it after
+		# the join.
+		if def.mass > 0.0:
+			body.mass = def.mass
+		if def.friction > 0.0:
+			body.friction = def.friction
+		if def.restitution >= 0.0:
+			body.restitution = def.restitution
 	# body_size is not the joined shape, which comes from the texture's pixels: it is the footprint
 	# ChPartRuntime sample_rect reads back through get_body_size.
 	body.body_size = size
