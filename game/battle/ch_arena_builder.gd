@@ -21,6 +21,7 @@ const SPAWN_ABOVE := 30
 const MIRROR_X := 240
 const OIL_W := 34  # the oil tank's outer width, walls included, from the arena wall in
 const ACID_X := 34  # the acid cistern's left edge: 16 wide, rock walls 2 thick
+const MID_CRATE_X := 198  # the middle crate's left edge (left half)
 const LAVA_TOP := 6  # cells under the surface; a wheel samples about 4 down (ChPartRuntime.sample_rect)
 
 
@@ -100,6 +101,11 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 	# TNT crate buried 3 under the lowest surface cell over it, clear of the spawn hull (144-196).
 	var crate_top: int = surface.slice(118, 124).max() + 3
 	_both(world, Rect2i(118, crate_top, 6, 6), &"tnt")
+	# A second crate where the chariots meet, at the lava's edge (x 198-203, mirrored 276-281), buried
+	# the same way: a Rocket or Firebolt that digs there, or a fire that burns down to it, sets it off
+	# under whoever is brawling over it. Without it the flank crates went off in under 1 fight in 8.
+	var mid_top: int = surface.slice(MID_CRATE_X, MID_CRATE_X + 6).max() + 3
+	_both(world, Rect2i(MID_CRATE_X, mid_top, 6, 6), &"tnt")
 	# The gunpowder seam: a fuse 2 rows deep, 2 under the surface, from the crate toward the spawn,
 	# under a 1-cell wood plank. One row did not carry: each blast's ragged crater dropped the next
 	# grains out of reach and the chain died halfway (test_arena's test_lit_seam_sets_off_its_crate). Gunpowder is not collision-solid, and the terrain collider (outline.cpp

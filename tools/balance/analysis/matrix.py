@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Round-robin table from a demo-matrix run. Score = share of a build's fights won (draw = half), counting
 its games as player and as enemy, mirror match excluded. Usage: matrix.py result.json [name ...]
-Names default to the order in tools/balance/suites/demo-matrix.json."""
+Names default to the order in tools/balance/suites/demo-matrix.json. Only the first scenario's pairs are
+read (`matrix/ixj`, the `ai` presses in demo-matrix; `bodies/ixj` in bodies), not `matrix-mash` or `matrix-never`."""
 import json, sys
 d = json.load(open(sys.argv[1]))
 names = sys.argv[2:] or ["sparks", "freeze", "selfburn", "artillery", "hotmelee"]
 n = len(names); M = {}
+first = d["aggregates"][0]["name"].split("/")[0]
 for a in d["aggregates"]:
+    if a["name"].split("/")[0] != first: continue
     i, j = map(int, a["name"].split("/")[1].split("x")); M[i, j] = (a["wins"], a["losses"], a["draws"], a["mean_fight_seconds"])
 print(f"{'player/enemy':12}" + "".join(f"{x:>14}" for x in names) + "   score")
 for i in range(n):

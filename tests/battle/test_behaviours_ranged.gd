@@ -155,6 +155,32 @@ func _catch_fire(ctx: ChBattleContext, part: ChPartRuntime) -> void:
 	event.position = part.anchor_world()
 	ctx.bus.emit(event)
 
+# Point-blank: the same shot with the foe's hull 7 cells from the launcher (rig origins 20 apart)
+# pays half (ch_rocket.gd POINT_BLANK 12, POINT_BLANK_SHARE 0.5), so a Rocket pressed into a
+# chariot that drove onto it is no longer the best gun in the game.
+func test_rocket_point_blank_pays_half() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[2], &"cutter_rocket"]]), catalog, 0, ORIGIN, false)
+	var foe: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([]), catalog, 1, ORIGIN + Vector2(20, 0), false)
+	var rocket := _part_of(at, [2])
+	var rigs: Array[ChChariotRuntime] = [at, foe]
+	var ctx: ChBattleContext = _battle(world, catalog, rigs)
+	var hits: Array[ChEvent] = []
+	var sink := hits
+	ctx.bus.subscribe(RefCounted.new(), ChEvent.HIT, func(event: ChEvent): sink.append(event))
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+	var foe_hp := foe.hp
+	for _frame in FLIGHT_FRAMES:
+		await Engine.get_main_loop().process_frame
+		if ctx.time < TICKS_TO_FIRE * TICK:
+			ctx.tick(TICK, [0.0, 0.0], PRESS)
+	assert_eq(hits.size(), 1, "one fire, one landed hit")
+	assert_eq(foe.hp, foe_hp - roundi(rocket.def.damage * 0.5), "a point-blank hit pays half")
+	_complete()
+
 # Ignition: every CAUGHT_FIRE, from either side, halves the rocket's own countdown. The fire is
 # hand-built (the melee suite's helper) because what is under test is the subscription and the
 # halving, not ChPartRuntime's burning transition, which that suite already pins.
