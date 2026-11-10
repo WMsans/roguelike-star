@@ -236,9 +236,9 @@ func test_every_part_described() -> void:
 		for line in def.description:
 			assert_eq(ChKeywords.parse(line).unknown, [], "%s: every tag resolves" % id)
 			assert_true(not line.begins_with("•"), "%s: the tooltip adds the bullet" % id)
-	assert_eq(ChKeywords.keys_of(catalog.part(&"flamethrower").description), [&"burn"])
-	assert_eq(ChKeywords.keys_of(catalog.part(&"freeze_charge").description), [&"proximity", &"freeze"])
-	assert_eq(ChKeywords.keys_of(catalog.part(&"ember_battery").description), [&"burn", &"energy"])
+	assert_eq(ChKeywords.keys_of(catalog.part(&"flamethrower").description), [&"press", &"burn"])
+	assert_eq(ChKeywords.keys_of(catalog.part(&"freeze_charge").description), [&"passive", &"proximity", &"freeze"])
+	assert_eq(ChKeywords.keys_of(catalog.part(&"ember_battery").description), [&"passive", &"burn", &"energy"])
 	_complete()
 
 
