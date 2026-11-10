@@ -253,6 +253,10 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 				return a.def.energy_cost > b.def.energy_cost
 			return order[a] < order[b])
 		for part in volley:
+			# A fire earlier in this volley can break or freeze a part that was ready when the press
+			# began, so readiness is read again before paying.
+			if not part.is_ready():
+				continue
 			if not chariot.energy.try_pay(part.def.energy_cost):
 				continue
 			var behaviour = part.behaviour

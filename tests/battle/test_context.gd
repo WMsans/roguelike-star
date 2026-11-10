@@ -51,6 +51,17 @@ class FireDouble:
 
 	func fire(ctx) -> void: fired += 1
 
+# A double whose fire takes another part out of the fight, the way a shot can break or freeze a
+# part mid-volley: the volley must not then pay for or fire that part.
+class BreakerDouble:
+	extends FireDouble
+
+	var victim: ChPartRuntime = null
+
+	func fire(ctx) -> void:
+		fired += 1
+		victim.broken = true
+
 # A double that subscribes where a real behaviour subscribes (in setup, listener = self) and
 # counts what it still hears. break_part unsubscribes that listener, so the count stays empty.
 class ListenerDouble:
@@ -102,8 +113,8 @@ func _part(id: StringName, cost: int, cooldown: float, integrity: int, extension
 # The body every rig sits on: four slots, 6 and 12 cells from the first (inside the modifier's
 # range) and 30 (outside it), so a test picks a range case by picking a slot.
 func _body(cap: int) -> ChBodyDef:
-	# energy_cap is what the chariot starts its pool at, so 0 leaves a ready part waiting in
-	# the queue instead of firing, which is what Review Focus 3 sets up.
+	# energy_cap is what the chariot starts its pool at, so 0 leaves a ready part unpaid by a press
+	# instead of firing, which is what Review Focus 3 sets up.
 	var def := ChBodyDef.new()
 	def.id = &"rig"
 	def.hp = BODY_HP
@@ -551,4 +562,30 @@ func test_drive_is_paid_before_the_volley() -> void:
 	assert_eq(fired, [1], "one part fired")
 	assert_eq([set[2][0].fired, set[2][1].fired], [1, 0], "the 2-cost fired, the 3-cost could not")
 	assert_near(rig.energy.value, 0.001, 0.0001, "drive and the 2 took the rest")
+	_complete()
+
+func test_press_ties_break_on_mount_order() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	# Three parts of equal cost over a pool for two: the first two mounted pay, the third does not.
+	var set := _volley_rig(world, [2, 2, 2], 4)
+	var doubles: Array = set[2]
+	var fired := (set[1] as ChBattleContext).tick(TICK, [0.0], PRESS)
+	assert_eq(fired, [2], "two of the three fired")
+	assert_eq([doubles[0].fired, doubles[1].fired, doubles[2].fired], [1, 1, 0], "in mount order")
+	_complete()
+
+func test_part_taken_out_mid_volley_is_not_paid() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	# The 3 fires first and breaks the 1, which was ready when the press began.
+	var set := _volley_rig(world, [3, 1], 10)
+	var rig: ChChariotRuntime = set[0]
+	var breaker := BreakerDouble.new()
+	breaker.victim = _part_of(rig, [0, 1])
+	_part_of(rig, [0, 0]).behaviour = breaker
+	var fired := (set[1] as ChBattleContext).tick(TICK, [0.0], PRESS)
+	assert_eq(fired, [1], "only the 3 fired")
+	assert_eq((set[2][1] as FireDouble).fired, 0, "the broken 1 did not fire")
+	assert_near(rig.energy.value, 7.0, 0.0001, "and was not paid for")
 	_complete()
