@@ -254,3 +254,17 @@ func test_round_trip_with_feedback() -> void:
 	assert_eq(main.garage.find_children("*", "ChPartCard", true, false).size(),
 		main.garage.STRIP_ORDER.size(), "the fresh garage built its own strip")
 	_complete()
+
+
+# Space is both the fire key and ui_accept, so a player mashing fire as the enemy dies would press
+# the result's Back button the frame it took focus. The button takes focus only after
+# ChResultPanel.FOCUS_DELAY, so the result stays up long enough to be read.
+func test_result_panel_takes_focus_late() -> void:
+	var panel := ChResultPanel.new()
+	Engine.get_main_loop().get_root().add_child(panel)
+	_track(panel)
+	await Engine.get_main_loop().process_frame
+	assert_true(not panel.back.has_focus(), "Back has no focus as the panel shows")
+	await Engine.get_main_loop().create_timer(ChResultPanel.FOCUS_DELAY + 0.1).timeout
+	assert_true(panel.back.has_focus(), "and takes it once the delay has passed")
+	_complete()
