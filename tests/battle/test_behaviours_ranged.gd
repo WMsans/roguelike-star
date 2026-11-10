@@ -61,7 +61,7 @@ func _part_of(runtime: ChChariotRuntime, steps: Array[int]) -> ChPartRuntime:
 	for part in runtime.parts:
 		if part.path == steps:
 			return part
-		_record("no part mounted at %s" % [steps], "")
+	_record("no part mounted at %s" % [steps], "")
 	return null
 
 # A battle over both sides, with every mounted behaviour getting the setup call that subscribes it.
@@ -301,6 +301,33 @@ func test_harpoon_pulls_enemy_closer() -> void:
 	assert_near(ctl_after, ctl_before, 1.0, "the pair with no harpoon kept its distance")
 	assert_true(gap_after < gap_before - 10.0,
 		"the harpoon closed the distance the control pair still holds")
+	_complete()
+
+# The cook's Barge mounts its Harpoon behind its own Mace on the top row, so the line starts inside
+# its own build. The hook looks past its own chariot's bodies (the chassis and the strut in front of
+# it here) and lands on the enemy hull beyond them.
+func test_harpoon_looks_past_its_own_parts() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(),
+		_mount([[[0], &"corsair_harpoon"], [[1], &"strut"]]), catalog, 0, ORIGIN, false)
+	var foe: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([]), catalog, 1, ORIGIN + Vector2(APART, 0), false)
+	var harpoon := _part_of(at, [0])
+	assert_true(harpoon != null and harpoon.behaviour != null, "the harpoon mounted and behaves")
+	var rigs: Array[ChChariotRuntime] = [at, foe]
+	var ctx: ChBattleContext = _battle(world, catalog, rigs)
+	var foe_hp := foe.hp
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+	var seen_line := false
+	for _frame in HUNT_FRAMES:
+		await Engine.get_main_loop().process_frame
+		if ctx.time < (HOOK_TICKS + PULL_TICKS) * TICK:
+			ctx.tick(TICK, [0.0, 0.0], PRESS)
+		seen_line = seen_line or _attached(ctx)
+	assert_true(seen_line, "the line attached past its own strut and chassis")
+	assert_eq(foe.hp, foe_hp - harpoon.def.damage, "and the hook paid its damage to the enemy hull")
 	_complete()
 
 # Out of range: the hull's face sits past the 120-cell line, so the raycast answers nothing, the

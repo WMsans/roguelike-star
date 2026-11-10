@@ -10,6 +10,7 @@ extends ChBehaviour
 const RANGE := 120.0  # cells the line reaches
 const PULL := 20000.0  # impulse per tick, toward the other hull
 const ATTACH := 1.5  # seconds the line stays attached
+const OWN_SKIPS := 8  # own-chariot bodies the line may look past before it gives up
 
 var attach_left := 0.0  # seconds of pull left
 var hook: Object = null  # the body the line is attached to
@@ -27,16 +28,23 @@ func fire(ctx: ChBattleContext) -> void:
 	# whatever it met. Powders stay out of the mask, so the line runs through sand.
 	# Measured: a hull face 27 cells out answers with that body; one 137 cells out answers empty,
 	# and the arena floor 2 cells below the line never ends a flat shot.
-	var shot: Dictionary = ctx.world.raycast(anchor, anchor + part.facing() * RANGE,
-		PixelWorld.RAY_BODIES | PixelWorld.RAY_SOLID)
-	var met: Object = shot.get("collider")
+	# The line starts inside its own build (the Barge mounts it behind its own Mace), and raycast
+	# has no exclude, so a hit on one of its own chariot's bodies restarts the segment just past it.
+	var dir := part.facing()
+	var end := anchor + dir * RANGE
+	var from := anchor
+	var shot: Dictionary = {}
+	var met: Object = null
+	for _skip in OWN_SKIPS:
+		shot = ctx.world.raycast(from, end, PixelWorld.RAY_BODIES | PixelWorld.RAY_SOLID)
+		met = shot.get("collider")
+		if met == null or not is_instance_valid(met) or ctx.chariot_of_body(met) != ctx.own(part):
+			break
+		from = Vector2(shot["point"]) + dir
+		met = null
 	if met == null or not is_instance_valid(met):
-		# Ground, or nothing: the line hooked no hull, so no damage and no pull.
+		# Ground, nothing, or only its own build: the line hooked no hull, so no damage and no pull.
 		# shortcut: a line that ends in terrain stays unattached rather than anchoring to the wall.
-		return
-	if ctx.chariot_of_body(met) == ctx.own(part):
-		# The line hooked its own chariot, so the hook is dropped: the pull below moves both hulls
-		# toward each other, which is not what a line anchored inside its own mount should do.
 		return
 	# The hook belongs to the fight, so it pays through the fight's one damage entry point.
 	ctx.deal_hit(part, met, part.def.damage)
