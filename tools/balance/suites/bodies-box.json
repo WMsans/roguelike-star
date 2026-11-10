@@ -1,0 +1,204 @@
+{
+ "name": "bodies-box",
+ "scenarios": [
+  {
+   "name": "bodies-box",
+   "player": [
+    {
+     "body_id": "cutter",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "cutter_chainsaw"
+      }
+     ],
+     "plain_hull": true
+    },
+    {
+     "body_id": "dozer",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_chainsaw"
+      }
+     ],
+     "plain_hull": true
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      }
+     ],
+     "plain_hull": true
+    }
+   ],
+   "enemy": [
+    {
+     "body_id": "cutter",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        2
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        3
+       ],
+       "part": "cutter_chainsaw"
+      }
+     ],
+     "plain_hull": true
+    },
+    {
+     "body_id": "dozer",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        4
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_chainsaw"
+      }
+     ],
+     "plain_hull": true
+    },
+    {
+     "body_id": "corsair",
+     "parts": [
+      {
+       "slot": [
+        0
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        1
+       ],
+       "part": "wheel"
+      },
+      {
+       "slot": [
+        5
+       ],
+       "part": "cutter_rocket"
+      },
+      {
+       "slot": [
+        6
+       ],
+       "part": "cutter_chainsaw"
+      }
+     ],
+     "plain_hull": true
+    }
+   ],
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   }
+  }
+ ]
+}

@@ -1,0 +1,760 @@
+{
+ "name": "bodies",
+ "scenarios": [
+  {
+   "name": "bodies/0x0",
+   "player": {
+    "body_id": "cutter",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "cutter",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.25
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "bodies/0x1",
+   "player": {
+    "body_id": "cutter",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "dozer",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.25
+    ],
+    "aborted": [
+     0,
+     0
+    ],
+    "enemy.flipped_seconds": [
+     12.3,
+     37.0
+    ]
+   }
+  },
+  {
+   "name": "bodies/0x2",
+   "player": {
+    "body_id": "cutter",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0.5,
+     0.75
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "bodies/1x0",
+   "player": {
+    "body_id": "dozer",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "cutter",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ],
+    "player.flipped_seconds": [
+     16.2,
+     48.5
+    ]
+   }
+  },
+  {
+   "name": "bodies/1x1",
+   "player": {
+    "body_id": "dozer",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "dozer",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.25
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "bodies/1x2",
+   "player": {
+    "body_id": "dozer",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "bodies/2x0",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "cutter",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       3
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "bodies/2x1",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "dozer",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       4
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "bodies/2x2",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "enemy": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       5
+      ],
+      "part": "cutter_rocket"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "press": {
+    "player": "ai",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0.375,
+     0.625
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  }
+ ]
+}

@@ -6,7 +6,7 @@ class_name ChBalanceScenario extends RefCounted
 # fight ever runs on a half-understood scenario.
 
 const SCENARIO_KEYS := ["name", "player", "enemy", "seeds", "drive", "press", "expect"]
-const SIDE_KEYS := ["layout", "body_id", "parts", "hp", "body_type", "body_seed"]
+const SIDE_KEYS := ["layout", "body_id", "parts", "hp", "plain_hull", "body_type", "body_seed"]
 const PART_KEYS := ["slot", "part", "flipped"]
 const SUITE_KEYS := ["name", "scenarios"]
 
@@ -191,17 +191,30 @@ static func _side(value: Variant, base: ChCatalog, where: String, field: String,
 		# A layout brings its own parts, so parts beside it would be silently dropped.
 		if value.has("parts"):
 			errors.append("%s: %s.parts: only with body_id; a layout side uses the layout's parts" % [where, field])
+		if value.has("plain_hull"):
+			errors.append("%s: %s.plain_hull: only with body_id" % [where, field])
 		layout = _layout_file(value["layout"], base, where, field + ".layout", errors)
 	else:
 		layout = _inline(value, base, where, field, errors)
+	var plain = value.get("plain_hull", false)
+	if not plain is bool:
+		errors.append("%s: %s.plain_hull: must be true or false" % [where, field])
 	if layout == null or errors.size() > before:
 		return null
+	# Overrides make a new body under its own id, so two sides on one body never share a def, and
+	# the def on disk (shared by the whole process) is never touched.
+	var def: ChBodyDef = base.body(layout.body_id)
+	if plain:
+		# The box control: every field kept but the outline, so only the shape differs.
+		def = def.copy()
+		def.id = StringName("%s_box" % def.id)
+		def.outline = PackedVector2Array()
 	if value.has("hp"):
-		# The override is a new body under its own id, so two sides on one body with different hp
-		# never share a def, and the def on disk (shared by the whole process) is never touched.
-		var def := _body_with_hp(base.body(layout.body_id), int(hp))
+		def = _body_with_hp(def, int(hp))
+	if def != base.body(layout.body_id):
 		extra_bodies[def.id] = def
 		layout.body_id = def.id
+	if value.has("hp"):
 		# A layout's own max_hp would win over its body's hp, so the override is set there too.
 		layout.max_hp = int(hp)
 	return layout

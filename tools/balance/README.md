@@ -70,6 +70,7 @@ A `SIDE` is one of:
 | side `body_id` | one of | | a body id (`--list`), with `parts` |
 | side `parts` | with `body_id` | | `slot` is a slot path, `part` a part id, `flipped` defaults to `false` |
 | side `hp` | no | the body's | overrides HP for this side only |
+| side `plain_hull` | no | `false` | with `body_id` only: the body's outline is dropped, so the hull is its plain `size` box with every other field kept (the body joins as `<id>_box`). The `bodies-box` control |
 
 Slot paths: `[i]` is body slot `i`; `[i, j]` is extension slot `j` of the part in body slot `i`.
 Any part can go in any slot. Body slots are listed in `game/data/bodies/<id>.tres` (`slots`), as
@@ -78,9 +79,9 @@ On every body the first two slots are the bottom wheel mounts. Today's bodies:
 
 | body | hp | slots `[0]`, `[1]`, ... |
 |---|---|---|
-| `cutter` | 500 | (-4, 5) (6, 5) · (-4, -3) rear-top · (6, -3) front-top |
-| `dozer` | 500 | (-9, 9) (9, 9) · (-12, -3) rear · (12, -3) front · (-6, -9) rear-top · (6, -9) front-top |
-| `corsair` | 600 | (-8, 5) (10, 5) · then five top slots from rear (-18, -5) to front (20, -5) |
+| `cutter` | 650 | (-10, 4.5) (9, 4.5) · (-6, -3) rear-top · (6, -3) front, on the nose slope |
+| `dozer` | 1000 | (-9, 15) (9, 15) · (-9, -3) rear · (9, -3) front · (-5, -15) rear-top · (5, -15) front-top |
+| `corsair` | 900 | (-21, 5) (21, 5) · then five top slots from rear (-20, -5) to front (22, -5) |
 
 (Check the `.tres` for current numbers; this table is a guide.) A `layout` side uses the HP of its
 layout's body unless you give `hp`.
@@ -156,8 +157,16 @@ Per part:
   (two wheels, 100000 HP, drive `hold`), seeds 1–5. The dummy can't die or fight back, so every
   fight runs the full 60 s and each part's damage per energy is measured over the same window.
   No `expect`: it measures (~1 minute).
-- Coming with later plans: `bodies` (every body type against every other), `payoffs` (each payoff
-  alone and in its target scenario) and `builds` (each build against a reference gauntlet).
+- `bodies`: every body against every body (9 pairs, seeds 1–8), `ai` driving and pressing. Each
+  side carries two wheels, a Rocket and a Chainsaw on the body's two highest front-facing non-wheel
+  slots, Chainsaw in front (Cutter `[2]`/`[3]`, Dozer `[4]`/`[5]`, Corsair `[5]`/`[6]`). One
+  scenario per pair, named `bodies/<i>x<j>` (0 cutter, 1 dozer, 2 corsair) so
+  `analysis/matrix.py out.json cutter dozer corsair` reads it; `expect` pins each pair's win rate
+  to within one fight of the tuned result, and the Dozer's `flipped_seconds` against the Cutter (~2 min).
+- `bodies-box`: the same matrix with `"plain_hull": true` on both sides, the control that shows
+  what the outlines add. No `expect`: compare it with `bodies` (~2 min).
+- Coming with later plans: `payoffs` (each payoff alone and in its target scenario) and `builds`
+  (each build against a reference gauntlet).
 
 ## Writing a regression check
 
@@ -191,5 +200,48 @@ pass by checking nothing.
   (+x forward), the way the player's is written.
 - Fights are deterministic only for the same scenario, seeds and code; numbers change when a part,
   body or the physics changes, which is the point.
+- Melee reach (`ChBehaviour._nearest_enemy_body`) tests the target's unrotated `size` box, not its
+  outline, so an outline changes who a Chainsaw hits only through the physics (lifts, flips,
+  tilts). A Rocket is a real projectile and does meet the outline.
 - Parts that start on a cooldown under one tick (1/60 s) would have their first-tick firing missed
   by the stats; no current part does.
+
+## Body tuning log
+
+Task 8 of the button-and-bodies plan. Each try ran `bodies` and `bodies-box` (8 seeds per pair).
+Score = a body's share of its non-mirror fights, draw = half (`matrix.py`); MAD = mean distance
+of the three pair scores from 0.5. Criteria: no body above 0.65; each body wins one pair ≥ 0.60
+and loses one ≥ 0.60; the Dozer flipped in most Cutter–Dozer fights; `bodies` MAD > `bodies-box`.
+Tries 1–8 ran before the mass fix (below): a `mass` in a body def did nothing then.
+
+| # | change from the previous try | cutter / dozer / corsair | MAD vs box | Dozer flipped vs Cutter | verdict |
+|---|---|---|---|---|---|
+| 0 | Task 7 bodies, `KITE_BACKOFF` 8 | .59 / .59 / .31 | .125 vs .073 | 16/16 | the Tower tipped itself (51 s flipped in the mirror, 0 rams): the kiter reversed at full speed |
+| 1 | `KITE_BACKOFF` 20; Tower top ±5 | .59 / .52 / .39 | .073 vs .083 | 13/16 | self-tip gone; everything draws |
+| 2 | Wedge 34×8, Barge 52×12, guns re-heighted so the Tower's miss the Wedge and hit the Barge | .61 / .55 / .34 | .125 vs .156 | 10/16 | tilt puts every melee box on target anyway |
+| 3 | Tower top back to ±8; Wedge rear wheel to -15 | .56 / .67 / .27 | .219 vs .167 | 7/16 | the Wedge climbs the Tower's ramp-like face and flips itself |
+| 4 | Tower bottom chamfer; Barge guns lower | .62 / .58 / .30 | .156 vs .135 | 11/16 | the Barge drives up onto the Wedge |
+| 5 | Barge front tyre inside its nose | .58 / .55 / .38 | .104 vs .146 | 11/16 | the Barge stays down but still loses: it fires half as often |
+| 6 | sharp Wedge nose (no vertical face); Tower tyres inside the hull (±5) | .78 / .19 / .53 | .312 vs .219 | 16/16 | the Wedge flips the Tower 7–0, but a ±5 Tower fails `test_bodies` (tips, does not land upright) |
+| 7 | Tower wheels back to ±9 | .56 / .64 / .30 | .167 vs .135 | 11/16 | the Wedge climbs the Tower's protruding tyre |
+| 8 | Wedge friction 0.3 | .58 / .64 / .28 | .177 vs .229 | 9/16 | no help |
+| — | **mass fix**: `mass` reaches Box2D (`ChChariotRuntime.settle_mass`); Tower needs 800 to pass `test_bodies` | | | | |
+| 9 | real masses (Wedge default, Tower 800, Barge 872) | .55 / .75 / .20 | .260 vs .302 | 8/16 | heavy Tower wins everything |
+| 10 | Barge restitution 0.6 | .56 / .78 / .16 | .292 | 8/16 | worse |
+| 11 | Barge 52×6, Tower guns at its foot, Wedge 34×9 | .48 / .69 / .33 | .198 vs .156 | 7/16 | Wedge's Chainsaw still reaches the flat Barge (tilt) |
+| 12 | Task 7 bodies + sharp Wedge nose + Barge mass 500 + `KITE_BACKOFF` 20 | .66 / .55 / .30 | .146 vs .062 | 9/16 | **kept** |
+| 13 | try 12 + Barge friction 2.0 | .67 / .50 / .33 | .146 vs .115 | 9/16 | worse for the Barge |
+| 14 | try 12 + Barge top slots at y = -2 | .67 / .56 / .27 | .167 vs .094 | 9/16 | worse for the Barge |
+
+Kept (try 12): pair scores Cutter–Dozer .47, Cutter–Corsair .84, Dozer–Corsair .56. Met: the Dozer
+flips in 9 of 16 Cutter–Dozer fights (mean 28.5 s), and `bodies` is further from even than the
+box (MAD .146 vs .062). Not met: the Cutter scores .66 (limit .65), and there is no win/lose
+cycle: the Corsair loses to both. What blocks it, measured:
+
+- The Barge fires half as often as the Wedge. Both are brawlers paying 2 energy/s to drive; the
+  Corsair's 3.0 regen against the Cutter's 3.5 leaves it 1.0/s net against 1.5/s, and the
+  Corsair's 900 HP does not cover that. HP, cap and regen are body stats outside this task's knobs.
+- Melee hits test unrotated `size` boxes, so the outline cannot make a Chainsaw miss; only flips can.
+- `test_bodies` drives each body into the cook (a Corsair): a Barge above mass ~500 is not pushed
+  away and the driver stops short of 100 cells, and a Tower with its wheels inside its hull (the
+  shape that let the Wedge get under it) tips over on landing.

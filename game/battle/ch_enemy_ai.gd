@@ -39,7 +39,10 @@ static func _can_fire(part: ChPartRuntime) -> bool:
 	# when it runs out, which also holds here) and a frozen part, whose countdown is paused.
 	return part.cooldown_left <= 0.0 and part.charges_left != 0 and not part.is_frozen()
 
-const KITE_BACKOFF := 8.0  # cells; width of the kiter's rest band below its hold. Proposed.
+# cells; width of the kiter's rest band below its hold. At 8 the Tower's momentum carried it through
+# the band and it reversed at full speed, which tipped it onto its face in most fights (bodies suite,
+# README "Body tuning log"); at 20 it coasts to a stop inside the band instead.
+const KITE_BACKOFF := 20.0
 
 static func decide(self_x: float, target_x: float, preferred_range: float,
 		own_half_width: float = 0.0, target_half_width: float = 0.0,

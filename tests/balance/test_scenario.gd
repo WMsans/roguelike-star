@@ -86,3 +86,26 @@ func test_parts_on_a_layout_side_are_an_error() -> void:
 	assert_true(not out.ok)
 	assert_true(not out.errors.is_empty() and out.errors[0].contains("enemy.parts"), str(out.errors))
 	_complete()
+
+func test_plain_hull_side_gets_a_box_copy_of_its_body() -> void:
+	# The box control: same body in every field but the outline, under its own id.
+	var a := _side(); a.plain_hull = true
+	var out := ChBalanceScenario.parse({"name": "s", "player": a, "enemy": _side()}, _base(), "s.json")
+	assert_true(out.ok, str(out.errors))
+	var m: ChBalanceMatchup = out.matchups[0]
+	var box: ChBodyDef = m.catalog.body(m.player.body_id)
+	var orig: ChBodyDef = _base().body(&"cutter")
+	assert_eq(box.id, &"cutter_box")
+	assert_true(box.outline.is_empty(), "outline cleared")
+	assert_true(not orig.outline.is_empty(), "the def on disk keeps its outline")
+	for f in ["hp", "size", "slots", "mass", "friction", "restitution", "drive_style", "energy_cap"]:
+		assert_eq(box.get(f), orig.get(f), f)
+	assert_eq(m.enemy.body_id, &"cutter", "the other side keeps its shape")
+	_complete()
+
+func test_plain_hull_on_a_layout_side_is_an_error() -> void:
+	var out := ChBalanceScenario.parse({"name": "s", "player": _side(),
+		"enemy": {"layout": "res://game/data/enemies/dozer_cook.tres", "plain_hull": true}}, _base(), "s.json")
+	assert_true(not out.ok)
+	assert_true(not out.errors.is_empty() and out.errors[0].contains("enemy.plain_hull: only with body_id"), str(out.errors))
+	_complete()
