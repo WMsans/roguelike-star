@@ -277,6 +277,7 @@ matrix = round-robin score under `ai`; bodies = cutter / dozer / corsair; MAD as
 | F1 | Flamethrower damage 45→63 | .50/.50 0/.25 .88/.50 .88/1 .88/.12 | .50 .41 .67 .34 .58 | (= 12) | | | |
 | F2 | Flamethrower damage 81 | same but artillery t=21 | .50 .42 .67 .38 .53 (hotmelee ai−mash in the matrix drops to +.10) | | | | |
 | F3 | Flamethrower damage 72 — **kept** | .50/.50 0/.25 .88/.50 .88/1 .88/.12 | .50 .41 .67 .38 .55 | (= 12) | | | |
+| R | final-review fixes, no stat change: Harpoon looks past its own bodies, cook Mace on `[6]` / Hearth `[5]`, kiter back-off edge kept outside hull contact, Tower wheels ±9→±11 | .50/.75 0/0 .88/.75 .88/.88 .88/0 | .38 .44 .55 .55 .59 | .38 / .53 / .59 | .41 .34 .47 | .094 vs .021 | 9/16 |
 
 Kept (try 13): what holds and what doesn't is in the Task 9 section of
 `docs/superpowers/handoffs/2026-11-07-demo-balance-handoff.md`. What blocks the rest, measured:
@@ -284,8 +285,9 @@ Kept (try 13): what holds and what doesn't is in the Task 9 section of
 - **Self-flips decide the bodies suite.** Every body spends 25–40 s of a 60 s fight flipped, mirrors
   included (Wedge mirror 32/31 s, Tower mirror 29/25 s). A flipped chariot's guns point at the sky,
   so most pairs end in draws (half a point each) and pair scores sit at .41–.53 whatever the stats.
-  The Tower wheelies over when it lands with its motor running (probe: |rotation| 1.9 rad within
-  0.6 s of landing); mass 2000 stops that but then it can't drive the arena.
+  The Tower's own tip (|rotation| 1.9 rad) turned out to be its narrow wheelbase rocking over
+  the arena's bumps, not the landing; the Tower's wheels moved to ±11 in the final-review round
+  (see Known-fail).
 - **Rockets miss at range.** A straight shot over the ±6-cell surface noise hits the ground, so a
   kiter is safe from a brawler's Rocket and the AI's "ranged parts are in reach while facing" rule
   fires Rockets that miss (38% hits under `ai`, 83% under `mash`, which fires them in contact).
@@ -297,26 +299,32 @@ Kept (try 13): what holds and what doesn't is in the Task 9 section of
 ## Known-fail (Task 9)
 
 The suites pass (`ok: true`) while these spec §4 criteria fail. Their `expect` ranges pin today's
-measured values so a change shows up, not because the values are right. Values are from the kept
-state (Task 9 fix round, Flamethrower 72).
+measured values so a change shows up, not because the values are right. Values are from the
+final-review fix round (log row R). Two Task 9 rows now pass and are gone: the round-robin band
+(every build is in 0.35–0.65: sparks .38, freeze .44, selfburn .55, artillery .55, hotmelee .59)
+and the Dozer flipping in most Cutter–Dozer fights (9 of 16).
 
 | criterion (spec §4) | bound | measured | scenarios whose pins encode the miss |
 |---|---|---|---|
-| `ai` beats `mash` per build, `demo` | gap ≥ +0.15 | sparks 0.00 (.50/.50), freeze −0.25 (0/.25), artillery −0.12 (.88/1.00); selfburn +0.38 and hotmelee +0.75 pass | `demo`: `vs-cook-sparks`, `-freeze`, `-artillery` and their `-mash` twins (win-rate pins within one fight of the values) |
-| `ai` beats `mash` per build, `demo-matrix` (player win rate) | gap ≥ +0.15 | sparks −0.10 (.35/.45), freeze +0.05 (.05/0), selfburn −0.05 (.70/.75), artillery −0.25 (.20/.45); hotmelee +0.15 passes | `demo-matrix`: `matrix` and `matrix-mash` (pins only `aborted`, so nothing there guards the gap) |
-| round-robin band | every build 0.35–0.65 | selfburn 0.67 (sparks .50, freeze .41, artillery .38, hotmelee .55) | `demo-matrix` `matrix` (no win-rate pin) |
-| body cycle Wedge > Tower > Barge > Wedge | each body wins one pair ≥ 0.60 and loses one ≥ 0.60 | pairs Cutter–Dozer .41, Cutter–Corsair .34 (the Barge's win, .66, holds), Dozer–Corsair .47 | `bodies`: `bodies/0x1`, `bodies/1x0`, `bodies/1x2`, `bodies/2x1` (win-rate pins) |
-| Dozer flipped in most Cutter–Dozer fights | > 8 of 16 | 7 of 16 | `bodies/0x1` `enemy.flipped_seconds`, `bodies/1x0` `player.flipped_seconds` (pin the mean seconds, not the count) |
-| standalone part DPS (brief) | about 10–20 DPS | Flamethrower 21.3 is over 20. Rocket 8.3, Chainsaw 4.7, Hearth 2.7, Firebolt 2.0, Harpoon 0.2 and Mace 0 are under 10; only the Ring (12.9) is in range. The Mace and Harpoon reading about 0 may be an artifact of the plain-hull Corsair target rather than of the parts (not checked) | `standalone` (no `expect`; it measures) |
+| `ai` beats `mash` per build, `demo` | gap ≥ +0.15 | sparks −0.25 (.50/.75), freeze 0.00 (0/0), selfburn +0.12 (.88/.75), artillery 0.00 (.88/.88); hotmelee +0.88 passes | `demo`: `vs-cook-sparks`, `-freeze`, `-selfburn`, `-artillery` and their `-mash` twins (win-rate pins within one fight of the values) |
+| `ai` beats `mash` per build, `demo-matrix` (player win rate) | gap ≥ +0.15 | sparks 0.00 (.45/.45), freeze +0.05 (.15/.10), selfburn 0.00 (.75/.75), artillery −0.25 (.20/.45); hotmelee +0.20 passes | `demo-matrix`: `matrix` and `matrix-mash` (pins only `aborted`, so nothing there guards the gap) |
+| body cycle Wedge > Tower > Barge > Wedge | each body wins one pair ≥ 0.60 and loses one ≥ 0.60 | pairs Cutter–Dozer .41, Cutter–Corsair .34 (the Barge's win, .66, holds), Dozer–Corsair .47; scores .38 / .53 / .59 | `bodies`: `bodies/0x1`, `bodies/1x0`, `bodies/1x2`, `bodies/2x1` (win-rate pins) |
+| standalone part DPS (brief) | about 10–20 DPS | Flamethrower 21.3 is over 20. Rocket 8.3, Chainsaw 4.7, Hearth 2.7, Firebolt 2.0, Harpoon 0.4 and Mace 0 are under 10; only the Ring (12.9) is in range. The Mace at the Cutter's `[3]` lands nothing on the plain-hull dummy; in real fights against the cook's builds it lands (see below) | `standalone` (no `expect`; it measures) |
 
-A test fails for the same reason. `tests/battle/test_bodies.gd`
-`test_each_body_drives_the_arena` fails about half the time in suite runs: 6 of the 12 suite and
-subset runs made in the Task 9 fix rounds, on the Task 9 data, and 0 of 7 isolated runs. It fails
-with `dozer stayed wheels-down (max |rotation| 1.92)`. The Dozer (Tower) wheelies over when it lands
-with its motor already running, and whether it does depends on how its join lines up with the fight
-ticks, which the frame timing decides (the tests run without `--fixed-fps`). This is the real
-self-flip defect, so the test is left as it is. No Dozer mass fixes it: 600 tips, and 1000 or 1100
-cannot drive the 100 cells.
+The cook's Harpoon and Mace now land against every body when the player is armed (cook hits per
+fight, `ai` presses): against a Barge (`demo` corsair builds) Harpoon 0.5–2.6, Mace 1.5–10.1;
+against a Tower (`vs-cook-freeze`) Harpoon 4.0, Mace 8.6; against a Wedge (Rocket + Chainsaw, 4
+seeds) Harpoon 0.5, Mace 10.0. Against an unarmed hull that holds still (two wheels only) the
+Harpoon lands nothing: the brawling Barge drives up onto a Wedge or a Barge, and tips itself
+against a Tower, before its first 5 s cooldown is up.
+
+`tests/battle/test_bodies.gd` `test_each_body_drives_the_arena` used to fail about half the time in
+suite runs (`dozer stayed wheels-down (max |rotation| 1.92)`). The cause was not the landing: on
+slow frames the same 600 ticks carry the Tower further, over the arena's bumps near x 215–280
+(seed 12345), where its 18-cell wheelbase under a 30-cell hull rocked it onto its back. Holding
+the drive until landing did not help, and angular damping up to 8 still tipped it on slow frames.
+The Tower's wheels moved from ±9 to ±11 (its hull corners), and
+`test_tower_drives_upright_on_slow_frames` pins it with a 30 ms stall on every tick.
 
 Check the button criterion on any `demo` or `demo-matrix` `--out` file with
 `analysis/summary.py --press-gap out.json`. It prints the `ai` and `mash` win rates and the gap per
