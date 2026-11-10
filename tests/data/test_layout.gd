@@ -174,3 +174,21 @@ func test_mirrored_keeps_max_hp() -> void:
 	assert_eq(layout.mirrored().max_hp, 1800, "the mirror keeps the layout's max HP")
 	assert_eq(_layout(&"A").max_hp, 0, "a fresh layout defers to its body")
 	_complete()
+
+
+# Bodies of different sizes compare slots as a share of each body's size, not in raw cells. A wheel
+# on a small hull's bottom-left corner (-5,5 of 10x10) is 1.4 cells from a big hull's near-centre
+# slot (-4,4 of 40x20) but 15.8 from its bottom-left corner (-20,10); as a share it is on the corner.
+func test_swap_body_across_sizes_matches_relative_position() -> void:
+	var small := _mk_body(&"S", [Vector2(-5, 5)])
+	small.size = Vector2i(10, 10)
+	var big := _mk_body(&"L", [Vector2(-4, 4), Vector2(-20, 10)])
+	big.size = Vector2i(40, 20)
+	var catalog := ChCatalog.from_defs([] as Array[ChPartDef], [small, big] as Array[ChBodyDef])
+	var layout := _layout(&"S")
+	assert_true(layout.place([0], &"strut"), "a part on the small hull's corner")
+	var leftovers: Array[ChSlotNode] = layout.swap_body(catalog.body(&"L"), catalog)
+	assert_eq(leftovers.size(), 0, "it found a slot")
+	assert_true(layout.get_node([1]) != null and layout.get_node([0]) == null,
+		"it reseated on the big hull's corner slot 1, not the raw-nearest slot 0")
+	_complete()
