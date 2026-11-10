@@ -3,9 +3,8 @@ extends ChBehaviour
 # The Firebolt Launcher (spec §5.4): a lobbed bolt that breaks into a pool of fire wherever it
 # lands. The lob is 20 degrees up from facing at 150 cells per second under a gravity of 120, so
 # ChProjectile carries the arc; this only aims it and reads the impact back.
-# The launcher is the slice's charge-limited part: five shots, and at zero it stops asking for
-# energy, which is the rule ChBattleContext left to the behaviour ("a limited part at 0 charges is
-# still ready and still asks for energy").
+# The launcher is the slice's charge-limited part: five shots. At zero ChPartRuntime.is_ready is
+# false, so a press no longer fires or pays for it.
 
 const SPEED := 150.0  # cells per second out of the barrel
 const LOFT := 20.0  # degrees the shot leaves the barrel above facing
@@ -15,8 +14,8 @@ const BLAST_POWER := 300.0
 const FIRE_RADIUS := 4
 
 func fire(ctx: ChBattleContext) -> void:
-	# Out of charges there is nothing to fire. process parks the countdown below, so the loop should
-	# never have asked this part; the guard stays as the part's own answer, not the fix.
+	# Out of charges there is nothing to fire. is_ready keeps a press from reaching this; the guard
+	# stays as the part's own answer for any other caller.
 	if part.charges_left == 0:
 		return
 	if ctx.world == null:
@@ -32,14 +31,11 @@ func fire(ctx: ChBattleContext) -> void:
 	bolt.trail = ChFx.spawn(bolt, &"fireball", Vector2.ZERO, dir.rotated(up))
 
 func process(ctx: ChBattleContext, delta: float) -> void:
-	# At zero charges the launcher stops requesting. ChBattleContext asks the parts whose countdown
-	# reached 0, so the part's answer is to stop being ready: it parks its countdown at a value that
-	# can never count down, so no request is made for it, the pool pays nothing, and no PART_FIRED
-	# announces a shot that never happened. The fire that spent the last charge already reset the
-	# countdown to def.cooldown in this same tick, so this parks that reset rather than fighting it.
-	# shortcut: parked here rather than as a charges_left > 0 test at the request site, which is the
-	# rule ChBattleContext's own comment left to the behaviour; a part that gains charges (a refill,
-	# Task 14) would need its countdown handed back here.
+	# At zero charges the countdown is parked at a value that never counts down, so anything that
+	# reads cooldown_left alone (not only is_ready) also sees a launcher that will not fire again.
+	# The fire that spent the last charge already reset the countdown to def.cooldown in this same
+	# tick, so this parks that reset rather than fighting it.
+	# shortcut: a part that gains charges (a refill, Task 14) would need its countdown handed back here.
 	if part.charges_left == 0:
 		part.cooldown_left = INF
 

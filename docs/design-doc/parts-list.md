@@ -39,7 +39,7 @@ starting point. All numbers are Proposed.
     counts as a hit, but only switching on counts as firing.
   - Freeze stops a continuous part, Slow halves its tick rate, Speedup doubles it.
 - **Wheels** pay their energy cost per second while the chariot is driving, so driving costs
-  more the more wheels it has. Driving is still paid before any waiting part.
+  more the more wheels it has. Driving is still paid before the volley.
 - **Passive parts** have no cooldown and usually cost no energy. Some react to triggers.
 - There is no Continuous tag; the mode shows in the Cooldown column.
 

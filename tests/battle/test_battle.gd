@@ -354,7 +354,7 @@ func test_finished_after_ticking_stops() -> void:
 # and both drive through the shipped scene's real tick loop.
 const CHAIN_FRAMES := 4000  # the 3600-frame budget, plus the frames the arena takes to stream
 const DRIVE_ON := 0.9  # seconds of held direction
-const DRIVE_OFF := 0.3  # seconds released, so the queued parts are paid (drive is paid first)
+const DRIVE_OFF := 0.3  # seconds released, so a press can pay the ready parts (drive is paid first)
 # 3 s of fight: the player has driven, the cook has not arrived. It was 2 s on the old box Corsair; the
 # Barge (2x its hull mass) is still sliding off its landing at 1 s, then holds the key 0.9 s at a time.
 # Read off the fight's clock (ctx.time), not a frame count, so the mark means "3 s of fight" however
@@ -398,8 +398,8 @@ func _start_fight(battle: Node2D, player_layout: ChChariotLayout,
 
 
 # The drive keys: ChBattle._player_drive reads Input, so action_press is what holding the key at the
-# keyboard is. Bursting it is what a player learns, because ChEnergy pays the drive before the queued
-# parts and a direction held for ever starves the weapons. Returns `min_gap`, the narrowest the two
+# keyboard is. Bursting it is what a player learns, because ChEnergy pays the drive before the volley
+# and a direction held for ever starves the weapons. Returns `min_gap`, the narrowest the two
 # hulls ever got centre to centre (the number the reach pins below read), and `mark`, the player's
 # hull x at PLAYER_MARK_SECONDS of fight time: where its own driving had got it before the Dozer arrived, which is
 # the only stretch of the fight that is the player's driving alone.

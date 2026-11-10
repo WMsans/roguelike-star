@@ -31,6 +31,8 @@ def press_gap(d):
     return 1 if short else 0
 
 
+if len(sys.argv) < 2 or (sys.argv[1] == "--press-gap" and len(sys.argv) < 3):
+    sys.exit(__doc__)
 if sys.argv[1] == "--press-gap":
     sys.exit(press_gap(json.load(open(sys.argv[2]))))
 d = json.load(open(sys.argv[1]))

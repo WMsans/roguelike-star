@@ -65,10 +65,12 @@ func test_passive_hides_cost_line() -> void:
 func test_switch_def_reuses_boxes_and_hide() -> void:
 	var tip := _tooltip()
 	tip.show_part(_def(&"ember_battery"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
-	var first_kw := tip.boxes()[1]
+	# boxes()[1] is the Passive box for both parts, so the reuse is read on [2]: the ember's second
+	# keyword box, which the freeze charge must refill rather than rebuild.
+	var second_kw := tip.boxes()[2]
 	tip.show_part(_def(&"freeze_charge"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	assert_eq(tip.keyword_keys(), [&"passive", &"proximity", &"freeze"])
-	assert_eq(tip.boxes()[1], first_kw, "pooled box reused")
+	assert_eq(tip.boxes()[2], second_kw, "pooled box reused")
 	tip.show_part(_def(&"wheel"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	assert_eq(tip.boxes().size(), 2, "extra keyword boxes hidden")
 	tip.hide_tooltip()

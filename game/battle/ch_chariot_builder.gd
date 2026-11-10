@@ -127,6 +127,9 @@ static func _body(parent: Node, world: PixelWorld, texture: Texture2D, material:
 	body.collision_group = group
 	# A body def's grip and weight go on before add_child too; 0 / -1 keep the engine's own values.
 	if def != null:
+		# No-op for the physics: a pixel body joins with its pixels' mass, so Box2D never reads this.
+		# It only records the def's mass on the node; ChChariotRuntime.settle_mass applies it after
+		# the join.
 		if def.mass > 0.0:
 			body.mass = def.mass
 		if def.friction > 0.0:

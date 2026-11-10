@@ -99,7 +99,7 @@ func break_part(part: ChPartRuntime, ctx: ChBattleContext) -> void:
 	event.data = {"part": part}
 	ctx.bus.emit(event)
 	# Everything bolted onto a broken part breaks with it: the layout is a tree, and a child falls
-	# with its parent, so each one leaves the queue, loses its behaviour's listener and loses its
+	# with its parent, so each one stops being ready, loses its behaviour's listener and loses its
 	# joint through this same step list, one level down.
 	for child in part.children:
 		# The guard above is what keeps a part reached twice from announcing itself twice, so the

@@ -198,7 +198,7 @@ func tick_cooldown(delta: float) -> bool:
 	# longer implies a fire: ChBattleContext fires only on a press, and resets cooldown_left to
 	# def.cooldown when the part fires.
 	# A passive part has no cooldown to gate (cooldown 0 in the def), so it never becomes ready and
-	# never asks for energy. A part with no def has nothing to gate either.
+	# a press never fires it. A part with no def has nothing to gate either.
 	if def == null or def.cooldown <= 0.0:
 		return false
 	# A frozen part's countdown pauses (spec §5.7: a weapon's cooldown pauses; the wheel motor is
