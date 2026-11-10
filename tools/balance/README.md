@@ -133,6 +133,8 @@ Per side:
 | `energy_gained` | energy this chariot's parts added to its own pool (Ember Battery), after the cap: a gain into a full pool counts 0 |
 | `caught_fire` | times one of this chariot's parts caught fire |
 | `frozen` | times one of this chariot's parts froze |
+| `hazard_damage` | HP this chariot lost to material blasts (TNT, gunpowder) |
+| `killed_by_hazard` | true when a material blast took this chariot's HP to 0 (a mean over fights in the aggregates: the share killed) |
 | `parts` | per part, keyed `<part_id>@<slot path>`, e.g. `cutter_rocket@[3]` |
 
 Per part:

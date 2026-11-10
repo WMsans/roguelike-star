@@ -20,3 +20,4 @@ const THAWED: StringName = &"thawed"
 const PART_BROKEN: StringName = &"part_broken"
 const CELLS_CUT: StringName = &"cells_cut"
 const ENERGY_GAINED: StringName = &"energy_gained"
+const HAZARD_HIT: StringName = &"hazard_hit"  # a material blast hurt a chariot; no source part

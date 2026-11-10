@@ -13,6 +13,7 @@ class_name ChBattleContext extends RefCounted
 #   behaviour.process -> burn damage -> drive. The drive cost is paid inside energy.tick, before the
 #   volley, so drive() only ever runs for a drive that was paid, which is the global "driving is
 #   paid first" rule and why drive() comes last.
+# - tick first drains the world's material blasts into ChHazards, so a blast hurts before anything fires.
 
 var world: PixelWorld = null
 var bus: ChEventBus = null
@@ -205,6 +206,8 @@ func tick(delta: float, drive_input: Array[float], press_input: Array = []) -> A
 	# One frame of the fight for every chariot, in the order this file's header states. Answers the
 	# number of parts each side fired this frame, indexed by side.
 	time += delta
+	if world != null:
+		ChHazards.apply(self, world.take_blasts())
 	var fired: Array[int] = []
 	for at in chariots.size():
 		# Indexed by side, so a drive_input entry belongs to the chariot at the same index.

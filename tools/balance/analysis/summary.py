@@ -42,4 +42,5 @@ for a in d["aggregates"]:
                       for k, v in p["parts"].items() if not k.startswith("wheel"))
     print(f"{a['name']:28} W{a['wins']} L{a['losses']} D{a['draws']} t={a['mean_fight_seconds']:5.1f} dps={p['dps_dealt']:5.1f} "
           f"hp_left={p['hp_left']:6.0f} en={p['energy_spent']:5.0f} starve={p['energy_starved_seconds']:4.1f} | {parts} | "
-          f"gain={p['energy_gained']:.0f} lit={p['caught_fire']:.1f} enemy_frozen={e['frozen']:.1f} enemy_dps={e['dps_dealt']:.1f}")
+          f"gain={p['energy_gained']:.0f} lit={p['caught_fire']:.1f} enemy_frozen={e['frozen']:.1f} enemy_dps={e['dps_dealt']:.1f} "
+          f"haz={p['hazard_damage']:.0f} hazkill={(p['killed_by_hazard'] + e['killed_by_hazard']) * (a['fights'] - a['aborted']):.0f}")

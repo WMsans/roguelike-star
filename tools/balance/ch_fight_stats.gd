@@ -12,6 +12,8 @@ var _rams := 0
 var _energy_gained: Array[float] = [0.0, 0.0]  # by the side whose pool gained
 var _caught_fire: Array[int] = [0, 0]  # parts of this side that caught fire
 var _frozen: Array[int] = [0, 0]  # parts of this side that froze
+var _hazard_damage: Array[int] = [0, 0]  # HP this side lost to material blasts
+var _killed_by_hazard: Array[bool] = [false, false]
 var _touching := false
 var _parts: Dictionary = {}  # ChPartRuntime -> {firings, hits, damage, ready_ticks, broke_at}
 
@@ -30,6 +32,7 @@ func _on_step(ctx: ChBattleContext) -> void:
 		_bus.subscribe(self, ChEvent.PART_FIRED, _on_fired)
 		_bus.subscribe(self, ChEvent.HIT, _on_hit)
 		_bus.subscribe(self, ChEvent.ENERGY_GAINED, _on_energy)
+		_bus.subscribe(self, ChEvent.HAZARD_HIT, _on_hazard)
 		_bus.subscribe(self, ChEvent.CAUGHT_FIRE, func(e: ChEvent): _count(_caught_fire, e))
 		_bus.subscribe(self, ChEvent.FROZEN, func(e: ChEvent): _count(_frozen, e))
 	for side in 2:
@@ -49,7 +52,7 @@ func _on_step(ctx: ChBattleContext) -> void:
 			if part.broken and stats.broke_at < 0.0:
 				stats.broke_at = ctx.time
 	# A ram is the moment the hulls start touching, so a long shove counts once.
-	var touching := _battle.hull_box(ctx.chariots[0]).grow(1.0).intersects(_battle.hull_box(ctx.chariots[1]))
+	var touching := ChBattle.hull_box(ctx.chariots[0]).grow(1.0).intersects(ChBattle.hull_box(ctx.chariots[1]))
 	if touching and not _touching:
 		_rams += 1
 	_touching = touching
@@ -64,6 +67,15 @@ func _part(part: ChPartRuntime) -> Dictionary:
 func _on_fired(event: ChEvent) -> void:
 	if event.source is ChPartRuntime:
 		_part(event.source).firings += 1
+
+
+func _on_hazard(event: ChEvent) -> void:
+	var side: int = event.data.get("target_side", -1)
+	if side != 0 and side != 1:
+		return
+	_hazard_damage[side] += int(event.data.get("hp_damage", 0))
+	if int(event.data.get("hp_after", 1)) <= 0:
+		_killed_by_hazard[side] = true
 
 
 func _on_energy(event: ChEvent) -> void:
@@ -121,11 +133,12 @@ func fight(seed: int, result: StringName) -> Dictionary:
 			"energy_starved_seconds": _starved_ticks[side] * ChBattle.TICK,
 			"flipped_seconds": _flipped_ticks[side] * ChBattle.TICK,
 			"rams": _rams, "energy_gained": _energy_gained[side], "caught_fire": _caught_fire[side],
-			"frozen": _frozen[side], "parts": parts})
+			"frozen": _frozen[side], "hazard_damage": _hazard_damage[side],
+			"killed_by_hazard": _killed_by_hazard[side], "parts": parts})
 	return {"seed": seed, "result": String(result), "fight_seconds": seconds, "sides": sides}
 
 
 static func _zero_side() -> Dictionary:
 	return {"hp_left": 0, "damage_dealt": 0, "unattributed_damage": 0, "dps_dealt": 0.0,
 		"energy_spent": 0.0, "energy_starved_seconds": 0.0, "flipped_seconds": 0.0, "rams": 0,
-		"energy_gained": 0.0, "caught_fire": 0, "frozen": 0, "parts": {}}
+		"energy_gained": 0.0, "caught_fire": 0, "frozen": 0, "hazard_damage": 0, "killed_by_hazard": false, "parts": {}}

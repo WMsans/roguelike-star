@@ -23,11 +23,14 @@ func _init(ctx: ChBattleContext, hud: ChBattleHud) -> void:
 func subscribe() -> void:
 	# One listener key (self) for all seven types, so unsubscribe_all(self) drops the lot.
 	for type in [ChEvent.PART_FIRED, ChEvent.HIT, ChEvent.CAUGHT_FIRE, ChEvent.FROZEN,
-			ChEvent.THAWED, ChEvent.PART_BROKEN, ChEvent.ENERGY_GAINED]:
+			ChEvent.THAWED, ChEvent.PART_BROKEN, ChEvent.ENERGY_GAINED, ChEvent.HAZARD_HIT]:
 		_ctx.bus.subscribe(self, type, on_event)
 
 
 func on_event(event: ChEvent) -> void:
+	if event.type == ChEvent.HAZARD_HIT:
+		_hazard(event)
+		return
 	var source := event.source as ChPartRuntime
 	if source == null:
 		return
@@ -74,6 +77,16 @@ func _hit(event: ChEvent, source: ChPartRuntime) -> void:
 	if is_instance_valid(target):
 		Feedback.play(&"struck", target, {"amount": int(event.data.get("hp_damage", 0))})
 	var bar: ProgressBar = _hud.enemy_bar if struck_side == 1 else _hud.player_bar
+	if is_instance_valid(bar):
+		Feedback.play(&"nudge", bar)
+
+
+func _hazard(event: ChEvent) -> void:
+	# A blast has no source part: the struck chariot takes the same number and bar nudge as a HIT.
+	var struck: ChChariotRuntime = _ctx.chariots[event.data.target_side]
+	if is_instance_valid(struck.chassis_visual):
+		Feedback.play(&"struck", struck.chassis_visual, {"amount": int(event.data.hp_damage)})
+	var bar: ProgressBar = _hud.enemy_bar if event.data.target_side == 1 else _hud.player_bar
 	if is_instance_valid(bar):
 		Feedback.play(&"nudge", bar)
 

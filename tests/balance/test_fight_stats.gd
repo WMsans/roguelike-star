@@ -80,3 +80,15 @@ func test_hits_on_own_chariot_are_not_damage_dealt() -> void:
 	assert_eq(stats._part(ring).hits, 1, "only the hit on the enemy counts")
 	assert_eq(stats._part(ring).damage, 10)
 	_complete()
+
+
+func test_hazard_damage_and_kill() -> void:
+	var stats := ChFightStats.new()
+	var hit := ChEvent.new()
+	hit.type = ChEvent.HAZARD_HIT
+	hit.data = {"target_side": 1, "hp_damage": 40, "material": &"tnt", "hp_after": 0}
+	stats._on_hazard(hit)
+	assert_eq(stats._hazard_damage[1], 40)
+	assert_eq(stats._killed_by_hazard[1], true)
+	assert_eq(stats._killed_by_hazard[0], false)
+	_complete()
