@@ -198,10 +198,10 @@ func test_mace_shatters_only_its_own_hit() -> void:
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.THAWED, func(event: ChEvent): sink.append(event))
 	var foe_hp := foe.hp
 	saw.behaviour.fire(ctx)
-	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut pays its own 12 damage: no mace shatter on someone else's hit")
+	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut pays its own 15 damage: no mace shatter on someone else's hit")
 	assert_eq(thawed, [], "and nothing thawed: the mace never shattered the saw's cut")
 	assert_near(foe_part.freeze, 1.0, 0.0001, "the target keeps the freeze it was built with")
-	assert_eq(foe_part.integrity, foe_part.def.integrity - saw.def.damage / 2, "while the part wore the unmultiplied half")
+	assert_eq(foe_part.integrity, foe_part.def.integrity - roundi(saw.def.damage * 0.5), "while the part wore the unmultiplied half")
 	_complete()
 
 # Review finding 3: the Shatter ends the freeze it read "after the hit" (spec §5.6), and ChBattleContext
@@ -367,7 +367,7 @@ func test_ember_battery_gains_on_own_caught_fire() -> void:
 	_complete()
 
 # The Chainsaw cuts what is in its 14-cell reach: a landed hit announces CELLS_CUT and reports the
-# fire sparks it threw (spawn_particles's pooled count), and it pays the plain 12 damage.
+# fire sparks it threw (spawn_particles's pooled count), and it pays the plain 15 damage.
 # With nothing of the enemy inside the box and solid ground at the tip, the cut goes to the terrain:
 # explode(tip, 2, 50) digs, and CELLS_CUT still announces the cut.
 func test_chainsaw_sparks_emit_cells_cut() -> void:
@@ -391,7 +391,7 @@ func test_chainsaw_sparks_emit_cells_cut() -> void:
 		ctx.tick(TICK, [0.0, 0.0], PRESS)
 	assert_eq(cut.size(), 1, "the cut announced itself once")
 	assert_eq(cut[0].data["sparks"], 4, "and threw the 4 fire sparks the brief names")
-	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut paid the saw's 12 damage")
+	assert_eq(foe.hp, foe_hp - saw.def.damage, "the cut paid the saw's 15 damage")
 
 # Now nothing of the enemy reaches the box, and the tip stands in solid rock.
 	var at2: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"cutter_chainsaw"]]), catalog, 0, ORIGIN, false)

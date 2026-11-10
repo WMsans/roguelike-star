@@ -11,7 +11,7 @@ const BLAST_POWER := 300.0
 # Point-blank: a hit this close to the part's own anchor pays POINT_BLANK_SHARE of the damage, so a
 # Rocket pressed into a chariot that drove onto it is not the best weapon in the game (the Cook
 # drove into lone Rockets and lost 7 of 8 in the cook-and-arena spec's lazy runs).
-const POINT_BLANK := 12.0
+const POINT_BLANK := 20.0
 const POINT_BLANK_SHARE := 0.5
 
 func setup(ctx: ChBattleContext) -> void:

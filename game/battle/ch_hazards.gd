@@ -4,7 +4,7 @@ class_name ChHazards extends RefCounted
 # blast; the fight drains the queue each tick and hands it here. A script blast (Rocket, Firebolt)
 # has material &"" and is ignored: those already deal their damage through deal_hit.
 
-const BLAST_DAMAGE := {&"tnt": 150, &"gunpowder": 6}  # HP at the centre, linear to 0 at the radius
+const BLAST_DAMAGE := {&"tnt": 300, &"gunpowder": 6}  # HP at the centre, linear to 0 at the radius
 const BLAST_WEAR := 0.5  # share of the HP damage each part inside the radius loses as integrity
 const BLAST_IMPULSE := 60.0  # per unit of power at the centre, same falloff
 

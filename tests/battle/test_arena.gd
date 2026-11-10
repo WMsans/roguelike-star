@@ -174,13 +174,14 @@ func test_nothing_explodes_on_its_own() -> void:
 
 func test_lit_seam_sets_off_its_crate() -> void:
 	# The spec's fuse: a lit seam walks to its TNT crate. A 1-cell blast on the seam's far end
-	# (x 150, the spawn side) lights it; the chain has to reach the crate at x 118-123.
+	# (ChArenaBuilder.FUSE_END, under the spawn) lights it; the chain has to reach the crate.
 	var world: PixelWorld = await make_world()
 	ChArenaBuilder.build(world, 12345)
 	world.take_blasts()
-	var y := _surface_y(world, 150) + 2
-	assert_eq(world.get_material_at(Vector2i(150, y)), &"gunpowder", "the seam's far end is gunpowder")
-	world.explode(Vector2i(150, y), 1, 50)
+	var end := ChArenaBuilder.FUSE_END
+	var y := _surface_y(world, end) + 2
+	assert_eq(world.get_material_at(Vector2i(end, y)), &"gunpowder", "the seam's far end is gunpowder")
+	world.explode(Vector2i(end, y), 1, 50)
 	var tnt := false
 	for i in range(60):  # 600 ticks, 10 s
 		world.step(10)

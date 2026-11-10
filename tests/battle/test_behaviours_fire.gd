@@ -282,8 +282,8 @@ func _hearth_case(scale: int) -> void:
 		% [hull.get_center(), band, near_box])
 	assert_true(peak >= 1, "the ring left fire cells in the band (peak %d)" % peak)
 	assert_eq(hits.size(), 9, "9 pulses paid the touching hull")
-	assert_eq(paid, 45 * scale, "the hearth's %d lands as 9 x %d" % [45 * scale, 5 * scale])
-	assert_eq(near.hp, near_hp - 45 * scale, "all of it on the near hull")
+	assert_eq(paid, 36 * scale, "the hearth's %d lands as 9 x %d" % [36 * scale, 4 * scale])
+	assert_eq(near.hp, near_hp - 36 * scale, "all of it on the near hull")
 	assert_eq(far.hp, far_hp, "and the control hull paid nothing")
 	_complete()
 

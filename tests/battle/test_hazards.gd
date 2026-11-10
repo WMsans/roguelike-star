@@ -5,6 +5,7 @@ extends ChTest
 
 const GROUND_TOP := 160
 const HP := 1000  # more than a TNT centre hit, so the arithmetic is never clamped
+const TNT := 300  # ChHazards.BLAST_DAMAGE[&"tnt"], the HP a TNT blast takes at its centre
 const NEAR := Vector2(120, 140)
 const FAR := Vector2(320, 140)
 
@@ -54,19 +55,19 @@ func test_material_blast_costs_hp_once() -> void:
 		before.append(part.integrity)
 	var centre := c.chassis.global_position
 	ChHazards.apply(ctx, [_blast(centre, 12)])
-	assert_eq(c.hp, HP - 150)
+	assert_eq(c.hp, HP - TNT)
 	for at in c.parts.size():
 		var part: ChPartRuntime = c.parts[at]
 		var inside := part.anchor_world().distance_to(Vector2(Vector2i(centre))) <= 12.0
-		assert_eq(part.integrity, before[at] - (75 if inside else 0), "part %d" % at)
+		assert_eq(part.integrity, before[at] - (roundi(TNT * ChHazards.BLAST_WEAR) if inside else 0), "part %d" % at)
 	assert_true(c.parts[0].anchor_world().distance_to(centre) <= 12.0, "at least one part is inside")
 	var mine := 0
 	for e in f.heard:
 		if e.data.target_side == 0:
 			mine += 1
 	assert_eq(mine, 1, "one HAZARD_HIT")
-	assert_eq(f.heard[0].data.hp_damage, 150)
-	assert_eq(f.heard[0].data.hp_after, HP - 150)
+	assert_eq(f.heard[0].data.hp_damage, TNT)
+	assert_eq(f.heard[0].data.hp_after, HP - TNT)
 	assert_eq(f.heard[0].data.material, &"tnt")
 	assert_eq(f.heard[0].source, null)
 	_complete()
@@ -77,7 +78,7 @@ func test_falloff_halves_at_half_radius() -> void:
 	var c: ChChariotRuntime = ctx.chariots[0]
 	var box := ChBattle.hull_box(c)
 	ChHazards.apply(ctx, [_blast(Vector2(box.position.x - 6.0, box.get_center().y), 12)])
-	assert_eq(c.hp, HP - 75)
+	assert_eq(c.hp, HP - roundi(TNT * 0.5))
 	_complete()
 
 func test_script_blast_deals_nothing() -> void:
@@ -99,7 +100,7 @@ func test_one_blast_both_chariots_each_once() -> void:
 	for c in [a, b]:
 		var box := ChBattle.hull_box(c)
 		var d := centre.distance_to(centre.clamp(box.position, box.end))
-		assert_eq(c.hp, HP - roundi(150 * (1.0 - d / 150.0)), "side %d" % c.side)
+		assert_eq(c.hp, HP - roundi(TNT * (1.0 - d / 150.0)), "side %d" % c.side)
 	assert_eq(f.heard.size(), 2)
 	_complete()
 

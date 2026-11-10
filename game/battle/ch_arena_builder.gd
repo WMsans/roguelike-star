@@ -21,6 +21,8 @@ const SPAWN_ABOVE := 30
 const MIRROR_X := 240
 const OIL_W := 34  # the oil tank's outer width, walls included, from the arena wall in
 const ACID_X := 34  # the acid cistern's left edge: 16 wide, rock walls 2 thick
+const FLANK_CRATE_X := 118  # the flank crate's left edge (left half)
+const FUSE_END := 150  # the seam's far end, at the spawn hull's tail (144)
 const MID_CRATE_X := 198  # the middle crate's left edge (left half)
 const LAVA_TOP := 6  # cells under the surface; a wheel samples about 4 down (ChPartRuntime.sample_rect)
 
@@ -99,8 +101,10 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 		_both(world, Rect2i(x, cistern_top, 1, maxi(surface[x] - cistern_top, 0) + 7), &"rock")
 	_both(world, Rect2i(ACID_X + 2, cistern_top + 1, 12, 5), &"acid")
 	# TNT crate buried 3 under the lowest surface cell over it, clear of the spawn hull (144-196).
-	var crate_top: int = surface.slice(118, 124).max() + 3
-	_both(world, Rect2i(118, crate_top, 6, 6), &"tnt")
+	# Tried under the hull's tail (crate x 138, fuse to 176) to punish a chariot that never leaves
+	# its spawn: nothing lit it in most fights (cook-and-arena Task 6, tuning log row 9).
+	var crate_top: int = surface.slice(FLANK_CRATE_X, FLANK_CRATE_X + 6).max() + 3
+	_both(world, Rect2i(FLANK_CRATE_X, crate_top, 6, 6), &"tnt")
 	# A second crate where the chariots meet, at the lava's edge (x 198-203, mirrored 276-281), buried
 	# the same way: a Rocket or Firebolt that digs there, or a fire that burns down to it, sets it off
 	# under whoever is brawling over it. Without it the flank crates went off in under 1 fight in 8.
@@ -112,7 +116,7 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 	# chunk_solid_mask) only counts powder held up by solid ground, so sand straight on the seam
 	# drops out of the collision shape: measured, the Dozer tipped in that 3-cell dip. The plank
 	# holds the sand up, and a flame that reaches it burns down into the fuse.
-	for x in range(124, 151):
+	for x in range(FLANK_CRATE_X + 6, FUSE_END + 1):
 		_both(world, Rect2i(x, surface[x] + 1, 1, 1), &"wood")
 		_both(world, Rect2i(x, surface[x] + 2, 1, 2), &"gunpowder")
 	# Lava 6 deep under a crust, spanning the middle once mirrored (x 210-269). The crust is sand on
@@ -131,7 +135,7 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 			surface[x] = crust_y
 		_both(world, Rect2i(x, surface[x] + LAVA_TOP - 1, 1, 1), &"rock")
 		_both(world, Rect2i(x, surface[x] + LAVA_TOP, 1, 6), &"lava")
-	# The dig room is the sand under the spawns (x 150-209): nothing placed.
+	# The dig room is the sand under the spawns (x 151-197): nothing placed.
 	return {
 		"spawn_left": Vector2(SPAWN_LEFT_X, surface[SPAWN_LEFT_X] - SPAWN_ABOVE),
 		"spawn_right": Vector2(SPAWN_RIGHT_X, surface[SPAWN_RIGHT_X] - SPAWN_ABOVE),

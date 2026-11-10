@@ -156,7 +156,7 @@ func _catch_fire(ctx: ChBattleContext, part: ChPartRuntime) -> void:
 	ctx.bus.emit(event)
 
 # Point-blank: the same shot with the foe's hull 7 cells from the launcher (rig origins 20 apart)
-# pays half (ch_rocket.gd POINT_BLANK 12, POINT_BLANK_SHARE 0.5), so a Rocket pressed into a
+# pays half (ch_rocket.gd POINT_BLANK 20, POINT_BLANK_SHARE 0.5; the 27-cell hit above pays in full), so a Rocket pressed into a
 # chariot that drove onto it is no longer the best gun in the game.
 func test_rocket_point_blank_pays_half() -> void:
 	var world: PixelWorld = await make_world()
