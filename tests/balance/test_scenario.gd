@@ -54,6 +54,16 @@ func test_press_parses_and_rejects_unknown_policy() -> void:
 	assert_true(bad.errors[0].contains("press.player"), str(bad.errors))
 	_complete()
 
+func test_kite_and_brawl_policies_parse() -> void:
+	for policy in ["kite", "brawl"]:
+		var ok := ChBalanceScenario.parse({"name": "s", "player": _side(), "enemy": _side(),
+			"drive": {"player": policy}}, _base(), "s.json")
+		assert_true(ok.ok, str(ok.errors))
+	var bad := ChBalanceScenario.parse({"name": "s", "player": _side(), "enemy": _side(),
+		"drive": {"player": "glide"}}, _base(), "s.json")
+	assert_true(not bad.ok)
+	_complete()
+
 func test_matrix_expands_every_pair() -> void:
 	var out := ChBalanceScenario.parse({"name": "m", "player": [_side(), _side()],
 		"enemy": [_side(), _side(), _side()]}, _base(), "m.json")

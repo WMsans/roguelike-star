@@ -3,7 +3,7 @@ class_name ChBalanceDrivers extends RefCounted
 # The drive policies a headless fight can give a side. There is no input in a headless run, so
 # the player side needs one too. Each is a ChBattle.drivers entry: func(battle, side) -> float.
 
-const POLICIES := ["ai", "hold", "charge"]
+const POLICIES := ["ai", "hold", "charge", "kite", "brawl"]
 
 
 static func make(policy: String) -> Callable:
@@ -16,6 +16,10 @@ static func make(policy: String) -> Callable:
 				var me: ChChariotRuntime = battle.player if side == 0 else battle.enemy
 				var other: ChChariotRuntime = battle.enemy if side == 0 else battle.player
 				return charge_toward(me.chassis.global_position.x, other.chassis.global_position.x)
+		"kite":
+			return func(battle, side): return battle.ai_drive(side, &"kiter")
+		"brawl":
+			return func(battle, side): return battle.ai_drive(side, &"brawler")
 	return func(battle, side): return battle.ai_drive(side)
 
 

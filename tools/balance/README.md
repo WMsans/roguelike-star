@@ -63,7 +63,7 @@ A `SIDE` is one of:
 | `name` | yes | | names the result; a matrix pairing is `<name>/<i>x<j>` |
 | `player`, `enemy` | yes | | a side, or a list of sides: a list makes a matrix, every player × enemy pair runs |
 | `seeds.from`, `seeds.count` | no | `1`, `10` | fights use seeds `from .. from+count-1` |
-| `drive.player`, `drive.enemy` | no | `"ai"`, `"ai"` | `ai` (the enemy AI's approach-and-hold rule), `hold` (never drives), `charge` (always drives at the other chariot) |
+| `drive.player`, `drive.enemy` | no | `"ai"`, `"ai"` | `ai` (the enemy AI's approach-and-hold rule), `hold` (never drives), `charge` (always drives at the other chariot), `kite` / `brawl` (the AI's `kiter` / `brawler` drive style, whatever the body's own) |
 | `press.player`, `press.enemy` | no | `"ai"`, `"ai"` | when the side presses its button (a press fires a volley of ready parts): `ai` (the enemy AI's rule), `mash` (every tick, so each part fires the moment it is ready and affordable), `never` (parts sit ready and unfired) |
 | `expect` | no | `{}` | dotted metric path → inclusive `[min, max]`; see below |
 | side `layout` | one of | | a `res://` `ChChariotLayout` (`--list` shows them) |
@@ -170,6 +170,11 @@ Per part:
   to within one fight of the tuned result, and the Dozer's `flipped_seconds` against the Cutter (~2 min).
 - `bodies-box`: the same matrix with `"plain_hull": true` on both sides, the control that shows
   what the outlines add. No `expect`: compare it with `bodies` (~2 min).
+- `lazy`: each of the 8 damaging parts alone on a Corsair's `[6]` (`lazy/<part>`, and `-nowheels`
+  without the `[0]`/`[1]` wheels), `press.player: mash`, against the Cook, seeds 1-8. `expect` pins a
+  lazy build at 0-1 wins of 8, so it shows which one-weapon builds still beat the Cook.
+- `demo` also holds `vs-cook-<build>-nowheels` twins (no wheels, `ai` presses); read them with
+  `analysis/summary.py --wheel-gap out.json`.
 - Coming with later plans: `payoffs` (each payoff alone and in its target scenario) and `builds`
   (each build against a reference gauntlet).
 

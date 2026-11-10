@@ -3,7 +3,8 @@
 firings/hits/damage/damage-per-energy. Usage: summary.py result.json
 summary.py --press-gap result.json: the spec §4 button check instead. Per build, the player's win rate
 under `ai` minus under `mash` (scenario `X` against `X-mash`; in a matrix, `name/ixj` grouped by the
-player row i). Flags every build under 15 points and exits 1 if any is."""
+player row i). Flags every build under 15 points and exits 1 if any is.
+summary.py --wheel-gap result.json: per build, the win rate of `vs-cook-X` and `vs-cook-X-nowheels` and the gap."""
 import json, sys
 from collections import defaultdict
 
@@ -31,8 +32,19 @@ def press_gap(d):
     return 1 if short else 0
 
 
-if len(sys.argv) < 2 or (sys.argv[1] == "--press-gap" and len(sys.argv) < 3):
+def wheel_gap(d):
+    wr = {a["name"]: a["wins"] / (a["wins"] + a["losses"] + a["draws"]) for a in d["aggregates"]}
+    for name in sorted(wr):
+        if name.startswith("vs-cook-") and name + "-nowheels" in wr:
+            nw = wr[name + "-nowheels"]
+            print(f"{name.removeprefix('vs-cook-')} wheels={wr[name]:.2f} nowheels={nw:.2f} gap={wr[name] - nw:+.2f}")
+    return 0
+
+
+if len(sys.argv) < 2 or (sys.argv[1] in ("--press-gap", "--wheel-gap") and len(sys.argv) < 3):
     sys.exit(__doc__)
+if sys.argv[1] == "--wheel-gap":
+    sys.exit(wheel_gap(json.load(open(sys.argv[2]))))
 if sys.argv[1] == "--press-gap":
     sys.exit(press_gap(json.load(open(sys.argv[2]))))
 d = json.load(open(sys.argv[1]))

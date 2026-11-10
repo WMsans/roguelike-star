@@ -1,0 +1,661 @@
+{
+ "name": "lazy",
+ "scenarios": [
+  {
+   "name": "lazy/cutter_chainsaw",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/cutter_chainsaw-nowheels",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_chainsaw"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/cutter_rocket",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_rocket"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/cutter_rocket-nowheels",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       6
+      ],
+      "part": "cutter_rocket"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/ice_cream_mace",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "ice_cream_mace"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/ice_cream_mace-nowheels",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       6
+      ],
+      "part": "ice_cream_mace"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/flamethrower",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "flamethrower"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/flamethrower-nowheels",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       6
+      ],
+      "part": "flamethrower"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/hearth",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "hearth"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/hearth-nowheels",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       6
+      ],
+      "part": "hearth"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/ring_of_fire",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "ring_of_fire"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/ring_of_fire-nowheels",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       6
+      ],
+      "part": "ring_of_fire"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/firebolt_launcher",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "firebolt_launcher"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/firebolt_launcher-nowheels",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       6
+      ],
+      "part": "firebolt_launcher"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/corsair_harpoon",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "wheel"
+     },
+     {
+      "slot": [
+       6
+      ],
+      "part": "corsair_harpoon"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "lazy/corsair_harpoon-nowheels",
+   "player": {
+    "body_id": "corsair",
+    "parts": [
+     {
+      "slot": [
+       6
+      ],
+      "part": "corsair_harpoon"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 8
+   },
+   "press": {
+    "player": "mash",
+    "enemy": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0,
+     0.125
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  }
+ ]
+}

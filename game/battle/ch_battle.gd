@@ -334,13 +334,14 @@ func _show_ready() -> void:
 				part.outline.modulate = Color(READY_GLOW.r * pulse, READY_GLOW.g * pulse, READY_GLOW.b * pulse, 1.0)
 
 
-func ai_drive(side: int) -> float:
+func ai_drive(side: int, style: StringName = &"") -> float:
 	# ChEnemyAI's decision for either side, toward the other chariot: side 1 is the enemy's own drive,
-	# and side 0 lets a headless run drive the player by the same rule.
+	# and side 0 lets a headless run drive the player by the same rule. A non-empty style overrides
+	# the body's drive_style (the balance runner's kite and brawl policies).
 	var me := player if side == 0 else enemy
 	var other := enemy if side == 0 else player
 	return ai.decide(me.chassis.global_position.x, other.chassis.global_position.x,
-		ai.reach(me), _half_width(me), _half_width(other), me.body_def.drive_style)
+		ai.reach(me), _half_width(me), _half_width(other), style if style != &"" else me.body_def.drive_style)
 
 
 func ai_press(side: int) -> bool:
