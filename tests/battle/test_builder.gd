@@ -18,6 +18,7 @@ const STRUT_MOUNTS: Array = [
 	[[0], &"wheel"], [[1], &"wheel"], [[2], &"strut"],
 	[[2, 0], &"cutter_chainsaw"], [[2, 1], &"flamethrower"]]
 const STRUT_HINGED: Array = [[2], [2, 0], [2, 1]]  # that build's parts, the wheels excepted
+const DRIFT_SPLIT := 0.6  # cells off the layout anchor: a grouped rig's parts sit inside it, a group-0 rig's outside
 
 
 func _ground(world: PixelWorld) -> void:
@@ -54,14 +55,14 @@ func _part_of(runtime: ChChariotRuntime, steps: Array[int]) -> ChPartRuntime:
 func test_builds_bodies_and_joints() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
-	# Dozer slots 0/1 are the two lowest (y = 6), so the wheels sit under the hull; slot 2 is (12,-3)
+	# Dozer slots 0/1 are the two lowest (y = 15), so the wheels sit under the hull; slot 2 is (-9,-3)
 	# and the mace hangs off the strut's first extension slot, one body further out.
 	var layout: ChChariotLayout = _mount(&"dozer", [
 		[[0], &"wheel"], [[1], &"wheel"], [[2], &"strut"], [[2, 0], &"ice_cream_mace"]])
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(
 		world, _parent(), layout, ChCatalog.load_default(), 0, ORIGIN, false)
 	assert_true(runtime != null, "the build returns a runtime")
-	assert_eq(runtime.chassis.get_body_size(), Vector2i(30, 18), "the chassis is the Dozer's 30x18 box")
+	assert_eq(runtime.chassis.get_body_size(), Vector2i(22, 30), "the chassis is the Dozer's 22x30 Tower")
 	assert_true(is_instance_of(runtime.chassis, PixelRigidBody), "the chassis is a PixelRigidBody")
 	var bodies := 1
 	var joints := 0
@@ -313,14 +314,15 @@ func test_strut_pair_holds_still() -> void:
 		world.step(1)
 		rotations.append(runtime.chassis.global_rotation)
 	# A hinged part (the builder limits its hinge to one angle) that has moved off its layout anchor was
-	# pushed out of the build. Measured at rest, in one group: strut 0.71, Chainsaw 1.37, Flamethrower
-	# 1.21 cells. The control rig's same three read 2.09, 3.28 and 3.43 once the group is off, so what
-	# the window below measures is the collision group, not just the sizes.
+	# pushed out of the build. Measured at rest on the Wedge Cutter (strut at slot 2, (-6,-3)), in one
+	# group: strut 0.25, Chainsaw 0.38, Flamethrower 0.30 cells. The control rig's same three read 1.03,
+	# 0.73 and 1.61 once the group is off, so what the split below measures is the collision group, not
+	# just the sizes. (On the old 30x10 box Cutter the two sides read 0.71-1.37 and 2.09-3.43, split at 1.5.)
 	for pair in _hinged_drift(runtime, layout, catalog):
-		assert_true(pair[1] < 1.5,
+		assert_true(pair[1] < DRIFT_SPLIT,
 			"%s still sits %.2f cells from its layout anchor" % [pair[0], pair[1]])
 	for pair in _hinged_drift(loose, loose_layout, catalog):
-		assert_true(pair[1] > 1.5,
+		assert_true(pair[1] > DRIFT_SPLIT,
 			"%s left its layout anchor by %.2f cells with its bodies in group 0" % [pair[0], pair[1]])
 	# The wheels are the exception that 1.5-cell rule cannot carry: PixelWheelJoint is a spring
 	# (WHEEL_FREQUENCY 5), so the distance from the layout anchor is the suspension compressing under the
@@ -352,7 +354,7 @@ func test_strut_pair_holds_still() -> void:
 
 
 func test_mirror_x_flips_anchor() -> void:
-	# Corsair slot 1 is body-local (10, 5): a mirrored build sits at the far side of the hull, so the
+	# Corsair slot 1 is body-local (21, 5): a mirrored build sits at the far side of the hull, so the
 	# x anchor negates and y stays (a flip turns the build left/right, not upside down).
 	var world: PixelWorld = await make_world()
 	_ground(world)
@@ -360,7 +362,7 @@ func test_mirror_x_flips_anchor() -> void:
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), layout, ChCatalog.load_default(), 1, ORIGIN, true)
 	var part := _part_of(runtime, [1])
 	# Read before any physics tick: the builder put the body where the layout said it sits.
-	assert_eq(part.body.global_position, Vector2(ORIGIN.x - 10, ORIGIN.y + 5), "mirrored to origin.x - 10")
+	assert_eq(part.body.global_position, Vector2(ORIGIN.x - 21, ORIGIN.y + 5), "mirrored to origin.x - 21")
 	world.free()
 	_complete()
 

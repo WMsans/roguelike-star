@@ -13,12 +13,12 @@ script = ExtResource("1_slot")
 part_id = &"wheel"
 flipped = false
 
-[sub_resource type="Resource" id="ChSlotNode_2"]
+[sub_resource type="Resource" id="ChSlotNode_6"]
 script = ExtResource("1_slot")
 part_id = &"hearth"
 flipped = false
 
-[sub_resource type="Resource" id="ChSlotNode_3"]
+[sub_resource type="Resource" id="ChSlotNode_4"]
 script = ExtResource("1_slot")
 part_id = &"corsair_harpoon"
 flipped = false
@@ -30,6 +30,6 @@ flipped = false
 
 [resource]
 script = ExtResource("1_layout")
-body_id = &"dozer"
+body_id = &"corsair"
 max_hp = 1800
-slots = { 0: SubResource("ChSlotNode_0"), 1: SubResource("ChSlotNode_1"), 2: SubResource("ChSlotNode_2"), 3: SubResource("ChSlotNode_3"), 5: SubResource("ChSlotNode_5") }
+slots = { 0: SubResource("ChSlotNode_0"), 1: SubResource("ChSlotNode_1"), 4: SubResource("ChSlotNode_4"), 5: SubResource("ChSlotNode_5"), 6: SubResource("ChSlotNode_6") }

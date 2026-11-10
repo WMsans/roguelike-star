@@ -73,15 +73,15 @@ func test_ai_holds_off_the_hulls() -> void:
 	var catalog := ChCatalog.load_default()
 	var dozer := float(catalog.body(&"dozer").size.x) * 0.5
 	var cutter := float(catalog.body(&"cutter").size.x) * 0.5
-	assert_near(dozer + cutter, 30.0, 0.001, "the two hulls need 30 cells between their centres")
-	# 30 apart centre to centre is the two hulls touching: the old rule read it as "6 cells to go" and
+	assert_near(dozer + cutter, 28.0, 0.001, "the two hulls need 28 cells between their centres")
+	# 28 apart centre to centre is the two hulls touching: the old rule read it as "6 cells to go" and
 	# drove the enemy into the player, which is the stalemate the fight tests kept landing in.
-	assert_eq(ai.decide(420.0, 390.0, 6.0, dozer, cutter), 0.0, "30 apart is inside the hulls: hold")
-	assert_eq(ai.decide(420.0, 384.0, 6.0, dozer, cutter), 0.0,
+	assert_eq(ai.decide(420.0, 392.0, 6.0, dozer, cutter), 0.0, "28 apart is inside the hulls: hold")
+	assert_eq(ai.decide(420.0, 386.0, 6.0, dozer, cutter), 0.0,
 		"reach + both half-widths is the hold, and |dx| <= hold holds there")
-	assert_eq(ai.decide(420.0, 383.0, 6.0, dozer, cutter), -1.0, "one cell further out: close in")
-	assert_eq(ai.decide(384.0, 420.0, 6.0, dozer, cutter), 0.0, "the other way round holds too")
-	assert_eq(ai.decide(383.0, 420.0, 6.0, dozer, cutter), 1.0, "and drives right to reach it")
+	assert_eq(ai.decide(420.0, 385.0, 6.0, dozer, cutter), -1.0, "one cell further out: close in")
+	assert_eq(ai.decide(386.0, 420.0, 6.0, dozer, cutter), 0.0, "the other way round holds too")
+	assert_eq(ai.decide(385.0, 420.0, 6.0, dozer, cutter), 1.0, "and drives right to reach it")
 	# The brief's rule is still the rule: the hold is the shortest reach the chariot can bring to bear,
 	# so a weapon that reaches further than the hulls keeps the fight at its own range, and a driver
 	# with no weapon that reaches anything still stays put.
@@ -355,7 +355,9 @@ func test_finished_after_ticking_stops() -> void:
 const CHAIN_FRAMES := 4000  # the 3600-frame budget, plus the frames the arena takes to stream
 const DRIVE_ON := 0.9  # seconds of held direction
 const DRIVE_OFF := 0.3  # seconds released, so the queued parts are paid (drive is paid first)
-const PLAYER_MARK_FRAMES := 120  # 2 s of fight: the player has driven, the Dozer has not arrived
+# 3 s of fight: the player has driven, the cook has not arrived. It was 2 s on the old box Corsair; the
+# Barge (2x its hull mass) gets two 0.3 s key bursts in 3 s and is still sliding off its landing at 1 s.
+const PLAYER_MARK_FRAMES := 180
 
 
 func _garage_built(body_id: StringName, mounts: Array) -> ChChariotLayout:
@@ -538,14 +540,14 @@ func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 		elif entry["type"] == ChEvent.FROZEN:
 			frozen += 1
 	assert_true(swung > 0, "the fight paid the Mace, so it swung on its own cooldown")
-	# Measured 2 s in, with the Dozer still 83-91 cells away: the player's hull sat at x 184-191, i.e.
-	# 14-21 cells off its 170 spawn, under nothing but its own wheels. That is the pin - not where the
+	# Measured on the Barge 3 s in, with the cook still 90 cells away: the player's hull sat at x 186,
+	# 16 cells off its 170 spawn (2 s in on the old box Corsair it was x 184-191, i.e. 14-21 cells off), under nothing but its own wheels. That is the pin - not where the
 	# fight leaves it: the Dozer comes to meet it at x ~206 and the pair shove each other from there, so
 	# the ends measured 206-296 over 14 runs (36-126 cells of travel). A loaded chariot whose wheels
 	# were buried moved 0 with these same keys; at the old x = 60 spawn the player crossed the pit
 	# alone (180-220 cells) because the Dozer started 360 away.
 	assert_true(float(driven["mark"]) - float(ChArenaBuilder.SPAWN_LEFT_X) > 10.0,
-		"the player's chariot drove off its spawn (at x %.0f two seconds in, hulls %.0f apart at the end)"
+		"the player's chariot drove off its spawn (at x %.0f three seconds in, hulls %.0f apart at the end)"
 			% [driven["mark"], min_gap])
 	assert_true(frozen > 0, "the Mace's hull hits froze the Dozer's parts (see above)")
 	battle.free()

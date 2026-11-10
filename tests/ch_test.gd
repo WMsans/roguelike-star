@@ -77,7 +77,7 @@ func _typed_path(path) -> Array[int]:
 
 
 func _player_layout() -> ChChariotLayout:
-	# The brief's "player Cutter + Rocket": two wheels in the Cutter's low slots (y = 3) and the
+	# The brief's "player Cutter + Rocket": two wheels in the Cutter's low slots (y = 4.5) and the
 	# Rocket in slot 3 (6, -3), unflipped so it fires +x, which is the way the player faces.
 	var layout := ChChariotLayout.new()
 	layout.body_id = &"cutter"
@@ -107,17 +107,20 @@ func _body_with_hp(loaded: ChBodyDef, hp: int) -> ChBodyDef:
 
 
 func _fight_catalog(enemy_hp: int, player_hp: int = 0) -> ChCatalog:
-	# The slice's defs with the Dozer's HP overridden to 30, so one Rocket hit ends the enemy; pass
-	# player_hp to raise the player's Cutter too, which is how a fight nobody dies in is forced.
+	# The slice's defs with the cook's body HP overridden (30 means one Rocket hit ends the enemy);
+	# pass player_hp to raise the player's Cutter too, which is how a fight nobody dies in is forced.
+	# The cook's body is read off dozer_cook.tres (a Corsair since the bodies spec), so moving the cook
+	# to another hull keeps sizing the enemy. A player on that same body gets enemy_hp as well.
 	# shortcut: the override travels as a catalog because a def on disk is shared by every test in
-	# the run; mutating it would make a later test's Dozer fragile.
+	# the run; mutating it would make a later test's enemy body fragile.
+	var cook_body: StringName = ResourceLoader.load("res://game/data/enemies/dozer_cook.tres").body_id
 	var loaded := ChCatalog.load_default()
 	var parts: Array[ChPartDef] = []
 	for def in loaded.parts.values():
 		parts.append(def)
 	var bodies: Array[ChBodyDef] = []
 	for def in loaded.bodies.values():
-		if def.id == &"dozer":
+		if def.id == cook_body:
 			bodies.append(_body_with_hp(def, enemy_hp))
 		elif player_hp > 0 and def.id == &"cutter":
 			bodies.append(_body_with_hp(def, player_hp))

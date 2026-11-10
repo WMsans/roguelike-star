@@ -166,8 +166,9 @@ func swap_body(new_body: ChBodyDef, catalog: ChCatalog) -> Array[ChSlotNode]:
 	# Reseats top-level subtrees onto the nearest of the new body's slots, greedily by distance,
 	# and hands back whatever found no slot. Children move with their parent, so their extension
 	# indices stay unchanged.
-	# shortcut: distances compare body-local cells between the two defs, which is nearest in the
-	# body's own frame; a body needing an off-centre swap would want an offset field in ChBodyDef.
+	# shortcut: distances compare slots as a share of each body's size, so a slot keeps its place on
+	# the hull (a Wedge's bottom-edge wheel lands on a Tower's bottom edge, not 15 cells up its side,
+	# which in raw cells is nearer); a body needing an off-centre swap would want an offset field.
 	# shortcut: an equal distance keeps the lower old index (pairs are built old-major and sort is
 	# stable); the design doc states no tie-break, and the test bodies avoid ties.
 	# Every body this method reads goes through the catalog, because every later read of the layout
@@ -195,9 +196,10 @@ func swap_body(new_body: ChBodyDef, catalog: ChCatalog) -> Array[ChSlotNode]:
 	for index in slots.keys():
 		if index < 0 or index >= old_body.slots.size():
 			continue
-		var old_at := Vector2(old_body.slots[index])
+		var old_at := Vector2(old_body.slots[index]) / Vector2(old_body.size)
 		for new_index in new_body_def.slots.size():
-			pairs.append([old_at.distance_to(Vector2(new_body_def.slots[new_index])), index, new_index])
+			var new_at := Vector2(new_body_def.slots[new_index]) / Vector2(new_body_def.size)
+			pairs.append([old_at.distance_to(new_at), index, new_index])
 	# sort() compares element by element, so a distance carries its two indices with it.
 	pairs.sort()
 	var seat_of: Dictionary[int, int] = {}
