@@ -79,8 +79,8 @@ On every body the first two slots are the bottom wheel mounts. Today's bodies:
 
 | body | hp | slots `[0]`, `[1]`, ... |
 |---|---|---|
-| `cutter` | 650 | (-10, 4.5) (9, 4.5) · (-6, -3) rear-top · (6, -3) front, on the nose slope |
-| `dozer` | 1000 | (-9, 15) (9, 15) · (-9, -3) rear · (9, -3) front · (-5, -15) rear-top · (5, -15) front-top |
+| `cutter` | 450 | (-10, 4.5) (9, 4.5) · (-6, -3) rear-top · (6, -3) front, on the nose slope |
+| `dozer` | 700 | (-9, 15) (9, 15) · (-9, -3) rear · (9, -3) front · (-5, -15) rear-top · (5, -15) front-top |
 | `corsair` | 900 | (-21, 5) (21, 5) · then five top slots from rear (-20, -5) to front (22, -5) |
 
 (Check the `.tres` for current numbers; this table is a guide.) A `layout` side uses the HP of its
@@ -159,7 +159,8 @@ Per part:
   No `expect`: it measures (~1 minute).
 - `bodies`: every body against every body (9 pairs, seeds 1–8), `ai` driving and pressing. Each
   side carries two wheels, a Rocket and a Chainsaw on the body's two highest front-facing non-wheel
-  slots, Chainsaw in front (Cutter `[2]`/`[3]`, Dozer `[4]`/`[5]`, Corsair `[5]`/`[6]`). One
+  slots, Chainsaw in front (Cutter `[2]`/`[3]`, Dozer `[5]`/`[3]`, Corsair `[5]`/`[6]`; the Dozer's
+  front-facing pair is its front-top `[5]` and front `[3]`, its rear-top `[4]` faces away). One
   scenario per pair, named `bodies/<i>x<j>` (0 cutter, 1 dozer, 2 corsair) so
   `analysis/matrix.py out.json cutter dozer corsair` reads it; `expect` pins each pair's win rate
   to within one fight of the tuned result, and the Dozer's `flipped_seconds` against the Cutter (~2 min).
@@ -245,3 +246,44 @@ cycle: the Corsair loses to both. What blocks it, measured:
 - `test_bodies` drives each body into the cook (a Corsair): a Barge above mass ~500 is not pushed
   away and the driver stops short of 100 cells, and a Tower with its wheels inside its hull (the
   shape that let the Wedge get under it) tips over on landing.
+
+### Task 9: body stats and the press re-tune
+
+Task 9 (button-and-bodies) widened the knobs to body HP / regen / mass, part costs and damage,
+`PRESS_SHARE` and the cook's HP, and measured `demo` (with `press` ai / mash / never per build),
+`demo-matrix` (the same three), `bodies` and `bodies-box` on every try. Columns: demo = player
+win rate ai/mash against the cook per build (sparks freeze selfburn artillery hotmelee);
+matrix = round-robin score under `ai`; bodies = cutter / dozer / corsair; MAD as above.
+
+| # | change from the previous try | demo ai/mash | matrix | bodies | pairs C-D C-B D-B | MAD vs box | Dozer flipped vs Cutter |
+|---|---|---|---|---|---|---|---|
+| 0 | Task 8 state, presses | .12/0 0/0 .12/.12 0/.12 0/0 | .44 .39 .77 .22 .69 | .66 / .55 / .30 | .47 .84 .56 | .146 vs .062 | 9/16 |
+| 1 | cook 1800→1100; Wedge regen 3.5→3.0; Tower mid slots y -3→+6, Tower loadout Chainsaw `[3]` Rocket `[5]` | .25/.12 0/.12 .62/.25 0/.12 .88/.12 | .45 .31 .83 .23 .67 | .52 / .69 / .30 | .25 .78 .62 | .219 vs .177 | 6/16 |
+| 2 | Rocket 2→3 energy, 35→55 dmg; Flamethrower 2→3 energy; Barge HP 900→1100; Tower mass 600 | .25/.50 .12/0 .88/.50 .25/.12 1/.12 | .45 .39 .62 .22 .81 | .38 / .67 / .45 | .28 .47 .62 | .125 vs .125 | 7/16 |
+| 3 | Chainsaw 16→12; Ring 25→20; Tower mass 2000 (stops the spawn wheelie, but drives 56 cells in 10 s: fails `test_bodies`) | .25/.38 .50/.62 .88/.50 .25/.12 .88/.12 | .39 .72 .58 .20 .61 | .33 / .66 / .52 | .22 .44 .53 | .125 vs .094 | 2/16 |
+| 4 | Rocket 55→75; Chainsaw 12→10; `PRESS_SHARE` 0.6→0.8; Tower mass 900 (600 tips in `test_bodies`, 1200 is too slow) | .38/.25 .12/.38 .62/.25 .12/.12 .50/0 | .55 .55 .67 .19 .55 | .41 / .70 / .39 | .16 .66 .56 | .188 vs .135 | 4/16 |
+| 5 | Barge regen 3.0→2.5, HP 1100→1300; Tower HP 1000→750; Wedge HP 650→750; cook 900 | .50/.50 .25/.38 .62/.62 .12/.12 .25/0 | .47 .53 .62 .39 .48 | .47 / .64 / .39 | .25 .69 .53 | .156 vs .115 | 4/16 |
+| 6 | Tower slots back to y -3 (loadout `[3]`/`[5]` kept: its guns now clear the Wedge and reach the Barge's top parts); Barge regen 3.0; Tower HP 1000; Wedge HP 650; Chainsaw 12; `PRESS_SHARE` 0.6 | .38/.75 0/.25 .88/.62 .50/.38 1/.12 | .44 .45 .64 .28 .69 | .41 / .55 / .55 | .41 .41 .50 | .062 vs .031 | 6/16 |
+| 7 | every HP down so the bodies suite ends fights: Wedge 450, Tower 700, Barge 900, cook 700 | .38/.62 0/.25 .88/.62 .50/.62 1/.25 | .50 .44 .67 .22 .67 | .52 / .52 / .47 | .44 .59 .47 | .062 vs .021 | 6/16 |
+| 8 | Barge regen 3.5; Wedge regen 2.5 | .50/.50 0/.25 .88/1 .50/.62 .75/.12 | .48 .39 .62 .28 .72 | .30 / .52 / .69 | .41 .19 .44 | .156 vs .042 | 7/16 |
+| 9 | Tower HP 500, regen 4.0 | | | .30 / .52 / .69 | .41 .19 .44 | .156 vs .052 | 7/16 |
+| 10 | Tower back to 700 / 3.0; Barge regen 3.25; Ring 20→18 | .50/.50 0/.25 .88/.50 .62/.62 .88/.12 | .52 .42 .64 .33 .59 | .30 / .53 / .67 | .41 .19 .47 | .146 vs .042 | 7/16 |
+| 11 | Wedge regen 3.0 | same as 10 | same as 10 | .47 / .52 / .52 | .44 .50 .47 | .031 vs .021 | 6/16 |
+| 12 | Wedge regen 2.75 | | | .38 / .53 / .59 | .41 .34 .47 | .094 vs .042 | 7/16 |
+| 13 | Flamethrower back to 2 energy (its damage is the behaviour's `PULSE_DAMAGE`, so tries 2–11 raised its cost for nothing) — **kept** | .50/.50 0/.25 .88/.50 1/.88 .88/.12 | .50 .44 .67 .28 .61 | (= 12) | | | |
+
+Kept (try 13): what holds and what doesn't is in the Task 9 section of
+`docs/superpowers/handoffs/2026-11-07-demo-balance-handoff.md`. What blocks the rest, measured:
+
+- **Self-flips decide the bodies suite.** Every body spends 25–40 s of a 60 s fight flipped, mirrors
+  included (Wedge mirror 32/31 s, Tower mirror 29/25 s). A flipped chariot's guns point at the sky,
+  so most pairs end in draws (half a point each) and pair scores sit at .41–.53 whatever the stats.
+  The Tower wheelies over when it lands with its motor running (probe: |rotation| 1.9 rad within
+  0.6 s of landing); mass 2000 stops that but then it can't drive the arena.
+- **Rockets miss at range.** A straight shot over the ±6-cell surface noise hits the ground, so a
+  kiter is safe from a brawler's Rocket and the AI's "ranged parts are in reach while facing" rule
+  fires Rockets that miss (38% hits under `ai`, 83% under `mash`, which fires them in contact).
+- **`mash` is not worse in a brawl.** Brawlers push into contact, so every melee part is in reach
+  and pressing on every tick spends the same energy as waiting; raising the Rocket's damage per
+  energy over the Chainsaw's (25 against 12) did not make waiting pay. Only the builds whose dear
+  part has a long cooldown and a big hit (Hearth, Ring of Fire: hotmelee, selfburn) need the timing.

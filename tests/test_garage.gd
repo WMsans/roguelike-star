@@ -628,7 +628,7 @@ func test_no_hint_labels() -> void:
 			hints.append(text)
 	assert_eq(hints, [], "no label tells the player what to click")
 	assert_eq(garage.get_node("TopBar/BodyName").text, "Cutter · Wedge", "the bar names the hull and its type")
-	assert_eq(garage.get_node("TopBar/Stats").text, "HP 650 · Energy 10", "and its fight stats")
+	assert_eq(garage.get_node("TopBar/Stats").text, "HP 450 · Energy 10", "and its fight stats")
 	assert_true(not garage.tooltip.visible, "the tooltip is away until something is hovered")
 	_complete()
 

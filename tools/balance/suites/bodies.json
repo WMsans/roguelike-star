@@ -75,8 +75,8 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.25
+     0.125,
+     0.375
     ],
     "aborted": [
      0,
@@ -132,13 +132,13 @@
      },
      {
       "slot": [
-       4
+       5
       ],
       "part": "cutter_rocket"
      },
      {
       "slot": [
-       5
+       3
       ],
       "part": "cutter_chainsaw"
      }
@@ -158,16 +158,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.25
+     0.0,
+     0.125
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.flipped_seconds": [
-     12.3,
-     37.0
+     12.0,
+     36.0
     ]
    }
   },
@@ -245,8 +245,8 @@
    },
    "expect": {
     "win_rate": [
-     0.5,
-     0.75
+     0.0,
+     0.125
     ],
     "aborted": [
      0,
@@ -273,13 +273,13 @@
      },
      {
       "slot": [
-       4
+       5
       ],
       "part": "cutter_rocket"
      },
      {
       "slot": [
-       5
+       3
       ],
       "part": "cutter_chainsaw"
      }
@@ -328,16 +328,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.0,
+     0.25
     ],
     "aborted": [
      0,
      0
     ],
     "player.flipped_seconds": [
-     16.2,
-     48.5
+     2.8,
+     26.8
     ]
    }
   },
@@ -360,13 +360,13 @@
      },
      {
       "slot": [
-       4
+       5
       ],
       "part": "cutter_rocket"
      },
      {
       "slot": [
-       5
+       3
       ],
       "part": "cutter_chainsaw"
      }
@@ -389,13 +389,13 @@
      },
      {
       "slot": [
-       4
+       5
       ],
       "part": "cutter_rocket"
      },
      {
       "slot": [
-       5
+       3
       ],
       "part": "cutter_chainsaw"
      }
@@ -415,7 +415,7 @@
    },
    "expect": {
     "win_rate": [
-     0,
+     0.0,
      0.25
     ],
     "aborted": [
@@ -443,13 +443,13 @@
      },
      {
       "slot": [
-       4
+       5
       ],
       "part": "cutter_rocket"
      },
      {
       "slot": [
-       5
+       3
       ],
       "part": "cutter_chainsaw"
      }
@@ -498,7 +498,7 @@
    },
    "expect": {
     "win_rate": [
-     0,
+     0.0,
      0.125
     ],
     "aborted": [
@@ -581,8 +581,8 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.125,
+     0.375
     ],
     "aborted": [
      0,
@@ -638,13 +638,13 @@
      },
      {
       "slot": [
-       4
+       5
       ],
       "part": "cutter_rocket"
      },
      {
       "slot": [
-       5
+       3
       ],
       "part": "cutter_chainsaw"
      }
@@ -664,8 +664,8 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.0,
+     0.25
     ],
     "aborted": [
      0,

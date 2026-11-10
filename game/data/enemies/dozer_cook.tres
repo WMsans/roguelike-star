@@ -31,5 +31,5 @@ flipped = false
 [resource]
 script = ExtResource("1_layout")
 body_id = &"corsair"
-max_hp = 1800
+max_hp = 700
 slots = { 0: SubResource("ChSlotNode_0"), 1: SubResource("ChSlotNode_1"), 4: SubResource("ChSlotNode_4"), 5: SubResource("ChSlotNode_5"), 6: SubResource("ChSlotNode_6") }

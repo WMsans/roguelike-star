@@ -37,15 +37,17 @@ func test_spec_numbers() -> void:
 	var catalog := ChCatalog.load_default()
 	var dozer: ChBodyDef = catalog.body(&"dozer")
 	assert_true(dozer != null, "the Dozer def loads")
-	# The demo balance pass (docs/superpowers/handoffs/2026-11-07-demo-balance-handoff.md): HP from the
-	# bodies spec's roster, caps and regen small enough that a full loadout runs short of energy.
-	assert_eq(dozer.hp, 1000, "Dozer HP 1000")
+	# The demo balance pass (docs/superpowers/handoffs/2026-11-07-demo-balance-handoff.md): caps and
+	# regen small enough that a full loadout runs short of energy. HP and regen were re-tuned for the
+	# press volley and the body shapes (button-and-bodies Task 9, same handoff, "Re-balance for presses").
+	assert_eq(dozer.hp, 700, "Dozer HP 700")
 	assert_eq(dozer.energy_cap, 14, "Dozer energy cap 14")
 	assert_eq(dozer.energy_regen, 3.0, "Dozer regen 3/s")
 	var corsair: ChBodyDef = catalog.body(&"corsair")
 	assert_true(corsair != null, "the Corsair def loads")
 	assert_eq(corsair.hp, 900, "Corsair HP 900")
 	assert_eq(corsair.energy_cap, 12, "Corsair energy cap 12")
+	assert_eq(corsair.energy_regen, 3.25, "Corsair regen 3.25/s")
 	# Costs started on the CATS rule in Global Constraints (power 5 -> 1 energy, power 10 -> 2); the
 	# balance pass moved the Chainsaw and the Ring to their measured damage per energy.
 	# part() answers null for an id the catalog does not hold, so each def is bound and asserted
@@ -204,7 +206,8 @@ func test_cook_is_a_barge() -> void:
 	var catalog := ChCatalog.load_default()
 	var layout: ChChariotLayout = load("res://game/data/enemies/dozer_cook.tres")
 	assert_eq(layout.body_id, &"corsair", "the cook drives a Corsair")
-	assert_eq(layout.max_hp, 1800, "the cook keeps its 1800 HP")
+	# 1800 was the auto-fire number; presses fire less often, so Task 9 re-tuned it with the runner.
+	assert_eq(layout.max_hp, 700, "the cook has its re-tuned 700 HP")
 	var body: ChBodyDef = catalog.body(layout.body_id)
 	var wheels := _wheel_slots(body)
 	var tops: Array[int] = []

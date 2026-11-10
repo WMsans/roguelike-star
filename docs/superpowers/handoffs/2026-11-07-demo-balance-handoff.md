@@ -317,3 +317,62 @@ Also fixed: `test_garage.gd` `test_main_draw_panel` fought the cached `dozer_coo
 - Final `demo-matrix`: sparks 0.69, selfburn (E1) 0.56, artillery 0.47, hotmelee 0.41,
   freeze 0.38. Against the cook (AI-driven player): 5-1-2, 6-2, 8-0, 8-0, 8-0. With `hold`:
   7, 6, 6, 7, 4 of 8.
+
+### Re-balance for presses (2026-11-09, button-and-bodies Task 9)
+
+Cooldown auto-fire became the one-button volley, and the bodies became the Wedge, Tower and Barge
+shapes. This pass re-tuned for both. Full try log: `tools/balance/README.md`, "Task 9".
+
+- **Numbers kept:** Rocket 2→3 energy, 35→75 damage (25 per energy against the Chainsaw's 12, so
+  saving for it should pay). Chainsaw 16→12 damage. Ring of Fire 25→18 damage. Cook 1800→700 HP.
+  Body HP: Cutter 650→450, Dozer 1000→700, Corsair 900. Regen: Cutter 3.5→2.75, Corsair
+  3.0→3.25, Dozer 3.0. Dozer mass 900 (it had none; the default tips at landing, 600 tips in
+  `test_bodies`, 1200 can't drive 100 cells in 10 s). `PRESS_SHARE` stays 0.6 (0.8 was tried and
+  did worse). The Dozer's `bodies` loadout is now Rocket `[5]`, Chainsaw `[3]`.
+- **Suites:** `demo` and `demo-matrix` gained `-mash` / `-never` variants. Expect ranges pin the
+  current results: `demo` within one fight and 5 s, `-never` at a win rate of 0, every matrix at 0
+  aborts, and `matrix-never` at 0 wins. `bodies` was re-pinned within one fight.
+- **Against the cook** (player AI-driven, `ai`/`mash`/`never` win rates): sparks .50/.50/0,
+  freeze 0/.25/0, selfburn .88/.50/0, artillery 1.0/.88/0, hotmelee .88/.12/0.
+- **`demo-matrix` scores under `ai`:** selfburn .67, hotmelee .61, sparks .50, freeze .44,
+  artillery .28. Player win rate `ai`/`mash`: sparks .30/.45, freeze .05/0, selfburn .70/.75,
+  artillery .20/.30, hotmelee .40/.20.
+- **`bodies`:** Cutter .38, Dozer .53, Corsair .59. Pairs: Cutter–Dozer .41, Cutter–Corsair .34,
+  Dozer–Corsair .47. MAD .094 against the box control's .042. The Dozer flipped in 7 of 16
+  Cutter–Dozer fights.
+
+**What holds:** `never` wins no fight. hotmelee needs the button (`ai` beats `mash` by 75 points
+against the cook and 20 in the matrix). selfburn needs it against the cook (+38). No body is
+above 65%. Shaped bodies are further from even than the box control.
+
+**What doesn't hold, and why (measured):**
+
+- **`ai` ≈ `mash` for sparks, freeze and artillery, and in the matrix for selfburn.**
+  - Brawlers fight in contact, so every melee part is always in reach. In contact, mashing spends
+    the same energy as waiting.
+  - The AI counts a Rocket as "in reach while facing". Its straight shot hits the noisy ground at
+    range: 38% of `ai` Rockets hit against 83% under `mash` (sparks vs cook), because `mash` mostly
+    fires them in contact.
+  - Making the dear part better per energy (Rocket 25 dpe against Chainsaw 12) did not change this.
+    A test rule giving the Rocket a 60-cell reach in `should_press` did not help either; it was not
+    kept.
+  - The press only pays where the dear part has a long cooldown and a big hit: Hearth and Ring.
+- **Band 0.35–0.65:** artillery is at .28 and selfburn at .67. The Flamethrower's damage is the
+  behaviour's hard-coded `PULSE_DAMAGE` (5 × 9), not `def.damage`, so raising its def damage did
+  nothing (left at 45 / 2 energy).
+- **freeze (the only Dozer build) barely wins.** The Tower spends most fights flipped (40–58 s in
+  the matrix). It wheelies over when it lands with its motor running.
+- **No body cycle.** Every body spends 25–40 s of a fight flipped, mirrors included, so most pairs
+  draw and pair scores sit near .5. Regen is the one knob that moved a pair: Wedge regen 2.5 / 3.0
+  gives Barge-beats-Wedge .81 / .50. Neither Wedge > Tower nor Tower > Barge reached .6 in any try.
+  - The Tower's guns can't hit a Wedge. Rockets at range hit the ground, so a kiting Tower is safe
+    from the Wedge's guns too.
+- **The `standalone` suite no longer measures DPS.** The Cutter flips itself against the dummy
+  Tower (23–46 s flipped), which leaves part DPS at 0–4. Damage per energy per firing is 10–17.
+
+**Needs a call:**
+1. Body stability: the self-flips and the Tower's landing wheelie. These are shape or physics
+   work, not numbers.
+2. A reach for straight-shot parts in the press rule, or a Rocket that arcs.
+3. The Flamethrower and the Hearth reading `def.damage`.
+4. Whether the press criterion is meant to hold for melee brawlers at all.
