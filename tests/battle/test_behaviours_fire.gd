@@ -196,6 +196,34 @@ func _flamethrower_case(scale: int) -> void:
 		"the enemy stayed inside the flamethrower's 40-cell reach")
 	_complete()
 
+# A part that breaks mid-burst takes its look with it: the jet is a looping ChFx the world holds,
+# and break_part takes the behaviour off the tick, so nothing calls jet.stop() any more. The
+# behaviour's teardown is the only other seam, and without it the flame loops on the wreck forever.
+const FLAME_MID_BURST_TICKS := 185  # 3.08 s: the 3 s cooldown fired and the 1 s burst is running
+
+func test_breaking_a_firing_flamethrower_stops_its_jet() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"flamethrower"]]), catalog, 0, ORIGIN, false)
+	var flame := _part_of(at, [1])
+	assert_true(flame != null and flame.behaviour != null, "the flamethrower mounted and behaves")
+	var ctx: ChBattleContext = _battle(world, catalog, [at])
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	for _tick in FLAME_MID_BURST_TICKS:
+		world.step(1)
+		ctx.tick(TICK, [0.0], PRESS)
+	var jet: ChFx = flame.behaviour.jet
+	assert_true(jet != null and is_instance_valid(jet), "the burst is playing its looping jet")
+	at.break_part(flame, ctx)
+	assert_true(flame.behaviour.jet == null, "the broken part's behaviour let the jet go")
+	# stop() only starts the fade, which ChFx spends on the frame clock, so this reads that the call
+	# landed rather than waiting frames out: the loop is off, which is what the break owes.
+	assert_true(jet._fade_left >= 0.0, "the jet faded instead of looping on the wreck")
+	_complete()
+
 # The hearth charges for 1 s, then rings fire into the air cells 2 cells out from the own hull
 # every 0.25 s and pays the bodies that overlap that ring. The near hull's box touches the ring
 # (its own hull 10 cells out from the hearth's hull) and the far hull 40 cells out does not,

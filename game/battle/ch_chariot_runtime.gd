@@ -82,6 +82,9 @@ func break_part(part: ChPartRuntime, ctx: ChBattleContext) -> void:
 		# bus never drops a listener by itself, so this is the whole seam that takes it out. It runs
 		# before the emit below, so a broken part hears nothing, even its own PART_BROKEN.
 		ctx.bus.unsubscribe_all(behaviour)
+		# The look goes with the part: a looping fx the behaviour spawned rides the world, so with no
+		# process left to stop it, teardown is what keeps it from playing on the wreck forever.
+		behaviour.teardown()
 	if part.joint != null and is_instance_valid(part.joint):
 		# The joint goes, so the body has nothing holding it and falls. queue_free rather than free,
 		# since a joint is a node in the tree and Godot frees a queued node at the frame's end.

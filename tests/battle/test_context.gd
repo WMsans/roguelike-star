@@ -5,7 +5,7 @@ extends ChTest
 # World-backed: the rigs come out of ChChariotBuilder, so the joints break_part frees and the
 # anchors deal_hit's proximity modifiers measure against are the real ones.
 # The behaviours are test doubles: ContextBehaviour below has the shape game/battle/behaviours/
-# ch_behaviour.gd ships (a `part` plus the four hooks), and each double overrides only the hook its
+# ch_behaviour.gd ships (a `part` plus the five hooks), and each double overrides only the hook its
 # test counts. ChPartRuntime.behaviour is Object-typed and the context calls the hooks off an
 # untyped local, so a double stands in for the script Tasks 12-14 file on that seam.
 # shortcut: rig numbers are literals per def below; the slice's tuning lives in game/data/parts.
@@ -23,7 +23,7 @@ const BODY_HP := 100  # every rig's HP, so a hit's arithmetic reads
 const DAMAGE := 20  # the damage every deal_hit below sends
 const MODIFIER_RANGE := 24.0  # the Freeze Charge's range, in cells
 
-# The behaviour base's shape: `part` plus the four hooks, all no-ops, so a double overrides only
+# The behaviour base's shape: `part` plus the five hooks, all no-ops, so a double overrides only
 # what its test counts and inherits the rest. The real base is game/battle/behaviours/ch_behaviour.
 class ContextBehaviour:
 	extends RefCounted
@@ -40,6 +40,9 @@ class ContextBehaviour:
 	func process(ctx, delta) -> void: pass
 
 	func modify_hit(ctx, hit) -> void: pass
+
+	# A behaviour that held a looping fx would stop it here; these doubles hold none.
+	func teardown() -> void: pass
 
 # A double that counts the fires the loop owes it. Counting 2 fires in 2.1 s of ticks is the
 # whole loop: asked for energy, paid it, called fire, and reset the cooldown to get back here.

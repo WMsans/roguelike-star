@@ -83,6 +83,14 @@ func process(ctx: ChBattleContext, delta: float) -> void:
 		ctx.deal_hit(part, target, pulse_damage())
 
 
+func teardown() -> void:
+	# A part broken mid-burst is off the tick, so process never reaches its own stop: this is the
+	# one call left to take the looping jet off the wreck.
+	if jet != null and is_instance_valid(jet):
+		jet.stop()
+	jet = null
+
+
 func pulse_damage() -> int:
 	# One pulse's share of the def's damage. Integer hits: a damage that does not split evenly
 	# rounds per pulse, so the burst total can differ from def.damage by up to PULSES / 2.
