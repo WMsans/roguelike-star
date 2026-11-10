@@ -70,3 +70,50 @@ func test_border_is_concrete() -> void:
 	assert_eq(world.get_material_at(Vector2i(-1, 90)), &"concrete", "the arena border reads concrete")
 	world.free()
 	_complete()
+
+
+func test_game_set_has_explosives() -> void:
+	var set: PixelMaterialSet = load("res://game/materials/game_set.tres")
+	var found := {}
+	for m in set.materials:
+		if m.explode_radius > 0:
+			found[m.name] = true
+	assert_true(found.has(&"gunpowder") and found.has(&"tnt"), "gunpowder and tnt explode")
+	_complete()
+
+
+func test_acid_eats_sand_not_rock() -> void:
+	var world := await make_world()
+	var arena := Rect2i(0, 0, 480, 180)
+	# rock basin: floor and two walls around x 100..119
+	world.fill_rect(Rect2i(98, 150, 24, 3), &"rock")
+	world.fill_rect(Rect2i(98, 130, 2, 20), &"rock")
+	world.fill_rect(Rect2i(120, 130, 2, 20), &"rock")
+	world.fill_rect(Rect2i(100, 146, 20, 4), &"sand")
+	world.fill_rect(Rect2i(105, 140, 6, 6), &"acid")
+	var sand_before: int = world.count_materials(arena).get(&"sand", 0)
+	var rock_before: int = world.count_materials(arena).get(&"rock", 0)
+	world.step(120)
+	var after: Dictionary = world.count_materials(arena)
+	assert_true(after.get(&"sand", 0) < sand_before, "acid ate sand")
+	assert_eq(after.get(&"rock", 0), rock_before, "rock untouched")
+	world.free()
+	_complete()
+
+
+func test_fire_sets_off_tnt() -> void:
+	var world := await make_world()
+	world.fill_rect(Rect2i(200, 150, 4, 4), &"tnt")
+	var hit := false
+	for i in 120:
+		# fire lives 24 ticks and heats slowly (conductivity 0.1), so keep a flame beside the crate
+		world.fill_rect(Rect2i(204, 150, 3, 4), &"fire")
+		world.step(1)
+		for b in world.take_blasts():
+			if b["material"] == &"tnt":
+				hit = true
+		if hit:
+			break
+	assert_true(hit, "tnt blast within 120 ticks")
+	world.free()
+	_complete()

@@ -1,4 +1,4 @@
-[gd_resource type="PixelMaterialSet" load_steps=16 format=3]
+[gd_resource type="PixelMaterialSet" load_steps=23 format=3]
 
 [ext_resource type="PixelMaterial" path="res://game/materials/rock.tres" id="1_rock"]
 [ext_resource type="PixelMaterial" path="res://game/materials/wood.tres" id="1_wood"]
@@ -15,7 +15,14 @@
 [ext_resource type="PixelReaction" path="res://game/materials/water_lava.tres" id="2_water_lava"]
 [ext_resource type="PixelReaction" path="res://game/materials/water_fire.tres" id="2_water_fire"]
 [ext_resource type="PixelReaction" path="res://game/materials/fire_oil.tres" id="2_fire_oil"]
+[ext_resource type="PixelMaterial" path="res://game/materials/gunpowder.tres" id="1_gunpowder"]
+[ext_resource type="PixelMaterial" path="res://game/materials/tnt.tres" id="1_tnt"]
+[ext_resource type="PixelMaterial" path="res://game/materials/acid.tres" id="1_acid"]
+[ext_resource type="PixelReaction" path="res://game/materials/acid_sand.tres" id="2_acid_sand"]
+[ext_resource type="PixelReaction" path="res://game/materials/acid_wood.tres" id="2_acid_wood"]
+[ext_resource type="PixelReaction" path="res://game/materials/acid_gunpowder.tres" id="2_acid_gunpowder"]
+[ext_resource type="PixelReaction" path="res://game/materials/acid_tnt.tres" id="2_acid_tnt"]
 
 [resource]
-materials = Array[PixelMaterial]([ExtResource("1_rock"), ExtResource("1_wood"), ExtResource("1_sand"), ExtResource("1_water"), ExtResource("1_oil"), ExtResource("1_lava"), ExtResource("1_fire"), ExtResource("1_steam"), ExtResource("1_smoke"), ExtResource("1_concrete"), ExtResource("1_frost"), ExtResource("1_ice")])
-reactions = Array[PixelReaction]([ExtResource("2_water_lava"), ExtResource("2_water_fire"), ExtResource("2_fire_oil")])
+materials = Array[PixelMaterial]([ExtResource("1_rock"), ExtResource("1_wood"), ExtResource("1_sand"), ExtResource("1_water"), ExtResource("1_oil"), ExtResource("1_lava"), ExtResource("1_fire"), ExtResource("1_steam"), ExtResource("1_smoke"), ExtResource("1_concrete"), ExtResource("1_frost"), ExtResource("1_ice"), ExtResource("1_gunpowder"), ExtResource("1_tnt"), ExtResource("1_acid")])
+reactions = Array[PixelReaction]([ExtResource("2_water_lava"), ExtResource("2_water_fire"), ExtResource("2_fire_oil"), ExtResource("2_acid_sand"), ExtResource("2_acid_wood"), ExtResource("2_acid_gunpowder"), ExtResource("2_acid_tnt")])
