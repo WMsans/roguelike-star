@@ -4,6 +4,15 @@ class_name ChTextures extends RefCounted
 # the addon README forbids shipping code referencing res://addons/noita_engine/demo/.
 # PixelRigidBody stamps only a body's opaque pixels, so box/disc never build an empty image.
 
+static func art(source: Texture2D, flip_x: bool) -> ImageTexture:
+	# A def's sprite as a body's own texture: RGBA8 like the placeholders, mirrored when the part
+	# (or the whole build) faces -x.
+	var image := source.get_image()
+	image.convert(Image.FORMAT_RGBA8)
+	if flip_x:
+		image.flip_x()
+	return ImageTexture.create_from_image(image)
+
 static func box(w: int, h: int, colour: Color) -> ImageTexture:
 	var image := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	image.fill(colour)

@@ -297,3 +297,30 @@ func test_body_copy_keeps_non_default_fields() -> void:
 			assert_eq(c.get(prop.name), body.get(prop.name), "copy keeps %s" % prop.name)
 	assert_true(c != body, "copy is a new def")
 	_complete()
+
+
+func test_sprites_keep_the_placeholder_pixels() -> void:
+	# Mass and collision come from a body's opaque pixels, so art may recolour a def but never
+	# reshape it: every def's texture is solid exactly where its placeholder is.
+	var catalog := ChCatalog.load_default()
+	var defs: Array = catalog.parts.values() + catalog.bodies.values()
+	for def in defs:
+		assert_true(def.texture != null, "%s has a sprite" % def.id)
+		if def.texture == null:
+			continue
+		var want: Image
+		if def is ChBodyDef:
+			want = ChTextures.polygon(def.outline, def.size, Color.BLACK).get_image()
+		elif def.id == &"wheel":
+			want = ChTextures.disc(def.size.x, Color.BLACK).get_image()
+		else:
+			want = ChTextures.box(def.size.x, def.size.y, Color.BLACK).get_image()
+		var got: Image = def.texture.get_image()
+		assert_eq(got.get_size(), want.get_size(), "%s sprite is its def's size" % def.id)
+		var off := 0
+		for y in mini(got.get_height(), want.get_height()):
+			for x in mini(got.get_width(), want.get_width()):
+				if (got.get_pixel(x, y).a > 0.5) != (want.get_pixel(x, y).a > 0.0):
+					off += 1
+		assert_eq(off, 0, "%s sprite is solid where its placeholder is" % def.id)
+	_complete()

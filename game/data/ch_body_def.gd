@@ -17,6 +17,9 @@ var energy_regen: float = 0.0
 var size: Vector2i = Vector2i(1, 1)  # cells
 var material: StringName = &""
 var color: Color = Color(0.8, 0.8, 0.8)
+# The hull's pixel art, nose at +x; null draws the flat placeholder. Its opaque pixels must be
+# ChTextures.polygon's for the outline: the chassis is built from them.
+var texture: Texture2D
 var slots: PackedVector2Array = []  # body-local cells, index is the body slot index
 # A convex hull in body-local cells; empty means the hull is the size box. size must equal its
 # bounding box, so every reader of size (hull box, half-width, camera, pit) stays right.

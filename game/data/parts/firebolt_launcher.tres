@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+[gd_resource type="Resource" script_classes=1 load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
 [ext_resource type="Script" path="res://game/battle/behaviours/ch_firebolt.gd" id="2_firebolt"]
+[ext_resource type="Texture2D" path="res://textures/sprites/firebolt_launcher.png" id="tex_sprite"]
 
 [resource]
 script = ExtResource("1_part")
@@ -16,3 +17,4 @@ proximity_range = 70.0
 charges = 5
 size = Vector2i(8, 4)
 color = Color(0.9, 0.5, 0.2, 1)
+texture = ExtResource("tex_sprite")

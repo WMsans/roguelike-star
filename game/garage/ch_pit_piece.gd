@@ -32,7 +32,9 @@ func _draw() -> void:
 	if body_def != null:
 		# The hull, centred on the origin: the cells at the pit's zoom, in the body's own colour.
 		var hull := Vector2(maxi(1, body_def.size.x), maxi(1, body_def.size.y)) * ChGarage.ZOOM
-		if body_def.outline.size() >= 3:
+		if body_def.texture != null:
+			draw_texture_rect(body_def.texture, Rect2(-hull * 0.5, hull), false)
+		elif body_def.outline.size() >= 3:
 			# A Transform2D scales the whole polygon; PackedVector2Array has no * float.
 			var shape: PackedVector2Array = Transform2D().scaled(Vector2.ONE * ChGarage.ZOOM) * body_def.outline
 			draw_colored_polygon(shape, body_def.color)
@@ -42,7 +44,7 @@ func _draw() -> void:
 		return
 	if part_def == null:
 		return
-	ChPartCard.paint(self, Vector2.ZERO, part_def, ChGarage.ZOOM)
+	ChPartCard.paint(self, Vector2.ZERO, part_def, ChGarage.ZOOM, flipped)
 	if flipped:
 		# The facing edge, which is what a flip means: +x is forward and a flip negates the
 		# extension offsets, so the notch says which way the part and its children point.

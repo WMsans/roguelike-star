@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://game/data/ch_body_def.gd" id="1_body"]
+[ext_resource type="Texture2D" path="res://textures/sprites/corsair.png" id="tex_sprite"]
 
 [resource]
 script = ExtResource("1_body")
@@ -11,6 +12,7 @@ energy_cap = 12
 energy_regen = 3.25
 size = Vector2i(52, 10)
 color = Color(0.45, 0.55, 0.7, 1)
+texture = ExtResource("tex_sprite")
 slots = PackedVector2Array(-21, 5, 21, 5, -20, -5, -10, -5, 4, -5, 13, -5, 22, -5)
 outline = PackedVector2Array(-26, -5, 24, -5, 26, -3, 26, 5, -26, 5)
 mass = 500.0

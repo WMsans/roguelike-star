@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://game/data/ch_body_def.gd" id="1_body"]
+[ext_resource type="Texture2D" path="res://textures/sprites/cutter.png" id="tex_sprite"]
 
 [resource]
 script = ExtResource("1_body")
@@ -11,6 +12,7 @@ energy_cap = 10
 energy_regen = 2.75
 size = Vector2i(34, 9)
 color = Color(0.7, 0.65, 0.55, 1)
+texture = ExtResource("tex_sprite")
 slots = PackedVector2Array(-10, 4.5, 9, 4.5, -6, -3, 6, -3)
 outline = PackedVector2Array(-17, -4.5, 4, -4.5, 17, 4.5, -17, 4.5)
 friction = 1.2

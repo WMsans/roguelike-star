@@ -89,11 +89,16 @@ func _wrap(font: Font, text: String, width: float) -> PackedStringArray:
 	return lines
 
 
-static func paint(canvas: CanvasItem, centre: Vector2, def: ChPartDef, zoom: float) -> void:
+static func paint(canvas: CanvasItem, centre: Vector2, def: ChPartDef, zoom: float, flipped := false) -> void:
 	# The one place a part's placeholder art is drawn: the card, the held layer and the pit all show
 	# the same shape at the same zoom, so a wheel is a disc everywhere it appears and no screen grows a
 	# second copy of the rule.
 	var box := Vector2(maxi(1, def.size.x), maxi(1, def.size.y)) * zoom
+	if def.texture != null:
+		# A negative width mirrors the art, which faces +x, for a flipped part.
+		var w := -box.x if flipped else box.x
+		canvas.draw_texture_rect(def.texture, Rect2(centre + Vector2(-w * 0.5, -box.y * 0.5), Vector2(w, box.y)), false)
+		return
 	if def.id == &"wheel":
 		canvas.draw_circle(centre, box.x * 0.5, def.color)
 		return

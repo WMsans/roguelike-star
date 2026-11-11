@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://game/data/ch_body_def.gd" id="1_body"]
+[ext_resource type="Texture2D" path="res://textures/sprites/dozer.png" id="tex_sprite"]
 
 [resource]
 script = ExtResource("1_body")
@@ -11,6 +12,7 @@ energy_cap = 14
 energy_regen = 3.0
 size = Vector2i(22, 30)
 color = Color(0.6, 0.45, 0.4, 1)
+texture = ExtResource("tex_sprite")
 slots = PackedVector2Array(-11, 15, 11, 15, -9, -3, 9, -3, -5, -15, 5, -15)
 outline = PackedVector2Array(-11, 15, 11, 15, 8, -15, -8, -15)
 mass = 900.0

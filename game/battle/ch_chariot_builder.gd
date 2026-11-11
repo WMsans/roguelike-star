@@ -27,7 +27,8 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 	# so a part that overlaps its own hull or another part costs nothing, while terrain, projectiles
 	# and the other chariot (whose group is side + 1 too) still hit every body here.
 	var group := side + 1
-	var hull := ChTextures.polygon(body_def.outline, body_def.size, body_def.color, mirror_x) if not body_def.outline.is_empty() \
+	var hull := ChTextures.art(body_def.texture, mirror_x) if body_def.texture != null \
+			else ChTextures.polygon(body_def.outline, body_def.size, body_def.color, mirror_x) if not body_def.outline.is_empty() \
 			else ChTextures.box(body_def.size.x, body_def.size.y, body_def.color)
 	runtime.chassis = _body(parent, world, hull, _material(body_def.material), body_def.size, origin, PixelRigidBody.SHAPE_HULL, group, body_def)
 	runtime.chassis_visual = visual_of(runtime.chassis)
@@ -59,7 +60,9 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		var at := origin + anchor
 		var wheel := def.id == WHEEL_ID
 		# A wheel is a disc so Box2D joins a circle it can roll; everything else is a box hull.
-		var texture := ChTextures.disc(def.size.x, def.color) if wheel else ChTextures.box(def.size.x, def.size.y, def.color)
+		# The art faces +x, so it mirrors when the part's facing and the build's mirror disagree.
+		var texture := ChTextures.art(def.texture, node.flipped != mirror_x) if def.texture != null \
+				else ChTextures.disc(def.size.x, def.color) if wheel else ChTextures.box(def.size.x, def.size.y, def.color)
 		var body := _body(parent, world, texture, _material(def.material), def.size, at, PixelRigidBody.SHAPE_CIRCLE if wheel else PixelRigidBody.SHAPE_HULL, group)
 		if wheel:
 			body.friction = WHEEL_FRICTION
