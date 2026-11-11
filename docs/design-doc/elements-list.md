@@ -85,6 +85,15 @@ So 1 Speedup gives exactly 1 extra second of cooldown, and 1 Slow takes away hal
 - Gunpowder, TNT and batteries appear in arena terrain from the start and can also be spawned by
   parts.
 
+**In the sim today** (the demo arena; the rest of this table is still proposed)
+- Gunpowder: a powder that lights at low heat and explodes in a small blast that chains through
+  the pile.
+- TNT: a solid that explodes in a large blast when fire or another blast reaches it.
+- Acid: a liquid that dissolves sand, wood, gunpowder and TNT into air and a little smoke. Terrain
+  only: it doesn't dissolve rock (rock holds it in the arena's cistern), it gives off no acid gas,
+  and it does nothing to a chariot (the Acid status isn't built yet).
+- TNT and gunpowder blasts damage and push chariots (`core-mechanics.md` §3.5).
+
 **Proposed**
 
 | Material | Kind | Hardness | Burns | Notes |

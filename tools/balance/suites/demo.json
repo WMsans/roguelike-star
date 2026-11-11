@@ -63,17 +63,21 @@
    },
    "expect": {
     "win_rate": [
-     0.375,
-     0.625
+     0.125,
+     0.375
     ],
     "mean_fight_seconds": [
-     22.1,
-     32.1
+     25.8,
+     35.8
     ],
     "aborted": [
      0,
      0
     ]
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
    }
   },
   {
@@ -136,13 +140,17 @@
      0.125
     ],
     "mean_fight_seconds": [
-     34.3,
-     44.3
+     21.9,
+     31.9
     ],
     "aborted": [
      0,
      0
     ]
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
    }
   },
   {
@@ -207,17 +215,21 @@
    },
    "expect": {
     "win_rate": [
-     0.75,
-     1.0
+     0.375,
+     0.625
     ],
     "mean_fight_seconds": [
-     13.5,
-     23.5
+     25.6,
+     35.6
     ],
     "aborted": [
      0,
      0
     ]
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
    }
   },
   {
@@ -282,17 +294,21 @@
    },
    "expect": {
     "win_rate": [
-     0.75,
-     1.0
+     0.375,
+     0.625
     ],
     "mean_fight_seconds": [
-     16.9,
-     26.9
+     30.2,
+     40.2
     ],
     "aborted": [
      0,
      0
     ]
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
    }
   },
   {
@@ -357,17 +373,21 @@
    },
    "expect": {
     "win_rate": [
-     0.75,
-     1.0
+     0.25,
+     0.5
     ],
     "mean_fight_seconds": [
-     16.3,
-     26.3
+     30.6,
+     40.6
     ],
     "aborted": [
      0,
      0
     ]
+   },
+   "drive": {
+    "player": "ai",
+    "enemy": "ai"
    }
   },
   {
@@ -432,12 +452,12 @@
    },
    "expect": {
     "win_rate": [
-     0.625,
-     0.875
+     0.375,
+     0.625
     ],
     "mean_fight_seconds": [
-     11.8,
-     21.8
+     21.7,
+     31.7
     ],
     "aborted": [
      0,
@@ -501,12 +521,12 @@
    },
    "expect": {
     "win_rate": [
-     0,
+     0.0,
      0.125
     ],
     "mean_fight_seconds": [
-     43.8,
-     53.8
+     29.6,
+     39.6
     ],
     "aborted": [
      0,
@@ -576,12 +596,12 @@
    },
    "expect": {
     "win_rate": [
-     0.625,
-     0.875
+     0.0,
+     0.25
     ],
     "mean_fight_seconds": [
-     15.7,
-     25.7
+     33.4,
+     43.4
     ],
     "aborted": [
      0,
@@ -651,12 +671,12 @@
    },
    "expect": {
     "win_rate": [
-     0.875,
-     1.0
+     0.5,
+     0.75
     ],
     "mean_fight_seconds": [
-     14.3,
-     24.3
+     28.7,
+     38.7
     ],
     "aborted": [
      0,
@@ -727,11 +747,11 @@
    "expect": {
     "win_rate": [
      0.0,
-     0.25
+     0.125
     ],
     "mean_fight_seconds": [
-     28.9,
-     38.9
+     34.7,
+     44.7
     ],
     "aborted": [
      0,
@@ -1137,6 +1157,10 @@
     "enemy": "ai"
    },
    "expect": {
+    "win_rate": [
+     0.5,
+     0.75
+    ],
     "aborted": [
      0,
      0
@@ -1186,6 +1210,10 @@
     "enemy": "ai"
    },
    "expect": {
+    "win_rate": [
+     0.0,
+     0.125
+    ],
     "aborted": [
      0,
      0
@@ -1241,6 +1269,10 @@
     "enemy": "ai"
    },
    "expect": {
+    "win_rate": [
+     0.75,
+     1.0
+    ],
     "aborted": [
      0,
      0
@@ -1296,6 +1328,10 @@
     "enemy": "ai"
    },
    "expect": {
+    "win_rate": [
+     0.75,
+     1.0
+    ],
     "aborted": [
      0,
      0
@@ -1351,6 +1387,10 @@
     "enemy": "ai"
    },
    "expect": {
+    "win_rate": [
+     0.0,
+     0.25
+    ],
     "aborted": [
      0,
      0

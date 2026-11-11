@@ -172,9 +172,12 @@ Per part:
   what the outlines add. No `expect`: compare it with `bodies` (~2 min).
 - `lazy`: each of the 8 damaging parts alone on a Corsair's `[6]` (`lazy/<part>`, and `-nowheels`
   without the `[0]`/`[1]` wheels), `press.player: mash`, against the Cook, seeds 1-8. `expect` pins a
-  lazy build at 0-1 wins of 8, so it shows which one-weapon builds still beat the Cook.
+  lazy build at 0-1 wins of 8, so it shows which one-weapon builds still beat the Cook (one pin is
+  wider; see Known-fail).
 - `demo` also holds `vs-cook-<build>-nowheels` twins (no wheels, `ai` presses); read them with
-  `analysis/summary.py --wheel-gap out.json`.
+  `analysis/summary.py --wheel-gap out.json`. The five reference builds drive `ai` (written out in
+  `demo.json`): `kite` lost more fights and cut them under 35 s for every build but artillery.
+- `mirror`: each `demo` build against itself, 20 seeds; `expect` pins each win rate within one fight.
 - Coming with later plans: `payoffs` (each payoff alone and in its target scenario) and `builds`
   (each build against a reference gauntlet).
 
@@ -337,3 +340,61 @@ Check the button criterion on any `demo` or `demo-matrix` `--out` file with
 `analysis/summary.py --press-gap out.json`. It prints the `ai` and `mash` win rates and the gap per
 build, flags each gap under 0.15, and exits 1 if any is. Today it exits 1 on both suites.
 
+## Cook and arena tuning log
+
+Task 6 of the cook-and-arena plan (`docs/superpowers/specs/2026-11-10-cook-and-arena-design.md`,
+Goals). One lever per row where it could be split. Columns: G1 = `lazy` builds over 1 win of 8, and
+the median Cook `hp_left` over every lazy fight (pass: none over, median ≥ half its HP); G2 = player
+win rate and mean fight seconds of `vs-cook-<build>` (sparks freeze selfburn artillery hotmelee;
+pass: .40-.70 and ≥ 35 s); G3 = wheels minus no-wheels win rate per build (pass ≥ .25); G4 =
+hazard HP over all HP lost, both sides (pass ≥ .10, > 0 each side); AG = the worst build's share of
+fights the Cook lost to a blast (pass < .25); matrix = `demo-matrix` round-robin scores (pass
+.35-.65). Rows 1-13 ran `demo` on the `ai` and `-nowheels` scenarios only; rows 0 and F are the whole suite,
+so their G4 counts the `mash` and `never` fights too. `—` means not run.
+Rows 2 and 3 ran with the Cook as a separate layout, not the suite's.
+
+| # | change from the previous row | G1 (over 1/8; Cook HP median) | G2 win; seconds | G3 gap | G4 | AG | matrix | verdict |
+|---|---|---|---|---|---|---|---|---|
+| 0 | Cook 700→1500 HP, Firebolt `[2]`, Ring of Fire `[3]` (the brief's start); fuse fix | 0/8 all; 957 | .25 0 0 0 .25; 30 27 32 29 33 s | −.25 0 −.25 −.50 +.12 | .002 (cook 0) | 0 | .53 .12 .73 .41 .70 | baseline |
+| 1 | Rocket point-blank: a hit within 12 cells of its anchor pays half | 0/8 all; 1017 (rocket-nowheels 471→1172) | .25 0 0 0 .25; 30 27 32 29 33 s | (unchanged: the five builds' Rockets hit from 25+ cells) | .002 | 0 | | kept: the lone-Rocket cheese is gone |
+| 2 | Cook `[3]` Ring of Fire → second Firebolt (1500 HP) | — | .12 0 .50 .25 .38; 39 19 36 44 41 s | −.38 0 +.25 −.38 +.25 | .008 | 0 | | fights reach 35 s; the Ring was 6 DPS against full builds (18 per part crossed) |
+| 3 | Cook HP 1500 → 1200 | — | .62 0 .88 .38 .50; 31 19 28 40 35 s | −.25 0 +.62 −.50 +.38 | .008 | 0 | | |
+| 4 | Firebolt damage 60 → 40 (the Tower died in 19 s to the Cook's two) | 0/8 all; 745 | .62 0 .88 .50 .50; 31 28 28 40 35 s | −.25 0 +.62 −.38 +.38 | .008 | 0 | | kept |
+| 5 | a second TNT crate per side where the chariots meet (x 198-203, mirrored) | rocket-nw 2/8, mace-nw 2/8; 742 | .62 0 .88 .50 .62; 27 31 25 35 30 s | −.25 0 +.25 −.38 +.50 | .055 (player 4007, cook 3394) | .12 | | kept: hazards now hit both sides |
+| 6 | Hearth 45 → 32 and Cook HP 1200 → 1450 (fights were 25-35 s; Hearth was 3/4 of the Cook's damage) | rocket-nw 2/8, ring-nw 2/8; 964 | .38 0 .38 .50 .25; 41 33 37 40 38 s | −.25 0 −.38 −.38 0 | .049 | 0 | | kept: fights reach 35 s |
+| 7 | Firebolt speed 150 → 115 (lands at its 70-cell range) | rocket-nw 2/8, ring-nw 3/8; 1038 | 0 0 .12 .12 0; 24 25 33 33 31 s | −.50 0 −.50 −.75 0 | .053 | 0 | | reverted: the slower lob hits a chariot driving in (3 of 5) and misses one that stands (1 of 5), the opposite of G3. Kite drives did better (artillery .88, selfburn .62) |
+| 8 | drive cost 2 → 1 energy/s | rocket-nw 3/8; 1046 | .38 0 .75 .38 .62; 36 30 30 49 30 s | −.50 −.25 −.25 −.50 +.25 | .043 | .12 | | reverted: no-wheel chariots pay the drive too (the AI holds a direction), so it lifted both and shortened fights |
+| 9 | flank crate under the spawn's tail (x 138, fuse to 176) | mace-nw 2/8, flame-nw 3/8, ring-nw 3/8; 961 | .50 0 0 .62 .38; 38 44 36 47 34 s | −.12 0 −.88 −.12 +.12 | .045 | 0 | | reverted: a chariot standing on it took 30-50 hazard HP a fight, nothing lit it in most fights |
+| 10 | TNT blast damage 150 → 250 (Hearth 36 = the 32 of row 6 after per-pulse rounding) | rocket-nw 2/8, ring-nw 2/8; 938 | .50 0 .50 .50 .25; 38 27 35 37 37 s | −.12 0 −.12 −.38 0 | .095 (player 7457, cook 6500) | 0 | | kept. Same at Cook HP 1600: .12 0 .38 .50 .12, lazy unchanged (2 fails): kept 1450 |
+| 11 | Ring of Fire 18 → 14 per part, Chainsaw 12 → 15 (lazy Ring was the best lone part; hotmelee and sparks lean on Chainsaws) | rocket-nw 2/8, ring-nw 2/8; 940 | .38 0 .62 .50 .50; 34 27 31 37 37 s | −.25 0 −.25 −.38 +.38 | .089 | 0 | | kept |
+| 12 | Mace swing reaches 6 cells above and below its head too | rocket-nw 2/8; 946 | .38 0 .62 .50 .50; 34 29 31 37 37 s | −.25 −.12 −.25 −.38 +.50 | .088 | 0 | | reverted: the Cook's Mace still landed 2-5 of 34 swings on a wheel-less Corsair, so height wasn't why it missed |
+| 13 | Rocket point-blank 12 → 20 cells; TNT blast damage 250 → 300 | ring-nw 2/8; 916 | .25 0 .50 .50 .38; 31 27 31 35 36 s | −.38 0 −.38 −.38 +.25 | .109 (player 8666, cook 7553) | 0 | | kept: lazy Rocket off 2/8, G4 over 10% |
+| F | final, the whole suites (row 13's numbers) | ring-nw 2/8; 916 | .25 0 .50 .50 .38; 31 27 31 35 36 s | −.38 0 −.38 −.38 +.25 | .145 (player 19828, cook 17828) | 0 | .58 .14 .66 .42 .70 | |
+
+Kept numbers (before → after): the Cook 700 → 1450 HP with a Firebolt Launcher on `[2]` and `[3]`
+(Harpoon, Hearth, Mace kept); Rocket hits within 20 cells of its anchor pay half (new); Firebolt
+damage 60 → 40; Hearth 45 → 36; Ring of Fire 18 → 14; Chainsaw 12 → 15; TNT blast 150 → 250 → 300 HP
+at the centre; gunpowder radius 3 → 5, gunpowder and TNT `burn_heat` 0 → 600, the seam 1 → 2 rows
+(so a lit seam reaches its crate); a second TNT crate per side at x 198-203 (mirrored 276-281).
+
+## Known-fail (cook and arena)
+
+The suites pass (`ok: true`) while these Goals miss. Their `expect` ranges pin today's values so a
+change shows, not because the values are right.
+
+| goal | bound | measured | why, measured | pins that encode it |
+|---|---|---|---|---|
+| G1 lazy builds lose | every `lazy/*` ≤ 1 win of 8 | `lazy/ring_of_fire-nowheels` 2 of 8 (6 draws); every other lazy build 0-1; Cook median 916 of 1450 passes | against a chariot with no wheels the Cook deals 10-12 DPS: its Mace lands 2-5 of 34 swings and its Firebolts 0-1 of 10, and it is energy-starved for 30 of 60 s. Giving the Mace a 6-cell vertical reach (row 12) didn't lift its hits | `lazy`: `lazy/ring_of_fire-nowheels` `win_rate` [0, 0.25] |
+| G2 full builds | .40-.70 and ≥ 35 s | sparks .25 / 31 s, freeze 0 / 27 s, selfburn .50 / 31 s, artillery .50 / 35 s (passes), hotmelee .38 / 36 s | 8 seeds put .40-.70 on 4 or 5 wins only, and one fight swings a build by .125 between rows. Longer fights (Cook HP 1600, row 10) cost sparks and hotmelee 3 wins. Freeze: see below | `demo`: each `vs-cook-*` within one fight of the measured win rate, `mean_fight_seconds` ±5 s |
+| G2 freeze | .40-.70 | 0 of 8 | **not the freeze chain**: the Tower tips itself. It spends 20-50 s of each fight flipped under every drive that moves (`ai`, `kite`, `brawl`, `charge`), against any Cook loadout (no Harpoon, no Firebolts or no Hearth: still 26-50 s). Without its own Mace on `[3]` it never flips and wins 4 of 8; under `hold` it wins 5 of 8. Its Mace body, sticking out of the Tower's front, levers it over in contact | `demo`: `vs-cook-freeze` [0, 0.125] |
+| G3 moving matters | wheels − no wheels ≥ .25 | sparks −.38, freeze 0, selfburn −.38, artillery −.38; hotmelee +.25 passes | the Cook drives to you, so standing still costs nothing. A wheeled `ai` or `brawl` player drives into the Hearth (caught fire 16-61 times a fight against 5-15 without wheels). `kite` gets cornered within seconds in a 480-cell arena and lost more. A chariot without wheels still pays the drive cost (the AI holds a direction), so cheaper driving (row 8) lifted both. Punishing a parked chariot with a crate under its spawn (row 9) or a Firebolt that lands at its range (row 7) didn't work | `demo`: the `-nowheels` twins' win-rate pins |
+| round-robin band | every build .35-.65 | freeze .14, selfburn .66, hotmelee .70 (sparks .58, artillery .42 pass) | freeze: the Tower flip above. At the start of this task (row 0) it was .53 .12 .73 .41 .70 | `demo-matrix` pins only `aborted` |
+| standalone baseline | common weapons 10-20 DPS at about equal damage per energy | Flamethrower 17.7 (33.8 per energy) in range; Ring 9.9, Mace 9.2, Chainsaw 4.3, Hearth 2.7, Rocket 1.4, Firebolt 1.1, Harpoon 0 under | the dummy underrates ranged and lobbed parts (handoff open problem 4): Rocket 1.2 hits of 12.6, Firebolt 0.2 of 5 | `standalone` (no `expect`) |
+
+`demo-matrix`'s `matrix-never` (the player never presses) now allows one win in 4: a hotmelee that
+never fired beat the freeze Tower after the Tower's own shots set off crates under it (672 hazard HP
+in a 40 s fight). Before this task blasts couldn't hurt a chariot, so a passive side never won.
+
+`mirror`: the player side wins 33 of 100 and the enemy 46 (21 draws), as before this task (the
+double knock-out goes to the enemy, see the handoff). Blasts killed 13 player-side and 13
+enemy-side chariots, so the arena doesn't favour a side.

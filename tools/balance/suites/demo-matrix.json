@@ -1434,7 +1434,7 @@
    "expect": {
     "win_rate": [
      0,
-     0
+     0.25
     ],
     "aborted": [
      0,

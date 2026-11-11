@@ -105,7 +105,7 @@ func test_enemy_layout_valid() -> void:
 		if slot.y > lowest_slot_y:
 			lowest_slot_y = slot.y
 	var paths := layout.all_paths()
-	assert_eq(paths.size(), 5, "2 wheels + hearth + harpoon + mace are mounted")
+	assert_eq(paths.size(), 7, "2 wheels + 2 firebolts + hearth + harpoon + mace are mounted")
 	var wheels := 0
 	for path in paths:
 		var steps := _typed_path(path)
@@ -206,8 +206,9 @@ func test_cook_is_a_barge() -> void:
 	var catalog := ChCatalog.load_default()
 	var layout: ChChariotLayout = load("res://game/data/enemies/dozer_cook.tres")
 	assert_eq(layout.body_id, &"corsair", "the cook drives a Corsair")
-	# 1800 was the auto-fire number; presses fire less often, so Task 9 re-tuned it with the runner.
-	assert_eq(layout.max_hp, 700, "the cook has its re-tuned 700 HP")
+	# 1800 was the auto-fire number; presses fire less often, so Task 9 re-tuned it to 700, and the
+	# cook-and-arena tune (two Firebolts on [2]/[3], tools/balance/README.md) to 1450 with the runner.
+	assert_eq(layout.max_hp, 1450, "the cook has its re-tuned 1450 HP")
 	var body: ChBodyDef = catalog.body(layout.body_id)
 	var wheels := _wheel_slots(body)
 	var tops: Array[int] = []

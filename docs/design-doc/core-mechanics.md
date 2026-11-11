@@ -85,6 +85,26 @@ References:
   solid stone with pools of lava. There are no caves.
 - The arena's layout changes as the game progresses.
 
+**Built (the demo arena, `ChArenaBuilder`)**
+- One hand-designed layout, mirrored left to right about the middle, so neither side starts on
+  better ground. The surface noise still varies by seed. Each half holds, from the wall in:
+  - An oil tank sunk flush against the wall: oil in a wood-walled box. Burn or blast the wall and
+    the oil spills; lit oil is a moving fire.
+  - A sealed acid cistern in rock under a rock lid. A blast that breaks the lid lets the acid out;
+    it eats sand, wood, gunpowder and TNT but not rock.
+  - A TNT crate buried a few cells deep, with a gunpowder seam (under a wood plank) running from it
+    toward the spawn. A lit seam walks to the crate and sets it off.
+  - A second TNT crate where the chariots meet, at the lava's edge.
+  - Lava under a sand-and-rock crust in the middle, which a Rocket, a cut or a blast can open.
+  - Plain sand between the spawns, deep enough to dig a pit.
+- No liquid deeper than one cell sits on the driving line. Nothing goes off on its own: only a
+  shot, a flame, a blast or a dig sets the level off.
+- **Blasts hurt chariots and chain.** A TNT or gunpowder blast deals damage to each chariot in its
+  radius once (most at the centre, none at the edge), wears the parts inside it and knocks the
+  chariot away. Explosives inside a blast go off a moment later, so a gunpowder seam ripples and
+  a blast that reaches a crate sets it off. Rocket and Firebolt blasts dig, light fires and set
+  off explosives but deal no area damage; only their direct hit pays.
+
 **Proposed**
 - About 1.5 screens wide (≈480×180 cells at a 320×180 resolution), with a camera that keeps both
   chariots in view.
