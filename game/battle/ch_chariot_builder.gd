@@ -63,9 +63,8 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		# The art faces +x, so it mirrors when the part's facing and the build's mirror disagree.
 		var texture := ChTextures.art(def.texture, node.flipped != mirror_x) if def.texture != null \
 				else ChTextures.disc(def.size.x, def.color) if wheel else ChTextures.box(def.size.x, def.size.y, def.color)
-		# A hand sprite (every textured part but the model-made wheel) has a transparent background and
-		# no outline of its own: it collides as its full box and is seen with a navy rim outside its shape.
-		# ponytail: "not the wheel" stands for "hand-drawn"; a flag on ChPartDef once a second model-made part lands.
+		# Every textured part but the wheel (outlined inside its disc) has a transparent background and no
+		# outline of its own: it collides as its full box and is seen with a navy rim outside its shape.
 		var hand := def.texture != null and not wheel
 		var look := ChTextures.ringed(texture.get_image()) if hand else texture
 		if hand:
