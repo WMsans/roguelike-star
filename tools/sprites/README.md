@@ -25,7 +25,7 @@ Change `--seed` for a new set.
 - Opaque pixels (alpha ≥ 50%) are solid. A PNG without alpha uses dark pixels as solid. Draw it **dark on
   transparent** so both readings agree.
 - At most 128 px per side.
-- **Under ~16 px on the short side, draw the sprite by hand**: the model can't put detail in that little room and
+- **Under ~16 px on the short side, draw the sprite by hand** (`hand_sprites.gd`, `.` = transparent, no outline: the game draws one outside the shape and collides as the full box): the model can't put detail in that little room and
   the result is mush (wheel 12×12, strut 3×8, Cutter 34×9 were all bad).
 
 ## Writing the subject

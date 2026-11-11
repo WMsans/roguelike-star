@@ -62,9 +62,13 @@ Run once over `textures/sprites/*.png`, then reimport in Godot.
 
 ### Hand sprites
 
-Rewrite the grids in `tools/sprites/hand_sprites.gd`: boundary ring `k`, interior filled with the
-sprite's own colours, silhouette and size unchanged. Regenerate with
-`godot --headless --path . -s res://tools/sprites/hand_sprites.gd`.
+*Revised after review:* ringing the hand grids inside their box turned every tiny part into a navy
+square (a 3-4 px tall part loses most of its art to the ring). The grids are back to their original art
+with the navy *background* made transparent (`.`), so each part has its real shape. They are not run
+through `outline.py`. Instead `ChTextures.ringed` draws a 1-px navy outline *outside* the shape for the
+visual (battle and garage card), and `ChTextures.solid` gives the body the full `def.size` box with the
+background filled navy, which matches the old pixels exactly, so collision, mass and balance stay the same.
+`outline.py` stays for the model-made sprites (Cutter, Corsair, Dozer, wheel).
 
 ### Flame plume
 
