@@ -87,16 +87,16 @@ func test_count_materials() -> void:
 
 func test_lit_tnt_detonates_and_reports() -> void:
 	var world := await _make_world()
-	world.fill_rect(Rect2i(30, 30, 4, 4), &"tnt")
+	world.fill_rect(Rect2i(30, 30, 6, 6), &"tnt")
 	world.take_blasts()
-	world.explode(Vector2i(28, 32), 2, 100)   # covers TNT cells: lights them
+	world.explode(Vector2i(28, 33), 2, 100)   # covers TNT cells: lights them
 	world.step(3)
 	var blasts := world.take_blasts()
 	var tnt := blasts.filter(func(b): return b["material"] == &"tnt")
 	assert_true(blasts.any(func(b): return b["material"] == &"" and b["radius"] == 2), "explode() is reported")
-	assert_true(tnt.size() >= 1, "lit TNT went off")
+	assert_eq(tnt.size(), 3, "a lone 6x6 crate goes off as 3 blasts on consecutive ticks")
 	assert_eq(tnt[0]["radius"], 10)
-	assert_eq(world.count_materials(Rect2i(30, 30, 4, 4)).get(&"tnt", 0), 0, "the crate is gone")
+	assert_eq(world.count_materials(Rect2i(30, 30, 6, 6)).get(&"tnt", 0), 0, "the crate is gone")
 	assert_eq(world.take_blasts().size(), 0, "take_blasts clears the queue")
 	_complete()
 

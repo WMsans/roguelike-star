@@ -130,3 +130,21 @@ func test_blast_pushes_away() -> void:
 	f.world.step(1)
 	assert_true(c.chassis.linear_velocity.x > 0.0, "pushed +x: %s" % c.chassis.linear_velocity)
 	_complete()
+
+
+func test_zero_damage_rim_pushes_but_costs_nothing() -> void:
+	var f := await _fight()
+	var ctx: ChBattleContext = f.ctx
+	var c: ChChariotRuntime = ctx.chariots[0]
+	await Engine.get_main_loop().process_frame
+	f.world.step(1)
+	var box := ChBattle.hull_box(c)
+	var before := c.chassis.linear_velocity
+	# gunpowder (6 HP), 47-48 cells out of a radius 50: roundi(6 * 0.05) is 0
+	ChHazards.apply(ctx, [_blast(Vector2(ceilf(box.end.x) + 47, box.get_center().y), 50, &"gunpowder")])
+	await Engine.get_main_loop().process_frame
+	f.world.step(1)
+	assert_eq(c.hp, HP)
+	assert_eq(f.heard.size(), 0, "no HAZARD_HIT")
+	assert_true(c.chassis.linear_velocity.x < before.x, "still pushed away from the blast")
+	_complete()

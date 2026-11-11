@@ -388,7 +388,7 @@ Round 2 (16 seeds for `demo` and `lazy`, so one fight is .0625; G4 on rows R1-R5
 Kept numbers (before → after, both rounds): the Cook 700 → 1500 HP with a Firebolt Launcher on `[2]`
 and `[3]` and a second Hearth on `[6]` in place of the Mace (Harpoon and Hearth `[5]` kept); a Rocket
 hit within 20 cells of its anchor pays a quarter (new); Firebolt damage 60 → 40; Hearth 45 → 36;
-Ring of Fire 18 → 14; Chainsaw 12 → 18; Flamethrower 72 → 63; TNT blast 150 → 300 HP at the centre;
+Ring of Fire 18 → 14; Chainsaw 12 → 18; Flamethrower 72 → 63; TNT blast 150 → 300 HP at the centre (one 6×6 crate goes off as about 3 blasts on consecutive ticks, ≈900 HP to a chariot over it);
 gunpowder radius 3 → 5, gunpowder and TNT `burn_heat` 0 → 600, the seam 1 → 2 rows (so a lit seam
 reaches its crate); a second TNT crate per side at x 198-203 (mirrored 276-281), 3 deep. The freeze
 reference build is Rocket `[2]`, Freeze Charge `[4]`, Harpoon `[5]` in `demo`, `demo-matrix` and
