@@ -13,7 +13,7 @@ python3 tools/sprites/gen_sprite.py --shape hull.png \
 It prints each file it writes and exits 1 with a one-line `error: …` on failure (server unreachable, job error,
 600 s timeout). One run with `--seeds N` gives N variants:
 
-- `<out>/<shape-stem>_s<seed>_<i>.png`: the sprite. RGBA, exactly the shape's size, opaque pixels = the shape's.
+- `<out>/<shape-stem>_s<seed>_<i>.png`: the sprite. RGBA, exactly the shape's size, opaque pixels = the shape's. The model's outline is replaced by `outline.py`'s: the silhouette's boundary ring becomes the sprite's darkest colour, so every edge is closed.
 - `<out>/<shape-stem>_s<seed>_<i>_x8.png`: the same ×8, for looking at. Look at these before picking.
 
 Change `--seed` for a new set.
@@ -46,6 +46,7 @@ background. Your subject only says *what it is*:
 python3 tools/sprites/build_workflow.py          # → workflows/sprite/sprite_from_shape.json + _api.json
 python3 tools/sprites/test_build_workflow.py     # tests: titles, links, UI widget order
 python3 tools/sprites/test_gen_sprite.py
+python3 tools/sprites/test_outline.py   # the ring pass; also runs alone: python3 tools/sprites/outline.py <png>...
 ```
 
 If you edit the graph by hand in the ComfyUI UI instead, use **Export (API)** and save it over

@@ -4,6 +4,7 @@ Python stdlib only. See tools/sprites/README.md.
 import argparse, copy, json, os, sys, time, urllib.error, urllib.parse, urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build_workflow import WORKFLOW_DIR, upload_image
+from outline import outline_image
 
 TIMEOUT = 600
 
@@ -52,8 +53,12 @@ def run(a):
     for title, suffix in (("SPRITE", ""), ("PREVIEW", "_x8")):
         for i, im in enumerate(h["outputs"][titles[title]]["images"]):
             path = os.path.join(a.out, f"{stem}_s{a.seed}_{i}{suffix}.png")
+            data = urllib.request.urlopen(f"{server}/view?" + urllib.parse.urlencode(im), timeout=60).read()
+            # The model's own outline is uneven, so the sprite gets a deterministic one from its silhouette.
+            if not suffix:
+                data = outline_image(data)
             with open(path, "wb") as f:
-                f.write(urllib.request.urlopen(f"{server}/view?" + urllib.parse.urlencode(im), timeout=60).read())
+                f.write(data)
             print(path)
 
 
