@@ -103,8 +103,8 @@
    },
    "expect": {
     "win_rate": [
-     0.2,
-     0.3
+     0.25,
+     0.35
     ],
     "aborted": [
      0,
@@ -131,15 +131,9 @@
      },
      {
       "slot": [
-       3
+       2
       ],
-      "part": "ice_cream_mace"
-     },
-     {
-      "slot": [
-       5
-      ],
-      "part": "corsair_harpoon"
+      "part": "cutter_rocket"
      },
      {
       "slot": [
@@ -149,9 +143,9 @@
      },
      {
       "slot": [
-       2
+       5
       ],
-      "part": "cutter_rocket"
+      "part": "corsair_harpoon"
      }
     ]
    },
@@ -172,15 +166,9 @@
      },
      {
       "slot": [
-       3
+       2
       ],
-      "part": "ice_cream_mace"
-     },
-     {
-      "slot": [
-       5
-      ],
-      "part": "corsair_harpoon"
+      "part": "cutter_rocket"
      },
      {
       "slot": [
@@ -190,9 +178,9 @@
      },
      {
       "slot": [
-       2
+       5
       ],
-      "part": "cutter_rocket"
+      "part": "corsair_harpoon"
      }
     ]
    },
@@ -202,8 +190,8 @@
    },
    "expect": {
     "win_rate": [
-     0.15,
-     0.25
+     0.25,
+     0.35
     ],
     "aborted": [
      0,
@@ -313,8 +301,8 @@
    },
    "expect": {
     "win_rate": [
-     0.4,
-     0.5
+     0.45,
+     0.55
     ],
     "aborted": [
      0,
@@ -424,8 +412,8 @@
    },
    "expect": {
     "win_rate": [
-     0.35,
-     0.45
+     0.3,
+     0.4
     ],
     "aborted": [
      0,

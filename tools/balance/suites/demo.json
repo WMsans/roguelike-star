@@ -55,7 +55,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "ai",
@@ -63,12 +63,12 @@
    },
    "expect": {
     "win_rate": [
-     0.125,
-     0.375
+     0.0625,
+     0.1875
     ],
     "mean_fight_seconds": [
-     25.8,
-     35.8
+     22.9,
+     32.9
     ],
     "aborted": [
      0,
@@ -99,15 +99,9 @@
      },
      {
       "slot": [
-       3
+       2
       ],
-      "part": "ice_cream_mace"
-     },
-     {
-      "slot": [
-       5
-      ],
-      "part": "corsair_harpoon"
+      "part": "cutter_rocket"
      },
      {
       "slot": [
@@ -117,9 +111,9 @@
      },
      {
       "slot": [
-       2
+       5
       ],
-      "part": "cutter_rocket"
+      "part": "corsair_harpoon"
      }
     ]
    },
@@ -128,7 +122,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "ai",
@@ -136,12 +130,12 @@
    },
    "expect": {
     "win_rate": [
-     0.0,
-     0.125
+     0.5,
+     0.625
     ],
     "mean_fight_seconds": [
-     21.9,
-     31.9
+     35.9,
+     45.9
     ],
     "aborted": [
      0,
@@ -207,7 +201,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "ai",
@@ -215,12 +209,12 @@
    },
    "expect": {
     "win_rate": [
-     0.375,
-     0.625
+     0.3125,
+     0.4375
     ],
     "mean_fight_seconds": [
-     25.6,
-     35.6
+     26.5,
+     36.5
     ],
     "aborted": [
      0,
@@ -286,7 +280,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "ai",
@@ -294,12 +288,12 @@
    },
    "expect": {
     "win_rate": [
-     0.375,
-     0.625
+     0.4375,
+     0.5625
     ],
     "mean_fight_seconds": [
-     30.2,
-     40.2
+     37.8,
+     47.8
     ],
     "aborted": [
      0,
@@ -365,7 +359,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "ai",
@@ -373,12 +367,12 @@
    },
    "expect": {
     "win_rate": [
-     0.25,
-     0.5
+     0.4375,
+     0.5625
     ],
     "mean_fight_seconds": [
-     30.6,
-     40.6
+     24.1,
+     34.1
     ],
     "aborted": [
      0,
@@ -444,7 +438,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "mash",
@@ -452,12 +446,12 @@
    },
    "expect": {
     "win_rate": [
-     0.375,
-     0.625
+     0.0625,
+     0.1875
     ],
     "mean_fight_seconds": [
-     21.7,
-     31.7
+     25.6,
+     35.6
     ],
     "aborted": [
      0,
@@ -484,15 +478,9 @@
      },
      {
       "slot": [
-       3
+       2
       ],
-      "part": "ice_cream_mace"
-     },
-     {
-      "slot": [
-       5
-      ],
-      "part": "corsair_harpoon"
+      "part": "cutter_rocket"
      },
      {
       "slot": [
@@ -502,9 +490,9 @@
      },
      {
       "slot": [
-       2
+       5
       ],
-      "part": "cutter_rocket"
+      "part": "corsair_harpoon"
      }
     ]
    },
@@ -513,7 +501,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "mash",
@@ -521,12 +509,12 @@
    },
    "expect": {
     "win_rate": [
-     0.0,
-     0.125
+     0.3125,
+     0.4375
     ],
     "mean_fight_seconds": [
-     29.6,
-     39.6
+     36.2,
+     46.2
     ],
     "aborted": [
      0,
@@ -588,7 +576,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "mash",
@@ -596,12 +584,12 @@
    },
    "expect": {
     "win_rate": [
-     0.0,
-     0.25
+     0.0625,
+     0.1875
     ],
     "mean_fight_seconds": [
-     33.4,
-     43.4
+     32.6,
+     42.6
     ],
     "aborted": [
      0,
@@ -663,7 +651,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "mash",
@@ -672,11 +660,11 @@
    "expect": {
     "win_rate": [
      0.5,
-     0.75
+     0.625
     ],
     "mean_fight_seconds": [
-     28.7,
-     38.7
+     34.3,
+     44.3
     ],
     "aborted": [
      0,
@@ -738,7 +726,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "mash",
@@ -746,12 +734,12 @@
    },
    "expect": {
     "win_rate": [
-     0.0,
-     0.125
+     0.0625,
+     0.1875
     ],
     "mean_fight_seconds": [
-     34.7,
-     44.7
+     28.2,
+     38.2
     ],
     "aborted": [
      0,
@@ -813,7 +801,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "never",
@@ -849,15 +837,9 @@
      },
      {
       "slot": [
-       3
+       2
       ],
-      "part": "ice_cream_mace"
-     },
-     {
-      "slot": [
-       5
-      ],
-      "part": "corsair_harpoon"
+      "part": "cutter_rocket"
      },
      {
       "slot": [
@@ -867,9 +849,9 @@
      },
      {
       "slot": [
-       2
+       5
       ],
-      "part": "cutter_rocket"
+      "part": "corsair_harpoon"
      }
     ]
    },
@@ -878,7 +860,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "never",
@@ -949,7 +931,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "never",
@@ -1020,7 +1002,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "never",
@@ -1091,7 +1073,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "never",
@@ -1150,7 +1132,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "ai",
@@ -1158,8 +1140,8 @@
    },
    "expect": {
     "win_rate": [
-     0.5,
-     0.75
+     0.25,
+     0.375
     ],
     "aborted": [
      0,
@@ -1174,15 +1156,9 @@
     "parts": [
      {
       "slot": [
-       3
+       2
       ],
-      "part": "ice_cream_mace"
-     },
-     {
-      "slot": [
-       5
-      ],
-      "part": "corsair_harpoon"
+      "part": "cutter_rocket"
      },
      {
       "slot": [
@@ -1192,9 +1168,9 @@
      },
      {
       "slot": [
-       2
+       5
       ],
-      "part": "cutter_rocket"
+      "part": "corsair_harpoon"
      }
     ]
    },
@@ -1203,7 +1179,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "ai",
@@ -1211,8 +1187,8 @@
    },
    "expect": {
     "win_rate": [
-     0.0,
-     0.125
+     0.25,
+     0.375
     ],
     "aborted": [
      0,
@@ -1262,7 +1238,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "ai",
@@ -1270,8 +1246,8 @@
    },
    "expect": {
     "win_rate": [
-     0.75,
-     1.0
+     0.3125,
+     0.4375
     ],
     "aborted": [
      0,
@@ -1321,7 +1297,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "ai",
@@ -1329,8 +1305,8 @@
    },
    "expect": {
     "win_rate": [
-     0.75,
-     1.0
+     0.1875,
+     0.3125
     ],
     "aborted": [
      0,
@@ -1380,7 +1356,7 @@
    },
    "seeds": {
     "from": 1,
-    "count": 8
+    "count": 16
    },
    "press": {
     "player": "ai",
@@ -1389,7 +1365,7 @@
    "expect": {
     "win_rate": [
      0.0,
-     0.25
+     0.125
     ],
     "aborted": [
      0,

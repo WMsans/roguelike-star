@@ -183,7 +183,7 @@ func _flamethrower_case(scale: int) -> void:
 	assert_true(burn_at >= 0.0, "the target read as burning during the window")
 	assert_true(fired_at.size() == 1 and burn_at >= 0.0 and burn_at - fired_at[0] <= 1.5,
 		"the target caught within 1.5 s of the burst")
-	# The pulse is the def's damage over the 9 pulses (72 -> 8 at today's .tres), read off the def the
+	# The pulse is the def's damage over the 9 pulses (63 -> 7 at today's .tres), read off the def the
 	# rig was built with, so a scaled def has to scale every pulse.
 	var pulse := roundi(flame.def.damage / 9.0)
 	assert_eq(hits.size(), 9, "the burst spends 9 damage pulses")

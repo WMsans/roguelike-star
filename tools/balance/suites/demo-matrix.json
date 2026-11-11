@@ -68,15 +68,9 @@
       },
       {
        "slot": [
-        3
+        2
        ],
-       "part": "ice_cream_mace"
-      },
-      {
-       "slot": [
-        5
-       ],
-       "part": "corsair_harpoon"
+       "part": "cutter_rocket"
       },
       {
        "slot": [
@@ -86,9 +80,9 @@
       },
       {
        "slot": [
-        2
+        5
        ],
-       "part": "cutter_rocket"
+       "part": "corsair_harpoon"
       }
      ]
     },
@@ -299,15 +293,9 @@
       },
       {
        "slot": [
-        3
+        2
        ],
-       "part": "ice_cream_mace"
-      },
-      {
-       "slot": [
-        5
-       ],
-       "part": "corsair_harpoon"
+       "part": "cutter_rocket"
       },
       {
        "slot": [
@@ -317,9 +305,9 @@
       },
       {
        "slot": [
-        2
+        5
        ],
-       "part": "cutter_rocket"
+       "part": "corsair_harpoon"
       }
      ]
     },
@@ -547,15 +535,9 @@
       },
       {
        "slot": [
-        3
+        2
        ],
-       "part": "ice_cream_mace"
-      },
-      {
-       "slot": [
-        5
-       ],
-       "part": "corsair_harpoon"
+       "part": "cutter_rocket"
       },
       {
        "slot": [
@@ -565,9 +547,9 @@
       },
       {
        "slot": [
-        2
+        5
        ],
-       "part": "cutter_rocket"
+       "part": "corsair_harpoon"
       }
      ]
     },
@@ -778,15 +760,9 @@
       },
       {
        "slot": [
-        3
+        2
        ],
-       "part": "ice_cream_mace"
-      },
-      {
-       "slot": [
-        5
-       ],
-       "part": "corsair_harpoon"
+       "part": "cutter_rocket"
       },
       {
        "slot": [
@@ -796,9 +772,9 @@
       },
       {
        "slot": [
-        2
+        5
        ],
-       "part": "cutter_rocket"
+       "part": "corsair_harpoon"
       }
      ]
     },
@@ -1026,15 +1002,9 @@
       },
       {
        "slot": [
-        3
+        2
        ],
-       "part": "ice_cream_mace"
-      },
-      {
-       "slot": [
-        5
-       ],
-       "part": "corsair_harpoon"
+       "part": "cutter_rocket"
       },
       {
        "slot": [
@@ -1044,9 +1014,9 @@
       },
       {
        "slot": [
-        2
+        5
        ],
-       "part": "cutter_rocket"
+       "part": "corsair_harpoon"
       }
      ]
     },
@@ -1257,15 +1227,9 @@
       },
       {
        "slot": [
-        3
+        2
        ],
-       "part": "ice_cream_mace"
-      },
-      {
-       "slot": [
-        5
-       ],
-       "part": "corsair_harpoon"
+       "part": "cutter_rocket"
       },
       {
        "slot": [
@@ -1275,9 +1239,9 @@
       },
       {
        "slot": [
-        2
+        5
        ],
-       "part": "cutter_rocket"
+       "part": "corsair_harpoon"
       }
      ]
     },
@@ -1434,7 +1398,7 @@
    "expect": {
     "win_rate": [
      0,
-     0.25
+     0
     ],
     "aborted": [
      0,

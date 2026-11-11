@@ -156,9 +156,9 @@ func _catch_fire(ctx: ChBattleContext, part: ChPartRuntime) -> void:
 	ctx.bus.emit(event)
 
 # Point-blank: the same shot with the foe's hull 7 cells from the launcher (rig origins 20 apart)
-# pays half (ch_rocket.gd POINT_BLANK 20, POINT_BLANK_SHARE 0.5; the 27-cell hit above pays in full), so a Rocket pressed into a
+# pays a quarter (ch_rocket.gd POINT_BLANK 20, POINT_BLANK_SHARE 0.25; the 27-cell hit above pays in full), so a Rocket pressed into a
 # chariot that drove onto it is no longer the best gun in the game.
-func test_rocket_point_blank_pays_half() -> void:
+func test_rocket_point_blank_pays_a_quarter() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var catalog := _catalog()
@@ -178,7 +178,7 @@ func test_rocket_point_blank_pays_half() -> void:
 		if ctx.time < TICKS_TO_FIRE * TICK:
 			ctx.tick(TICK, [0.0, 0.0], PRESS)
 	assert_eq(hits.size(), 1, "one fire, one landed hit")
-	assert_eq(foe.hp, foe_hp - roundi(rocket.def.damage * 0.5), "a point-blank hit pays half")
+	assert_eq(foe.hp, foe_hp - roundi(rocket.def.damage * 0.25), "a point-blank hit pays a quarter")
 	_complete()
 
 # Ignition: every CAUGHT_FIRE, from either side, halves the rocket's own countdown. The fire is

@@ -24,6 +24,7 @@ const ACID_X := 34  # the acid cistern's left edge: 16 wide, rock walls 2 thick
 const FLANK_CRATE_X := 118  # the flank crate's left edge (left half)
 const FUSE_END := 150  # the seam's far end, at the spawn hull's tail (144)
 const MID_CRATE_X := 198  # the middle crate's left edge (left half)
+const MID_CRATE_DEPTH := 3  # sand over the middle crate. 5 (out of a Rocket hull hit's reach) cost artillery and selfburn 2-4 wins of 16
 const LAVA_TOP := 6  # cells under the surface; a wheel samples about 4 down (ChPartRuntime.sample_rect)
 
 
@@ -108,7 +109,7 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 	# A second crate where the chariots meet, at the lava's edge (x 198-203, mirrored 276-281), buried
 	# the same way: a Rocket or Firebolt that digs there, or a fire that burns down to it, sets it off
 	# under whoever is brawling over it. Without it the flank crates went off in under 1 fight in 8.
-	var mid_top: int = surface.slice(MID_CRATE_X, MID_CRATE_X + 6).max() + 3
+	var mid_top: int = surface.slice(MID_CRATE_X, MID_CRATE_X + 6).max() + MID_CRATE_DEPTH
 	_both(world, Rect2i(MID_CRATE_X, mid_top, 6, 6), &"tnt")
 	# The gunpowder seam: a fuse 2 rows deep, 2 under the surface, from the crate toward the spawn,
 	# under a 1-cell wood plank. One row did not carry: each blast's ragged crater dropped the next

@@ -12,7 +12,7 @@ const BLAST_POWER := 300.0
 # Rocket pressed into a chariot that drove onto it is not the best weapon in the game (the Cook
 # drove into lone Rockets and lost 7 of 8 in the cook-and-arena spec's lazy runs).
 const POINT_BLANK := 20.0
-const POINT_BLANK_SHARE := 0.5
+const POINT_BLANK_SHARE := 0.25
 
 func setup(ctx: ChBattleContext) -> void:
 	# Ignition hears every caught fire, on either side, so the subscription carries no range.

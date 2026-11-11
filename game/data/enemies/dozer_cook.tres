@@ -25,7 +25,7 @@ flipped = false
 
 [sub_resource type="Resource" id="ChSlotNode_5"]
 script = ExtResource("1_slot")
-part_id = &"ice_cream_mace"
+part_id = &"hearth"
 flipped = false
 
 [sub_resource type="Resource" id="ChSlotNode_2"]
@@ -41,5 +41,5 @@ flipped = false
 [resource]
 script = ExtResource("1_layout")
 body_id = &"corsair"
-max_hp = 1450
+max_hp = 1500
 slots = { 0: SubResource("ChSlotNode_0"), 1: SubResource("ChSlotNode_1"), 2: SubResource("ChSlotNode_2"), 3: SubResource("ChSlotNode_3"), 4: SubResource("ChSlotNode_4"), 5: SubResource("ChSlotNode_6"), 6: SubResource("ChSlotNode_5") }

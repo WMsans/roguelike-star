@@ -105,7 +105,7 @@ func test_enemy_layout_valid() -> void:
 		if slot.y > lowest_slot_y:
 			lowest_slot_y = slot.y
 	var paths := layout.all_paths()
-	assert_eq(paths.size(), 7, "2 wheels + 2 firebolts + hearth + harpoon + mace are mounted")
+	assert_eq(paths.size(), 7, "2 wheels + 2 firebolts + 2 hearths + harpoon are mounted")
 	var wheels := 0
 	for path in paths:
 		var steps := _typed_path(path)
@@ -201,14 +201,15 @@ func test_slots_inside_outline() -> void:
 
 
 func test_cook_is_a_barge() -> void:
-	# Spec §2: the cook's kit is a brawler's, so it drives the Barge with Hearth and Mace on the two
+	# Spec §2: the cook's kit is a brawler's, so it drives the Barge with its two Hearths on the two
 	# frontmost top slots (+x is forward; the battle mirrors the enemy so its front faces the player).
 	var catalog := ChCatalog.load_default()
 	var layout: ChChariotLayout = load("res://game/data/enemies/dozer_cook.tres")
 	assert_eq(layout.body_id, &"corsair", "the cook drives a Corsair")
 	# 1800 was the auto-fire number; presses fire less often, so Task 9 re-tuned it to 700, and the
-	# cook-and-arena tune (two Firebolts on [2]/[3], tools/balance/README.md) to 1450 with the runner.
-	assert_eq(layout.max_hp, 1450, "the cook has its re-tuned 1450 HP")
+	# cook-and-arena tune (two Firebolts on [2]/[3], a second Hearth for the Mace, tools/balance/README.md)
+	# to 1500 with the runner.
+	assert_eq(layout.max_hp, 1500, "the cook has its re-tuned 1500 HP")
 	var body: ChBodyDef = catalog.body(layout.body_id)
 	var wheels := _wheel_slots(body)
 	var tops: Array[int] = []
@@ -221,7 +222,7 @@ func test_cook_is_a_barge() -> void:
 		var node: ChSlotNode = layout.get_node(_typed_path([i]))
 		front.append(node.part_id if node != null else &"")
 	front.sort()
-	assert_eq(front, [&"hearth", &"ice_cream_mace"], "Hearth and Mace on the front top slots")
+	assert_eq(front, [&"hearth", &"hearth"], "two Hearths on the front top slots")
 	for i in wheels:
 		var node: ChSlotNode = layout.get_node(_typed_path([i]))
 		assert_true(node != null and node.part_id == &"wheel", "wheel on slot %d" % i)
