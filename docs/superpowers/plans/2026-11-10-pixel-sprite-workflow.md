@@ -196,4 +196,4 @@ def test_dead_server_exits_nonzero():
 
 ## Server changes log
 
-(Task 1 appends here.)
+- 2026-11-10: appended `SpriteShapeCanvas` and `SpriteFinish` (+ helpers `shape_solid`, `canvas_origin`, `kmeans_medoid`) to `/home/jeremy/inference/ComfyUI/custom_nodes/pixel_palette.py` (backup `pixel_palette.py.bak-2026-11-10`); tests in `/home/jeremy/inference/pixel_node_tests/test_sprite_nodes.py`; ComfyUI restarted, both nodes in `/object_info`.
