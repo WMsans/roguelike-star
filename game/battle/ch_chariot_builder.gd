@@ -63,7 +63,14 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		# The art faces +x, so it mirrors when the part's facing and the build's mirror disagree.
 		var texture := ChTextures.art(def.texture, node.flipped != mirror_x) if def.texture != null \
 				else ChTextures.disc(def.size.x, def.color) if wheel else ChTextures.box(def.size.x, def.size.y, def.color)
+		# Every textured part but the wheel (outlined inside its disc) has a transparent background and no
+		# outline of its own: it collides as its full box and is seen with a navy rim outside its shape.
+		var hand := def.texture != null and not wheel
+		var look := ChTextures.ringed(texture.get_image()) if hand else texture
+		if hand:
+			texture = ChTextures.solid(texture.get_image())
 		var body := _body(parent, world, texture, _material(def.material), def.size, at, PixelRigidBody.SHAPE_CIRCLE if wheel else PixelRigidBody.SHAPE_HULL, group)
+		(visual_of(body) as Sprite2D).texture = look
 		if wheel:
 			body.friction = WHEEL_FRICTION
 		var other_body: PixelRigidBody = holder.body if holder != null else runtime.chassis
@@ -85,7 +92,7 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 			# z -1 under the Visual so the ring never covers the art; hidden until a part is ready.
 			var ring := Sprite2D.new()
 			ring.name = "Outline"
-			ring.texture = ChTextures.outline(texture.get_image(), Color.WHITE)
+			ring.texture = ChTextures.outline(look.get_image(), Color.WHITE)
 			ring.centered = true
 			ring.z_index = -1
 			ring.visible = false

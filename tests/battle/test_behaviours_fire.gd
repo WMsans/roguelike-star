@@ -224,6 +224,36 @@ func test_breaking_a_firing_flamethrower_stops_its_jet() -> void:
 	assert_true(jet._fade_left >= 0.0, "the jet faded instead of looping on the wreck")
 	_complete()
 
+# A flame is emitted, not glued: the plume stays where the burst started it even when the rig
+# rolls, so its tail does not swing with the gun.
+func test_flamethrower_jet_stays_where_it_was_fired() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"flamethrower"]]), catalog, 0, ORIGIN, false)
+	var flame := _part_of(at, [1])
+	assert_true(flame != null and flame.behaviour != null, "the flamethrower mounted and behaves")
+	var ctx: ChBattleContext = _battle(world, catalog, [at])
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	for _tick in FLAME_MID_BURST_TICKS:
+		world.step(1)
+		ctx.tick(TICK, [0.0], PRESS)
+	var jet: ChFx = flame.behaviour.jet
+	assert_true(jet != null and is_instance_valid(jet), "the burst is playing its looping jet")
+	var fired_at := jet.position
+	var turned_at := jet.rotation
+	var mirrored_at := jet.scale.x
+	# Roll the gun: a tail glued to the head would swing with it.
+	flame.body.global_rotation += 0.6
+	for _tick in 3:
+		flame.behaviour.process(ctx, TICK)
+	assert_true(jet.position.is_equal_approx(fired_at), "the jet stays where it was fired (%s, was %s)" % [jet.position, fired_at])
+	assert_true(is_equal_approx(jet.rotation, turned_at), "the jet does not turn with the rig")
+	assert_true(jet.scale.x == mirrored_at, "the jet keeps its own mirror")
+	_complete()
+
 # The hearth charges for 1 s, then rings fire into the air cells 2 cells out from the own hull
 # every 0.25 s and pays the bodies that overlap that ring. The near hull's box touches the ring
 # (its own hull 10 cells out from the hearth's hull) and the far hull 40 cells out does not,

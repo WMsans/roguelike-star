@@ -14,6 +14,7 @@ const PAD := 8.0
 const FONT := 12  # the card's own size: the theme's 20 would not fit a name in 88 pixels
 const LINE := 16.0  # one text row
 const NAME_LINES := 2  # a name wraps to two rows before it would run into the cost
+static var _looks := {}  # def.texture -> its ringed look, built once per sprite
 
 var part_id: StringName = &""
 var def: ChPartDef = null
@@ -95,9 +96,17 @@ static func paint(canvas: CanvasItem, centre: Vector2, def: ChPartDef, zoom: flo
 	# second copy of the rule.
 	var box := Vector2(maxi(1, def.size.x), maxi(1, def.size.y)) * zoom
 	if def.texture != null:
+		# A hand sprite gets the battle's navy rim outside its shape (see ChChariotBuilder), so it is
+		# drawn 1 px larger on every side; the wheel is model-made and outlined already.
+		var look := def.texture
+		if def.id != &"wheel":
+			if not _looks.has(def.texture):
+				_looks[def.texture] = ChTextures.ringed(def.texture.get_image())
+			look = _looks[def.texture]
+			box += Vector2(2, 2) * zoom
 		# A negative width mirrors the art, which faces +x, for a flipped part.
 		var w := -box.x if flipped else box.x
-		canvas.draw_texture_rect(def.texture, Rect2(centre + Vector2(-w * 0.5, -box.y * 0.5), Vector2(w, box.y)), false)
+		canvas.draw_texture_rect(look, Rect2(centre + Vector2(-w * 0.5, -box.y * 0.5), Vector2(w, box.y)), false)
 		return
 	if def.id == &"wheel":
 		canvas.draw_circle(centre, box.x * 0.5, def.color)

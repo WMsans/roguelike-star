@@ -389,7 +389,17 @@ func test_bodies_hide_and_carry_a_visual() -> void:
 			continue
 		# centred, at the body's origin: that is where PixelRigidBody::_draw puts the same texture
 		# (draw_texture(texture, -texture->get_size() * 0.5)), so the art does not move.
-		assert_true((visual as Sprite2D).texture == body.texture, "the visual draws the body's texture")
+		# A hand sprite is seen with a navy rim outside its shape, 1 px on every side; the rest draw the body's own texture.
+		var hand := false
+		for part in runtime.parts:
+			if part.body == body:
+				hand = part.def.texture != null and part.def.id != &"wheel"
+		if hand:
+			assert_eq((visual as Sprite2D).texture.get_size(), body.texture.get_size() + Vector2(2, 2), "a hand sprite's rim is 1 px outside the body")
+			var img: Image = body.texture.get_image()
+			assert_true(not img.is_invisible() and img.detect_alpha() == Image.ALPHA_NONE, "and its body collides as the full box")
+		else:
+			assert_true((visual as Sprite2D).texture == body.texture, "the visual draws the body's texture")
 		assert_true((visual as Sprite2D).centered, "centred on the body's origin")
 		assert_eq(visual.position, Vector2.ZERO, "at the body's origin")
 		assert_eq((visual as Sprite2D).offset, Vector2.ZERO, "and with no offset, so the texture stays put")
@@ -504,8 +514,8 @@ func test_triggered_parts_get_an_outline() -> void:
 	if rocket.outline != null:
 		assert_eq(rocket.outline.get_parent(), rocket.body, "it hangs on the part's body")
 		assert_true(not rocket.outline.visible, "and starts hidden")
-		assert_eq(rocket.outline.texture.get_size(), Vector2(rocket.def.size) + Vector2(2, 2),
-			"2 px wider and taller than the part")
+		assert_eq(rocket.outline.texture.get_size(), Vector2(rocket.def.size) + Vector2(4, 4),
+			"1 px outside the part's navy rim on every side")
 	assert_true(wheel.outline == null, "the Wheel is passive, so it has no outline")
 	world.free()
 	_complete()

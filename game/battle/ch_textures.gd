@@ -4,6 +4,8 @@ class_name ChTextures extends RefCounted
 # the addon README forbids shipping code referencing res://addons/noita_engine/demo/.
 # PixelRigidBody stamps only a body's opaque pixels, so box/disc never build an empty image.
 
+const INK := Color("1a1c2c")  # the sprites' navy outline
+
 static func art(source: Texture2D, flip_x: bool) -> ImageTexture:
 	# A def's sprite as a body's own texture: RGBA8 like the placeholders, mirrored when the part
 	# (or the whole build) faces -x.
@@ -71,6 +73,23 @@ static func outline(source: Image, colour: Color) -> ImageTexture:
 			if _solid(source, x - 2, y - 1) or _solid(source, x, y - 1) \
 					or _solid(source, x - 1, y - 2) or _solid(source, x - 1, y):
 				image.set_pixel(x, y, colour)
+	return ImageTexture.create_from_image(image)
+
+static func ringed(source: Image) -> ImageTexture:
+	# A hand sprite as it is seen: its art with a one-pixel navy outline outside the shape, 2 px larger
+	# on each axis like outline(). Drawn centred, its art lands on the same cells as the body's.
+	var image := outline(source, INK).get_image()
+	image.blend_rect(source, Rect2i(Vector2i.ZERO, source.get_size()), Vector2i.ONE)
+	return ImageTexture.create_from_image(image)
+
+static func solid(source: Image) -> ImageTexture:
+	# The body a hand sprite collides as: its whole def.size box, the way it did before the art had a
+	# transparent background, so collision, mass and balance do not depend on the art's shape.
+	var image := source.duplicate() as Image
+	for y: int in image.get_height():
+		for x: int in image.get_width():
+			if image.get_pixel(x, y).a < 0.5:
+				image.set_pixel(x, y, INK)
 	return ImageTexture.create_from_image(image)
 
 static func _solid(image: Image, x: int, y: int) -> bool:

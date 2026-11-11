@@ -317,6 +317,9 @@ func test_sprites_keep_the_placeholder_pixels() -> void:
 		else:
 			want = ChTextures.box(def.size.x, def.size.y, Color.BLACK).get_image()
 		var got: Image = def.texture.get_image()
+		# A hand sprite's art has a transparent background; its body collides as ChTextures.solid(art).
+		if def is ChPartDef and def.id != &"wheel":
+			got = ChTextures.solid(got).get_image()
 		assert_eq(got.get_size(), want.get_size(), "%s sprite is its def's size" % def.id)
 		var off := 0
 		for y in mini(got.get_height(), want.get_height()):
