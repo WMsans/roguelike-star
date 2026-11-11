@@ -25,11 +25,11 @@ const SPRITES := {
 		"kmk",
 		"kkk"]],
 	&"ember_battery": [{"k": "1a1c2c", "g": "566c86", "y": "ffcd75", "o": "ef7d57", "r": "b13e53"}, [
-		"kgggk",
-		"gyyog",
-		"gyorg",
-		"gorrg",
-		"kgggk"]],
+		"kkkkk",
+		"kyyok",
+		"kyork",
+		"korrk",
+		"kkkkk"]],
 	&"hearth": [{"k": "1a1c2c", "L": "d77355", "b": "a03c32", "y": "ffcd75", "o": "ef7d57"}, [
 		"kkkkkk",
 		"kbLbLk",

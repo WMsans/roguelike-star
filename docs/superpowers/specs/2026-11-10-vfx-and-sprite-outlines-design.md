@@ -51,8 +51,9 @@ rotation at `fire()` and leave it until the burst ends. The plume no longer foll
 `tools/sprites/outline.py`, Python stdlib only:
 
 - `outline_image(rgba_bytes) -> bytes`: decode RGBA8 PNG, find the darkest opaque colour (lowest
-  luminance, ties on first seen), set every opaque pixel with a transparent or off-image 4-neighbour
-  to that colour, re-encode.
+  luminance among alpha >= 128, the engine's own empty cut; ties on first seen), set every opaque
+  pixel with an empty (alpha < 128) or off-image 4-neighbour to that colour, alpha 255, re-encode.
+  A faint anti-aliased edge therefore cannot grow the collision silhouette.
 - CLI: `python3 tools/sprites/outline.py <png>...` rewrites each file in place and prints it.
 - `gen_sprite.py` runs the pass on each `SPRITE` download before writing it (not on `_x8`
   previews), so new sprites arrive outlined.
@@ -76,7 +77,9 @@ sprite's own colours, silhouette and size unchanged. Regenerate with
 ## Tests
 
 - `tools/sprites/test_outline.py`: ring is the darkest colour on all four sides; interior colours and
-  alpha untouched; already-outlined input is unchanged; a 1x1 sprite works.
+  alpha untouched; already-outlined input is unchanged; degenerate 1x1 and 1-pixel-wide sprites; an
+  opaque island in a transparent field; a faint pixel is empty and not the outline colour; the ring
+  is written solid.
 - `tests/battle/test_behaviours_fire.gd`: the jet's position and rotation stay at the fire-time
   values while the part's facing changes.
 - Full suite: `godot --headless -s res://tests/run_tests.gd` (311 baseline, 0 failed).

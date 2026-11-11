@@ -3,14 +3,16 @@
 The outline the sprite workflow gets from the image model is uneven: some silhouette edges come back
 dark, others keep the object's colour, and on tiny sprites the model fills the empty space with the
 outline colour instead. This pass derives the outline from the silhouette instead: every opaque pixel
-that touches a transparent pixel (or the image edge) becomes the sprite's darkest colour. The opaque
-set, and so the body PixelRigidBody builds, does not change.
+that touches an empty pixel (alpha below 50%, the engine's own cut) or the image edge becomes the
+sprite's darkest colour. The opaque set, and so the body PixelRigidBody builds, does not change.
 
   python3 tools/sprites/outline.py textures/sprites/*.png    # rewrites each file in place
 
 gen_sprite.py runs outline_image() on every sprite it downloads, so new sprites arrive outlined.
 """
 import struct, sys, zlib
+
+OPAQUE = 128  # alpha at and above this is solid, the engine's own cut (a < 0.5 is empty)
 
 
 def _decode(data):
@@ -72,16 +74,20 @@ def _encode(w, h, rows):
 
 
 def outline_image(data):
-    """The PNG with every opaque boundary pixel set to the darkest opaque colour in the image."""
+    """The PNG with every opaque boundary pixel set to the darkest opaque colour in the image.
+
+    Opaque is alpha >= 128, the engine's own cut (PixelRigidBody treats a < 0.5 as empty), so a
+    faint anti-aliased edge cannot grow the collision silhouette. The ring is written solid.
+    """
     w, h, rows = _decode(data)
     darkest, best = None, None
     for row in rows:
         for i in range(0, w * 4, 4):
-            if row[i + 3] == 0:
+            if row[i + 3] < OPAQUE:
                 continue
             lum = 0.299 * row[i] + 0.587 * row[i + 1] + 0.114 * row[i + 2]
             if best is None or lum < best:
-                darkest, best = bytes(row[i:i + 4]), lum
+                darkest, best = bytes(row[i:i + 3]) + b"\xff", lum
     if darkest is None:
         return data
     out = list(rows)
@@ -89,12 +95,12 @@ def outline_image(data):
         row = rows[y]
         for x in range(w):
             at = x * 4
-            if row[at + 3] == 0:
+            if row[at + 3] < OPAQUE:
                 continue
-            edge = (x == 0 or rows[y][at - 1] == 0
-                    or x == w - 1 or rows[y][at + 7] == 0
-                    or y == 0 or rows[y - 1][at + 3] == 0
-                    or y == h - 1 or rows[y + 1][at + 3] == 0)
+            edge = (x == 0 or rows[y][at - 1] < OPAQUE
+                    or x == w - 1 or rows[y][at + 7] < OPAQUE
+                    or y == 0 or rows[y - 1][at + 3] < OPAQUE
+                    or y == h - 1 or rows[y + 1][at + 3] < OPAQUE)
             if edge:
                 if out[y] is rows[y]:
                     out[y] = bytearray(row)

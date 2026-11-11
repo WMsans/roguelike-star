@@ -111,6 +111,43 @@ def test_wide_flat_sprite():
     assert all(p == DARK for p in out[0] + out[1]), "a 2-row sprite is all boundary"
 
 
+def test_one_pixel_wide():
+    rows = [[BASE], [DARK], [BASE], [BASE], [BASE]]
+    _w, _h, out = png_rows(outline_image(png_bytes(rows)))
+    assert all(p == DARK for p in (row[0] for row in out)), "every pixel of a 1-px column is boundary"
+
+
+def test_opaque_island_keeps_transparent_around_it():
+    rows = [[(0, 0, 0, 0)] * 7 for _ in range(7)]
+    for y in range(2, 5):
+        for x in range(2, 5):
+            rows[y][x] = BASE
+    rows[3][3] = DARK
+    _w, _h, out = png_rows(outline_image(png_bytes(rows)))
+    for y in range(2, 5):
+        for x in range(2, 5):
+            assert out[y][x] == DARK, (x, y, out[y][x])
+    assert out[2][1] == (0, 0, 0, 0), "the ring does not spill into the transparent field"
+    assert out[1][1] == (0, 0, 0, 0)
+
+
+def test_semi_transparent_is_empty_not_the_darkest():
+    rows = [[BASE] * 3 for _ in range(3)]
+    rows[1][1] = (10, 10, 10, 100)
+    _w, _h, out = png_rows(outline_image(png_bytes(rows)))
+    assert out[0][1] == BASE, "a faint pixel is not a candidate for the outline colour"
+    assert out[1][1] == (10, 10, 10, 100), "a faint pixel is left as it came"
+    assert all(out[y][x][3] == 255 for y in range(3) for x in range(3) if (x, y) != (1, 1))
+
+
+def test_darkest_ring_is_written_solid():
+    rows = [[BASE] * 5 for _ in range(5)]
+    rows[2][2] = (10, 10, 10, 200)
+    _w, _h, out = png_rows(outline_image(png_bytes(rows)))
+    assert out[0][0] == (10, 10, 10, 255), "the ring is solid even when the darkest pixel is not"
+    assert out[2][2] == (10, 10, 10, 200), "an interior pixel keeps its own alpha"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
