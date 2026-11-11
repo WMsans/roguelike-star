@@ -305,4 +305,3 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 		# the same condition ChChariotRuntime.drive makes for a broken or frozen wheel.
 		chariot.drive(0.0)
 	return fired_count
-
