@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_profile")
-scale_kick = 5.0
-rotation_kick_deg = 14.0
+scale_kick = 0.12
+rotation_kick_deg = 10.0
 text = "-%d"
 text_color = Color(1.0, 0.419608, 0.352941, 1.0)
 particle_count = 10

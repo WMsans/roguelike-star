@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_profile")
-scale_kick = 9.0
-rotation_kick_deg = 25.0
+scale_kick = 0.25
+rotation_kick_deg = 18.0
 text = "BROKEN"
 text_color = Color(1.0, 1.0, 1.0, 1.0)
 particle_count = 24

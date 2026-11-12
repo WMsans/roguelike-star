@@ -1,7 +1,7 @@
 class_name ChSpring extends RefCounted
 
-# One damped spring per scalar: the motion behind every feedback beat (scale, rotation).
-# Semi-implicit Euler at a fixed substep, so a kick reads the same at any frame rate.
+# One damped spring per scalar: the settle behind the feedback that outlives a beat (scale, rotation).
+# Semi-implicit Euler at a fixed substep, so one frame's motion reads the same at any frame rate.
 const MAX_OFFSET := 2.0
 # A longer frame is split into substeps of at most this, which is what keeps a stiff spring
 # from blowing up when one frame stalls.
@@ -10,8 +10,8 @@ const MAX_STEP := 1.0 / 120.0
 var value: float
 var velocity := 0.0
 var rest: float
-var stiffness := 320.0
-var damping := 14.0
+var stiffness := 400.0
+var damping := 38.0
 
 
 func _init(rest_in: float) -> void:

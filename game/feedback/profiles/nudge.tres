@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_profile")
-scale_kick = 3.0
+scale_kick = 0.06
 rotation_kick_deg = 3.0
 text = ""
 text_color = Color(1.0, 1.0, 1.0, 1.0)

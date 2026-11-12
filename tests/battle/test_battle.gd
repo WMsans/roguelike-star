@@ -649,7 +649,9 @@ func test_dud_press_nudges_hull() -> void:
 		part.cooldown_left = 100.0
 	var juice := ChJuice.of(battle.player.chassis_visual)
 	await Engine.get_main_loop().process_frame
-	assert_true(not is_zero_approx(juice.scale_spring.velocity), "a dud press kicked the hull")
+	# Every tick presses and fires nothing, so a nudge beat lands on the hull each tick: read one
+	# frame after a tick, nudge's 0.06 is still bent into the scale.
+	assert_true(absf(juice.scale_value() - 1.0) > 0.01, "a dud press beats the hull")
 	battle.free()
 	_complete()
 

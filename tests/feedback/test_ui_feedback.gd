@@ -97,14 +97,19 @@ func test_card_press_and_hover_kick() -> void:
 	if juice == null:
 		_complete()
 		return
-	assert_eq(juice.scale_spring.velocity, 0.0, "a card at rest is still")
+	assert_near(juice.scale_value(), 1.0, 0.0001, "a card at rest is unbent")
 	card.pressed.emit()
-	var pressed_velocity := juice.scale_spring.velocity
-	assert_true(pressed_velocity > 0.0, "pressing the card kicks its juice")
+	# A beat starts at sin(0), so one step to its peak is what shows it landed: activate's 0.10 gets
+	# to 0.10 * sin(50 * 0.03) * (1 - 0.1)^3.
+	juice.advance(0.03)
+	assert_near(juice.scale_value() - 1.0, 0.0727, 0.001, "pressing the card beats its juice")
 	# The pick ran too: feedback rides on the screen's own rule, it does not stand in for it.
 	assert_eq(garage.held_id, &"wheel", "and the press still picked the part up")
+	# Step the press beat out (its clock passes BEAT_TIME) so the hover's beat is the only one left.
+	juice.advance(ChJuice.BEAT_TIME)
 	card.mouse_entered.emit()
-	assert_true(juice.scale_spring.velocity > pressed_velocity, "hover kicks it again, on top")
+	juice.advance(0.03)
+	assert_near(juice.scale_value() - 1.0, 0.0291, 0.001, "hover beats it too (hover's 0.04)")
 	_complete()
 
 
@@ -122,7 +127,9 @@ func test_drop_pops_the_new_piece() -> void:
 	if juice == null:
 		_complete()
 		return
-	assert_true(juice.scale_spring.velocity > 0.0, "placing kicks the piece that just appeared")
+	juice.advance(0.03)
+	assert_near(juice.scale_value() - 1.0, 0.1091, 0.001,
+		"placing beats the piece that just appeared (placed's 0.15)")
 	assert_eq(_bursts(), bursts_before + 1, "and the placed burst landed on the popup layer")
 	_complete()
 
@@ -140,9 +147,11 @@ func test_lift_pops_the_card() -> void:
 	if juice == null:
 		_complete()
 		return
-	assert_eq(juice.scale_spring.velocity, 0.0, "the drop kicked the piece, not the card")
+	assert_near(juice.scale_value(), 1.0, 0.0001, "the drop beat the piece, not the card")
 	assert_true(garage.lift([0]), "lifting the wheel takes it off the hull")
-	assert_true(juice.scale_spring.velocity > 0.0, "so the lift kicks the card it went back to")
+	juice.advance(0.03)
+	assert_near(juice.scale_value() - 1.0, 0.0727, 0.001,
+		"so the lift beats the card it went back to (activate's 0.10)")
 	assert_eq(garage.card_counts()[&"wheel"], 1, "and the card really did get the part back")
 	_complete()
 
@@ -160,10 +169,12 @@ func test_cycle_pops_the_hull() -> void:
 	if juice == null:
 		_complete()
 		return
-	assert_eq(juice.scale_spring.velocity, 0.0, "the hull rests until the body changes")
+	assert_near(juice.scale_value(), 1.0, 0.0001, "the hull rests until the body changes")
 	garage.cycle_body(1)
 	assert_eq(layout.body_id, &"dozer", "the cycle walked to the next body")
-	assert_true(juice.scale_spring.velocity > 0.0, "and kicked the hull the new body shows on")
+	juice.advance(0.03)
+	assert_near(juice.scale_value() - 1.0, 0.1091, 0.001,
+		"and beat the hull the new body shows on (placed's 0.15)")
 	assert_true(garage.hull_piece() == hull, "on the piece the pit kept, not a rebuilt one")
 	_complete()
 
@@ -185,7 +196,8 @@ func test_top_bar_and_back_buttons_juiced() -> void:
 				juice_children += 1
 		assert_eq(juice_children, 1, "%s has exactly one Juice child" % path)
 		button.pressed.emit()
-		assert_true(juice.scale_spring.velocity > 0.0, "%s kicks on press" % path)
+		juice.advance(0.03)
+		assert_near(juice.scale_value() - 1.0, 0.0727, 0.001, "%s beats on press" % path)
 	# The result screen's one control, built in code the way the HUD is.
 	var panel := ChResultPanel.new()
 	_track(panel)
@@ -195,7 +207,8 @@ func test_top_bar_and_back_buttons_juiced() -> void:
 		_complete()
 		return
 	panel.back.pressed.emit()
-	assert_true(back_juice.scale_spring.velocity > 0.0, "and kicks when it is pressed")
+	back_juice.advance(0.03)
+	assert_near(back_juice.scale_value() - 1.0, 0.0727, 0.001, "and beats when it is pressed")
 	_complete()
 
 
@@ -213,8 +226,10 @@ func test_round_trip_with_feedback() -> void:
 	var piece := main.garage.piece_at(_typed_path([3]))
 	assert_true(piece != null, "the Rocket has a piece")
 	var piece_juice := ChJuice.of(piece) if piece != null else null
-	assert_true(piece_juice != null and piece_juice.scale_spring.velocity > 0.0,
-		"and the placement left it wobbling")
+	if piece_juice != null:
+		piece_juice.advance(0.03)
+	assert_true(piece_juice != null and absf(piece_juice.scale_value() - 1.0) > 0.1,
+		"and the placement left it mid-beat")
 	# The fight is asked for on the same frame as that kick, the way a player who just placed a
 	# part and hits Fight does.
 	main.garage.request_fight()

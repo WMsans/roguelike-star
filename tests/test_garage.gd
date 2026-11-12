@@ -741,8 +741,8 @@ func test_pit_pieces_match_layout() -> void:
 
 
 func test_piece_survives_unrelated_change() -> void:
-	# A part that did not change keeps its node, and with it the spring state a kick left on it:
-	# a rebuild would silently drop a wobble that is still in flight.
+	# A part that did not change keeps its node, and with it the beat still in flight on it:
+	# a rebuild would silently drop a wobble that is still running.
 	var inventory := _inventory([&"wheel", &"wheel"])
 	var garage: ChGarage = _garage_scene(inventory, _layout(&"cutter"), _catalog())
 	assert_true(garage.drop_part(&"wheel", [0]), "the first wheel mounts")
@@ -753,13 +753,14 @@ func test_piece_survives_unrelated_change() -> void:
 		return
 	var juice := ChJuice.of(first)
 	assert_true(juice != null, "the piece carries a Juice child")
-	juice.kick(6.0, 3.0)
-	var velocity := juice.scale_spring.velocity
+	juice.juice_up(0.2, 0.1)
+	juice.advance(0.03)
+	var bent := juice.scale_value()
 	assert_true(garage.drop_part(&"wheel", [1]), "a second wheel lands in another slot")
 	assert_true(garage.piece_at(_typed_path([0])) == first,
 		"the first piece is the same instance after the second drop")
-	assert_eq(ChJuice.of(first).scale_spring.velocity, velocity,
-		"and its spring kept the kick, so nothing rebuilt the piece under it")
+	assert_eq(ChJuice.of(first).scale_value(), bent,
+		"and its beat is still running, so nothing rebuilt the piece under it")
 	_complete()
 
 
@@ -774,10 +775,10 @@ func test_lift_frees_subtree_pieces() -> void:
 	if strut == null or wheel == null:
 		_complete()
 		return
-	# A kick still in flight when its piece is freed is the case the pieces have to survive: the
+	# A beat still running when its piece is freed is the case the pieces have to survive: the
 	# juice node goes with the piece, so the frames after a lift must not move a freed target.
-	ChJuice.of(strut).kick(6.0, 3.0)
-	ChJuice.of(wheel).kick(6.0, 3.0)
+	ChJuice.of(strut).juice_up(0.2, 0.1)
+	ChJuice.of(wheel).juice_up(0.2, 0.1)
 	assert_true(garage.lift([1]), "lifting the strut takes the whole branch")
 	assert_true(garage.piece_at(_typed_path([1])) == null, "the strut's piece is gone")
 	assert_true(garage.piece_at(_typed_path([1, 0])) == null, "and the wheel's with it")

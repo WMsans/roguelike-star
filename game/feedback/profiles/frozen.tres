@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_profile")
-scale_kick = -4.0
-rotation_kick_deg = 4.0
+scale_kick = -0.08
+rotation_kick_deg = 3.0
 text = "FROZEN"
 text_color = Color(0.560784, 0.831373, 1.0, 1.0)
 particle_count = 10

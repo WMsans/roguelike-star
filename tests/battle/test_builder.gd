@@ -460,7 +460,7 @@ func test_kicked_visual_leaves_body_alone() -> void:
 		world, _parent(), _mount(&"dozer", [[[0], &"wheel"], [[2], &"strut"]]),
 		ChCatalog.load_default(), 0, ORIGIN, false)
 	# simulating off: no physics tick can move the body between the two reads below, so the transform
-	# is the same value before and after the kick unless something wrote it.
+	# is the same value before and after the beat unless something wrote it.
 	world.simulating = false
 	var part := _part_of(runtime, [2])
 	assert_true(part != null, "the strut mounted")
@@ -475,8 +475,8 @@ func test_kicked_visual_leaves_body_alone() -> void:
 		world.free()
 		_complete()
 		return
-	juice.kick(9.0, 3.0)
-	juice.advance(0.1)
+	juice.juice_up(0.2, 0.1)
+	juice.advance(0.03)
 	assert_eq(part.body.global_transform, before, "the kick left the body's transform alone")
 	assert_eq(part.body.scale, Vector2.ONE, "and the body's scale")
 	assert_true(part.visual.scale != Vector2.ONE, "while the visual's scale moved")

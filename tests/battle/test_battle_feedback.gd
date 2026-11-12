@@ -12,6 +12,8 @@ extends ChTest
 const PLAYER_AT := Vector2(100, 100)
 const ENEMY_AT := Vector2(380, 100)
 const ROCKET_PATH := [3]  # the player Cutter's Rocket, ChTest._player_layout
+# A beat starts at sin(0), so stepping this far (its largest excursion) is what shows a beat landed.
+const PEAK_STEP := 0.03
 
 
 func _arena() -> Dictionary:
@@ -72,15 +74,16 @@ func test_fire_kicks_the_firing_part() -> void:
 	var player: ChChariotRuntime = arena["player"]
 	var rocket := _part(player, _typed_path(ROCKET_PATH))
 	var juice := ChJuice.of(rocket.visual)
-	assert_eq(juice.scale_spring.velocity, 0.0, "the firing part's visual starts at rest")
+	assert_near(juice.scale_value(), 1.0, 0.0001, "the firing part's visual starts at rest")
 	arena["feedback"].on_event(_event(ChEvent.PART_FIRED, 0, rocket))
-	assert_true(juice.scale_spring.velocity > 0.0,
-		"fired kicks the visual of the part that fired")
+	juice.advance(PEAK_STEP)
+	assert_near(juice.scale_value() - 1.0, 0.0873, 0.001,
+		"fired beats the visual of the part that fired (fired's 0.12)")
 	for part in player.parts:
 		if part == rocket:
 			continue
-		assert_eq(ChJuice.of(part.visual).scale_spring.velocity, 0.0,
-			"the fire kicks nothing else on the chariot")
+		assert_near(ChJuice.of(part.visual).scale_value(), 1.0, 0.0001,
+			"the fire beats nothing else on the chariot")
 	_complete()
 
 
@@ -98,10 +101,17 @@ func test_hit_kicks_attacker_and_target() -> void:
 	var player_bar := ChJuice.of(arena["hud"].player_bar)
 	arena["feedback"].on_event(_event(ChEvent.HIT, 0, rocket,
 		{"target_part": target, "hp_damage": 7}))
-	assert_true(attacker_visual.scale_spring.velocity > 0.0, "landed kicks the attacker's part")
-	assert_true(target_visual.scale_spring.velocity > 0.0, "struck kicks the part that was hit")
-	assert_true(enemy_bar.scale_spring.velocity > 0.0, "nudge kicks the struck side's HP bar")
-	assert_eq(player_bar.scale_spring.velocity, 0.0, "the attacker's own bar stays still")
+	attacker_visual.advance(PEAK_STEP)
+	target_visual.advance(PEAK_STEP)
+	enemy_bar.advance(PEAK_STEP)
+	# Each amplitude at its peak: amp * sin(50 * 0.03) * (1 - 0.1)^3.
+	assert_near(attacker_visual.scale_value() - 1.0, 0.0582, 0.001,
+		"landed beats the attacker's part (landed's 0.08)")
+	assert_near(target_visual.scale_value() - 1.0, 0.0873, 0.001,
+		"struck beats the part that was hit")
+	assert_near(enemy_bar.scale_value() - 1.0, 0.0436, 0.001,
+		"nudge beats the struck side's HP bar")
+	assert_near(player_bar.scale_value(), 1.0, 0.0001, "the attacker's own bar stays unbent")
 	# The addon parses a label's bbcode a frame after pop(), so the text is read after two.
 	var main_loop = Engine.get_main_loop()
 	for _frame in 2:
@@ -128,14 +138,16 @@ func test_hull_hit_wobbles_the_enemy_chassis() -> void:
 	var player_bar := ChJuice.of(arena["hud"].player_bar)
 	arena["feedback"].on_event(_event(ChEvent.HIT, 0, rocket,
 		{"target_part": null, "hp_damage": 7}))
-	assert_true(chassis.scale_spring.velocity > 0.0,
+	chassis.advance(PEAK_STEP)
+	enemy_bar.advance(PEAK_STEP)
+	assert_near(chassis.scale_value() - 1.0, 0.0873, 0.001,
 		"a hull hit wobbles the enemy's chassis visual")
-	assert_eq(attacker_chassis.scale_spring.velocity, 0.0,
+	assert_near(attacker_chassis.scale_value(), 1.0, 0.0001,
 		"and leaves the attacker's own chassis alone")
 	# The event's side is the attacker's, so a hull hit must invert it to reach the enemy's bar.
-	assert_eq(enemy_bar.scale_spring.velocity, 3.0,
-		"a hull hit nudges the struck side's bar by nudge's 3")
-	assert_eq(player_bar.scale_spring.velocity, 0.0,
+	assert_near(enemy_bar.scale_value() - 1.0, 0.0436, 0.001,
+		"a hull hit wobbles the struck side's bar by nudge's 0.06")
+	assert_near(player_bar.scale_value(), 1.0, 0.0001,
 		"and leaves the attacker's own bar at rest")
 	_complete()
 
@@ -153,11 +165,13 @@ func test_enemy_hull_hit_nudges_the_player_bar() -> void:
 	var enemy_bar := ChJuice.of(arena["hud"].enemy_bar)
 	arena["feedback"].on_event(_event(ChEvent.HIT, 1, source,
 		{"target_part": null, "hp_damage": 7}))
-	assert_true(player_chassis.scale_spring.velocity > 0.0,
+	player_chassis.advance(PEAK_STEP)
+	player_bar.advance(PEAK_STEP)
+	assert_near(player_chassis.scale_value() - 1.0, 0.0873, 0.001,
 		"the enemy's hull hit wobbles the player's chassis visual")
-	assert_eq(player_bar.scale_spring.velocity, 3.0,
-		"an enemy hull hit nudges the player's bar by nudge's 3")
-	assert_eq(enemy_bar.scale_spring.velocity, 0.0,
+	assert_near(player_bar.scale_value() - 1.0, 0.0436, 0.001,
+		"an enemy hull hit wobbles the player's bar by nudge's 0.06")
+	assert_near(enemy_bar.scale_value(), 1.0, 0.0001,
 		"and leaves the attacking side's own bar at rest")
 	_complete()
 
