@@ -476,7 +476,7 @@ func test_kicked_visual_leaves_body_alone() -> void:
 		_complete()
 		return
 	juice.juice_up(0.2, 0.1)
-	juice.advance(0.03)
+	juice.advance(PEAK_STEP)
 	assert_eq(part.body.global_transform, before, "the kick left the body's transform alone")
 	assert_eq(part.body.scale, Vector2.ONE, "and the body's scale")
 	assert_true(part.visual.scale != Vector2.ONE, "while the visual's scale moved")

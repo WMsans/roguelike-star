@@ -64,6 +64,30 @@ func assert_near(a: float, b: float, eps := 0.001, msg := "") -> void:
 		_record("assert_near: %s and %s differ by more than %s" % [a, b, eps], msg)
 
 
+# --- Juice beat expectations -----------------------------------------------------------------------
+# A feedback beat's observable effect is the excursion it puts on ChJuice.scale_value() /
+# rotation_value(). Every test that asks "did a beat land" steps the beat that far and compares with
+# the excursion derived here from ChJuice's own formula, so retuning the omegas, BEAT_TIME or the
+# envelope moves every expectation with it instead of breaking a hand-computed literal in six files.
+# Each oscillator is read at its own largest excursion: the wiggle peaks at t ~ 0.0271 for scale and
+# t ~ 0.0312 for rotation (the slower omega 42), and near a peak the value barely moves for a small
+# change of age.
+const PEAK_STEP := 0.03
+const ROTATION_PEAK_STEP := 0.031
+
+
+func _wigged(amp: float) -> float:
+	# One beat's scale excursion at PEAK_STEP, in the same form ChJuice._wiggle writes it.
+	var left := 1.0 - PEAK_STEP / ChJuice.BEAT_TIME
+	return amp * sin(ChJuice.SCALE_OMEGA * PEAK_STEP) * left * left * left
+
+
+func _wigged_rotation(amp: float) -> float:
+	# The same at ROTATION_PEAK_STEP, with ROTATION_OMEGA.
+	var left := 1.0 - ROTATION_PEAK_STEP / ChJuice.BEAT_TIME
+	return amp * sin(ChJuice.ROTATION_OMEGA * ROTATION_PEAK_STEP) * left * left * left
+
+
 # --- Fight fixtures -------------------------------------------------------------------------------
 # test_battle.gd and test_battle_hud.gd both drive fights on the same two builds, so the builds live
 # here once. A second copy is not a style problem: _body_with_hp encodes how a Resource's duplicate()

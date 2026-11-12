@@ -754,7 +754,7 @@ func test_piece_survives_unrelated_change() -> void:
 	var juice := ChJuice.of(first)
 	assert_true(juice != null, "the piece carries a Juice child")
 	juice.juice_up(0.2, 0.1)
-	juice.advance(0.03)
+	juice.advance(PEAK_STEP)
 	var bent := juice.scale_value()
 	assert_true(garage.drop_part(&"wheel", [1]), "a second wheel lands in another slot")
 	assert_true(garage.piece_at(_typed_path([0])) == first,

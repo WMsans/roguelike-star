@@ -83,7 +83,8 @@ func test_beats_stack_but_clamp() -> void:
 
 func test_beats_age_by_exactly_the_time_they_are_given() -> void:
 	# A beat's clock moves by the delta it is stepped with, nothing more: one whole beat lands on its
-	# end (wiggle over, beat dropped), and 0.03 s lands on the scale wiggle's largest excursion.
+	# end (wiggle over, beat dropped), and each oscillator stepped to its own largest excursion reads
+	# exactly what it is at that age.
 	var whole := ChJuice.new()
 	whole.juice_up(0.2, 0.1)
 	whole.advance(ChJuice.BEAT_TIME)
@@ -91,10 +92,11 @@ func test_beats_age_by_exactly_the_time_they_are_given() -> void:
 	assert_near(whole.rotation_value(), 0.0, 0.0001, "and the rotation is too")
 	var peak := ChJuice.new()
 	peak.juice_up(0.2, 0.1)
-	peak.advance(0.03)
-	# 0.2 * sin(50 * 0.03) * (1 - 0.1)^3, and the same for the rotation at its own omega.
-	assert_near(peak.scale_value() - 1.0, 0.1454, 0.0001, "0.03 s in, the scale is at its peak")
-	assert_near(peak.rotation_value(), 0.0694, 0.0001, "and the rotation is close to its own")
+	peak.advance(PEAK_STEP)
+	assert_near(peak.scale_value() - 1.0, _wigged(0.2), 0.0001, "the scale reaches its peak at PEAK_STEP")
+	peak.advance(ROTATION_PEAK_STEP - PEAK_STEP)
+	assert_near(peak.rotation_value(), _wigged_rotation(0.1), 0.0001,
+		"and the rotation reaches its own at its own step")
 	_complete()
 
 

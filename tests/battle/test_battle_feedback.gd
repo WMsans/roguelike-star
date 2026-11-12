@@ -12,8 +12,8 @@ extends ChTest
 const PLAYER_AT := Vector2(100, 100)
 const ENEMY_AT := Vector2(380, 100)
 const ROCKET_PATH := [3]  # the player Cutter's Rocket, ChTest._player_layout
-# A beat starts at sin(0), so stepping this far (its largest excursion) is what shows a beat landed.
-const PEAK_STEP := 0.03
+# A beat starts at sin(0), so ChTest.PEAK_STEP (its largest excursion) plus ChTest._wigged() are what
+# show one landed.
 
 
 func _arena() -> Dictionary:
@@ -77,7 +77,7 @@ func test_fire_kicks_the_firing_part() -> void:
 	assert_near(juice.scale_value(), 1.0, 0.0001, "the firing part's visual starts at rest")
 	arena["feedback"].on_event(_event(ChEvent.PART_FIRED, 0, rocket))
 	juice.advance(PEAK_STEP)
-	assert_near(juice.scale_value() - 1.0, 0.0873, 0.001,
+	assert_near(juice.scale_value() - 1.0, _wigged(0.12), 0.001,
 		"fired beats the visual of the part that fired (fired's 0.12)")
 	for part in player.parts:
 		if part == rocket:
@@ -104,12 +104,12 @@ func test_hit_kicks_attacker_and_target() -> void:
 	attacker_visual.advance(PEAK_STEP)
 	target_visual.advance(PEAK_STEP)
 	enemy_bar.advance(PEAK_STEP)
-	# Each amplitude at its peak: amp * sin(50 * 0.03) * (1 - 0.1)^3.
-	assert_near(attacker_visual.scale_value() - 1.0, 0.0582, 0.001,
+	# Each amplitude at its peak.
+	assert_near(attacker_visual.scale_value() - 1.0, _wigged(0.08), 0.001,
 		"landed beats the attacker's part (landed's 0.08)")
-	assert_near(target_visual.scale_value() - 1.0, 0.0873, 0.001,
+	assert_near(target_visual.scale_value() - 1.0, _wigged(0.12), 0.001,
 		"struck beats the part that was hit")
-	assert_near(enemy_bar.scale_value() - 1.0, 0.0436, 0.001,
+	assert_near(enemy_bar.scale_value() - 1.0, _wigged(0.06), 0.001,
 		"nudge beats the struck side's HP bar")
 	assert_near(player_bar.scale_value(), 1.0, 0.0001, "the attacker's own bar stays unbent")
 	# The addon parses a label's bbcode a frame after pop(), so the text is read after two.
@@ -140,12 +140,12 @@ func test_hull_hit_wobbles_the_enemy_chassis() -> void:
 		{"target_part": null, "hp_damage": 7}))
 	chassis.advance(PEAK_STEP)
 	enemy_bar.advance(PEAK_STEP)
-	assert_near(chassis.scale_value() - 1.0, 0.0873, 0.001,
+	assert_near(chassis.scale_value() - 1.0, _wigged(0.12), 0.001,
 		"a hull hit wobbles the enemy's chassis visual")
 	assert_near(attacker_chassis.scale_value(), 1.0, 0.0001,
 		"and leaves the attacker's own chassis alone")
 	# The event's side is the attacker's, so a hull hit must invert it to reach the enemy's bar.
-	assert_near(enemy_bar.scale_value() - 1.0, 0.0436, 0.001,
+	assert_near(enemy_bar.scale_value() - 1.0, _wigged(0.06), 0.001,
 		"a hull hit wobbles the struck side's bar by nudge's 0.06")
 	assert_near(player_bar.scale_value(), 1.0, 0.0001,
 		"and leaves the attacker's own bar at rest")
@@ -167,9 +167,9 @@ func test_enemy_hull_hit_nudges_the_player_bar() -> void:
 		{"target_part": null, "hp_damage": 7}))
 	player_chassis.advance(PEAK_STEP)
 	player_bar.advance(PEAK_STEP)
-	assert_near(player_chassis.scale_value() - 1.0, 0.0873, 0.001,
+	assert_near(player_chassis.scale_value() - 1.0, _wigged(0.12), 0.001,
 		"the enemy's hull hit wobbles the player's chassis visual")
-	assert_near(player_bar.scale_value() - 1.0, 0.0436, 0.001,
+	assert_near(player_bar.scale_value() - 1.0, _wigged(0.06), 0.001,
 		"an enemy hull hit wobbles the player's bar by nudge's 0.06")
 	assert_near(enemy_bar.scale_value(), 1.0, 0.0001,
 		"and leaves the attacking side's own bar at rest")
