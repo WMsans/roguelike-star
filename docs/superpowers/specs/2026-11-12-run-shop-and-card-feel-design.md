@@ -258,7 +258,7 @@ Rarity sets price: common 2, uncommon 6, rare 12. Sell value is floor(price / 2)
 - **Buying a body** swaps it in at once with `swap_body`. The old body is gone, not sold. Parts that don't
   fit go to the inventory; if the inventory is full, the overflow is sold automatically, each with a sell
   beat.
-- **Inventory full:** a buy or pack pick into a full inventory is refused (no shake, the card glides back).
+- **Inventory full:** a buy or pack pick into a full inventory is refused with a refusal shake, and the card glides back.
   Selling makes room.
 - Selling works in both views.
 
