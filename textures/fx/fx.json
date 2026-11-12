@@ -128,7 +128,7 @@
  "puff_fire": {
   "fps": 30,
   "loop": false,
-  "frames": 13,
+  "frames": 22,
   "size": [
    24,
    24
@@ -137,12 +137,12 @@
    12,
    12
   ],
-  "columns": 4
+  "columns": 5
  },
  "puff_smoke": {
   "fps": 30,
   "loop": false,
-  "frames": 13,
+  "frames": 22,
   "size": [
    24,
    24
@@ -151,6 +151,6 @@
    12,
    12
   ],
-  "columns": 4
+  "columns": 5
  }
 }

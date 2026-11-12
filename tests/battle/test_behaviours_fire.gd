@@ -197,8 +197,8 @@ func _flamethrower_case(scale: int) -> void:
 	_complete()
 
 # The flame is the sim's own pixels: a burst throws real fire particles, which the engine draws in
-# the material colour while they fly and lands as cells when something blocks them. Nothing baked
-# rides the nozzle, so there is no cloud left to swing with the gun or to fade on a break.
+# the material colour while they fly and lands as cells when something blocks them. The only baked
+# thing at the nozzle is a trail puff, and the world owns it, so no cloud swings with the gun.
 const FLAME_MID_BURST_TICKS := 185  # 3.08 s: the 3 s cooldown fired and the 1 s burst is running
 
 func _fx_nodes(world: PixelWorld) -> Array:
@@ -206,6 +206,13 @@ func _fx_nodes(world: PixelWorld) -> Array:
 	for child in world.get_children():
 		if child is ChFx:
 			found.append(child)
+	return found
+
+func _puff_nodes(world: PixelWorld) -> Array:
+	var found: Array = []
+	for node in _fx_nodes(world):
+		if node.texture.resource_path.ends_with("puff_fire.png"):
+			found.append(node)
 	return found
 
 func test_flamethrower_burst_is_the_sim_own_flame() -> void:
@@ -223,7 +230,10 @@ func test_flamethrower_burst_is_the_sim_own_flame() -> void:
 		world.step(1)
 		ctx.tick(TICK, [0.0], PRESS)
 	assert_true(int(world.get_stats()["particles_material"]) > 0, "the burst has live fire particles in the pool")
-	assert_eq(_fx_nodes(world).size(), 0, "no baked effect stands in for the flame")
+	var strays := 0
+	for node in _fx_nodes(world):
+		strays += 0 if node.texture.resource_path.ends_with("puff_fire.png") else 1
+	assert_eq(strays, 0, "nothing but a nozzle puff stands in for the flame")
 	_complete()
 
 # The same mid-burst break the old jet test pinned: with no node to fade, all the break owes is that
@@ -247,12 +257,40 @@ func test_breaking_a_firing_flamethrower_stops_its_burst() -> void:
 	assert_true(thrown > 0, "the burst threw fire particles before the break")
 	at.break_part(flame, ctx)
 	var pool_after := int(world.get_stats()["particles_material"])
+	var puffs_after := _puff_nodes(world).size()
+	assert_true(puffs_after > 0, "the burst was dropping puffs when it broke")
 	for _tick in 30:
 		world.step(1)
 		ctx.tick(TICK, [0.0], PRESS)
 	# A burst still running would add ~90 particles; the landed ones only drain the pool.
 	assert_true(int(world.get_stats()["particles_material"]) <= pool_after, "the wreck throws nothing more")
-	assert_eq(_fx_nodes(world).size(), 0, "and it leaves no effect behind")
+	# Nothing takes a puff back, so the break owes only that no new one is born: no frames run here,
+	# so a puff already out is still in the tree and the count is the evidence.
+	assert_eq(_puff_nodes(world).size(), puffs_after, "and leaves no further effect behind")
+	_complete()
+
+# The plume's mass: the sim's fire particles carry its shape, and a puff at the nozzle thickens where
+# the fuel leaves the barrel. The puff is the world's, born at the nozzle, and the behaviour keeps no
+# reference to it, so a break has nothing to fade and a roll drags no tail.
+func test_flamethrower_burst_drops_puffs_at_the_nozzle() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"flamethrower"]]), catalog, 0, ORIGIN, false)
+	var flame := _part_of(at, [1])
+	assert_true(flame != null and flame.behaviour != null, "the flamethrower mounted and behaves")
+	var ctx: ChBattleContext = _battle(world, catalog, [at])
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	for _tick in FLAME_MID_BURST_TICKS:
+		world.step(1)
+		ctx.tick(TICK, [0.0], PRESS)
+	var puffs := _puff_nodes(world)
+	assert_true(puffs.size() > 0, "the burst dropped puffs at the nozzle")
+	var nozzle := flame.anchor_world() + flame.facing() * 5.0
+	assert_true(puffs[0].position.distance_to(nozzle) <= 12.0,
+		"the puff is at the nozzle (%s, nozzle %s)" % [puffs[0].position, nozzle])
 	_complete()
 
 # A baked effect draws in cell space, so the world node is its only parent: hung on a body, the whole

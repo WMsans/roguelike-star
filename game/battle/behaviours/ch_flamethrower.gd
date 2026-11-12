@@ -13,8 +13,9 @@ extends ChBehaviour
 # radius. That same peak is what pins the nozzle clearing the body it is mounted on (see NOZZLE): a nozzle
 # left inside the part's own 8-cell footprint reads back 0 fire cells at that target.
 # The plume is those particles and nothing else: the engine draws a pooled particle in its material
-# colour while it flies, so a flame thrown from a moving nozzle needs no sprite of its own, and one
-# that had one would carry its whole tail along with the gun.
+# colour while it flies, so a flame thrown from a moving nozzle needs no sprite of its own. The one
+# baked thing here is a puff the world keeps, which is mass where the fuel leaves the barrel: a rig
+# that rolls mid-burst drags no tail with it, and a break has nothing to fade.
 
 const BURST_SECONDS := 1.0
 # shortcut: cells out from the anchor the flame leaves the barrel, fixed at 5 for this part's 8-cell
@@ -26,11 +27,13 @@ const PARTICLES_PER_TICK := 3
 const PARTICLE_SPREAD := 0.25  # radians, the cone the shot fans over
 const REACH := 40.0
 const PULSES := 9
+const PUFF_GAP := 0.05  # seconds between nozzle puffs: they overlap into a plume, ~20 over the burst
 
 var burst_left := 0.0  # seconds of burst left to spray
 var pulse_gap := 0.0  # seconds between damage pulses
 var pulse_left := 0.0  # seconds until the next pulse
 var pulses_left := 0  # pulses still to spend
+var puff_left := 0.0  # seconds until the next nozzle puff
 
 
 func _flame_box() -> Rect2:
@@ -50,6 +53,7 @@ func fire(ctx: ChBattleContext) -> void:
 	pulses_left = PULSES
 	pulse_gap = BURST_SECONDS / PULSES
 	pulse_left = 0.0
+	puff_left = 0.0
 
 
 func process(ctx: ChBattleContext, delta: float) -> void:
@@ -63,6 +67,12 @@ func process(ctx: ChBattleContext, delta: float) -> void:
 		var nozzle := part.anchor_world() + part.facing() * NOZZLE
 		ctx.world.spawn_particles(&"fire", nozzle, part.facing() * PARTICLE_SPEED,
 			PARTICLES_PER_TICK, PARTICLE_SPREAD)
+		# The mass around that flame: dropped into the world and never held, so the rig's next roll
+		# leaves it where it was born.
+		puff_left -= delta
+		if puff_left <= 0.0:
+			puff_left += PUFF_GAP
+			ChFx.spawn(ctx.world, &"puff_fire", nozzle, part.facing())
 	# The damage pulses land every pulse_gap seconds over the burst, so the def's damage is spread as
 	# PULSES equal pulses across the 1 s (45 -> 9 x 5). A pulse that met nothing spends itself rather
 	# than banking a hit.

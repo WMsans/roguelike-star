@@ -13,14 +13,14 @@ export const meta = {
   tags: ["puff", "trail", "smoke", "fire", "one-shot", "chariot"],
   size: [24, 24],
   origin: [12, 12],
-  duration: 0.4,
+  duration: 0.7,
   loop: false,
   fps: 30,
   bg: "sky",
   options: {
     kind: "fire",
     seed: 4,
-    palette: ["#4a1712", "#c9281f", "#f2561d", "#ff8a2a", "#ffc23d", "#ffe26b", "#fff3a6", "#ffffff"],
+    palette: ["#4a1712", "#c9281f", "#f2561d", "#ff8a2a", "#ffb030", "#ff9a2a", "#f2561d", "#c9281f"],
   },
 };
 
