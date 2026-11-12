@@ -1,32 +1,4 @@
 {
- "rocket": {
-  "fps": 30,
-  "loop": true,
-  "frames": 36,
-  "size": [
-   128,
-   48
-  ],
-  "pivot": [
-   112,
-   24
-  ],
-  "columns": 4
- },
- "fireball": {
-  "fps": 30,
-  "loop": true,
-  "frames": 36,
-  "size": [
-   136,
-   56
-  ],
-  "pivot": [
-   112,
-   28
-  ],
-  "columns": 4
- },
  "blast": {
   "fps": 30,
   "loop": false,
@@ -68,20 +40,6 @@
    66
   ],
   "columns": 10
- },
- "flamethrower": {
-  "fps": 30,
-  "loop": true,
-  "frames": 48,
-  "size": [
-   184,
-   104
-  ],
-  "pivot": [
-   30,
-   60
-  ],
-  "columns": 6
  },
  "spark_hit": {
   "fps": 30,

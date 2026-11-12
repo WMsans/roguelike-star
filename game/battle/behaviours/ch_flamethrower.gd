@@ -12,6 +12,9 @@ extends ChBehaviour
 # cells out at 240 cells/s; the landing extent is stochastic, so the test's peak is the evidence, not a
 # radius. That same peak is what pins the nozzle clearing the body it is mounted on (see NOZZLE): a nozzle
 # left inside the part's own 8-cell footprint reads back 0 fire cells at that target.
+# The plume is those particles and nothing else: the engine draws a pooled particle in its material
+# colour while it flies, so a flame thrown from a moving nozzle needs no sprite of its own, and one
+# that had one would carry its whole tail along with the gun.
 
 const BURST_SECONDS := 1.0
 # shortcut: cells out from the anchor the flame leaves the barrel, fixed at 5 for this part's 8-cell
@@ -28,7 +31,6 @@ var burst_left := 0.0  # seconds of burst left to spray
 var pulse_gap := 0.0  # seconds between damage pulses
 var pulse_left := 0.0  # seconds until the next pulse
 var pulses_left := 0  # pulses still to spend
-var jet: ChFx = null  # the flame's look, left at the nozzle it was fired from for the burst
 
 
 func _flame_box() -> Rect2:
@@ -48,21 +50,16 @@ func fire(ctx: ChBattleContext) -> void:
 	pulses_left = PULSES
 	pulse_gap = BURST_SECONDS / PULSES
 	pulse_left = 0.0
-	if jet == null or not is_instance_valid(jet):
-		jet = ChFx.spawn(ctx.world, &"flamethrower", part.anchor_world() + part.facing() * NOZZLE, part.facing())
 
 
 func process(ctx: ChBattleContext, delta: float) -> void:
 	if burst_left <= 0.0:
 		return
 	burst_left = maxf(0.0, burst_left - delta)
-	# The plume stays where fire() put it: a flame is emitted, so its tail must not swing with the
-	# gun as the rig rolls and tips. Only the burst's end touches it here.
-	if jet != null and is_instance_valid(jet) and burst_left <= 0.0:
-		jet.stop()
-		jet = null
 	if ctx.world != null:
-		# The brief's shot: 3 fire particles at the nozzle, facing() x 90 cells/s over a 0.25 rad cone.
+		# The shot the brief asks for, and the flame itself: the engine draws a particle in its material
+		# colour while it flies and lands it as a cell when something blocks it, so the plume is born at
+		# the nozzle and then belongs to the sim. Nothing here holds a look that could swing with the gun.
 		var nozzle := part.anchor_world() + part.facing() * NOZZLE
 		ctx.world.spawn_particles(&"fire", nozzle, part.facing() * PARTICLE_SPEED,
 			PARTICLES_PER_TICK, PARTICLE_SPREAD)
@@ -79,14 +76,6 @@ func process(ctx: ChBattleContext, delta: float) -> void:
 	var target := _nearest_enemy_body(ctx, _flame_box())
 	if target != null:
 		ctx.deal_hit(part, target, pulse_damage())
-
-
-func teardown() -> void:
-	# A part broken mid-burst is off the tick, so process never reaches its own stop: this is the
-	# one call left to take the looping jet off the wreck.
-	if jet != null and is_instance_valid(jet):
-		jet.stop()
-	jet = null
 
 
 func pulse_damage() -> int:

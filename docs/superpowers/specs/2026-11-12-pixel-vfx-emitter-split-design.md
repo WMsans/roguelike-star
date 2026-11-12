@@ -115,11 +115,15 @@ tool still works for the nine sheets that remain.
 - `tests/battle/test_behaviours_fire.gd`: the two jet tests go — `test_flamethrower_jet_stays_where_it_was_fired`
   because the pool offers no position readback to pin against, and
   `test_breaking_a_firing_flamethrower_stops_its_jet` because there is no node left for a break to
-  take. In their place: a burst raises `world.get_stats()["particles_material"]`.
-- A flying bolt raises `world.get_stats()["particles_visual"]`, and has a core sprite, so deleting
-  the trail sheet cannot leave an invisible bolt.
-- `ChFx.spawn` on a body (not the world) answers null.
-- Full suite green.
+  take. In their place: `test_flamethrower_burst_is_the_sim_own_flame` (the burst raises
+  `world.get_stats()["particles_material"]` and puts no `ChFx` under the world),
+  `test_breaking_a_firing_flamethrower_stops_its_burst` (the pool only drains after the break) and
+  `test_fx_refuses_a_parent_that_moves` (`ChFx.spawn` takes the world, answers null for a body).
+- `tests/battle/test_behaviours_ranged.gd`:
+  `test_bolt_trail_is_particles_and_the_bolt_stays_visible` — a firing rocket leaves one `Sprite2D`
+  core and no `ChFx` on the bolt, and raises `world.get_stats()["particles_visual"]`.
+- Full suite green: 314 passed, 0 failed (the branch's baseline is 311 + the one pre-existing
+  `test_catalog` sprite failure the worktree's missing imports cause).
 
 ## What is left to the builder
 
