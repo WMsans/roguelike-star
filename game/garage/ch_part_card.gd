@@ -1,11 +1,14 @@
-class_name ChPartCard extends Button
+class_name ChPartCard extends ChCard
 
-# Task 7: one part in the garage's strip. The card is the whole part at the pit's own zoom, its name,
-# its cost and how many the kit carries, and a press on it is the pick that puts a part in hand. A card
-# with a count of 0 stays in the strip but cannot be pressed: what is left is read off the cards, which
+# Task 3: one part in the garage's strip, drawn as a ChCard: the rect stays exactly where the strip's
+# container put it and only the face moves (follow spring, tilt, hover lift, sway, beats). The card is
+# the whole part at the pit's own zoom, its name, its cost and how many the kit carries, and a click on
+# it is the pick that puts a part in hand. A card with a count of 0 stays in the strip but cannot be
+# taken: ChCard ignores a press while draggable is false, so what is left is read off the cards, which
 # is why the screen needs no hint line.
-# Nothing here reads the garage except its one pick call, so a card is the same widget whichever
-# screen builds the strip.
+# Nothing here reads the garage: the pick is one Callable handed in, so a card is the same widget
+# whichever screen builds the strip (the garage today; the inventory bar and the shop later). A ChCard
+# plays its own beats on its own Juice, so there is no Feedback.attach_button here.
 
 const ZOOM := ChGarage.ZOOM  # the pit's zoom, so a card and the hull show a part at one scale
 const MIN_WIDTH := 88.0
@@ -19,37 +22,44 @@ static var _looks := {}  # def.texture -> its ringed look, built once per sprite
 var part_id: StringName = &""
 var def: ChPartDef = null
 var count := 0
-var garage: ChGarage = null
+# When it is 0 or more, the cost row reads a gold price instead of the energy cost (the shop's shelf).
+var price := -1
+# When false, the "×n" count is hidden (a strip that shows one part per card has no count to read).
+var show_count := true
 
 
-func _init(def_in: ChPartDef, garage_in: ChGarage) -> void:
+func _init(def_in: ChPartDef, on_click: Callable) -> void:
+	# ChCard's _init attaches the Juice that carries this card's beats and tunes the follow springs;
+	# a child _init does not chain it, so this calls it explicitly.
+	super()
 	def = def_in
-	garage = garage_in
 	part_id = def_in.id
 	# The box is the part's own width at ZOOM plus the padding, so a wheel's card is as wide as the
 	# wheel it shows at the pit's scale.
 	custom_minimum_size = Vector2(maxf(MIN_WIDTH, def.size.x * ZOOM + 16.0), HEIGHT)
 	# Mouse only, as the garage's buttons are: these are not in a focus chain.
 	focus_mode = Control.FOCUS_NONE
-	# The card's own click is the pick; the garage wires the hover that shows the part tooltip where it
-	# builds the strip, so this class never reaches for the tooltip.
-	pressed.connect(func() -> void: garage.pick_part(part_id))
-	# Press and hover answer with a feedback beat, the same wiring every button in the game gets.
-	Feedback.attach_button(self)
+	# The card's own click is the pick: ChCard emits clicked only after a press that was not ignored,
+	# and a count-0 card is not draggable, so a card carrying none never reaches this.
+	clicked.connect(on_click)
 
 
 func set_count(carried: int) -> void:
 	# The inventory's count is the card's whole state: a part the player owns none of is greyed out and
-	# disabled rather than hidden, so the strip keeps its one shape whatever the build.
+	# unpickable rather than hidden, so the strip keeps its one shape whatever the build. draggable is
+	# the ChCard seam for "cannot be pressed": press() ignores it while false.
 	count = carried
-	disabled = carried <= 0
+	draggable = carried > 0
 	modulate = Color(1, 1, 1, 0.45 if carried <= 0 else 1.0)
 	queue_redraw()
 
 
-func _draw() -> void:
+func _paint_face() -> void:
 	if def == null:
 		return
+	# The base face: the flat BUTTON slab with an ACCENT rim while hovered, which is the slab the
+	# Button's theme style used to draw under all of this.
+	super()
 	var font := get_theme_default_font()
 	var inner := size.x - PAD * 2.0
 	# The name, wrapped over the rows an 88 pixel card has room for, then the cost under it with the
@@ -60,10 +70,11 @@ func _draw() -> void:
 		at += LINE
 		draw_string(font, Vector2(PAD, at), line, HORIZONTAL_ALIGNMENT_LEFT, inner, FONT, ChUi.TEXT)
 	at += LINE
-	draw_string(font, Vector2(PAD, at), "Cost %d" % def.energy_cost, HORIZONTAL_ALIGNMENT_LEFT,
-		inner - 24.0, FONT, ChUi.TEXT)
-	draw_string(font, Vector2(PAD, at), "×%d" % count, HORIZONTAL_ALIGNMENT_RIGHT, inner, FONT,
-		ChUi.ACCENT if count > 0 else ChUi.TEXT)
+	var cost := "$%d" % price if price >= 0 else "Cost %d" % def.energy_cost
+	draw_string(font, Vector2(PAD, at), cost, HORIZONTAL_ALIGNMENT_LEFT, inner - 24.0, FONT, ChUi.TEXT)
+	if show_count:
+		draw_string(font, Vector2(PAD, at), "×%d" % count, HORIZONTAL_ALIGNMENT_RIGHT, inner, FONT,
+			ChUi.ACCENT if count > 0 else ChUi.TEXT)
 	# The part itself, on a dark slab: a wheel's colour is the button's own grey, so without something
 	# behind it the card would look empty. The slab is the theme's panel, not part art.
 	var top := at + 8.0

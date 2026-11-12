@@ -98,12 +98,16 @@ func test_card_press_and_hover_kick() -> void:
 		_complete()
 		return
 	assert_near(juice.scale_value(), 1.0, 0.0001, "a card at rest is unbent")
-	card.pressed.emit()
+	# Task 3: the card is a ChCard, so a click is a press then a release, and the release plays the
+	# activate beat on the card's own Juice. No mouse here: the entry points are the same seam.
+	var at := card.get_global_rect().get_center()
+	card.press(at)
+	card.release(at)
 	# A beat starts at sin(0), so one step to its peak is what shows it landed.
 	juice.advance(PEAK_STEP)
-	assert_near(juice.scale_value() - 1.0, _wigged(0.10), 0.001, "pressing the card beats its juice")
+	assert_near(juice.scale_value() - 1.0, _wigged(0.10), 0.001, "clicking the card beats its juice")
 	# The pick ran too: feedback rides on the screen's own rule, it does not stand in for it.
-	assert_eq(garage.held_id, &"wheel", "and the press still picked the part up")
+	assert_eq(garage.held_id, &"wheel", "and the click still picked the part up")
 	# Step the press beat out (its clock passes BEAT_TIME) so the hover's beat is the only one left.
 	juice.advance(ChJuice.BEAT_TIME)
 	card.mouse_entered.emit()

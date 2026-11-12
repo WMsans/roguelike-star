@@ -588,7 +588,7 @@ func _move(at: Vector2) -> void:
 
 
 func test_strip_has_every_part() -> void:
-	# One wheel carried, so every other card reads 0 and the disabled pin has a card to check.
+	# One wheel carried, so every other card reads 0 and the not-draggable pin has a card to check.
 	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
 	var cards: Array = garage.find_children("*", "ChPartCard", true, false)
 	assert_eq(cards.size(), garage.STRIP_ORDER.size(), "one card per part the strip lists")
@@ -599,21 +599,42 @@ func test_strip_has_every_part() -> void:
 	var mace := _card_of(garage, &"ice_cream_mace")
 	assert_true(mace != null, "the mace has a card")
 	assert_eq(mace.count, 0, "carrying none")
-	assert_true(mace.disabled, "so it cannot be picked")
-	# A disabled card is greyed out as well as unpickable, which is the spec's "stays in the strip,
+	assert_true(not mace.draggable, "so it cannot be picked")
+	# An unpickable card is greyed out as well, which is the spec's "stays in the strip,
 	# greyed out and not clickable": the alpha is the whole of the grey-out.
 	assert_near(mace.modulate.a, 0.45, 0.001, "a card carrying none is greyed out")
 	var wheel := _card_of(garage, &"wheel")
 	assert_eq(wheel.count, 1, "the carried wheel reads one")
-	assert_true(not wheel.disabled, "and its card is live")
+	assert_true(wheel.draggable, "and its card is live")
 	assert_near(wheel.modulate.a, 1.0, 0.001, "and drawn at full strength")
 	assert_eq(garage.card_counts().size(), garage.STRIP_ORDER.size(),
 		"card_counts answers for every id the strip shows")
 	# A drop updates the strip without a rebuild, which is the only thing that keeps it honest.
 	assert_true(garage.drop_part(&"wheel", [0]), "the wheel mounts")
 	assert_eq(wheel.count, 0, "and its card reads none carried")
-	assert_true(wheel.disabled, "with nothing to pick")
+	assert_true(not wheel.draggable, "with nothing to pick")
 	assert_near(wheel.modulate.a, 0.45, 0.001, "and greyed out once the last copy left the kit")
+	_complete()
+
+
+func test_card_press_and_release_pick() -> void:
+	# Task 3: the card is a ChCard now, so the pick seam is press/release and `clicked` is what runs
+	# the pick. A card carrying none is not draggable: ChCard ignores its press, so held_id stays empty.
+	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
+	var card := _card_of(garage, &"wheel")
+	var at := card.get_global_rect().get_center()
+	card.press(at)
+	card.release(at)
+	assert_eq(garage.held_id, &"wheel", "press then release on the card picked the wheel up")
+	# Clicking the same card again is how a player puts the part back (pick_part's own rule).
+	card.press(at)
+	card.release(at)
+	assert_eq(garage.held_id, &"", "and a second click on its own card put it back")
+	var mace := _card_of(garage, &"ice_cream_mace")
+	assert_true(not mace.draggable, "the card carrying none is not draggable")
+	mace.press(at)
+	mace.release(at)
+	assert_eq(garage.held_id, &"", "its press is ignored, so nothing came to hand")
 	_complete()
 
 

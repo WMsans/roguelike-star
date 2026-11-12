@@ -140,7 +140,7 @@ func click_part(path) -> void:
 
 func pick_part(id: StringName) -> bool:
 	# The strip's click: a carried part comes to hand, and a part the kit has none of is refused (the
-	# card is disabled as well, but the rule is here so a click by any other route obeys it too).
+	# card is not draggable as well, but the rule is here so a click by any other route obeys it too).
 	# Picking the part already in hand is how a player puts it back, so that clears the hold instead.
 	if _count_of(id) <= 0:
 		return false
@@ -238,7 +238,7 @@ func _lift_branches(branches) -> void:
 
 func card_counts() -> Dictionary:
 	# Every id the strip lists, mounted or not: a part the kit carries none of reads 0 and its card is
-	# disabled, which is how the strip says what is left.
+	# unpickable, which is how the strip says what is left.
 	var out := {}
 	for id in STRIP_ORDER:
 		out[id] = _count_of(id)
@@ -376,8 +376,10 @@ func _hovered_def() -> ChPartDef:
 	return catalog.part(node.part_id) if node != null else null
 
 
-func _on_card_hover(card: ChPartCard, entered: bool) -> void:
-	# Card to card, the exit of A may land after the entry of B: only A's own exit clears A.
+func _on_card_hover(entered: bool, card: ChPartCard) -> void:
+	# Reached from the card's hover_changed, which its own hover() emits (the entered flag first,
+	# because that is the signal's argument and bind(card) appends). Card to card, the exit of A may
+	# land after the entry of B: only A's own exit clears A.
 	if entered:
 		_hover_card = card
 		_refresh_tooltip()
@@ -471,17 +473,20 @@ func _enter_tree() -> void:
 
 func _build_strip() -> void:
 	# One card per id STRIP_ORDER lists, in that order: the strip is the whole kit at once, so there is
-	# no paging and no row count to keep. A card's press is its own pick call; the hover is wired here
-	# because this is where the cards and the tooltip meet.
+	# no paging and no row count to keep. A card's own click (ChCard's clicked) is its pick call, so the
+	# card needs no reference back to the garage. ChCard owns its hover state rather than watching the
+	# mouse itself, so the Control's enter/exit only feed card.hover(); the tooltip follows the card's
+	# own hover_changed, which is where the cards and the tooltip meet.
 	var row: HBoxContainer = $Strip/Scroll/Cards
 	row.add_theme_constant_override("separation", CARD_GAP)
 	for id in STRIP_ORDER:
 		var def: ChPartDef = catalog.part(id) if catalog != null else null
 		if def == null:
 			continue  # an id the catalog has no def for cannot be drawn
-		var card := ChPartCard.new(def, self)
-		card.mouse_entered.connect(_on_card_hover.bind(card, true))
-		card.mouse_exited.connect(_on_card_hover.bind(card, false))
+		var card := ChPartCard.new(def, pick_part.bind(id))
+		card.mouse_entered.connect(card.hover.bind(true))
+		card.mouse_exited.connect(card.hover.bind(false))
+		card.hover_changed.connect(_on_card_hover.bind(card))
 		row.add_child(card)
 		_cards.append(card)
 
