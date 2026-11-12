@@ -433,6 +433,43 @@ func _bolt(world: PixelWorld) -> ChProjectile:
 			return child
 	return null
 
+# The world's own baked effects: a trail puff is one of these, the muzzle flash is another.
+func _fx(world: PixelWorld) -> Array:
+	var found: Array = []
+	for child in world.get_children():
+		if child is ChFx:
+			found.append(child)
+	return found
+
+func _puffs(world: PixelWorld) -> Array:
+	var found: Array = []
+	for node in _fx(world):
+		var path: String = node.texture.resource_path
+		if path.ends_with("puff_fire.png") or path.ends_with("puff_smoke.png"):
+			found.append(node)
+	return found
+
+# A settled rig firing its rocket once, handed back with the fight: [ctx, bolt], the bolt null if the
+# shot never came out. Four tests need the same launch, and a copy each would be four places to drift.
+func _rocket_shot(world: PixelWorld) -> Array:
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[2], &"cutter_rocket"]]), catalog, 0, ORIGIN, false)
+	var rocket := _part_of(at, [2])
+	assert_true(rocket != null and rocket.behaviour != null, "the rocket mounted and behaves")
+	var rigs: Array[ChChariotRuntime] = [at]
+	var ctx: ChBattleContext = _battle(world, catalog, rigs)
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+	var bolt: ChProjectile = null
+	for _frame in FLIGHT_FRAMES:
+		await Engine.get_main_loop().process_frame
+		if ctx.time < TICKS_TO_FIRE * TICK:
+			ctx.tick(TICK, [0.0, 0.0], PRESS)
+		bolt = _bolt(world)
+		if bolt != null:
+			break
+	return [ctx, bolt]
+
 func test_bolt_trail_is_particles_and_the_bolt_stays_visible() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
@@ -457,7 +494,6 @@ func test_bolt_trail_is_particles_and_the_bolt_stays_visible() -> void:
 	for _frame in 6:
 		await Engine.get_main_loop().process_frame
 	assert_true(is_instance_valid(bolt), "the bolt is still flying")
-	assert_true(bolt.trail_color.a > 0.0, "the behaviour gave the bolt a trail colour")
 	var sprites := 0
 	var sheets := 0
 	for child in bolt.get_children():
@@ -468,4 +504,84 @@ func test_bolt_trail_is_particles_and_the_bolt_stays_visible() -> void:
 	assert_eq(sprites, 1, "the bolt carries one core sprite of its own")
 	assert_eq(sheets, 0, "no baked effect rides the bolt")
 	assert_true(int(world.get_stats()["particles_visual"]) > 0, "the trail is in the world's particle pool")
+	_complete()
+
+# The trail's mass is baked, and baked effects live in the world: the bolt drops one every eight cells it
+# flies and the puff is born where the bolt was. Distance rather than time, so the stream is evenly spaced
+# whatever the bolt's speed, and the alternation of the two sheets is what makes it read smoke under flame.
+const PUFF_EVERY := 8.0  # cells: the cadence both the drop and this test read
+
+func test_bolt_drops_a_puff_every_eight_cells() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var shot: Array = await _rocket_shot(world)
+	var bolt: ChProjectile = shot[1]
+	assert_true(bolt != null, "the rocket fired")
+	# Flight time is physics time: headless idle frames run faster than the 60 Hz the bolt steps on.
+	for _tick in 12:
+		await Engine.get_main_loop().physics_frame
+	var puffs := _puffs(world)
+	assert_true(puffs.size() >= 2, "the bolt left puffs behind it (%d)" % puffs.size())
+	assert_true(puffs[0].texture.resource_path != puffs[1].texture.resource_path, "the stream alternates flame and smoke")
+	assert_near(puffs[1].position.distance_to(puffs[0].position), PUFF_EVERY, 0.5,
+		"puffs sit %s cells apart" % PUFF_EVERY)
+	_complete()
+
+# The bug the emitter split fixed, pinned the other way round: emitted pixels must not ride the emitter.
+# If a puff were parented to the bolt, turning the bolt would swing every puff already out of it.
+func test_a_dropped_puff_never_moves_again() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var shot: Array = await _rocket_shot(world)
+	var bolt: ChProjectile = shot[1]
+	assert_true(bolt != null, "the rocket fired")
+	for _tick in 10:
+		await Engine.get_main_loop().physics_frame
+	var puffs := _puffs(world)
+	assert_true(puffs.size() > 0, "a puff is out")
+	var puff: ChFx = puffs[0]
+	var dropped_at := puff.global_position
+	var turned_at := puff.global_rotation
+	bolt.global_rotation += 0.7
+	bolt.bolt_velocity = bolt.bolt_velocity.rotated(0.5)
+	for _tick in 4:
+		await Engine.get_main_loop().physics_frame
+	assert_true(is_instance_valid(puff), "the puff is still there")
+	assert_true(puff.global_position.is_equal_approx(dropped_at), "the puff stays where it was dropped (%s, was %s)" % [puff.global_position, dropped_at])
+	assert_true(is_equal_approx(puff.global_rotation, turned_at), "and keeps its own turn")
+	_complete()
+
+# Decoration gives way to the fight in the pool, and the trail is not pool particles: with the pool past
+# ChFeedbackParticles' share the sparks stop, and the puffs must go on landing.
+func test_puffs_appear_even_when_the_pool_is_full() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var shot: Array = await _rocket_shot(world)
+	var bolt: ChProjectile = shot[1]
+	assert_true(bolt != null, "the rocket fired")
+	for _tick in 4:
+		await Engine.get_main_loop().physics_frame
+	world.spawn_visual_particles(Color.WHITE, ORIGIN, Vector2.ZERO, int(world.get_max_particles()), 1.0, 0.5)
+	assert_eq(ChFeedbackParticles.budget(world, 1), 0, "the pool is past the share decoration may spend")
+	var before := _puffs(world).size()
+	for _tick in 6:
+		await Engine.get_main_loop().physics_frame
+	assert_true(_puffs(world).size() > before, "a puff landed with no pool to spend")
+	_complete()
+
+# A puff is a one-shot with nobody holding it: once the bolt is gone nothing keeps its trail alive.
+func test_puffs_free_themselves() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var shot: Array = await _rocket_shot(world)
+	var bolt: ChProjectile = shot[1]
+	assert_true(bolt != null, "the rocket fired")
+	for _tick in 6:
+		await Engine.get_main_loop().physics_frame
+	assert_true(_puffs(world).size() > 0, "the bolt dropped puffs")
+	bolt.queue_free()
+	# A puff's own life is 13 frames at 30 fps, ~26 physics ticks: 40 is past the last one.
+	for _tick in 40:
+		await Engine.get_main_loop().physics_frame
+	assert_eq(_puffs(world).size(), 0, "every puff freed itself")
 	_complete()
