@@ -29,6 +29,14 @@ const FX = {
   shatter: ["chariot/shatter", {}],
   ignite: ["chariot/ignite", {}],
   muzzle: ["chariot/muzzle", {}],
+  puff_fire: ["chariot/puff", {}],
+  puff_smoke: [
+    "chariot/puff",
+    {
+      kind: "smoke",
+      palette: ["#1a171c", "#26222e", "#3d3846", "#5a5463", "#7e7887", "#a7a1ad", "#d0cad2", "#f1ecee"],
+    },
+  ],
 };
 
 const cats = join(pixelfx, "src/fx/categories.js");

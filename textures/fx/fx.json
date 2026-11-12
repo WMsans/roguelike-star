@@ -124,5 +124,33 @@
    22
   ],
   "columns": 5
+ },
+ "puff_fire": {
+  "fps": 30,
+  "loop": false,
+  "frames": 13,
+  "size": [
+   24,
+   24
+  ],
+  "pivot": [
+   12,
+   12
+  ],
+  "columns": 4
+ },
+ "puff_smoke": {
+  "fps": 30,
+  "loop": false,
+  "frames": 13,
+  "size": [
+   24,
+   24
+  ],
+  "pivot": [
+   12,
+   12
+  ],
+  "columns": 4
  }
 }
