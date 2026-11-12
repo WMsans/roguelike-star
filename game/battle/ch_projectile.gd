@@ -112,7 +112,9 @@ func _drop_puffs(flew: float) -> void:
 	while _puff_owed >= PUFF_EVERY:
 		_puff_owed -= PUFF_EVERY
 		var back := bolt_velocity.normalized() * PUFF_OFFSET
-		if ChFx.spawn(battle.world, TRAIL_FX[_puff_turn], global_position - back, bolt_velocity) != null:
+		# Faced right, never turned: a puff's art rises, and ChProjectile's own rule for the core applies
+		# to it too — a rotated sprite leaves the pixel grid the world is drawn on.
+		if ChFx.spawn(battle.world, TRAIL_FX[_puff_turn], global_position - back) != null:
 			_puff_turn = (_puff_turn + 1) % TRAIL_FX.size()
 
 

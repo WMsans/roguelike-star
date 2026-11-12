@@ -37,10 +37,11 @@ export function draw(p, t, o) {
     const r = rng(S, i);
     // one generator per lump, asked in this order every frame, so a bake is the same every run
     const a = r.range(0, Math.PI * 2);
-    const out = smoke ? r.range(10, 18) : r.range(5, 12), rise = smoke ? r.range(6, 14) : r.range(10, 20);
+    const out = smoke ? r.range(6, 12) : r.range(4, 9), rise = smoke ? r.range(2, 8) : r.range(4, 10);
     const s0 = smoke ? r.range(2.4, 3.6) : r.range(2.6, 4.4), lean = r.range(-0.6, 0.6);
-    const age = t - i * STAGGER;
-    if (age <= 0 || age >= LIFE) continue;
+    // +0.02: the first lump is already a couple of frames old on frame 0, so no frame is blank
+    const age = t + 0.02 - i * STAGGER;
+    if (age < 0 || age >= LIFE) continue;
     const k = 1 - age / LIFE; // life left
     const x = Math.cos(a) * out * age, y = Math.sin(a) * out * 0.4 * age - rise * age;
     // grows out of nothing, then burns down to nothing: the puff swells before it fades

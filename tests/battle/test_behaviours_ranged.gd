@@ -578,10 +578,15 @@ func test_puffs_free_themselves() -> void:
 	assert_true(bolt != null, "the rocket fired")
 	for _tick in 6:
 		await Engine.get_main_loop().physics_frame
-	assert_true(_puffs(world).size() > 0, "the bolt dropped puffs")
+	var puffs := _puffs(world)
+	assert_true(puffs.size() > 0, "the bolt dropped puffs")
+	var dropped: ChFx = puffs[0]
 	bolt.queue_free()
-	# A puff's own life is 13 frames at 30 fps, ~26 physics ticks: 40 is past the last one.
-	for _tick in 40:
+	for _tick in 2:
+		await Engine.get_main_loop().physics_frame
+	assert_true(is_instance_valid(dropped), "the bolt's own free takes no puff with it")
+	# A puff's own life is 22 frames at 30 fps, ~44 physics ticks: 70 is past the last one.
+	for _tick in 70:
 		await Engine.get_main_loop().physics_frame
 	assert_eq(_puffs(world).size(), 0, "every puff freed itself")
 	_complete()

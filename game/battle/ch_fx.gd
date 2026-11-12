@@ -6,8 +6,9 @@ class_name ChFx extends Sprite2D
 # something takes the node off the tree. Pure decoration: nothing here is read by the fight, so a missing
 # parent or sheet just plays nothing.
 # Everything a baked effect emits is inside its frames, so it is the node's transform that places every
-# pixel of it: only the world node may own one. Anything a moving thing throws goes through the world's
-# particle pool instead (PixelWorld.spawn_visual_particles), which ChProjectile and the Flamethrower do.
+# pixel of it: only the world node may own one. Anything a moving thing throws is either dropped into the
+# world as a puff (ChProjectile's trail, the Flamethrower's nozzle) or, for the 1-cell sparks under it,
+# thrown into the world's particle pool (PixelWorld.spawn_visual_particles).
 # The effects face right; face() turns them to a part's facing, mirroring instead of rotating past
 # vertical so smoke and flame still rise on a left-facing part.
 
