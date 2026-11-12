@@ -12,6 +12,9 @@ const GRAVITY := 120.0  # cells per second squared the bolt falls under
 const BLAST_RADIUS := 8
 const BLAST_POWER := 300.0
 const FIRE_RADIUS := 4
+# The bolt's stream, in fire's own colours: the trail is thrown into the world's pool, so the colour
+# here is the only look the behaviour owns for it.
+const TRAIL_COLOUR := Color("ff9a3c")
 
 func fire(ctx: ChBattleContext) -> void:
 	# Out of charges there is nothing to fire. is_ready keeps a press from reaching this; the guard
@@ -28,7 +31,7 @@ func fire(ctx: ChBattleContext) -> void:
 	bolt.global_position = part.anchor_world()
 	bolt.setup(ctx, part, dir.rotated(up) * SPEED, GRAVITY, func(shot: Dictionary): _impact(ctx, shot))
 	ChFx.spawn(ctx.world, &"muzzle", part.anchor_world(), dir.rotated(up))
-	bolt.trail = ChFx.spawn(bolt, &"fireball", Vector2.ZERO, dir.rotated(up))
+	bolt.trail_color = TRAIL_COLOUR
 
 func process(ctx: ChBattleContext, delta: float) -> void:
 	# At zero charges the countdown is parked at a value that never counts down, so anything that

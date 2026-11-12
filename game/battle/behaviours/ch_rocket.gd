@@ -13,6 +13,8 @@ const BLAST_POWER := 300.0
 # drove into lone Rockets and lost 7 of 8 in the cook-and-arena spec's lazy runs).
 const POINT_BLANK := 20.0
 const POINT_BLANK_SHARE := 0.25
+# The rocket's stream: smoke rather than flame, since the burn is what the blast leaves behind.
+const TRAIL_COLOUR := Color("b9b3ad")
 
 func setup(ctx: ChBattleContext) -> void:
 	# Ignition hears every caught fire, on either side, so the subscription carries no range.
@@ -30,9 +32,9 @@ func fire(ctx: ChBattleContext) -> void:
 	ctx.world.add_child(bolt)
 	bolt.global_position = part.anchor_world()
 	bolt.setup(ctx, part, part.facing() * SPEED, 0.0, func(shot: Dictionary): _impact(ctx, shot))
-	# The look: a launch flash at the mount and the rocket sprite riding the bolt.
+	# The look: a launch flash at the mount, and a trail thrown from the bolt as it flies.
 	ChFx.spawn(ctx.world, &"muzzle", part.anchor_world(), part.facing())
-	bolt.trail = ChFx.spawn(bolt, &"rocket", Vector2.ZERO, part.facing())
+	bolt.trail_color = TRAIL_COLOUR
 
 func _ignite() -> void:
 	# Ignition: the countdown left before the next shot is halved, so a caught fire buys speed

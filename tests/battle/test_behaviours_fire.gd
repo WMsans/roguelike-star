@@ -196,12 +196,19 @@ func _flamethrower_case(scale: int) -> void:
 		"the enemy stayed inside the flamethrower's 40-cell reach")
 	_complete()
 
-# A part that breaks mid-burst takes its look with it: the jet is a looping ChFx the world holds,
-# and break_part takes the behaviour off the tick, so nothing calls jet.stop() any more. The
-# behaviour's teardown is the only other seam, and without it the flame loops on the wreck forever.
+# The flame is the sim's own pixels: a burst throws real fire particles, which the engine draws in
+# the material colour while they fly and lands as cells when something blocks them. Nothing baked
+# rides the nozzle, so there is no cloud left to swing with the gun or to fade on a break.
 const FLAME_MID_BURST_TICKS := 185  # 3.08 s: the 3 s cooldown fired and the 1 s burst is running
 
-func test_breaking_a_firing_flamethrower_stops_its_jet() -> void:
+func _fx_nodes(world: PixelWorld) -> Array:
+	var found: Array = []
+	for child in world.get_children():
+		if child is ChFx:
+			found.append(child)
+	return found
+
+func test_flamethrower_burst_is_the_sim_own_flame() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var catalog := _catalog()
@@ -215,18 +222,14 @@ func test_breaking_a_firing_flamethrower_stops_its_jet() -> void:
 	for _tick in FLAME_MID_BURST_TICKS:
 		world.step(1)
 		ctx.tick(TICK, [0.0], PRESS)
-	var jet: ChFx = flame.behaviour.jet
-	assert_true(jet != null and is_instance_valid(jet), "the burst is playing its looping jet")
-	at.break_part(flame, ctx)
-	assert_true(flame.behaviour.jet == null, "the broken part's behaviour let the jet go")
-	# stop() only starts the fade, which ChFx spends on the frame clock, so this reads that the call
-	# landed rather than waiting frames out: the loop is off, which is what the break owes.
-	assert_true(jet._fade_left >= 0.0, "the jet faded instead of looping on the wreck")
+	assert_true(int(world.get_stats()["particles_material"]) > 0, "the burst has live fire particles in the pool")
+	assert_eq(_fx_nodes(world).size(), 0, "no baked effect stands in for the flame")
 	_complete()
 
-# A flame is emitted, not glued: the plume stays where the burst started it even when the rig
-# rolls, so its tail does not swing with the gun.
-func test_flamethrower_jet_stays_where_it_was_fired() -> void:
+# The same mid-burst break the old jet test pinned: with no node to fade, all the break owes is that
+# the wreck stops throwing. The fire already in the pool keeps burning, which is the sim's, not the
+# part's, so nothing here takes it back.
+func test_breaking_a_firing_flamethrower_stops_its_burst() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var catalog := _catalog()
@@ -240,18 +243,26 @@ func test_flamethrower_jet_stays_where_it_was_fired() -> void:
 	for _tick in FLAME_MID_BURST_TICKS:
 		world.step(1)
 		ctx.tick(TICK, [0.0], PRESS)
-	var jet: ChFx = flame.behaviour.jet
-	assert_true(jet != null and is_instance_valid(jet), "the burst is playing its looping jet")
-	var fired_at := jet.position
-	var turned_at := jet.rotation
-	var mirrored_at := jet.scale.x
-	# Roll the gun: a tail glued to the head would swing with it.
-	flame.body.global_rotation += 0.6
-	for _tick in 3:
-		flame.behaviour.process(ctx, TICK)
-	assert_true(jet.position.is_equal_approx(fired_at), "the jet stays where it was fired (%s, was %s)" % [jet.position, fired_at])
-	assert_true(is_equal_approx(jet.rotation, turned_at), "the jet does not turn with the rig")
-	assert_true(jet.scale.x == mirrored_at, "the jet keeps its own mirror")
+	var thrown := int(world.get_stats()["particles_material"])
+	assert_true(thrown > 0, "the burst threw fire particles before the break")
+	at.break_part(flame, ctx)
+	var pool_after := int(world.get_stats()["particles_material"])
+	for _tick in 30:
+		world.step(1)
+		ctx.tick(TICK, [0.0], PRESS)
+	# A burst still running would add ~90 particles; the landed ones only drain the pool.
+	assert_true(int(world.get_stats()["particles_material"]) <= pool_after, "the wreck throws nothing more")
+	assert_eq(_fx_nodes(world).size(), 0, "and it leaves no effect behind")
+	_complete()
+
+# A baked effect draws in cell space, so the world node is its only parent: hung on a body, the whole
+# baked cloud rides that body's transform, which is the bug every test in this file exists to keep out.
+func test_fx_refuses_a_parent_that_moves() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var holder := _track(Node2D.new())
+	assert_true(ChFx.spawn(world, &"muzzle", Vector2(100, 100)) != null, "the world takes a baked effect")
+	assert_true(ChFx.spawn(holder, &"muzzle", Vector2.ZERO) == null, "a node that moves does not")
 	_complete()
 
 # The hearth charges for 1 s, then rings fire into the air cells 2 cells out from the own hull

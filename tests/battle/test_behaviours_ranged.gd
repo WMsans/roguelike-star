@@ -422,3 +422,50 @@ func test_harpoon_line_ends_when_the_hook_goes() -> void:
 	assert_true(not is_instance_valid(hull), "the hooked hull left the tree")
 	assert_true(not still_drawn, "the rope went with the hook rather than keeping its far end on it")
 	_complete()
+
+# The bolt's trail is emitted, not attached: each physics frame the bolt hands the world's particle
+# pool a few pixels carrying a share of its own velocity, and never addresses them again, so the bolt
+# outruns its own smoke. The core sprite is the one look that does ride the bolt, because a body is
+# its own emitter; without it the bolt the old trail sheet used to draw is invisible.
+func _bolt(world: PixelWorld) -> ChProjectile:
+	for child in world.get_children():
+		if child is ChProjectile:
+			return child
+	return null
+
+func test_bolt_trail_is_particles_and_the_bolt_stays_visible() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[2], &"cutter_rocket"]]), catalog, 0, ORIGIN, false)
+	var rocket := _part_of(at, [2])
+	assert_true(rocket != null and rocket.behaviour != null, "the rocket mounted and behaves")
+	var rigs: Array[ChChariotRuntime] = [at]
+	var ctx: ChBattleContext = _battle(world, catalog, rigs)
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+	var bolt: ChProjectile = null
+	for _frame in FLIGHT_FRAMES:
+		await Engine.get_main_loop().process_frame
+		if ctx.time < TICKS_TO_FIRE * TICK:
+			ctx.tick(TICK, [0.0, 0.0], PRESS)
+		bolt = _bolt(world)
+		if bolt != null:
+			break
+	assert_true(bolt != null, "the rocket fired and a bolt is flying")
+	# The first pixels go on the bolt's first physics frame, which is the frame after it enters the tree.
+	for _frame in 6:
+		await Engine.get_main_loop().process_frame
+	assert_true(is_instance_valid(bolt), "the bolt is still flying")
+	assert_true(bolt.trail_color.a > 0.0, "the behaviour gave the bolt a trail colour")
+	var sprites := 0
+	var sheets := 0
+	for child in bolt.get_children():
+		if child is Sprite2D:
+			sprites += 1
+		if child is ChFx:
+			sheets += 1
+	assert_eq(sprites, 1, "the bolt carries one core sprite of its own")
+	assert_eq(sheets, 0, "no baked effect rides the bolt")
+	assert_true(int(world.get_stats()["particles_visual"]) > 0, "the trail is in the world's particle pool")
+	_complete()

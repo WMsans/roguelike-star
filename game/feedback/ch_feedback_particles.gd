@@ -1,8 +1,8 @@
 class_name ChFeedbackParticles extends RefCounted
 
-# The two limits every feedback burst obeys. A beat is decoration, so it gives up rather than
-# starve the fight: the pool is shared with real material particles (a full pool drops
-# Flamethrower/Chainsaw cells), so feedback never takes more than CAP at once and skips entirely
+# The two limits every decorative burst obeys, a feedback beat and a bolt's trail alike. Decoration
+# gives up rather than starves the fight: the pool is shared with real material particles (a full pool
+# drops Flamethrower/Chainsaw cells), so a burst never takes more than CAP at once and skips entirely
 # once the pool is past POOL_SHARE full.
 
 const CAP := 24
