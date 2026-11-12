@@ -151,6 +151,64 @@ func test_lift_returns_subtree() -> void:
 	_complete()
 
 
+# --- Task 5: a lift that has nowhere to go ---------------------------------------------------------
+# A 5-slot inventory refuses a branch whose parts do not all fit, and the refusal is decided before
+# anything is cut: the branch stays mounted, nothing is auto-sold and nothing is lost (spec call 8).
+# The fit check is the whole rule, so the same lift lands once a slot is free.
+
+func test_lift_refused_when_branch_does_not_fit() -> void:
+	var inventory := _inventory([&"wheel", &"wheel", &"wheel", &"wheel"])
+	inventory.capacity = ChInventory.CAPACITY
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage(inventory, layout, _catalog())
+	# The branch is mounted through the layout so all four carried parts stay carried: four carried
+	# in five slots leaves one free, and the strut's branch is two ids.
+	assert_true(layout.place(_typed_path([1]), &"strut"), "the strut is mounted in slot 1")
+	assert_true(layout.place(_typed_path([1, 0]), &"wheel"), "with a wheel bolted on its extension 0")
+	assert_eq(inventory.free_slots(), 1, "one slot is free")
+	assert_true(not garage.lift([1]), "two parts do not fit one slot, so the lift refuses")
+	assert_true(layout.get_node([1]) != null, "the strut is still mounted")
+	assert_true(layout.get_node([1, 0]) != null, "and its wheel is still bolted on")
+	assert_eq(layout.slots.size(), 1, "nothing detached")
+	assert_eq(inventory.part_ids.size(), 4, "and the kit gained nothing")
+	# Make room and the very same lift lands, which pins that the refusal was the fit.
+	assert_eq(inventory.remove_at(0), &"wheel", "one wheel leaves the kit")
+	assert_eq(inventory.free_slots(), 2, "so the branch fits")
+	assert_true(garage.lift([1]), "and the strut comes off with its wheel")
+	assert_eq(inventory.part_ids, [&"wheel", &"wheel", &"wheel", &"strut", &"wheel"],
+		"the branch came back whole, parent first")
+	garage.free()
+	_complete()
+
+
+func test_lift_refusal_shakes_the_piece() -> void:
+	# The refusal is felt: the piece keeps its node and takes the same rotation-only shake
+	# ChCard.refuse plays, rather than the pop a successful lift gives.
+	var catalog := _catalog()
+	var inventory := _inventory([&"wheel", &"wheel", &"wheel", &"wheel"])
+	inventory.capacity = ChInventory.CAPACITY
+	var layout := _layout(&"cutter")
+	# Mounted before the screen is built, so _sync_pit has a piece to draw (the bare test above
+	# mounts the same way: the branch is a fixture here, not the thing under test).
+	assert_true(layout.place(_typed_path([1]), &"strut"), "the strut is mounted in slot 1")
+	assert_true(layout.place(_typed_path([1, 0]), &"wheel"), "with a wheel under it")
+	var garage: ChGarage = _garage_scene(inventory, layout, catalog)
+	var strut: ChPitPiece = garage.piece_at(_typed_path([1]))
+	assert_true(strut != null, "the strut has a pit piece")
+	if strut == null:
+		_complete()
+		return
+	var juice := ChJuice.of(strut)
+	assert_true(juice != null, "and the piece carries a Juice child")
+	assert_true(not garage.lift([1]), "the lift refused")
+	assert_true(garage.piece_at(_typed_path([1])) == strut, "the piece was not rebuilt or freed")
+	juice.advance(ROTATION_PEAK_STEP)
+	assert_near(absf(juice.rotation_value()), _wigged_rotation(deg_to_rad(8.0)), 0.0001,
+		"the piece took the 8 degree refusal shake")
+	assert_near(juice.scale_value(), 1.0, 0.0001, "with no pop, as ChCard.refuse does")
+	_complete()
+
+
 func test_click_flips() -> void:
 	var catalog := _catalog()
 	var inventory := _inventory([&"strut", &"wheel", &"wheel"])
