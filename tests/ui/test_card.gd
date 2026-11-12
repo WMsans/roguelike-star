@@ -152,3 +152,89 @@ func test_hover_lifts() -> void:
 	assert_near(card.offset.y, 0.0, 0.5, "the lift comes back down")
 	assert_near(card._drawn_scale(), 1.0, 0.01, "and so does the scale")
 	_complete()
+
+
+func test_mid_drag_reorder_keeps_the_drawn_card_in_place() -> void:
+	# Review focus 1 (finding 1): Tasks 4/5/7 drop cards into strips that reorder, and a reorder can
+	# land while the card is still in the hand. A container moving the rect must never teleport the
+	# drawing, and must not fire the accumulated shift at the drawing on the first frame after
+	# release either: the card glides, it never snaps.
+	var card := _card()
+	var p := card.global_position + Vector2(40, 60)
+	card.press(p)
+	card.move(p + Vector2(120, 0))
+	for i in 5:
+		card.advance(DT)
+	assert_true(card.dragging, "the card is in the hand before the reorder")
+	var drawn := card.global_position + card.offset
+	# One frame of a live drag is a few px of follow at most, so anything near the reorder distance
+	# is a jump.
+	card.position += Vector2(100, 0)
+	card.advance(DT)
+	var step := (card.global_position + card.offset) - drawn
+	assert_true(step.length() < 30.0, "the drawing does not jump with the rect (%s)" % step)
+	# Absorbing the reorder must not cost the drag: the card keeps chasing the pointer it was chasing.
+	for i in 60:
+		card.advance(DT)
+	assert_near(card.offset.x, 120.0, 2.0, "and the drag still follows the pointer (%s)" % card.offset)
+	card.release(p + Vector2(120, 0))
+	var at_release := card.global_position + card.offset
+	card.advance(DT)
+	step = (card.global_position + card.offset) - at_release
+	assert_true(step.length() < 30.0, "nor when the drop lands (%s)" % step)
+	for i in 60:
+		card.advance(DT)
+	assert_true(card.offset.length() < 1.0, "and it glides back to the strip it landed in (%s)" % card.offset)
+	_complete()
+
+
+func test_hover_lean_tracks_the_pointer_and_stays_under_max_tilt() -> void:
+	# Findings 3 and 2 in one seam: the hover lean reads _pointer, which only press/move/release
+	# updated, and it is added after MAX_TILT was already applied to the velocity term.
+	# _input is the real game's entry point for a hovered card's motion, so the test drives it with
+	# an InputEventMouseMotion — a hovered, unpressed card must learn where the cursor is without
+	# that motion starting a drag.
+	var card := _card()
+	card.hover(true)
+	for i in 30:
+		card.advance(DT)
+	var centre := card.global_position + Vector2(40, 60)
+	card._input(_motion(centre + Vector2(40, 0)))  # the cursor at the card's right edge
+	for i in 30:
+		card.advance(DT)
+	assert_near(card.tilt, _lean_at(card, centre.x + 40.0), 0.005,
+		"a hovered card leans toward the cursor at its right edge (%s)" % card.tilt)
+	card._input(_motion(centre - Vector2(40, 0)))  # and now the left edge
+	for i in 30:
+		card.advance(DT)
+	assert_near(card.tilt, _lean_at(card, centre.x - 40.0), 0.005,
+		"and the lean follows the cursor across the card (%s)" % card.tilt)
+	assert_true(not card.dragging, "a motion while only hovered never starts a drag")
+	# Finding 2: that lean on top of a drag fast enough that the velocity term alone is past MAX_TILT.
+	# With the clamp on the velocity term only, the sum reads as 14 deg past the pinned 12.
+	card.press(centre - Vector2(40, 0))
+	card.move(centre + Vector2(320, 0))
+	var kicked := 0.0
+	for i in 24:
+		card.advance(DT)
+		kicked = maxf(kicked, absf(card._follow_x.velocity) * ChCard.TILT_PER_SPEED)
+		assert_true(absf(card.tilt) <= ChCard.MAX_TILT + 0.0001,
+			"the lean never pushes the tilt past MAX_TILT (%s)" % card.tilt)
+	assert_true(kicked > ChCard.MAX_TILT,
+		"the drag kicked the velocity term past MAX_TILT on its own, so the sum is exercised (%s)" % kicked)
+	_complete()
+
+
+# A global-position mouse motion, which is what _input sees in the real game.
+func _motion(at: Vector2) -> InputEventMouseMotion:
+	var event := InputEventMouseMotion.new()
+	# global_position is a virtual method on InputEvent: it only reads back what was set.
+	event.set_global_position(at)
+	return event
+
+
+# The lean the pinned hover formula asks for at a given global cursor x. It is written from the cursor
+# the test put there, not from the card's own pointer, so a card that never learned the cursor fails.
+func _lean_at(card: ChCard, cursor_x: float) -> float:
+	return clampf((cursor_x - card.global_position.x - card.size.x * 0.5) / maxf(card.size.x, 1.0),
+		-0.5, 0.5) * ChCard.HOVER_LEAN

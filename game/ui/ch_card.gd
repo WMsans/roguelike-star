@@ -78,8 +78,10 @@ func advance(delta: float) -> void:
 	# to the drawn offset keeps the drawing where it was, and the spring eases it to the new slot.
 	# It lands on the springs' current values (offset mirrors them a few lines below) with the
 	# velocity left alone: a layout move must not kick the tilt as if the card itself had flown.
-	# Only while no drag runs: during a drag the card is answering the pointer, not the layout.
-	if not dragging and _last_global != global_position:
+	# That runs while a drag runs too: Tasks 4/5/7 drop into strips that reorder, and a reorder that
+	# lands mid-drag has to be absorbed as it happens, or the whole shift fires at the drawing on the
+	# first frame after release (test_mid_drag_reorder_keeps_the_drawn_card_in_place).
+	if _last_global != global_position:
 		var shift := _last_global - global_position
 		_follow_x.value += shift.x
 		_follow_y.value += shift.y
@@ -92,12 +94,14 @@ func advance(delta: float) -> void:
 	_follow_x.step(delta)
 	_follow_y.step(delta)
 	offset = Vector2(_follow_x.value, _follow_y.value)
-	# The tilt chases the drawn velocity (clamped), plus a lean toward the cursor while hovered;
-	# the same near-critical springs as the follow, so it eases in and out without ringing.
-	var tilt_target := clampf(_follow_x.velocity * TILT_PER_SPEED, -MAX_TILT, MAX_TILT)
+	# The tilt chases the drawn velocity plus a lean toward the cursor while hovered, eased by the
+	# same near-critical springs as the follow so it eases in and out without ringing. The MAX_TILT
+	# clamp covers the sum: the pinned 12 deg is the card's limit, not the velocity term's alone.
+	var lean := 0.0
 	if hovered:
-		tilt_target += clampf((_pointer.x - global_position.x - size.x * 0.5) / maxf(size.x, 1.0),
+		lean = clampf((_pointer.x - global_position.x - size.x * 0.5) / maxf(size.x, 1.0),
 			-0.5, 0.5) * HOVER_LEAN
+	var tilt_target := clampf(_follow_x.velocity * TILT_PER_SPEED + lean, -MAX_TILT, MAX_TILT)
 	_follow_tilt.rest = tilt_target
 	_follow_tilt.step(delta)
 	tilt = _follow_tilt.value
@@ -178,10 +182,16 @@ func _input(event: InputEvent) -> void:
 	# While pressed, motion and release are taken here rather than through the gui: Godot keeps the
 	# mouse focus while a button is down, so a release outside the card — or outside the window —
 	# reaches no other control's _gui_input. Taking it here means a drag can never wedge stuck.
-	if not _pressed:
-		return
 	if event is InputEventMouseMotion:
-		move(get_global_mouse_position())
+		# A mouse event's own global position is the cursor, and it is the only one a headless test can
+		# supply: get_global_mouse_position() stays frozen when there is no pointer device.
+		if _pressed:
+			move(event.global_position)
+		elif hovered:
+			# A merely-hovered card needs the cursor too: the hover lean reads _pointer, and only
+			# press/move/release wrote it, so a card that got no press kept a lean from a pointer it
+			# never had. Not move(): motion without a press must never start a drag.
+			_pointer = event.global_position
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT \
 			and not event.pressed:
 		release(get_global_mouse_position())
