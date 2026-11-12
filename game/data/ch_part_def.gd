@@ -6,6 +6,9 @@ class_name ChPartDef extends Resource
 var id: StringName = &""
 var display_name: String = ""
 var tags: PackedStringArray = []
+# Rarity is what the shop charges for this part (ChPrices.price); tags are what a shop theme's roll
+# picks from. Both are pinned per part in the spec's part-data table.
+var rarity: StringName = &"common"
 var energy_cost: int = 0
 var cooldown: float = 0.0  # seconds; 0 = passive
 var damage: int = 0

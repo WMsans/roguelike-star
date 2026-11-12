@@ -71,6 +71,45 @@ func test_spec_numbers() -> void:
 	_complete()
 
 
+# Rarity is what a part costs in the shop (ChPrices.price) and tags are what its theme rolls pick
+# from, so a def that ships without either cannot be offered. The values are the spec's table
+# (docs/superpowers/specs/2026-11-12-run-shop-and-card-feel-design.md, "Part data (designer's calls)").
+func test_every_part_has_rarity_and_tags() -> void:
+	var catalog := ChCatalog.load_default()
+	for id in catalog.parts:
+		var def: ChPartDef = catalog.parts[id]
+		assert_true(def.rarity in [&"common", &"uncommon", &"rare"], "%s has a rarity" % id)
+		assert_true(def.tags.size() > 0, "%s has tags" % id)
+	# Spot-checks on the table: an unset field would answer the def's default here rather than the id.
+	var flame: ChPartDef = catalog.part(&"flamethrower")
+	assert_true(flame != null, "the Flamethrower def loads")
+	if flame != null:
+		assert_eq(flame.rarity, &"uncommon", "the Flamethrower is uncommon")
+		for tag in ["fire", "weapon", "triggered"]:
+			assert_true(flame.tags.has(tag), "the Flamethrower is tagged %s" % tag)
+	var rocket: ChPartDef = catalog.part(&"cutter_rocket")
+	assert_true(rocket != null, "the Rocket def loads")
+	if rocket != null:
+		assert_eq(rocket.rarity, &"rare", "the Cutter Rocket is rare")
+	var strut: ChPartDef = catalog.part(&"strut")
+	assert_true(strut != null, "the Strut def loads")
+	if strut != null:
+		assert_true(strut.tags.has("tricky"), "the Strut is tricky")
+	_complete()
+
+
+func test_body_rarities() -> void:
+	# Bodies are bought the same way parts are, so each carries a rarity too: Cutter common,
+	# Dozer uncommon, Corsair rare.
+	var catalog := ChCatalog.load_default()
+	for pair in [[&"cutter", &"common"], [&"dozer", &"uncommon"], [&"corsair", &"rare"]]:
+		var body: ChBodyDef = catalog.body(pair[0])
+		assert_true(body != null, "%s loads" % pair[0])
+		if body != null:
+			assert_eq(body.rarity, pair[1], "%s is %s" % [pair[0], pair[1]])
+	_complete()
+
+
 # place() records an id without looking one up, and accepts a slot index no def owns, so a
 # mistyped path in the enemy .tres mounts silently. Walking all_paths() catches it: an index
 # outside the def's range answers ZERO at anchor_of, and a part whose def is missing answers

@@ -7,6 +7,8 @@
 script = ExtResource("1_part")
 id = &"wheel"
 display_name = "Wheel"
+tags = PackedStringArray("passive")
+rarity = &"common"
 description = PackedStringArray("{passive} Drives your chariot.")
 energy_cost = 0
 cooldown = 0.0
