@@ -887,17 +887,26 @@ func test_mount_refused_restores() -> void:
 
 func test_slot_at_global() -> void:
 	# The bar hands a screen point in, so the pit converts it to its own pixels before asking which
-	# marker is near: this is the drop-zone test an inventory card's release uses.
+	# marker is near: this is the drop-zone test an inventory card's release uses. The pit is placed
+	# off the origin on purpose: at (0,0) screen pixels and pit pixels are the same number, so a
+	# missing conversion would pass here and ship a wrong inverse to the bar.
 	var garage: ChGarage = _garage_scene(_inventory([]), _layout(&"cutter"), _catalog())
-	var at: Vector2 = garage.get_global_position() + garage.screen_of([0])
+	garage.position = Vector2(37, 23)
+	assert_eq(garage.get_global_position(), Vector2(37, 23),
+		"the pit sits off the origin, so screen and pit pixels differ")
+	var marker: Vector2 = garage.screen_of([0])
+	var at: Vector2 = garage.get_global_position() + marker
 	var slot: Array = garage.slot_at(at)
 	assert_true(not slot.is_empty(), "the screen point of a free marker names a slot")
 	if slot.is_empty():
 		_complete()
 		return
 	assert_eq(slot[0], _typed_path([0]), "the slot the marker belongs to")
-	# A point far from every marker has no drop zone.
-	assert_eq(garage.slot_at(Vector2(5, 5)), [], "a point far from the hull names no slot")
+	# And the other way: pit pixels handed in as if they were screen pixels are a pit-offset away,
+	# so they must not name that same marker.
+	assert_eq(garage.slot_at(marker), [], "the unconverted pit pixels name no slot")
+	# A point far from every marker has no drop zone either.
+	assert_eq(garage.slot_at(at + Vector2(-300, -200)), [], "a point far from the hull names no slot")
 	_complete()
 
 
@@ -908,6 +917,11 @@ func test_piece_drag_emits() -> void:
 	var inventory := _inventory([&"strut"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage_scene(inventory, layout, _catalog())
+	# Off the origin, so the pointer's screen pixels and the pit's own pixels differ: a release that
+	# skipped the way back would report a point a pit-offset away from where it happened.
+	garage.position = Vector2(37, 23)
+	assert_eq(garage.get_global_position(), Vector2(37, 23),
+		"the pit sits off the origin, so screen and pit pixels differ")
 	assert_true(garage.drop_part(&"strut", [1]), "the strut mounts in slot 1")
 	var dropped: Array = []
 	var sink := dropped
