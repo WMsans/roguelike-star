@@ -109,6 +109,33 @@ func test_shop_fight_starts_the_next_fight() -> void:
 	_complete()
 
 
+func test_stale_finished_in_the_shop_is_inert() -> void:
+	# The shop visit keeps the ended fight alive (it is freed only when the next fight starts), so a
+	# contract-violating second `finished` from it can arrive while `screen` is the shop. Opening a
+	# panel there would let its back button pay a second reward and skip a fight.
+	var main := _main()
+	main._on_finished(&"win", main.battle)
+	main.result_panel.back.pressed.emit()
+	var shop: ChShopScreen = main.shop
+	var battle: ChBattle = main.battle
+	var gold: int = main.run.gold
+	var index: int = main.run.fight_index
+	main._on_finished(&"win", battle)
+	assert_eq(main.screen, &"shop", "a late finished leaves the shop up")
+	assert_eq(main.result_panel, null, "and opens no result panel")
+	# Back queue_freed the panel it pressed, so that one is still in the tree until the frame ends;
+	# what must not appear is a live second one.
+	var live := 0
+	for node in main.find_children("*", "ChResultPanel", true, false):
+		if not node.is_queued_for_deletion():
+			live += 1
+	assert_eq(live, 0, "no live result panel in the tree")
+	assert_eq(main.run.gold, gold, "gold unchanged")
+	assert_eq(main.run.fight_index, index, "and no fight was consumed")
+	assert_true(main.shop == shop, "the shop shown is the one that was there")
+	_complete()
+
+
 func test_aborted_retries_the_same_fight() -> void:
 	# A fight that could not start is not a loss: back retries it on the same fight, and no shop
 	# opens (which is what would credit a reward for a fight nobody fought).

@@ -86,6 +86,11 @@ func _on_finished(result: StringName, from: ChBattle) -> void:
 	# never handed to anything that could have changed it.
 	if from != battle:
 		return
+	# And only while the fight is still the screen: the shop keeps the ended fight alive until the
+	# next one starts, so a late `finished` from it would otherwise open a panel over the shop, whose
+	# back button would pay a second reward and skip a fight.
+	if screen != &"fight":
+		return
 	# Idempotent against a contract-violating second `finished`: the panel is the whole result screen,
 	# so a second one would stack over the first and orphan it under the layer.
 	if result_panel != null:
