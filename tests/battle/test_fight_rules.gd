@@ -250,16 +250,24 @@ func test_chain_filter() -> void:
 	_complete()
 
 
-# The battle's half of the time limit: the tick loop stops at the rule's budget, and a fight nobody
-# died in still names its result. Both chariots idle through the drivers/pressers seams test_battle.gd
-# uses, so only the rule can end it.
-func test_tick_limit() -> void:
+# A battle node in the tree with both chariots' drive and press seams from test_battle.gd stubbed to
+# nothing: nobody steers and nobody fires, so only a rule can move the fight. The caller starts it, so
+# it can connect `finished` first, and frees it when it is done reading.
+func _idle_battle() -> ChBattle:
 	var scene: PackedScene = ResourceLoader.load("res://game/battle/battle.tscn")
 	assert_true(scene != null, "battle.tscn loads")
 	var battle: Node2D = scene.instantiate()
 	Engine.get_main_loop().get_root().add_child(battle)
 	battle.drivers = [func(_b, _s): return 0.0, func(_b, _s): return 0.0]
 	battle.pressers = [func(_b, _s): return false, func(_b, _s): return false]
+	return battle
+
+
+# The battle's half of the time limit: the tick loop stops at the rule's budget, and a fight nobody
+# died in still names its result. Both chariots idle through the drivers/pressers seams test_battle.gd
+# uses, so only the rule can end it.
+func test_tick_limit() -> void:
+	var battle: ChBattle = _idle_battle()
 	var results: Array[StringName] = []
 	var sink := results
 	battle.finished.connect(func(result: StringName): sink.append(result))
@@ -277,6 +285,26 @@ func test_tick_limit() -> void:
 	assert_near(battle.ctx.bus.chain_pass[0], 1.0, 0.0001, "no modifier, so no chain handicap")
 	assert_near(battle.ctx.bus.chain_pass[1], 1.0, 0.0001, "on either side")
 	assert_true(battle.hud.banner == null, "and nothing was bannered")
+	battle.free()
+	_complete()
+
+
+# The seam every modifier depends on, end to end: a real ChFightRules.of(...) handed to start() gets its
+# own chain share onto the fight's bus and its own words onto the fight's HUD. The rule's tick_limit is
+# cut to TICK_LIMIT so the fight costs 30 frames rather than the full 3600; neither number asserted here
+# comes from that budget.
+func test_rules_reach_the_bus_and_the_banner() -> void:
+	var battle: ChBattle = _idle_battle()
+	var rules := ChFightRules.of(&"chains_weak", false)
+	rules.tick_limit = TICK_LIMIT
+	await battle.start(_player_layout(), _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP), 12345, rules)
+	assert_true(battle.ctx.rules == rules, "the fight ran on the rule object it was handed")
+	assert_near(battle.ctx.bus.chain_pass[0], 0.5, 0.0001,
+		"the rule's chain share reached the bus, on the player's side")
+	assert_near(battle.ctx.bus.chain_pass[1], 1.0, 0.0001, "and the enemy's side stayed unhandicapped")
+	var banner: Label = battle.hud.banner
+	assert_true(banner != null, "the fight bannered its modifier at the start")
+	assert_eq(banner.text if banner != null else "", "Chains weakened", "with the rule's own words")
 	battle.free()
 	_complete()
 
