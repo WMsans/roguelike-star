@@ -9,14 +9,12 @@ func _new_run(run_seed: int = 7) -> ChRun:
 	return ChRun.start(run_seed, ChCatalog.load_default())
 
 
-func _wheel_mounts(body: ChBodyDef) -> Array[int]:
-	# The two lowest slots are the wheel mounts (ch_body_def.gd's header). Read off the def, so a
-	# re-tuned body moves the expectation with it.
-	var order: Array[int] = []
-	for i in body.slots.size():
-		order.append(i)
-	order.sort_custom(func(a: int, b: int) -> bool: return body.slots[a].y > body.slots[b].y)
-	return order.slice(0, 2)
+func _saw_slot(layout: ChChariotLayout) -> int:
+	# Which slot the start kit's saw ended up on, so no test below hard-codes an index.
+	for path in layout.all_paths():
+		if layout.get_node(_typed_path(path)).part_id == &"cutter_chainsaw":
+			return path[0]
+	return -1
 
 
 func test_sequence() -> void:
@@ -39,34 +37,41 @@ func test_start_kit() -> void:
 	assert_eq(run.layout.body_id, &"cutter", "the run starts on the Cutter")
 
 	var body: ChBodyDef = catalog.body(&"cutter")
-	var mounts := _wheel_mounts(body)
-	var first_free := -1
-	for i in body.slots.size():
-		if not mounts.has(i):
-			first_free = i
-			break
-	var wheels := 0
-	var saws := 0
+	# Read the mounts off the build the run made, and check them against the body rule rather than
+	# against the rule ChRun.start used to pick them (ch_body_def.gd's header): +y is down, so a wheel
+	# mount is a slot on the hull's bottom edge, y = size.y / 2, where the tyre hangs below the hull.
+	var wheels: Array[int] = []
+	var saws: Array[int] = []
 	for path in run.layout.all_paths():
 		var node: ChSlotNode = run.layout.get_node(_typed_path(path))
 		if node.part_id == &"wheel":
-			wheels += 1
-			assert_true(mounts.has(path[0]), "%s is a wheel mount" % [path])
+			wheels.append(path[0])
 		elif node.part_id == &"cutter_chainsaw":
-			saws += 1
-			assert_eq(path[0], first_free, "the saw takes the first non-wheel slot")
+			saws.append(path[0])
 		else:
 			assert_true(false, "the start kit holds only wheels and a saw, not %s" % node.part_id)
-	assert_eq(wheels, 2, "exactly two wheels")
-	assert_eq(saws, 1, "exactly one chainsaw")
+	assert_eq(wheels.size(), 2, "exactly two wheels")
+	assert_eq(saws.size(), 1, "exactly one chainsaw")
+	for slot in wheels:
+		assert_true(slot < body.slots.size(), "the wheel mount %d is one of the Cutter's slots" % slot)
+		assert_eq(body.slots[slot].y, body.size.y / 2.0,
+			"wheel mount %d sits on the hull's bottom edge, where the wheels carry the chariot" % slot)
+	var first_free := -1
+	for i in body.slots.size():
+		if not wheels.has(i):
+			first_free = i
+			break
+	assert_eq(saws, [first_free], "the saw takes the first non-wheel slot")
 	_complete()
 
 
 func test_hp_curve() -> void:
 	var run := _new_run()
+	# LAST_HP is the plan's number, not a tuning knob like FIRST_HP, so it stays pinned here.
+	assert_eq(ChRun.LAST_HP, 1500, "the ramp tops out at 1500")
 	assert_eq(run.enemy_hp(0), ChRun.FIRST_HP, "fight 0 is FIRST_HP")
 	# The midpoint of the 0..8 interpolation, on a normal fight so no multiplier is involved.
-	assert_eq(run.enemy_hp(4), (ChRun.FIRST_HP + ChRun.LAST_HP) / 2, "fight 4 sits halfway")
+	assert_eq(run.enemy_hp(4), roundi((ChRun.FIRST_HP + ChRun.LAST_HP) / 2.0), "fight 4 sits halfway")
 	var previous := 0
 	for i in [0, 1, 3, 4, 6, 7]:
 		var hp := run.enemy_hp(i)
@@ -127,9 +132,11 @@ func test_enemy_layout_is_a_copy() -> void:
 func test_player_layout_is_a_copy() -> void:
 	var run := _new_run()
 	var player: ChChariotLayout = run.player_layout()
+	var saw := _saw_slot(run.layout)
+	assert_true(saw >= 0, "the start kit has a saw to lift off")
 	assert_true(player != run.layout, "the fight gets its own copy of the build")
-	assert_true(player.remove([2]) != null, "the saw lifts off the copy")
-	assert_true(run.layout.get_node([2]) != null, "and the run's own build keeps it")
+	assert_true(player.remove(_typed_path([saw])) != null, "the saw lifts off the copy")
+	assert_true(run.layout.get_node(_typed_path([saw])) != null, "and the run's own build keeps it")
 	assert_eq(run.layout.all_paths().size(), 3, "the start kit is 2 wheels + a saw")
 	_complete()
 
