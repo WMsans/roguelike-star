@@ -1,7 +1,7 @@
 class_name ChFeedbackManager extends Node
 
 # The one entry point for a feedback beat: Feedback.play(&"struck", node, {amount = 12}).
-# Profiles are data (game/feedback/profiles/<kind>.tres); play() kicks the target's juice, pops
+# Profiles are data (game/feedback/profiles/<kind>.tres); play() beats the target's juice, pops
 # its text, bursts its particles and shakes the battle's camera. Screen shake is the one beat the
 # manager cannot get from the target: the camera belongs to the fight, so ChBattle binds its own
 # noise emitter here while a fight runs.
@@ -69,7 +69,7 @@ func play(kind: StringName, target, overrides := {}) -> void:
 		var rotation_kick := deg_to_rad(beat.rotation_kick_deg)
 		if rng.randf() < 0.5:
 			rotation_kick = -rotation_kick
-		juice.kick(beat.scale_kick, rotation_kick)
+		juice.juice_up(beat.scale_kick, rotation_kick)
 	_shake_camera(beat)
 
 

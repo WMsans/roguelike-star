@@ -15,11 +15,16 @@ class_name ChBattleContext extends RefCounted
 #   paid first" rule and why drive() comes last.
 # - tick first drains the world's material blasts into ChHazards, so a blast hurts before anything fires.
 
+const BURN_DPS := 5.0  # shortcut: ChDamage.burn_tick's own default, named here so a modifier can scale it; upgrade if burn_tick ever moves that number off its signature
+
 var world: PixelWorld = null
 var bus: ChEventBus = null
 var chariots: Array[ChChariotRuntime] = []  # index = side
 var catalog: ChCatalog = null
 var time: float = 0.0  # the fight's clock, which a timed behaviour counts against
+# This fight's modifier (ChFightRules). The default is the do-nothing rule, so a context that was never
+# given one — every test and caller that predates modifiers — fights exactly as it did without one.
+var rules: ChFightRules = ChFightRules.new()
 
 func own(part: ChPartRuntime) -> ChChariotRuntime:
 	# index = side is this array's own contract, so a part knows its chariot by its own side.
@@ -91,6 +96,10 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	# The hit dict is the object every modifier is handed, so a mutation travels and the six keys
 	# below are the shape a behaviour reads. damage stays the raw damage: a multiplier never rewrites
 	# it, so a passive that reads a hit never has to undo another passive's work.
+	# The fire handicap (spec's "Fire damage reduced") starts the multiplier rather than rewriting the
+	# damage, so a passive that stacks on the hit — the Mace's Shatter — multiplies it like any other hit,
+	# and only the player's fire counts: the enemy's own fire is not handicapped.
+	var multiplier := rules.fire_mult if _player_fire(source) else 1.0
 	var hit := {
 		"source": source,
 		"target_part": target_part,
@@ -100,7 +109,7 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 		"freeze_part": target_part if target_part != null else _nearest_part(target_chariot, source.anchor_world()),
 		"target_chariot": target_chariot,
 		"damage": damage,
-		"multiplier": 1.0,
+		"multiplier": multiplier,
 		"freeze": 0.0,
 	}
 	# `extra` seeds those keys, which is how a caller carries an effect it has no behaviour for.
@@ -168,6 +177,13 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	bus.emit(event)
 	if target_part != null and target_part.integrity <= 0:
 		target_chariot.break_part(target_part, self)
+
+
+func _player_fire(source: ChPartRuntime) -> bool:
+	# The hits the fire handicap reaches: the player's own, from a part the part data tags as fire — the
+	# same tags the shop's themes roll on (Task 4), so "fire-tagged" is the shipped def's own word for it.
+	return source.side == 0 and source.def != null and source.def.tags.has("fire")
+
 
 func _nearest_part(chariot: ChChariotRuntime, from: Vector2) -> ChPartRuntime:
 	var best: ChPartRuntime = null
@@ -290,7 +306,11 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 	# Burning is chariot-wide: ChDamage.burn_tick applies one dps * delta tick for the chariot when
 	# any part burns, so three burning parts burn no harder than one. Its return is a float and hp is
 	# an int per the plan, so what a tick leaves behind waits in burn_damage_left until it adds up to
-	var burned: float = ChDamage.burn_tick(chariot.hp, burning_count, delta)
+	# a whole point.
+	# The fire handicap reaches the burn the enemy takes (spec's "and burn ticks on the enemy"), and only
+	# there: a player whose own part caught fire still burns at ChDamage's own dps.
+	var dps := BURN_DPS * (rules.fire_mult if chariot.side == 1 else 1.0)
+	var burned: float = ChDamage.burn_tick(chariot.hp, burning_count, delta, dps)
 	var owed: float = float(chariot.hp) - burned
 	chariot.burn_damage_left += owed
 	var points := int(chariot.burn_damage_left)

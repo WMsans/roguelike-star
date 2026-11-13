@@ -7,6 +7,7 @@
 script = ExtResource("1_body")
 id = &"corsair"
 display_name = "Corsair"
+rarity = &"rare"
 hp = 900
 energy_cap = 12
 energy_regen = 3.25

@@ -7,19 +7,27 @@ class_name ChResultPanel extends PanelContainer
 
 signal back_pressed
 
-# The fight's four results (ChBattle.finished), as the player reads them. &"aborted" is the fight
-# that could not start, which is not a loss - nothing was fought.
-const TITLES := {
-	&"win": "You win",
-	&"loss": "You lose",
-	&"draw": "Draw: time ran out",
-	&"aborted": "No fight: the battle could not start",
+# One row per thing the panel can be asked to say, as the player reads it: the title, the one
+# button it offers, and whether pressing it ends the run rather than going on (ChMain branches on
+# that). &"run_won" is the last fight's win; &"aborted" is the fight that could not start, which is
+# not a loss - nothing was fought - so it offers a retry.
+const ROWS := {
+	&"win": {"title": "You win", "button": "Continue", "ends_run": false},
+	&"run_won": {"title": "Run won", "button": "New run", "ends_run": true},
+	&"loss": {"title": "Run over", "button": "New run", "ends_run": true},
+	&"draw": {"title": "Run over", "button": "New run", "ends_run": true},
+	&"aborted": {"title": "No fight: the battle could not start", "button": "Retry",
+		"ends_run": false},
 }
 const ROW_GAP := 12  # between the title and the button
-const FOCUS_DELAY := 0.5  # seconds before Back takes focus
+const FOCUS_DELAY := 0.5  # seconds before the button takes focus
 
 var title: Label
 var back: Button
+
+# Set by show_result: true once this result ends the run, so what the player presses next can be
+# decided without reading the button's text back.
+var ends_run := false
 
 
 func _init() -> void:
@@ -32,7 +40,8 @@ func _init() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	rows.add_child(title)
 	back = Button.new()
-	back.text = "Back to garage"
+	# No text here: show_result names the button, and the only caller (ChMain) always calls it before
+	# the panel reaches the tree.
 	back.pressed.connect(func() -> void: back_pressed.emit())
 	Feedback.attach_button(back)
 	rows.add_child(back)
@@ -53,10 +62,16 @@ func _ready() -> void:
 	get_tree().create_timer(FOCUS_DELAY).timeout.connect(back.grab_focus)
 
 
-func show_result(result: StringName) -> void:
+func show_result(result: StringName, last_fight := false) -> void:
 	# Anything the fight does not name reads as the fight that could not start: result_for only makes
-	# win/loss/draw, and &"aborted" is the one other result ChBattle emits.
-	title.text = TITLES.get(result, TITLES[&"aborted"])
+	# win/loss/draw, and &"aborted" is the one other result ChBattle emits. A win on the run's last
+	# fight is the run itself won, which is the one row a bare result cannot name.
+	var row: Dictionary = ROWS.get(result, ROWS[&"aborted"])
+	if result == &"win" and last_fight:
+		row = ROWS[&"run_won"]
+	title.text = row["title"]
+	back.text = row["button"]
+	ends_run = row["ends_run"]
 
 
 func _center() -> void:

@@ -87,7 +87,10 @@ func test_pop_in_from_hidden_but_not_on_switch() -> void:
 	juice.scale_spring.velocity = 0.0
 	tip.show_part(_def(&"hearth"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	assert_eq(juice.scale_spring.value, 1.0, "a switch does not reset the spring")
-	assert_true(juice.scale_spring.velocity != 0.0, "it kicks instead")
+	juice.advance(PEAK_STEP)
+	# Two tooltip beats at the same age: the first show's (box 0 plays at once) and the switch's,
+	# each tooltip's 0.05.
+	assert_near(juice.scale_value() - 1.0, _wigged(0.05) * 2.0, 0.001, "it beats on top instead")
 	_complete()
 
 func test_boxes_stack_without_overlap() -> void:

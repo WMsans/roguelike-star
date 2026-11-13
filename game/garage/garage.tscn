@@ -11,74 +11,15 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_garage")
 
-[node name="TopBar" type="HBoxContainer" parent="."]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 12.0
-offset_top = 8.0
-offset_right = -12.0
-offset_bottom = 68.0
-grow_horizontal = 2
-mouse_filter = 1
-theme_override_constants/separation = 12
-
-[node name="PrevBody" type="Button" parent="TopBar"]
-layout_mode = 2
-text = "◀"
-
-[node name="BodyName" type="Label" parent="TopBar"]
-layout_mode = 2
-text = "Cutter"
-vertical_alignment = 1
-
-[node name="NextBody" type="Button" parent="TopBar"]
-layout_mode = 2
-text = "▶"
-
-[node name="Stats" type="Label" parent="TopBar"]
-layout_mode = 2
-text = "HP 0 · Energy 0"
-vertical_alignment = 1
-
-[node name="Spacer" type="Control" parent="TopBar"]
-layout_mode = 2
-size_flags_horizontal = 3
-mouse_filter = 2
-
-[node name="FightButton" type="Button" parent="TopBar"]
-layout_mode = 2
-text = "Fight"
-
 [node name="Pit" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 60.0
-offset_bottom = -160.0
+offset_top = 20.0
+offset_bottom = -180.0
 grow_horizontal = 2
 grow_vertical = 2
-
-[node name="Strip" type="PanelContainer" parent="."]
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = -160.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_filter = 1
-
-[node name="Scroll" type="ScrollContainer" parent="Strip"]
-layout_mode = 2
-mouse_filter = 1
-vertical_scroll_mode = 0
-
-[node name="Cards" type="HBoxContainer" parent="Strip/Scroll"]
-layout_mode = 2
-mouse_filter = 1
 
 [node name="HeldLayer" type="Control" parent="."]
 layout_mode = 1

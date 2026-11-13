@@ -11,6 +11,8 @@ class_name ChBodyDef extends Resource
 
 var id: StringName = &""
 var display_name: String = ""
+# Rarity is what the shop charges for this body (ChPrices.price), the same way parts are priced.
+var rarity: StringName = &"common"
 var hp: int = 0
 var energy_cap: int = 0
 var energy_regen: float = 0.0

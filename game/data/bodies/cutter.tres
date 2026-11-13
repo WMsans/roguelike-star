@@ -7,6 +7,7 @@
 script = ExtResource("1_body")
 id = &"cutter"
 display_name = "Cutter"
+rarity = &"common"
 hp = 450
 energy_cap = 10
 energy_regen = 2.75

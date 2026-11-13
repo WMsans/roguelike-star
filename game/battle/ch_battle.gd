@@ -125,13 +125,16 @@ func _build_hud() -> void:
 
 
 func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
-	catalog: ChCatalog, seed: int) -> void:
+	catalog: ChCatalog, seed: int, rules: ChFightRules = null) -> void:
 	# The whole fight, once: arena, two builds, the setup calls every behaviour subscribes on, then
 	# the ticks. The ticks stop at the result, and a fight nobody dies in stops at its own budget, so
 	# `finished` follows an ended fight rather than announcing a result mid-fight.
 	# shortcut: one fight per scene — start() builds the HUD and the arena from scratch, so a caller
 	# that wants a second fight instantiates the scene again rather than reusing this node's nodes.
 	outcome = &""
+	# A fight with no modifier runs on the do-nothing rule, which is what keeps every caller that hands no
+	# rules (and every fight before modifiers) exactly as it was.
+	rules = rules if rules != null else ChFightRules.new()
 	camera = $Camera
 	pcam = $PCam
 	_camera_primed = false
@@ -167,6 +170,13 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	ctx.world = world
 	ctx.bus = ChEventBus.new()
 	ctx.catalog = catalog
+	# The modifier's hooks on the fight's own objects: the context takes the rules for its hit and burn
+	# paths, and the bus takes the chain share for the player's side only (spec: these modifiers handicap
+	# the player). The bus's rng is seeded from the fight seed, so a replayed fight drops the same
+	# deliveries instead of another fight's random ones.
+	ctx.rules = rules
+	ctx.bus.chain_pass[0] = rules.chain_pass
+	ctx.bus.rng.seed = seed
 	var rigs: Array[ChChariotRuntime] = [player, enemy]
 	ctx.chariots = rigs
 	ai = ChEnemyAI.new()
@@ -192,11 +202,20 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	# because ending a fight on someone else's say-so is not part of ChBattle's contract.
 	started = true
 	ticking = true
+	# The modifier named once, at the start, and gone after the HUD's 2 s. A fight with no modifier has no
+	# banner text, so it gets no banner at all.
+	if rules.banner_text() != "":
+		hud.show_banner(rules.banner_text())
+	# A time-limit fight is the only one with a shorter budget than FIGHT_TICKS, and the only one that
+	# shows a countdown: the HUD makes that label on the first call, so no other fight ever has one.
+	var timed := rules.tick_limit < ChBattle.FIGHT_TICKS
 	# One ctx.tick per awaited frame until someone dies: _step stores the result it sees and the break
-	# ends the fight. A fight with no result still spends its FIGHT_TICKS frames, so a draw is the
-	# fight's own budget running out and never another node's clock.
-	for _tick in FIGHT_TICKS:
+	# ends the fight. A fight with no result still spends its tick budget, so a draw is
+	# the fight's own budget running out and never another node's clock.
+	for tick in rules.tick_limit:
 		_step(TICK)
+		if timed:
+			hud.show_countdown(ceili((rules.tick_limit - tick) / 60.0))
 		if outcome != &"":
 			break
 		await get_tree().process_frame
