@@ -1,34 +1,36 @@
 class_name ChGarage extends Control
 
-# Task 7: the garage screen, rebuilt for the 1280x720 canvas: a centred chariot in a pit, the kit as one
-# strip of cards under it, and no paging and no hint line anywhere. The parts strip is the whole kit at
-# once; a card is clicked to take a part in hand and the pit is clicked again to place it. There is no
-# hold-to-drag: the pointer polling behind the deleted drag (its button flag, its carried id and its
-# inventory rows) went with Task 4's 320x180 layout, so nothing here reads the pointer on a frame.
-# setup() borrows the inventory and the layout the owner holds (ChMain today, the shop later), so the
-# logic methods below are the handshakes between the two halves of one build: ChInventory carries what
-# is not mounted, ChChariotLayout what is. The click methods on top call these same rules, so a test
-# that drives them drives the screen's own rules, with or without a scene.
-# Deliberately thin: take lifts the first copy, add never dedupes and place accepts a slot index no def
-# owns, so the garage adds no rule of its own beyond the fit check lift and cycle_body share, the one
-# rule that stops a full inventory from losing a branch - lifted off the hull or orphaned by a body
-# swap. drop_part checks the carry before it places, which is the one order that cannot lose a part on
-# a refused place. The tooltip reads the DEF, never a runtime: no
-# fight has run yet, so cooldown_left, integrity and charges_left do not exist here.
-# Nothing leaves the inventory on a pick: a part in hand is only an id, so a fight asked for or a body
-# swapped mid-hold can lose nothing (both clear the hold first).
+# Task 10: the embeddable pit. The garage is a Control a screen puts anywhere (ChMain today, the shop
+# later) and it owns only the build: a centred chariot in a pit, the free-slot markers, the part in
+# hand and the part tooltip. The inventory, the cards and the buttons belong to whoever embeds it -
+# the bar under it and the shop above it - so the handshakes here are by index and by id: the bar says
+# which copy of a part to mount and where, and the pit says which mounted piece was dragged off it.
+# setup() borrows the inventory and the layout the owner holds, so the logic methods below are the
+# handshakes between the two halves of one build: ChInventory carries what is not mounted,
+# ChChariotLayout what is. The click methods on top call these same rules, so a test that drives them
+# drives the screen's own rules, with or without a scene.
+# Deliberately thin: add never dedupes and place accepts a slot index no def owns, so the garage adds
+# no rule of its own beyond the fit check lift shares with a body swap, the one rule that stops a full
+# inventory from losing a branch - lifted off the hull or orphaned by a body swap. drop_part checks
+# the carry before it places, which is the one order that cannot lose a part on a refused place; a
+# mount from the bar takes the copy by index and removes it only after the place landed. The tooltip
+# reads the DEF, never a runtime: no fight has run yet, so cooldown_left, integrity and charges_left
+# do not exist here.
+# Nothing leaves the inventory on a pick: a part in hand is only an id, so a fight asked for or a hold
+# cancelled mid-way can lose nothing (both clear the hold first).
 
-signal fight_requested(layout: ChChariotLayout)
+# After any mount, lift or flip: the bar refreshes its cards from it. Not on a refusal, where nothing
+# changed. Same-tick duplicates are fine - the bar just redraws.
+signal changed
+# A mounted piece dragged past DRAG_THRESHOLD and let go, with the GLOBAL (screen) point it was let go
+# at: the owner compares that against its own drop zones, decides, and calls lift() or sells it. The
+# pit leaves the piece mounted until the owner says what the drop means.
+signal piece_dropped(path: Array[int], at: Vector2)
 
-const ZOOM := 6.0  # cells -> pixels: the hull, the cards and the part in hand all read at this scale
-const CHARIOT_AT := Vector2(640, 300)  # the hull's centre, in garage-local pixels
-const BODIES := [&"cutter", &"dozer", &"corsair"]  # the cycle the body buttons walk
-# The strip's order, and card_counts' keys: every part the slice has, wheels first.
-const STRIP_ORDER := [&"wheel", &"ice_cream_mace", &"cutter_chainsaw", &"flamethrower", &"hearth",
-	&"cutter_rocket", &"corsair_harpoon", &"ember_battery", &"firebolt_launcher", &"ring_of_fire",
-	&"freeze_charge", &"strut"]
+const ZOOM := 6.0  # cells -> pixels: the hull, the parts and the one in hand all read at this scale
+const CHARIOT_AT := Vector2(640, 250)  # the hull's centre, in garage-local pixels
 const MARK_PX := 32.0  # a free slot's marker, and how close a pointer has to sit to drop into it
-const CARD_GAP := 8  # between two cards in the strip
+const DRAG_THRESHOLD := 6.0  # px a press on a mounted piece moves before it is a drag, as ChCard's
 const DASH := 6.0  # one dash of an empty slot's marker
 const GAP := 4.0  # and the space after it
 const MARK_COLOR := Color(0.75, 0.7, 0.55, 0.8)  # an empty slot, dim so it never competes
@@ -40,20 +42,23 @@ var catalog: ChCatalog = null
 var held_id: StringName = &""  # the carried part in hand; &"" when nothing is
 var hover_path: Array[int] = []  # the mounted part under the pointer, empty when nothing is
 
-var _cards: Array[ChPartCard] = []  # the strip's cards, in STRIP_ORDER
-var _pit: Control = null  # the input surface: a click here places, lifts or flips
+var _pit: Control = null  # the input surface: a click here places, lifts, flips or drags a piece
 var _pit_view: Node2D = null  # the pit's nodes, offset so their positions are garage-local pixels
 var _hull: ChPitPiece = null  # the body the build sits on
 var _markers: Node2D = null  # the free slot markers, drawn between the hull and the parts
 var _parts: Node2D = null  # one ChPitPiece per mounted part
+var _drag_layer: Node2D = null  # the dragged piece, drawn under the pointer over the parts
 var _hover: Node2D = null  # the hovered part's box and range, drawn over everything
 var _pieces := {}  # path string -> ChPitPiece: what _parts holds, and the way back from a path
 var _held_layer: Control = null  # the part in hand, drawn over everything at the pointer
 var tooltip: ChPartTooltip = null  # the one part tooltip, the garage's last child so it draws on top
-var _hover_card: ChPartCard = null  # the strip card under the pointer, null when none is
-var _body_name: Label = null
-var _stats: Label = null
 var _pointer := Vector2.ZERO  # the last pointer the pit saw, garage-local: the marker nearest it fills
+
+var _pressed := false  # a left press on the pit is down; its motion and release come through _input
+var _drag_from := Vector2.ZERO  # that press, garage-local, which the 6 px is measured from
+var _press_path: Array[int] = []  # the mounted piece it landed on, empty when it landed on sand
+var _drag_path: Array[int] = []  # the piece a drag picked up; empty while it is still a click
+var _drag_at := Vector2.ZERO  # the pointer while it drags: the piece is drawn here
 
 
 func _init() -> void:
@@ -65,19 +70,15 @@ func _init() -> void:
 func setup(inventory_in: ChInventory, layout_in: ChChariotLayout,
 	catalog_in: ChCatalog) -> void:
 	# Three references and nothing else: a lift returns a part where the owner can see it and a
-	# drop takes it from there, so the screen keeps no copy of either half. The copy the brief
-	# asks for belongs to request_fight, which is the only layout a fight could mutate.
-	# The order is setup() then add_child: _enter_tree builds the strip from this catalog, so a
-	# caller that sets up after entering the tree leaves the strip empty (_enter_tree says so).
-	# The two refreshes below are for a garage that is already on the tree and set up again; on
-	# ChMain's order they are no-ops, because there is no strip or top bar to refresh yet.
-	# shortcut: no validation. An unresolvable body_id is cycle_body's refusal, and Task 4's
+	# drop takes it from there, so the screen keeps no copy of either half. The copy a fight is handed
+	# belongs to the owner too (ChMain still asks for one until Task 13).
+	# The order is setup() then add_child: _enter_tree builds the pit's nodes, so a caller that sets up
+	# after entering the tree has a pit with no hull in it until it does.
+	# shortcut: no validation. An unresolvable body_id is ChChariotLayout's own business, and Task 4's
 	# place() left an out-of-range index legal on the same grounds, so the garage adds no rule.
 	inventory = inventory_in
 	layout = layout_in
 	catalog = catalog_in
-	_refresh_top()
-	_refresh_cards()
 	_sync_pit()
 
 
@@ -99,9 +100,30 @@ func drop_part(part_id: StringName, path) -> bool:
 	if not layout.place(step, part_id):
 		return false
 	inventory.take(part_id)
-	_refresh_cards()
+	changed.emit()
 	_sync_pit()
 	# After the sync, so the piece the beat kicks is the one the drop just built.
+	Feedback.play(&"placed", piece_at(step))
+	_refresh_tooltip()
+	return true
+
+
+func mount_from_inventory(index: int, path) -> bool:
+	# The bar's drop onto a free marker: place first, remove the copy only once the place landed. A
+	# refusal therefore leaves the part at the same index the bar already drew it at - the brief's
+	# "puts the part back at the same index" - and with two copies of an id it is the index that says
+	# which one, which take(id) could not.
+	if inventory == null or layout == null:
+		return false
+	if index < 0 or index >= inventory.part_ids.size():
+		return false
+	var step: Array[int] = _typed(path)
+	if not layout.place(step, inventory.part_ids[index]):
+		return false
+	inventory.remove_at(index)
+	changed.emit()
+	_sync_pit()
+	# After the sync, so the piece the beat kicks is the one the mount just built.
 	Feedback.play(&"placed", piece_at(step))
 	_refresh_tooltip()
 	return true
@@ -124,20 +146,18 @@ func lift(path) -> bool:
 		_refuse_piece(step)
 		return false
 	# get_node just resolved this path, so remove cannot answer null for it.
-	var root_id: StringName = node.part_id
 	_lift_branches([layout.remove(step)])
-	_refresh_cards()
+	changed.emit()
 	_sync_pit()
-	# The beat goes to the card the part went home to; a strip with no such card skips it.
-	Feedback.play(&"activate", _card_for(root_id))
 	return true
 
 
 func _overflows(count: int) -> bool:
 	# The one "does it all fit" rule, and it is read before anything is cut: more ids than the kit has
 	# free slots and the handshake is refused outright, so nothing is auto-sold and nothing is lost.
-	# lift and cycle_body share it. free_slots covers ChMain's unlimited kit with the same rule, and an
-	# inventory that is not there at all has nowhere for a part to go, so it overflows everything.
+	# lift and the shop's body buy share it. free_slots covers ChMain's unlimited kit with the same
+	# rule, and an inventory that is not there at all has nowhere for a part to go, so it overflows
+	# everything.
 	if inventory == null:
 		return true
 	return count > inventory.free_slots()
@@ -145,24 +165,14 @@ func _overflows(count: int) -> bool:
 
 func _refuse_piece(path: Array[int]) -> void:
 	# The refusal shake: the same rotation-only beat ChCard.refuse plays (8 degrees, no pop), on the
-	# pit piece that owns a Juice child from its own _init. Task 10's drag calls this for a drop with
-	# nowhere to go, so it lives here rather than inline in lift.
-	# An empty path names the body, the same way the layout reads it: that is the piece a refused body
-	# swap shakes, since it is the hull the swap would have redrawn.
+	# pit piece that owns a Juice child from its own _init. A refused lift is what shakes today; the
+	# owner of a refused drag (a release with nowhere to go) is the other caller this exists for.
 	# shortcut: Feedback has no `refuse` profile and ChFeedbackManager.KINDS is pinned at 13, so the
 	# juice is kicked directly; upgrade if a refusal profile is ever added.
-	var piece := hull_piece() if path.is_empty() else piece_at(path)
+	var piece := piece_at(path)
 	var juice := ChJuice.of(piece) if piece != null else null
 	if juice != null:
 		juice.juice_up(0.0, deg_to_rad(8.0))
-
-
-func _card_for(id: StringName) -> ChPartCard:
-	# The strip's card for an id, null when the strip lists none: play() skips a null target.
-	for card in _cards:
-		if card.part_id == id:
-			return card
-	return null
 
 
 func click_part(path) -> void:
@@ -170,22 +180,28 @@ func click_part(path) -> void:
 	# children hang, which is the anchor both the drawn part and its markers use.
 	if layout != null:
 		layout.toggle_flip(_typed(path))
+		changed.emit()
 
 
-func pick_part(id: StringName) -> bool:
-	# The strip's click: a carried part comes to hand, and a part the kit has none of is refused (the
-	# card is not draggable as well, but the rule is here so a click by any other route obeys it too).
-	# Picking the part already in hand is how a player puts it back, so that clears the hold instead.
-	if _count_of(id) <= 0:
-		return false
+func hold(id: StringName) -> void:
+	# The bar's click: a part comes to hand, and the bar owns "is this card draggable" now, so the
+	# garage asks the inventory nothing - a held id the kit carries none of draws no part and drops
+	# nowhere, which is the refusal that needs no rule here.
+	# Holding the part already in hand is how a player puts it back, so that clears the hold instead.
 	if id == held_id:
 		cancel_hold()
-		return true
+		return
 	held_id = id
 	if _held_layer != null:
 		_held_layer.queue_redraw()
 	_refresh_tooltip()
-	return true
+
+
+func slot_at(global: Vector2) -> Array:
+	# The drop-zone test an inventory card's release uses: the screen point of a free marker, taken
+	# back into the garage's own pixels, answers that slot's path and cells, or nothing when no marker
+	# is near. The bar hands in screen pixels, so the conversion happens here rather than at the bar.
+	return _slot_near(_to_local(global))
 
 
 func click_pit(pointer: Vector2) -> void:
@@ -222,53 +238,11 @@ func cancel_hold() -> void:
 	_sync_pit()
 
 
-func cycle_body(step: int = 1) -> void:
-	# The body buttons: BODIES walked forward by one, or backwards on a step of -1. swap_body does the
-	# reseat by nearest slot (Task 4) and hands back the subtrees that found no slot; those go home to
-	# the inventory whole, so a part is never both mounted and carried at once.
-	# A fight or a swap clears the hold first: the part is still carried either way, but a held id the
-	# hull no longer knows about is a state the pit would have to explain.
-	cancel_hold()
-	if layout == null or catalog == null:
-		return
-	# A body the cycle never visits has no next, so it stays put instead of jumping to Cutter
-	# and reporting leftovers a caller would read as a reseat that never happened.
-	var at := _cycle_index()
-	if at < 0:
-		return
-	var count := BODIES.size()
-	var next: StringName = BODIES[((at + step) % count + count) % count]
-	# swap_body resolves the def through the catalog and refuses a swap onto an id it has no def
-	# for, leaving body_id alone, so the cycle only ever announces a body it can seat onto.
-	# A swap can orphan any mount, so the whole build has to have somewhere to come home to: the same
-	# fit check lift uses, on every mounted part, refusing before swap_body cuts anything.
-	# shortcut: Task 10 deletes this cycle, and Task 7's shop body buy is the path that auto-sells the
-	# overflow; until then a swap the kit cannot absorb is refused rather than partly applied.
-	if _overflows(layout.all_paths().size()):
-		_refuse_piece([])
-		return
-	_lift_branches(layout.swap_body(catalog.body(next), catalog))
-	# The paths the pointer was over are the old hull's slots, so the hover goes with them.
-	hover_path = []
-	_refresh_tooltip()
-	_refresh_top()
-	_refresh_cards()
-	_sync_pit()
-	Feedback.play(&"placed", hull_piece())
-
-
-func _cycle_index() -> int:
-	for at in BODIES.size():
-		if BODIES[at] == layout.body_id:
-			return at
-	return -1
-
-
 func _lift_branches(branches) -> Array[StringName]:
 	# Whole subtrees go home, parent first: subtree_part_ids is the order a builder needs, which
 	# is also the order that lets a re-drop mount a parent before the child that needs it.
 	# What does not fit comes back as overflow instead of being dropped on the floor: both callers check
-	# free_slots first (lift the branch, cycle_body the whole build), so nothing overflows today. Task
+	# free_slots first (lift the branch, a body swap the whole build), so nothing overflows today. Task
 	# 7's body buy is the first caller that hands back real overflow, and it sells it.
 	var overflow: Array[StringName] = []
 	if inventory == null:
@@ -279,27 +253,6 @@ func _lift_branches(branches) -> Array[StringName]:
 			if not inventory.add(id):
 				overflow.append(id)
 	return overflow
-
-
-func card_counts() -> Dictionary:
-	# Every id the strip lists, mounted or not: a part the kit carries none of reads 0 and its card is
-	# unpickable, which is how the strip says what is left.
-	var out := {}
-	for id in STRIP_ORDER:
-		out[id] = _count_of(id)
-	return out
-
-
-func _count_of(id: StringName) -> int:
-	if inventory == null:
-		return 0
-	var total := 0
-	for carried in inventory.part_ids:
-		if carried == id:
-			total += 1
-	return total
-
-
 
 
 func screen_of(path) -> Vector2:
@@ -393,18 +346,14 @@ func _follow_pointer(pointer: Vector2) -> void:
 	_sync_pit()
 
 
-
 func _refresh_tooltip() -> void:
-	# The one place the tooltip is shown or hidden: a held part hides it, then the hovered card wins
-	# over the hovered hull part, and nothing hovered puts it away.
+	# The one place the tooltip is shown or hidden: a held part hides it, and otherwise it names the
+	# hull part under the pointer, or nothing is shown at all. The cards' own tooltips belong to the bar.
 	if tooltip == null:
 		return
 	var bounds := Rect2(Vector2.ZERO, size)
 	if held_id != &"":
 		tooltip.hide_tooltip()
-	elif _hover_card != null:
-		var anchor := Rect2(_hover_card.global_position - global_position, _hover_card.size)
-		tooltip.show_part(_hover_card.def, anchor, ChPartTooltip.Side.ABOVE, bounds)
 	else:
 		var def := _hovered_def()
 		if def == null:
@@ -421,43 +370,17 @@ func _hovered_def() -> ChPartDef:
 	return catalog.part(node.part_id) if node != null else null
 
 
-func _on_card_hover(entered: bool, card: ChPartCard) -> void:
-	# Reached from the card's hover_changed, which its own hover() emits (the entered flag first,
-	# because that is the signal's argument and bind(card) appends). Card to card, the exit of A may
-	# land after the entry of B: only A's own exit clears A.
-	if entered:
-		_hover_card = card
-		_refresh_tooltip()
-		return
-	if _hover_card == card:
-		_hover_card = null
-	# Godot sends A's exit before B's entry; judging the hide a frame later lets B land first, so a
-	# hop re-kicks the shown tooltip instead of hiding it and popping it in again from small.
-	_refresh_tooltip.call_deferred()
-
-
 func _on_pit_exited() -> void:
 	# A pointer that leaves the pit straight off a hull part sends the pit no motion, so the hover
-	# would stay on the part and come back the moment a card's tooltip went away.
+	# would stay on the part and come back the moment the pointer came in again over sand.
 	hover_path = []
 	_refresh_tooltip()
 	_sync_pit()
 
 
-func request_fight() -> void:
-	# The brief's contract: the battle gets a copy, so it cannot mutate what the garage shows.
-	# The hold goes first: nothing left the inventory on the pick, so clearing the id is all it takes to
-	# keep the kit whole across the fight.
-	# shortcut: the enemy layout stays ChMain's: which fight this screen starts is the owner's
-	# decision, and this signal only says that one was asked for.
-	cancel_hold()
-	if layout == null:
-		return
-	fight_requested.emit(_copy_of_build())
-
-
 func _copy_of_build() -> ChChariotLayout:
-	# The copy the fight is handed: same body, same mounts, same flips, no shared node.
+	# The copy a fight is handed (ChMain's temporary Enter key asks for one until Task 13), so the fight
+	# cannot mutate what the garage shows: same body, same mounts, same flips, no shared node.
 	# ChariotLayout's only deep copy is mirrored(), which also inverts every flip (that is how
 	# an enemy build is sent round), so the copy is built from the class's own parts instead:
 	# all_paths is parent-first, which is the order place needs for a nested path, and the flip
@@ -475,93 +398,28 @@ func _copy_of_build() -> ChChariotLayout:
 
 
 func _enter_tree() -> void:
-	# The nodes the scene declares, the same reading ChBattle takes of $Camera and $HUD. A garage is
-	# instanced per screen (ChMain frees and rebuilds it), so this runs once; the guard keeps a node
-	# that is taken out and put back from building a second strip.
+	# The nodes the scene declares, the same reading ChBattle takes of $Camera and $HUD: the pit's input
+	# surface and the layer the part in hand is drawn on. A garage is instanced per screen (ChMain
+	# frees and rebuilds it), so this runs once; the guard keeps a node that is taken out and put back
+	# from building a second pit.
 	if tooltip != null:
 		return
-	# setup() has to run before this node enters the tree, because the strip below is built from the
-	# catalog and nothing later rebuilds it: a caller that gets this wrong gets an empty strip and no
-	# error otherwise, which is silent and looks like a bug in the inventory.
-	if catalog == null:
-		push_error("ChGarage entered the tree before setup(): its strip stays empty")
 	_pit = $Pit
-	_pit.gui_input.connect(_on_pit_input)
 	_build_pit_nodes()
+	_pit.gui_input.connect(_on_pit_input)
+	_pit.mouse_exited.connect(_on_pit_exited)
 	_held_layer = $HeldLayer
 	_held_layer.draw.connect(_draw_held)
-	_pit.mouse_exited.connect(_on_pit_exited)
 	tooltip = ChPartTooltip.new()
 	add_child(tooltip)
-	_body_name = $TopBar/BodyName
-	_stats = $TopBar/Stats
-	var prev: Button = $TopBar/PrevBody
-	var next: Button = $TopBar/NextBody
-	var fight: Button = $TopBar/FightButton
-	# Mouse only: these are not in a focus chain, so no keyboard focus warnings on entry.
-	for button in [prev, next, fight]:
-		button.focus_mode = Control.FOCUS_NONE
-		Feedback.attach_button(button)
-	# One logic call each: the buttons are the methods the tests drive, not a second path through the UI.
-	prev.pressed.connect(cycle_body.bind(-1))
-	next.pressed.connect(cycle_body.bind(1))
-	fight.pressed.connect(request_fight)
-	# The one action that starts a fight is the one GO-coloured control; the theme covers every other
-	# button, so this is the only local restyle.
-	fight.add_theme_stylebox_override("normal", ChUi.flat(ChUi.GO))
-	fight.add_theme_stylebox_override("hover", ChUi.flat(ChUi.GO.lightened(0.08), ChUi.ACCENT))
-	_build_strip()
-	_refresh_top()
-	_refresh_cards()
 	_sync_pit()
-
-
-func _build_strip() -> void:
-	# One card per id STRIP_ORDER lists, in that order: the strip is the whole kit at once, so there is
-	# no paging and no row count to keep. A card's own click (ChCard's clicked) is its pick call, so the
-	# card needs no reference back to the garage. ChCard owns its hover state rather than watching the
-	# mouse itself, so the Control's enter/exit only feed card.hover(); the tooltip follows the card's
-	# own hover_changed, which is where the cards and the tooltip meet.
-	var row: HBoxContainer = $Strip/Scroll/Cards
-	row.add_theme_constant_override("separation", CARD_GAP)
-	for id in STRIP_ORDER:
-		var def: ChPartDef = catalog.part(id) if catalog != null else null
-		if def == null:
-			continue  # an id the catalog has no def for cannot be drawn
-		var card := ChPartCard.new(def, pick_part.bind(id))
-		card.mouse_entered.connect(card.hover.bind(true))
-		card.mouse_exited.connect(card.hover.bind(false))
-		card.hover_changed.connect(_on_card_hover.bind(card))
-		row.add_child(card)
-		_cards.append(card)
-
-
-func _refresh_cards() -> void:
-	# The strip's counts, off the inventory: the one place a card learns what is left, called from every
-	# mutator that carries a part in or out (a drop, a lift, a body swap).
-	for card in _cards:
-		card.set_count(_count_of(card.part_id))
-
-
-func _refresh_top() -> void:
-	# The bar's own numbers, off the body def: the hull's name and what this build starts a fight with.
-	if _body_name == null or catalog == null or layout == null:
-		return
-	var def: ChBodyDef = catalog.body(layout.body_id)
-	if def == null:
-		# A body with no def has nothing to name; the id is the only thing there is to show.
-		_body_name.text = String(layout.body_id)
-		_stats.text = ""
-		return
-	# The type is the subtitle (bodies spec §2): "Cutter · Wedge". A def with no type shows its name alone.
-	_body_name.text = def.display_name if def.type_name == "" else "%s · %s" % [def.display_name, def.type_name]
-	_stats.text = "HP %d · Energy %d" % [def.hp, def.energy_cap]
 
 
 func _on_pit_input(event: InputEvent) -> void:
 	# A real mouse, on the pit. A Control hands its handler positions local to itself, so the convert
-	# is what puts a click in the garage's own pixels; then left places or lifts and right flips. The
-	# same pointer drives the hover, so the panel and the marker nearest it follow the mouse.
+	# is what puts a click in the garage's own pixels; then left places a part in hand, or arms a press
+	# on a mounted piece, and right flips. The motion and release of that press arrive through _input
+	# instead (see there), because a drag leaves the pit on its way to the bar.
 	if not event is InputEventMouse:
 		return
 	var at: Vector2 = _pit.position + (event as InputEventMouse).position
@@ -571,36 +429,107 @@ func _on_pit_input(event: InputEvent) -> void:
 	var button := event as InputEventMouseButton
 	if not button.pressed:
 		return
-	if button.button_index == MOUSE_BUTTON_LEFT:
-		click_pit(at)
-	elif button.button_index == MOUSE_BUTTON_RIGHT:
+	if button.button_index == MOUSE_BUTTON_RIGHT:
 		right_click_pit(at)
+	elif button.button_index == MOUSE_BUTTON_LEFT:
+		if held_id != &"":
+			click_pit(at)
+		else:
+			_pressed = true
+			_drag_from = at
+			_press_path = _hover_at(at)
 	_follow_pointer(at)
 
 
 func _gui_input(event: InputEvent) -> void:
-	# The root's empty space: a left click there puts the part in hand back. The pit, the strip's cards
-	# and the buttons all handle their own clicks (the containers pass inside themselves), so only what
-	# none of them took arrives here. Motions are not read: _input has every one of them already.
+	# The root's empty space: a left click there puts the part in hand back. The pit handles its own
+	# clicks, so only what it did not take arrives here. Motions are not read: _input has every one.
 	if event is InputEventMouseButton and event.pressed \
 			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		cancel_hold()
 
 
 func _input(event: InputEvent) -> void:
-	# The part in hand follows the pointer, including across the strip, whose cards take their own
-	# motion: this is the one place every motion arrives. Nothing else is read here - a motion over the
-	# pit is the pit's own, and the hold is the only state a redraw of the layer can be needed for.
-	if held_id == &"" or _held_layer == null:
+	# The press's motion and release are read here rather than through the pit's gui_input, so a drag
+	# that leaves the pit on its way to the bar is still followed: this is the one place every motion
+	# arrives, the same seam ChCard takes its own drag through. The part in hand follows the pointer
+	# from here too.
+	if not event is InputEventMouse:
 		return
-	if event is InputEventMouseMotion:
+	var mouse := event as InputEventMouse
+	if _pressed:
+		if event is InputEventMouseMotion:
+			_drag_to(_to_local(mouse.global_position))
+		elif event is InputEventMouseButton \
+				and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT \
+				and not (event as InputEventMouseButton).pressed:
+			_end_drag(_to_local(mouse.global_position))
+			return
+	if held_id != &"" and _held_layer != null and event is InputEventMouseMotion:
 		_held_layer.queue_redraw()
 
 
+func _to_local(global: Vector2) -> Vector2:
+	# A screen point in the garage's own pixels: Control has no to_local (that is Node2D's), so this is
+	# the canvas item's transform taken backwards. The pit's gui_input and the bar's drops agree on it.
+	return get_global_transform_with_canvas().affine_inverse() * global
+
+
+func _drag_to(at: Vector2) -> void:
+	# The press on a mounted piece: under the 6 px it is still the click it always was, past it the
+	# piece comes off the pit and is drawn at the pointer until it is let go.
+	_drag_at = at
+	if _drag_path.is_empty():
+		if _press_path.is_empty() or at.distance_to(_drag_from) <= DRAG_THRESHOLD:
+			return
+		_drag_path = _press_path
+	_sync_drag()
+
+
+func _end_drag(at: Vector2) -> void:
+	# The press let go. A drag hands the path and the screen point to the owner, which lifts it or
+	# sells it - the pit changes nothing here. A press that never moved past the threshold is today's
+	# click on a mounted part: it lifts the branch.
+	var dropped: Array[int] = _drag_path
+	var pressed: Array[int] = _press_path  # the press's own piece: a release under 6 px is a click
+	_pressed = false
+	_drag_path = []
+	_press_path = []
+	_drag_at = at
+	_sync_drag()
+	_follow_pointer(at)
+	if not dropped.is_empty():
+		piece_dropped.emit(dropped, get_global_transform_with_canvas() * at)
+		return
+	if not pressed.is_empty():
+		lift(pressed)
+
+
+func _sync_drag() -> void:
+	# The dragged piece is drawn at the pointer rather than in its slot, so its own piece is hidden
+	# until it lands. A drop the owner refuses re-shows it by clearing _drag_path and syncing again.
+	for key in _pieces:
+		_pieces[key].visible = key != str(_drag_path)
+	if _drag_layer != null:
+		_drag_layer.queue_redraw()
+
+
+func _draw_drag() -> void:
+	# The dragged part, at the pointer and at the pit's zoom, so it reads as the piece that will be
+	# dropped rather than a thumbnail of it.
+	if _drag_path.is_empty() or catalog == null or layout == null:
+		return
+	var node: ChSlotNode = layout.get_node(_drag_path)
+	var def: ChPartDef = catalog.part(node.part_id) if node != null else null
+	if def != null:
+		ChPartCard.paint(_drag_layer, _drag_at, def, ZOOM, node.flipped)
+
+
 func _build_pit_nodes() -> void:
-	# The pit's nodes, added first under $Pit so the strip, the held layer and the tooltip stay on top. PitView undoes the pit's own offset, so a child's position is a garage pixel - the same
-	# space screen_of, _box_at and _free_slots answer in - and the children keep the paint order the
-	# one _draw had: hull, markers, parts, hover.
+	# The pit's nodes, added under $Pit so the held layer and the tooltip stay on top. PitView undoes the
+	# pit's own offset, so a child's position is a garage pixel - the same space screen_of, _box_at and
+	# _free_slots answer in - and the children keep the paint order the one _draw had: hull, markers,
+	# parts, the dragged piece, hover.
 	_pit_view = Node2D.new()
 	_pit_view.name = "PitView"
 	_pit.add_child(_pit_view)
@@ -619,6 +548,10 @@ func _build_pit_nodes() -> void:
 	_parts = Node2D.new()
 	_parts.name = "Parts"
 	_pit_view.add_child(_parts)
+	_drag_layer = Node2D.new()
+	_drag_layer.name = "Drag"
+	_drag_layer.draw.connect(_draw_drag)
+	_pit_view.add_child(_drag_layer)
 	_hover = Node2D.new()
 	_hover.name = "Hover"
 	_hover.draw.connect(_draw_hover)
@@ -685,6 +618,8 @@ func _sync_pit() -> void:
 			_drop_piece(key)
 	_markers.queue_redraw()
 	_hover.queue_redraw()
+	# A piece rebuilt mid-drag is visible by default, so the dragged one is hidden again here.
+	_sync_drag()
 
 
 func _drop_piece(key: String) -> void:

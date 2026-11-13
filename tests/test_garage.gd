@@ -1,13 +1,14 @@
 extends ChTest
 
-# Task 16: the garage's logic — the inventory handshakes (drop, lift), the flip click, the body
-# cycle and the copy `fight_requested` hands the battle. ChGarage.setup is what a scene calls
-# before any of these, so every test builds its own garage, inventory and layout: a garage owns
-# the references it was handed, so a shared one would carry an earlier test's mounts.
-# The UI is built on these same methods, so the click chain below drives the same rules a mouse does.
-# Task 7 replaced the drag with click-then-click, so the pointer rules are methods now and the tests
-# below follow the brief's own wording: `-- test_garage` runs them all, and the two scene tests plus
-# the input test at the end instance the shipped garage.tscn rather than a bare ChGarage.
+# Task 10: the garage's logic — the inventory handshakes (drop, mount by index, lift), the flip click
+# and the copy a fight is handed. ChGarage.setup is what a scene calls before any of these, so every
+# test builds its own garage, inventory and layout: a garage owns the references it was handed, so a
+# shared one would carry an earlier test's mounts.
+# The pit is the only screen left: the bar owns the cards, so a mount arrives by index, and the pit's
+# own rules are methods a test drives the way a mouse does. A press that moves past 6 px is a drag: it
+# hands the path and the screen point to the owner and lifts nothing itself. `-- test_garage` runs
+# them all, and the scene tests at the end instance the shipped garage.tscn rather than a bare
+# ChGarage.
 # ChMain end to end (review finding 3): the brief's headline deliverable is the round trip -
 # garage -> one battle -> result -> garage - and nothing above ever ran it. The seam is the
 # shipped scene rather than a copy of ChMain's loop, which is also where the scene's own nodes
@@ -61,8 +62,8 @@ func _layout(body_id: StringName) -> ChChariotLayout:
 	var layout := ChChariotLayout.new()
 	# ChariotLayout.new() starts body_id empty, which swap_body has no position to measure from,
 	# so a garage is only ever set up on a body the catalog has a def for.
-	# shortcut: a body_id the catalog has no def for stays a caller error; cycle_body's refusal
-	# is what such a layout shows, and setup invents no rule of its own.
+	# shortcut: a body_id the catalog has no def for stays a caller error; setup invents no rule of
+	# its own, and the hull simply shows nothing for it.
 	layout.body_id = body_id
 	return layout
 
@@ -99,6 +100,15 @@ func _wait_screen(main: ChMain, want: StringName) -> void:
 	while main.screen != want and frames < SCREEN_FRAMES:
 		await Engine.get_main_loop().process_frame
 		frames += 1
+
+
+func _ask_fight(main: ChMain) -> void:
+	# The temporary key (Task 13 deletes it): Enter is the only way the embeddable pit asks for the one
+	# fight the slice has, so the tests drive the handler a real key press reaches.
+	var event := InputEventKey.new()
+	event.keycode = KEY_ENTER
+	event.pressed = true
+	main._unhandled_input(event)
 
 
 func test_drop_takes_from_inventory() -> void:
@@ -238,39 +248,37 @@ func test_click_flips() -> void:
 
 
 # --- Task 7: the click chain ----------------------------------------------------------------------
-# Placing a part is click, then click, and there is no hold-to-drag any more: the strip's card is the
-# first click and the pit is the second. The rules the deleted pointer polling used to carry live in
-# pick_part / click_pit / right_click_pit now, and these drive them the way the screen does. Nothing
-# leaves the inventory until a drop lands, so a hold is only a reference the screen keeps.
+# Placing a part is click, then click: the bar's click hands a part to hold(), and the pit's click is
+# the second. Nothing leaves the inventory until a drop lands, so a hold is only a reference the screen
+# keeps. The pointer rules live in hold / click_pit / right_click_pit, and these drive them the way the
+# screen does.
 
 func test_pick_and_place() -> void:
 	var inventory := _inventory([&"wheel", &"wheel"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
-	assert_true(garage.pick_part(&"wheel"), "a carried wheel is picked up")
-	assert_eq(garage.held_id, &"wheel", "and it is the one in hand")
+	garage.hold(&"wheel")
+	assert_eq(garage.held_id, &"wheel", "a wheel is in hand")
 	assert_eq(inventory.part_ids.size(), 2, "picking one up takes nothing out of the kit")
 	# The slot's own pixel: screen_of answers for a slot nothing is mounted in yet, which is what a
 	# click aimed at an empty marker needs.
 	garage.click_pit(garage.screen_of([0]))
 	assert_true(layout.get_node([0]) != null, "the second click mounted it in body slot 0")
 	assert_eq(layout.get_node([0]).part_id, &"wheel", "as the wheel that was in hand")
-	assert_eq(garage.card_counts()[&"wheel"], 1, "one wheel left carried")
+	assert_eq(inventory.part_ids.size(), 1, "one wheel left carried")
 	assert_eq(garage.held_id, &"", "and nothing is held once it is down")
 	garage.free()
 	_complete()
 
 
-func test_pick_empty_refused() -> void:
-	# Carrying none of a part: its card is disabled, and the rule behind the card refuses too.
+func test_hold_toggles() -> void:
+	# Holding what is already held puts it back, which is how a player changes their mind without a
+	# cancel button. The count check is gone with the strip: the bar owns whether a card can be pressed.
 	var garage: ChGarage = _garage(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
-	assert_true(not garage.pick_part(&"ice_cream_mace"), "a part the kit has none of is refused")
-	assert_eq(garage.held_id, &"", "and nothing is in hand")
-	# Picking what is already held puts it back, which is how a player changes their mind without
-	# a cancel button.
-	assert_true(garage.pick_part(&"wheel"), "the wheel is picked up")
-	assert_true(garage.pick_part(&"wheel"), "picking it again is allowed")
-	assert_eq(garage.held_id, &"", "and clears the hold")
+	garage.hold(&"wheel")
+	assert_eq(garage.held_id, &"wheel", "the wheel is picked up")
+	garage.hold(&"wheel")
+	assert_eq(garage.held_id, &"", "and holding it again clears the hold")
 	garage.free()
 	_complete()
 
@@ -279,11 +287,11 @@ func test_click_elsewhere_cancels() -> void:
 	var inventory := _inventory([&"wheel", &"wheel"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
-	assert_true(garage.pick_part(&"wheel"), "a wheel is in hand")
+	garage.hold(&"wheel")
 	# (5,5) is the garage's top-left corner, nowhere near a marker.
 	garage.click_pit(Vector2(5, 5))
 	assert_eq(garage.held_id, &"", "a click away from every slot puts the part back")
-	assert_eq(garage.card_counts()[&"wheel"], 2, "and the kit is unchanged")
+	assert_eq(inventory.part_ids.size(), 2, "and the kit is unchanged")
 	assert_eq(layout.slots.size(), 0, "with nothing mounted")
 	garage.free()
 	_complete()
@@ -300,7 +308,7 @@ func test_click_mounted_lifts() -> void:
 	assert_true(layout.get_node([1]) == null, "the strut came off the hull")
 	assert_eq(layout.slots.size(), 0, "and took its wheel with it")
 	assert_eq(inventory.part_ids.size(), 3, "both back in the kit, with the spare wheel")
-	assert_eq(garage.card_counts()[&"strut"], 1, "which the strip shows straight away")
+	assert_true(inventory.has(&"strut"), "the strut is carried again")
 	garage.free()
 	_complete()
 
@@ -321,46 +329,6 @@ func test_right_click_flips() -> void:
 	_complete()
 
 
-func test_cycle_back() -> void:
-	# Cutter -> Corsair is one step backwards down BODIES, which is what the top bar's left button
-	# does; the forward direction is already pinned by the leftover test above.
-	var layout := _layout(&"cutter")
-	var garage: ChGarage = _garage(_inventory([]), layout, _catalog())
-	garage.cycle_body(-1)
-	assert_eq(layout.body_id, &"corsair", "a step of -1 walks the cycle backwards")
-	garage.cycle_body()
-	assert_eq(layout.body_id, &"cutter", "and the default step walks it forward again")
-	garage.free()
-	_complete()
-
-
-# Review focus for this task: a fight asked for, or a body swapped, while a part is in hand must not
-# lose or duplicate it. Nothing leaves the inventory until a drop, so the hold is the only thing that
-# can go wrong, and clearing it is the whole fix.
-func test_fight_while_holding_keeps_inventory() -> void:
-	var inventory := _inventory([&"wheel", &"wheel", &"cutter_rocket", &"strut"])
-	var layout := _layout(&"cutter")
-	var garage: ChGarage = _garage(inventory, layout, _catalog())
-	assert_true(garage.pick_part(&"wheel"), "a wheel is in hand")
-	var before := inventory.part_ids.duplicate()
-	var handed: Array = []
-	var sink := handed
-	garage.fight_requested.connect(func(copy: ChChariotLayout): sink.append(copy))
-	garage.request_fight()
-	assert_eq(handed.size(), 1, "the fight was still asked for")
-	assert_eq(garage.held_id, &"", "the click into a fight dropped the hold")
-	assert_eq(inventory.part_ids, before, "and the kit is exactly what it was")
-	assert_eq(handed[0].slots.size(), 0, "the copy holds nothing the hold might have dropped")
-	# The same for a body swap: the carried part is still carried, and the hold is gone.
-	assert_true(garage.pick_part(&"cutter_rocket"), "the rocket is in hand")
-	garage.cycle_body()
-	assert_eq(garage.held_id, &"", "a body swap drops the hold too")
-	assert_eq(inventory.part_ids, before, "with the kit untouched again")
-	assert_eq(layout.body_id, &"dozer", "and the swap itself happened")
-	garage.free()
-	_complete()
-
-
 func test_drop_onto_strut_extension() -> void:
 	# A free extension slot is a marker like any body slot, so the same click places into it: the
 	# strut at Cutter slot 2 (-6,-3) hangs its extension 0 one part up.
@@ -368,136 +336,23 @@ func test_drop_onto_strut_extension() -> void:
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
 	assert_true(garage.drop_part(&"strut", [2]), "the strut mounts in slot 2")
-	assert_true(garage.pick_part(&"cutter_chainsaw"), "the chainsaw is in hand")
+	garage.hold(&"cutter_chainsaw")
 	garage.click_pit(garage.screen_of([2, 0]))
 	assert_true(layout.get_node([2, 0]) != null, "the chainsaw bolted onto the strut's extension 0")
 	assert_eq(layout.get_node([2, 0]).part_id, &"cutter_chainsaw", "as the chainsaw")
 	assert_eq(garage.held_id, &"", "with the hold cleared")
-	assert_eq(garage.card_counts()[&"strut"], 0, "the strut is mounted, so the strip carries none")
+	assert_true(inventory.part_ids.is_empty(), "and nothing left carried")
 	garage.free()
 	_complete()
 
 
-func test_cycle_body_keeps_parts_and_returns_leftovers() -> void:
-	# Corsair slots sit at (-21,5),(21,5),(-20,-5),(-10,-5),(4,-5),... and the Cutter's four at
-	# (-10,4.5),(9,4.5),(-6,-3),(6,-3). swap_body pairs them greedily by distance as a share of each
-	# hull's size, so every mount moves except the strut at Corsair slot 2 (-20,-5): the Battery at
-	# slot 3 is nearer the Cutter's rear top slot and takes it first.
-	var inventory := _inventory([&"wheel", &"wheel", &"strut", &"wheel", &"ember_battery",
-	    &"cutter_rocket"])
-	var layout := _layout(&"corsair")
-	var garage: ChGarage = _garage(inventory, layout, _catalog())
-	assert_true(garage.drop_part(&"wheel", [0]), "Corsair slot 0 at (-21,5)")
-	assert_true(garage.drop_part(&"wheel", [1]), "Corsair slot 1 at (21,5)")
-	assert_true(garage.drop_part(&"strut", [2]), "Corsair slot 2 at (-20,-5)")
-	assert_true(garage.drop_part(&"wheel", [2, 0]), "a wheel bolted under that strut")
-	assert_true(garage.drop_part(&"ember_battery", [3]), "Corsair slot 3 at (-10,-5)")
-	assert_true(garage.drop_part(&"cutter_rocket", [4]), "Corsair slot 4 at (4,-5)")
-	assert_true(inventory.part_ids.is_empty(), "six drops left the inventory empty")
-	garage.cycle_body()
-	# Cutter -> Dozer -> Corsair -> Cutter, so a build starting on Corsair wraps to Cutter.
-	assert_eq(layout.body_id, &"cutter", "the cycle moved one body on")
-	assert_eq(layout.slots.size(), 4, "four of the five mounts found a Cutter slot")
-	assert_eq(layout.get_node([0]).part_id, &"wheel", "the wheels kept a top-level slot each")
-	assert_eq(layout.get_node([1]).part_id, &"wheel", "as did the other")
-	assert_eq(layout.get_node([2]).part_id, &"ember_battery", "the Ember Battery took slot 2")
-	assert_eq(layout.get_node([3]).part_id, &"cutter_rocket", "the Rocket took slot 3")
-	assert_true(layout.get_node([2, 0]) == null, "and the branch that came back left nothing behind")
-	# A leftover comes back as its whole subtree, so the ids travel parent first.
-	assert_eq(inventory.part_ids, [&"strut", &"wheel"], "the branch came back whole, parent first")
-	garage.cycle_body()
-	# Cutter -> Dozer: the Tower has six slots for four mounts, so nothing is left over. Scaled to
-	# each hull, the wheels stay on the bottom edge and the Cutter's two top slots sit nearest the
-	# Tower's roof slots (4, 5), not its mid-side ones (2, 3).
-	assert_eq(layout.body_id, &"dozer", "and the cycle keeps going")
-	assert_eq(layout.slots.size(), 4, "all four fit the Dozer")
-	assert_eq(inventory.part_ids, [&"strut", &"wheel"], "and the same two carried parts")
-	assert_eq(layout.get_node([0]).part_id, &"wheel", "the wheels stayed on the bottom edge")
-	assert_eq(layout.get_node([1]).part_id, &"wheel", "both of them")
-	assert_eq(layout.get_node([4]).part_id, &"ember_battery", "the Ember Battery moved to slot 4")
-	assert_eq(layout.get_node([5]).part_id, &"cutter_rocket", "and the Rocket to slot 5")
-	garage.free()
-	_complete()
-
-
-# --- The review finding: a body cycle with nowhere to put the leftovers ---------------------------
-# The body buttons live until Task 10 while the run's kit is 5 slots from Task 7 on, so between them a
-# cycle could detach a subtree, fail to carry it and lose it. It refuses instead, on the same fit check
-# lift uses: nothing is cut, so mounted + carried stays what it was ("Nothing is ever lost").
-
-func test_cycle_body_refuses_when_parts_do_not_fit() -> void:
-	# The build the leftover test above pins, where Corsair -> Cutter orphans the strut at slot 2
-	# (-20,-5): that branch is the overflow. Four carried in a 5-slot kit leaves one free, so the two
-	# ids have nowhere to go and the whole cycle refuses rather than keeping one and losing one.
-	var inventory := _inventory([&"wheel", &"wheel", &"wheel", &"wheel"])
-	inventory.capacity = ChInventory.CAPACITY
-	var layout := _layout(&"corsair")
-	var garage: ChGarage = _garage(inventory, layout, _catalog())
-	# Mounted through the layout so the four carried parts stay carried, as in the lift refusal test.
-	assert_true(layout.place(_typed_path([0]), &"wheel"), "Corsair slot 0 at (-21,5)")
-	assert_true(layout.place(_typed_path([1]), &"wheel"), "Corsair slot 1 at (21,5)")
-	assert_true(layout.place(_typed_path([2]), &"strut"), "Corsair slot 2 at (-20,-5)")
-	assert_true(layout.place(_typed_path([2, 0]), &"wheel"), "a wheel bolted under that strut")
-	assert_true(layout.place(_typed_path([3]), &"ember_battery"), "Corsair slot 3 at (-10,-5)")
-	assert_true(layout.place(_typed_path([4]), &"cutter_rocket"), "Corsair slot 4 at (4,-5)")
-	assert_eq(inventory.free_slots(), 1, "one free slot for a two id branch")
-	var mounted_before := layout.all_paths().size()
-	var carried_before := inventory.part_ids.size()
-	var slots_before: Dictionary = layout.slots.duplicate()
-	var carried_list: Array[StringName] = inventory.part_ids.duplicate()
-	garage.cycle_body()
-	# Every part is still somewhere: the swap never happened, so nothing was dropped on the floor.
-	assert_eq(layout.all_paths().size() + inventory.part_ids.size(), mounted_before + carried_before,
-		"mounted plus carried is the count it was")
-	assert_eq(layout.body_id, &"corsair", "the body did not change")
-	assert_eq(layout.slots, slots_before, "and the layout is exactly what it was")
-	assert_eq(inventory.part_ids, carried_list, "and the kit gained nothing and lost nothing")
-	garage.free()
-	_complete()
-
-
-func test_cycle_body_refusal_shakes_the_hull() -> void:
-	# The refusal is felt on the piece a body swap would have redrawn: the hull keeps its node and takes
-	# the same rotation-only shake a refused lift gives its piece.
-	var catalog := _catalog()
-	var inventory := _inventory([&"wheel", &"wheel", &"wheel", &"wheel"])
-	inventory.capacity = ChInventory.CAPACITY
-	var layout := _layout(&"corsair")
-	assert_true(layout.place(_typed_path([2]), &"strut"), "the strut is mounted before the screen is built")
-	assert_true(layout.place(_typed_path([2, 0]), &"wheel"), "with a wheel bolted under it")
-	var garage: ChGarage = _garage_scene(inventory, layout, catalog)
-	var hull: ChPitPiece = garage.hull_piece()
-	assert_true(hull != null, "the pit has a hull piece")
-	if hull == null:
-		_complete()
-		return
-	var juice := ChJuice.of(hull)
-	assert_true(juice != null, "and the hull carries a Juice child")
-	if juice == null:
-		_complete()
-		return
-	garage.cycle_body()
-	assert_eq(layout.body_id, &"corsair", "the cycle refused")
-	assert_true(garage.hull_piece() == hull, "the hull piece was not rebuilt or freed")
-	juice.advance(ROTATION_PEAK_STEP)
-	assert_near(absf(juice.rotation_value()), _wigged_rotation(deg_to_rad(8.0)), 0.0001,
-		"the hull took the 8 degree refusal shake")
-	assert_near(juice.scale_value(), 1.0, 0.0001, "with no pop, as ChCard.refuse does")
-	_complete()
-
-
-func test_fight_emits_layout_copy() -> void:
+func test_copy_of_build() -> void:
+	# The copy ChMain's temporary Enter key hands a fight: the battle receives a copy, so it can never
+	# mutate the garage's build (ChBattle mirrors the layout it is given).
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(_inventory([&"wheel", &"wheel"]), layout, _catalog())
 	assert_true(garage.drop_part(&"wheel", [0]), "one mount, so the copy has a node to copy")
-	var handed: Array = []
-	var sink := handed
-	garage.fight_requested.connect(func(copy: ChChariotLayout): sink.append(copy))
-	garage.request_fight()
-	assert_eq(handed.size(), 1, "Fight hands over exactly one layout")
-	var copy: ChChariotLayout = handed[0]
-	# The brief's point: the battle receives a copy, so it can never mutate the garage's build
-	# (ChBattle mirrors the layout it is given).
+	var copy: ChChariotLayout = garage._copy_of_build()
 	assert_true(copy.get_instance_id() != layout.get_instance_id(), "not the garage's instance")
 	assert_true(copy.get_node([0]).get_instance_id() != layout.get_node([0]).get_instance_id(),
 		"deep copy: even the node is new")
@@ -536,11 +391,11 @@ func test_main_round_trip() -> void:
 	# the garage that comes back is the same two halves with the same build on them.
 	var build_id := main.layout.get_instance_id()
 	var carried := main.inventory.part_ids.size()  # the kit minus the three parts just mounted
-	# The fight is asked for the way the UI asks: the "Fight" Button's pressed signal is wired to
-	# request_fight, so calling that method is what pressing the button does.
+	# The fight is asked for the way the screen asks: Enter, which is the temporary key Task 13
+	# replaces with the shop's own Fight button.
 	var results: Array[StringName] = []
 	var sink := results
-	main.garage.request_fight()
+	_ask_fight(main)
 	assert_true(main.battle != null, "the fight started, as an instantiated battle.tscn")
 	assert_eq(main.screen, &"fight", "and the loop left the garage for it")
 	# No Space key headless, and the volley is press-driven: the player presses by the enemy's rule.
@@ -609,7 +464,7 @@ func test_main_draw_panel() -> void:
 	var cook: ChChariotLayout = ResourceLoader.load(ChMain.ENEMY)
 	var cook_hp := cook.max_hp
 	cook.max_hp = 0
-	main.garage.request_fight()
+	_ask_fight(main)
 	assert_eq(main.screen, &"fight", "the fight started")
 	await _wait_screen(main, &"result")
 	cook.max_hp = cook_hp
@@ -628,7 +483,7 @@ func test_main_draw_panel() -> void:
 # garage in the tree either way.
 func test_back_twice_one_garage() -> void:
 	var main: ChMain = _main_scene()
-	main.garage.request_fight()
+	_ask_fight(main)
 	var frames := 0
 	while main.battle.enemy == null and frames < 60:
 		await Engine.get_main_loop().process_frame
@@ -663,14 +518,14 @@ func test_back_twice_one_garage() -> void:
 
 
 # --- Task 7: the built screen ---------------------------------------------------------------------
-# The rebuild is a scene, so these three tests instance garage.tscn: the strip's cards and the
-# tooltip only exist once the scene does. Everything above stays a bare ChGarage because the logic
+# The rebuild is a scene, so these tests instance garage.tscn: the pit's input surface, the hull and
+# the tooltip only exist once the scene does. Everything above stays a bare ChGarage because the logic
 # methods must work with no nodes at all (ChMain calls setup before add_child).
 
 func _garage_scene(inventory: ChInventory, layout: ChChariotLayout,
 	catalog: ChCatalog) -> ChGarage:
-	# setup() before add_child, the order ChMain uses, so _enter_tree builds the strip from the
-	# inventory it was handed.
+	# setup() before add_child, the order ChMain uses, so _enter_tree builds the pit from the layout
+	# and the catalog it was handed.
 	var scene: PackedScene = ResourceLoader.load(GARAGE_SCENE)
 	assert_true(scene != null, "garage.tscn loads")
 	var garage: ChGarage = scene.instantiate()
@@ -680,30 +535,25 @@ func _garage_scene(inventory: ChInventory, layout: ChChariotLayout,
 	return garage
 
 
-func _card_of(garage: ChGarage, id: StringName) -> ChPartCard:
-	var found: ChPartCard = null
-	for node in garage.find_children("*", "ChPartCard", true, false):
-		if node.part_id == id:
-			found = node
-	return found
+func _button(at: Vector2, pressed: bool, button := MOUSE_BUTTON_LEFT) -> void:
+	var event := InputEventMouseButton.new()
+	event.button_index = button
+	event.pressed = pressed
+	event.position = at
+	event.global_position = at
+	Engine.get_main_loop().get_root().push_input(event, true)
 
 
 func _press(at: Vector2, button := MOUSE_BUTTON_LEFT) -> void:
 	# One real click through the viewport's own input path. in_local_coords is on purpose: the runner's
 	# window is 64x64 in headless while the canvas is 1280x720, so a non-local event would be scaled by
 	# 1/20 on its way in (measured); a local one arrives in the canvas pixels the screen is laid out in.
-	var root: Viewport = Engine.get_main_loop().get_root()
-	for pressed in [true, false]:
-		var event := InputEventMouseButton.new()
-		event.button_index = button
-		event.pressed = pressed
-		event.position = at
-		event.global_position = at
-		root.push_input(event, true)
+	_button(at, true, button)
+	_button(at, false, button)
 
 
 func _move(at: Vector2) -> void:
-	# A motion, the way the pit reads the pointer: the hover, the info panel and the marker nearest the
+	# A motion, the way the pit reads the pointer: the hover, the tooltip and the marker nearest the
 	# pointer all come from these, so a test that only clicks would never drive them.
 	var motion := InputEventMouseMotion.new()
 	motion.position = at
@@ -711,60 +561,9 @@ func _move(at: Vector2) -> void:
 	Engine.get_main_loop().get_root().push_input(motion, true)
 
 
-func test_strip_has_every_part() -> void:
-	# One wheel carried, so every other card reads 0 and the not-draggable pin has a card to check.
-	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
-	var cards: Array = garage.find_children("*", "ChPartCard", true, false)
-	assert_eq(cards.size(), garage.STRIP_ORDER.size(), "one card per part the strip lists")
-	var order: Array = []
-	for card in cards:
-		order.append(card.part_id)
-	assert_eq(order, garage.STRIP_ORDER, "in STRIP_ORDER's order")
-	var mace := _card_of(garage, &"ice_cream_mace")
-	assert_true(mace != null, "the mace has a card")
-	assert_eq(mace.count, 0, "carrying none")
-	assert_true(not mace.draggable, "so it cannot be picked")
-	# An unpickable card is greyed out as well, which is the spec's "stays in the strip,
-	# greyed out and not clickable": the alpha is the whole of the grey-out.
-	assert_near(mace.modulate.a, 0.45, 0.001, "a card carrying none is greyed out")
-	var wheel := _card_of(garage, &"wheel")
-	assert_eq(wheel.count, 1, "the carried wheel reads one")
-	assert_true(wheel.draggable, "and its card is live")
-	assert_near(wheel.modulate.a, 1.0, 0.001, "and drawn at full strength")
-	assert_eq(garage.card_counts().size(), garage.STRIP_ORDER.size(),
-		"card_counts answers for every id the strip shows")
-	# A drop updates the strip without a rebuild, which is the only thing that keeps it honest.
-	assert_true(garage.drop_part(&"wheel", [0]), "the wheel mounts")
-	assert_eq(wheel.count, 0, "and its card reads none carried")
-	assert_true(not wheel.draggable, "with nothing to pick")
-	assert_near(wheel.modulate.a, 0.45, 0.001, "and greyed out once the last copy left the kit")
-	_complete()
-
-
-func test_card_press_and_release_pick() -> void:
-	# Task 3: the card is a ChCard now, so the pick seam is press/release and `clicked` is what runs
-	# the pick. A card carrying none is not draggable: ChCard ignores its press, so held_id stays empty.
-	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
-	var card := _card_of(garage, &"wheel")
-	var at := card.get_global_rect().get_center()
-	card.press(at)
-	card.release(at)
-	assert_eq(garage.held_id, &"wheel", "press then release on the card picked the wheel up")
-	# Clicking the same card again is how a player puts the part back (pick_part's own rule).
-	card.press(at)
-	card.release(at)
-	assert_eq(garage.held_id, &"", "and a second click on its own card put it back")
-	var mace := _card_of(garage, &"ice_cream_mace")
-	assert_true(not mace.draggable, "the card carrying none is not draggable")
-	mace.press(at)
-	mace.release(at)
-	assert_eq(garage.held_id, &"", "its press is ignored, so nothing came to hand")
-	_complete()
-
-
 func test_no_hint_labels() -> void:
-	# The brief's rule: no screen says how to play. The garage's only text is the top bar's and the
-	# part tooltip's, and the tooltip is hidden until something is hovered.
+	# The brief's rule: no screen says how to play. The embeddable pit's only text is the part
+	# tooltip's, and the tooltip is hidden until something is hovered.
 	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
 	var hints: Array = []
 	for node in garage.find_children("*", "Label", true, false):
@@ -772,37 +571,33 @@ func test_no_hint_labels() -> void:
 		if text.begins_with("Click") or text.begins_with("Holding"):
 			hints.append(text)
 	assert_eq(hints, [], "no label tells the player what to click")
-	assert_eq(garage.get_node("TopBar/BodyName").text, "Cutter · Wedge", "the bar names the hull and its type")
-	assert_eq(garage.get_node("TopBar/Stats").text, "HP 450 · Energy 10", "and its fight stats")
 	assert_true(not garage.tooltip.visible, "the tooltip is away until something is hovered")
 	_complete()
 
 
-# Task 7 Step 7's evidence. A harness cannot put a human's mouse on a windowed game, so this drives the
-# chain the way the window does: real InputEventMouseButton presses through the viewport, the pit's own
-# gui_input converting them, the cards' own pressed signal picking a part up. Every step asserts what a
-# player would see, and the only thing called by hand is the forced ending of the fight, because a
-# Cutter carrying one wheel has nothing to shoot with (tools/screenshot.gd forces its win the same way).
+# Task 10's evidence. A harness cannot put a human's mouse on a windowed game, so this drives the chain
+# the way the window does: real InputEventMouseButton presses and motions through the viewport, and the
+# pit's own gui_input converting them. The bar's card click is hold() here - the bar itself is Task 11's
+# - and everything below it is the shipped scene. The only thing forced by hand is the ending of the
+# fight, because a Cutter carrying one wheel has nothing to shoot with (tools/screenshot.gd forces its
+# win the same way).
 func test_mouse_chain_plays_a_round_trip() -> void:
 	var main: ChMain = _main_scene()
-	# Two frames: a Container sorts its children at the end of a frame, so the cards are only where a
-	# player sees them after that.
 	for _frame in 2:
 		await Engine.get_main_loop().process_frame
 	var garage: ChGarage = main.garage
 	var pit: Control = garage.get_node("Pit")
-	assert_eq(pit.get_global_rect(), Rect2(0, 60, 1280, 500), "the pit fills the middle of 1280x720")
-	# 1. pick a wheel off the strip, where its card is.
-	var card := _card_of(garage, &"wheel")
-	assert_true(card != null, "the strip has a wheel card")
-	_press(card.get_global_rect().get_center())
-	assert_eq(garage.held_id, &"wheel", "a click on the card took a wheel in hand")
-	# 2. place it: a click on the pit at the marker screen_of names.
+	assert_eq(pit.get_global_rect(), Rect2(0, 20, 1280, 520),
+		"the pit keeps the bottom 180 px of 1280x720 for the bar")
+	# 1. take a wheel in hand and place it: a click on the pit at the marker screen_of names.
+	garage.hold(&"wheel")
+	assert_eq(garage.held_id, &"wheel", "the bar's click took a wheel in hand")
+	var carried := main.inventory.part_ids.size()
 	_press(garage.get_global_position() + garage.screen_of([0]))
 	assert_true(main.layout.get_node([0]) != null, "the pit click mounted it in body slot 0")
 	assert_eq(main.layout.get_node([0]).part_id, &"wheel", "as a wheel")
 	assert_eq(garage.held_id, &"", "with nothing left in hand")
-	assert_eq(garage.card_counts()[&"wheel"], 3, "and one of the four wheels out of the kit")
+	assert_eq(main.inventory.part_ids.size(), carried - 1, "and one of the wheels out of the kit")
 	# The hover: a motion over empty pit space leaves the panel away, a motion over the mounted wheel
 	# shows the part tooltip for its def.
 	var panel: ChPartTooltip = garage.tooltip
@@ -811,24 +606,41 @@ func test_mouse_chain_plays_a_round_trip() -> void:
 	_move(garage.get_global_position() + garage.screen_of([0]))
 	assert_true(panel.visible, "hovering the mounted wheel filled it")
 	assert_eq(garage.tooltip.def.id, &"wheel", "naming the part")
-	# 3. flip it: a right click on the mounted part.
+	# 2. flip it: a right click on the mounted part.
 	_press(garage.get_global_position() + garage.screen_of([0]), MOUSE_BUTTON_RIGHT)
 	assert_true(main.layout.get_node([0]).flipped, "a right click turned the wheel round")
-	# A pick and a click on the root's own empty space - the band above the top bar - puts a part back,
-	# which is the one way out of a hold that is not a second click on its card.
-	_press(card.get_global_rect().get_center())
-	assert_eq(garage.held_id, &"wheel", "the card held a wheel again")
+	# A hold and a click on the root's own empty space - the band above the pit - puts a part back,
+	# which is the one way out of a hold that is not a second click on its own card.
+	garage.hold(&"wheel")
+	assert_eq(garage.held_id, &"wheel", "the bar held a wheel again")
 	_press(Vector2(640, 3))
 	assert_eq(garage.held_id, &"", "a click on the empty root put it back")
 	assert_eq(main.layout.slots.size(), 1, "and mounted nothing extra")
-	# 4. swap the body: the top bar's next-body button.
-	_press(garage.get_node("TopBar/NextBody").get_global_rect().get_center())
-	assert_eq(main.layout.body_id, &"dozer", "the next-body button walked the cycle on")
-	assert_eq(garage.get_node("TopBar/BodyName").text, "Dozer · Tower", "and the bar named the new hull and its type")
-	assert_eq(main.layout.slots.size(), 1, "the wheel came across with the hull")
-	# 5. ask for a fight, and watch it end.
-	_press(garage.get_node("TopBar/FightButton").get_global_rect().get_center())
-	assert_eq(main.screen, &"fight", "the fight button started a fight")
+	# 3. drag the mounted wheel off the pit: past 6 px the release names the path and the screen point,
+	# and the pit itself lifts nothing - the owner decides.
+	var dropped: Array = []
+	var sink := dropped
+	garage.piece_dropped.connect(func(path: Array[int], at: Vector2): sink.append([path, at]))
+	var from: Vector2 = garage.get_global_position() + garage.screen_of([0])
+	_button(from, true)
+	_move(from + Vector2(0, 10))
+	_button(from + Vector2(0, 10), false)
+	assert_eq(dropped.size(), 1, "the drag's release announced where the piece went")
+	if not dropped.is_empty():
+		assert_eq(dropped[0][0], _typed_path([0]), "with the wheel's path")
+	assert_true(main.layout.get_node([0]) != null, "and the pit left it mounted until the owner decided")
+	var piece: ChPitPiece = garage.piece_at(_typed_path([0]))
+	assert_true(piece != null and piece.visible, "so the piece is back in its slot, not under the pointer")
+	# The owner's decision, the way Task 12 will make it: the part comes home to the kit.
+	assert_true(garage.lift([0]), "the owner lifted it off the pit")
+	assert_eq(main.inventory.part_ids.size(), carried, "and the wheel is carried again")
+	# 4. ask for a fight with the temporary Enter key, and watch it end.
+	garage.hold(&"wheel")
+	_press(garage.get_global_position() + garage.screen_of([1]))
+	_press(garage.get_global_position() + garage.screen_of([1]), MOUSE_BUTTON_RIGHT)
+	assert_true(main.layout.get_node([1]).flipped, "the second wheel was placed and flipped")
+	_ask_fight(main)
+	assert_eq(main.screen, &"fight", "Enter started the fight")
 	var frames := 0
 	while main.battle == null and frames < 60:
 		await Engine.get_main_loop().process_frame
@@ -841,17 +653,16 @@ func test_mouse_chain_plays_a_round_trip() -> void:
 	main.battle.enemy.hp = 0
 	await _wait_screen(main, &"result")
 	assert_eq(main.screen, &"result", "the win reached the result panel")
-	# 6. go back: the panel's own button, clicked where it is drawn.
+	# 5. go back: the panel's own button, clicked where it is drawn.
 	_press(main.result_panel.back.get_global_rect().get_center())
 	assert_eq(main.screen, &"garage", "the back button put the garage up again")
 	for _frame in 2:
 		await Engine.get_main_loop().process_frame
-	# The end state a player sees: the same build facing the way it was left, and the strip still
-	# showing the three wheels that are not bolted on.
+	# The end state a player sees: the same build facing the way it was left, and a fresh pit holding
+	# nothing in hand.
 	assert_eq(main.layout.slots.size(), 1, "the build came back as it was left")
-	assert_true(main.layout.get_node([0]).flipped, "the flip survived the fight")
-	assert_eq(main.garage.card_counts()[&"wheel"], 3, "the fresh garage shows three wheels to place")
-	assert_eq(_card_of(main.garage, &"wheel").count, 3, "and the strip's own card agrees")
+	assert_true(main.layout.get_node([1]).flipped, "the flip survived the fight")
+	assert_eq(main.garage.held_id, &"", "and the fresh pit holds nothing")
 	main.free()
 	_complete()
 
@@ -933,41 +744,35 @@ func test_lift_frees_subtree_pieces() -> void:
 	_complete()
 
 
-func test_cycle_body_rebuilds_hull() -> void:
+func test_pit_hull_follows_body() -> void:
+	# The pit draws whatever body the layout names, and a piece sits where the layout says: the hull
+	# comes from the def, never from where the last body left it. The body is set before the screen is
+	# built here, because the swap itself is the shop's (Task 12) and no button cycles it any more.
 	var catalog := _catalog()
-	var layout := _layout(&"cutter")
+	var layout := _layout(&"dozer")
 	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), layout, catalog)
 	var hull: ChPitPiece = garage.hull_piece()
 	assert_true(hull != null, "the pit has a hull piece")
 	if hull == null:
 		_complete()
 		return
-	assert_eq(hull.body_def.size, catalog.body(&"cutter").size, "drawing the Cutter's hull")
-	assert_true(garage.drop_part(&"wheel", [0]), "a wheel mounts in Cutter slot 0 at (-10,4.5)")
-	var before: Vector2 = garage.piece_at(_typed_path([0])).position
-	garage.cycle_body(1)
-	assert_eq(layout.body_id, &"dozer", "the cycle walked to the Dozer")
-	assert_true(garage.hull_piece() == hull, "the hull piece is reused, not rebuilt")
-	# Cutter 34x9 cells, Dozer 22x30: the piece has to show the new body, not the one it started on.
-	assert_eq(garage.hull_piece().body_def.size, catalog.body(&"dozer").size,
-		"and it shows the Dozer's taller hull")
-	# swap_body reseats the wheel on Dozer slot 0 at (-11,15), so its piece keeps its path and its part
-	# and still has to move: the position comes from the layout, never from where the piece was.
+	# Cutter 34x9 cells, Dozer 22x30: the piece shows the body the layout is on.
+	assert_eq(hull.body_def.size, catalog.body(&"dozer").size, "drawing the Dozer's hull")
+	assert_true(garage.drop_part(&"wheel", [0]), "a wheel mounts in Dozer slot 0")
 	var piece: ChPitPiece = garage.piece_at(_typed_path([0]))
-	assert_true(piece != null, "the wheel kept a piece on the new hull")
+	assert_true(piece != null, "the wheel has a piece")
 	if piece == null:
 		_complete()
 		return
 	assert_eq(piece.position,
 		garage._box_at(garage.screen_of(_typed_path([0])), catalog.part(&"wheel")).get_center(),
-		"and it sits on the Dozer's slot 0")
-	assert_true(piece.position != before, "which is not where the Cutter's slot 0 was")
+		"and it sits where the layout's slot 0 is")
 	_complete()
 
 
 func test_pit_draw_order() -> void:
-	# The order the one `_draw` painted in, now as siblings: hull, free-slot markers, parts, hover.
-	# After the pit view come the strip, the held layer and the tooltip, which stay on top.
+	# The order the one `_draw` painted in, now as siblings: hull, free-slot markers, parts, the
+	# dragged piece, hover. After the pit view come the held layer and the tooltip, which stay on top.
 	var garage: ChGarage = _garage_scene(_inventory([]), _layout(&"cutter"), _catalog())
 	var pit: Control = garage.get_node("Pit")
 	var view: Node = pit.get_child(0)
@@ -982,10 +787,12 @@ func test_pit_draw_order() -> void:
 	var hull := view.get_node("Hull").get_index()
 	var markers := view.get_node("Markers").get_index()
 	var parts := view.get_node("Parts").get_index()
+	var drag := view.get_node("Drag").get_index()
 	var hover := view.get_node("Hover").get_index()
 	assert_true(hull < markers, "the hull draws under the free-slot markers")
 	assert_true(markers < parts, "the markers draw under the mounted parts")
-	assert_true(parts < hover, "and the hover box draws over everything")
+	assert_true(parts < drag, "the dragged piece draws over the mounted ones")
+	assert_true(drag < hover, "and the hover box draws over everything")
 	_complete()
 
 
@@ -995,43 +802,21 @@ func _ready_garage(ids: Array) -> ChGarage:
 		await Engine.get_main_loop().process_frame
 	return garage
 
-func test_tooltip_follows_card_hover() -> void:
-	var garage: ChGarage = await _ready_garage([&"wheel", &"flamethrower"])
-	var card := _card_of(garage, &"flamethrower")
-	card.mouse_entered.emit()
-	assert_true(garage.tooltip.visible)
-	assert_eq(garage.tooltip.def.id, &"flamethrower")
-	card.mouse_exited.emit()
-	await Engine.get_main_loop().process_frame  # the exit's hide is judged a frame later
-	assert_true(not garage.tooltip.visible)
-	_complete()
-
-func test_tooltip_card_to_card() -> void:
-	var garage: ChGarage = await _ready_garage([&"wheel", &"flamethrower"])
-	var a := _card_of(garage, &"wheel")
-	var b := _card_of(garage, &"flamethrower")
-	a.mouse_entered.emit()
-	b.mouse_entered.emit()
-	a.mouse_exited.emit()
-	assert_true(garage.tooltip.visible, "a late exit from A does not hide B's tooltip")
-	assert_eq(garage.tooltip.def.id, &"flamethrower")
-	_complete()
-
 func test_tooltip_hidden_while_held() -> void:
+	# A part in hand hides the tooltip: the pointer is carrying something, so naming what it is over
+	# would be the wrong thing to read. Putting it back lets the hull's hover show it again.
 	var garage: ChGarage = await _ready_garage([&"wheel", &"wheel"])
-	var card := _card_of(garage, &"wheel")
-	card.mouse_entered.emit()
-	assert_true(garage.pick_part(&"wheel"))
-	assert_true(not garage.tooltip.visible, "picking up hides it")
+	assert_true(garage.drop_part(&"wheel", [0]))
+	_move(garage.get_global_position() + garage.screen_of([0]))
+	assert_true(garage.tooltip.visible, "hovering the mounted wheel shows it")
+	garage.hold(&"wheel")
+	assert_true(not garage.tooltip.visible, "a part in hand hides it")
 	_move(garage.get_global_position() + garage.screen_of([0]))
 	assert_true(not garage.tooltip.visible, "and it stays hidden while held")
 	garage.cancel_hold()
 	assert_true(garage.tooltip.visible, "putting it back lets hover show it again")
-	assert_true(garage.pick_part(&"wheel"))
-	assert_true(garage.drop_part(&"wheel", [0]))
-	garage.cancel_hold()
-	assert_true(garage.tooltip.visible, "after a drop, hover shows it again")
 	_complete()
+
 
 func test_tooltip_on_hull_part() -> void:
 	var garage: ChGarage = await _ready_garage([&"wheel"])
@@ -1050,19 +835,8 @@ func test_tooltip_leaving_pit_clears_hull_hover() -> void:
 	_move(garage.get_global_position() + garage.screen_of([0]))
 	garage.get_node("Pit").mouse_exited.emit()
 	assert_true(not garage.tooltip.visible, "leaving the pit drops the hull hover")
-	var card := _card_of(garage, &"wheel")
-	card.mouse_entered.emit()
-	card.mouse_exited.emit()
-	await Engine.get_main_loop().process_frame  # the exit's hide is judged a frame later
-	assert_true(not garage.tooltip.visible, "no stale hull tooltip comes back")
-	_complete()
-
-func test_tooltip_hidden_by_body_swap() -> void:
-	var garage: ChGarage = await _ready_garage([&"wheel"])
-	assert_true(garage.drop_part(&"wheel", [0]))
-	_move(garage.get_global_position() + garage.screen_of([0]))
-	garage.cycle_body(1)
-	assert_true(not garage.tooltip.visible)
+	_move(Vector2(100, 500))
+	assert_true(not garage.tooltip.visible, "and a motion off the hull brings no stale tooltip back")
 	_complete()
 
 func test_no_info_panel_left() -> void:
@@ -1071,19 +845,117 @@ func test_no_info_panel_left() -> void:
 	assert_true(not "hook_text" in ChPartDef.new(), "hook_text is gone")
 	_complete()
 
-func test_tooltip_card_to_card_exit_first_keeps_springs() -> void:
-	# Godot's own order: A's exit lands before B's entry. The hop must not restart the pop from small.
-	var garage: ChGarage = await _ready_garage([&"wheel", &"flamethrower"])
-	var a := _card_of(garage, &"wheel")
-	var b := _card_of(garage, &"flamethrower")
-	a.mouse_entered.emit()
-	var juice := ChJuice.of(garage.tooltip.boxes()[0])
-	juice.scale_spring.value = 1.0
-	juice.scale_spring.velocity = 0.0
-	a.mouse_exited.emit()
-	b.mouse_entered.emit()
-	await Engine.get_main_loop().process_frame
-	assert_true(garage.tooltip.visible, "the hop keeps the tooltip up")
-	assert_eq(garage.tooltip.def.id, &"flamethrower")
-	assert_true(juice.scale_spring.value > ChPartTooltip.POP_FROM + 0.1, "no restart from small")
+# --- Task 10: the embeddable pit ------------------------------------------------------------------
+# The bar owns the cards now, so the garage's half of a mount is by index: the bar says which copy and
+# which slot, and a refusal leaves the part where the bar still shows it. The pit itself is dragged:
+# a press that moves past 6 px takes the mounted piece off the pit and a release says where it went,
+# which is the call Task 12 turns into a lift or a sell.
+
+func test_mount_from_inventory() -> void:
+	var inventory := _inventory([&"wheel", &"cutter_chainsaw"])
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage(inventory, layout, _catalog())
+	assert_true(garage.mount_from_inventory(1, [0]), "the chainsaw at the bar's index 1 mounts")
+	assert_eq(layout.get_node([0]).part_id, &"cutter_chainsaw", "in body slot 0")
+	assert_eq(inventory.part_ids, [&"wheel"], "and that copy left the kit")
+	# The index is the handle, so the duplicate case takes the copy the bar pointed at, not the first.
+	var dupes := _inventory([&"wheel", &"wheel"])
+	var other := _layout(&"cutter")
+	var second: ChGarage = _garage(dupes, other, _catalog())
+	assert_true(second.mount_from_inventory(0, [1]), "index 0 mounts")
+	assert_eq(dupes.part_ids.size(), 1, "one wheel left carried")
+	assert_true(other.get_node([1]) != null, "on the slot the caller named")
+	garage.free()
+	second.free()
+	_complete()
+
+
+func test_mount_refused_restores() -> void:
+	var inventory := _inventory([&"wheel", &"strut"])
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage(inventory, layout, _catalog())
+	assert_true(layout.place(_typed_path([0]), &"strut"), "slot 0 is already taken")
+	assert_true(not garage.mount_from_inventory(0, [0]), "a taken slot refuses the mount")
+	assert_eq(inventory.part_ids, [&"wheel", &"strut"], "the kit is unchanged and in the same order")
+	assert_eq(layout.get_node([0]).part_id, &"strut", "and the slot still holds what it held")
+	# Nothing in the hand of a bar that is out of range either.
+	assert_true(not garage.mount_from_inventory(9, [0]), "an index the kit has not got is refused")
+	assert_eq(inventory.part_ids, [&"wheel", &"strut"], "with the kit untouched")
+	garage.free()
+	_complete()
+
+
+func test_slot_at_global() -> void:
+	# The bar hands a screen point in, so the pit converts it to its own pixels before asking which
+	# marker is near: this is the drop-zone test an inventory card's release uses.
+	var garage: ChGarage = _garage_scene(_inventory([]), _layout(&"cutter"), _catalog())
+	var at: Vector2 = garage.get_global_position() + garage.screen_of([0])
+	var slot: Array = garage.slot_at(at)
+	assert_true(not slot.is_empty(), "the screen point of a free marker names a slot")
+	if slot.is_empty():
+		_complete()
+		return
+	assert_eq(slot[0], _typed_path([0]), "the slot the marker belongs to")
+	# A point far from every marker has no drop zone.
+	assert_eq(garage.slot_at(Vector2(5, 5)), [], "a point far from the hull names no slot")
+	_complete()
+
+
+func test_piece_drag_emits() -> void:
+	# Past 6 px the press is a drag: the piece follows the pointer and the release says where it was
+	# let go, in screen pixels. Task 12 decides what a release over the bar means; the pit does not
+	# lift anything itself.
+	var inventory := _inventory([&"strut"])
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage_scene(inventory, layout, _catalog())
+	assert_true(garage.drop_part(&"strut", [1]), "the strut mounts in slot 1")
+	var dropped: Array = []
+	var sink := dropped
+	garage.piece_dropped.connect(func(path: Array[int], at: Vector2): sink.append([path, at]))
+	var from: Vector2 = garage.get_global_position() + garage.screen_of([1])
+	var to: Vector2 = from + Vector2(0, 10)
+	_button(from, true)
+	_move(to)
+	_button(to, false)
+	assert_eq(dropped.size(), 1, "a release past the 6 px emitted once")
+	if dropped.is_empty():
+		_complete()
+		return
+	assert_eq(dropped[0][0], _typed_path([1]), "with the path the drag picked up")
+	assert_eq(dropped[0][1], to, "and the pointer where it was let go")
+	# The pit decided nothing: the strut is still mounted until the owner says what the drop means.
+	assert_true(layout.get_node([1]) != null, "the drop itself lifted nothing")
+	# Under the 6 px it is a click, which is today's lift.
+	var clicks := 0
+	var count := clicks
+	garage.piece_dropped.connect(func(_path: Array[int], _at: Vector2): count += 1)
+	_button(from, true)
+	_move(from + Vector2(0, 3))
+	_button(from + Vector2(0, 3), false)
+	assert_eq(count, 0, "a 3 px release is a click, not a drag")
+	assert_true(layout.get_node([1]) == null, "and the click lifted the strut as it always did")
+	_complete()
+
+
+func test_changed_after_every_change() -> void:
+	# The bar refreshes on `changed`, so every mount, lift and flip announces itself and a refusal
+	# does not: the bar has nothing to redraw for a state that did not move.
+	var inventory := _inventory([&"strut", &"wheel"])
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage_scene(inventory, layout, _catalog())
+	var seen: Array[int] = []
+	var sink := seen
+	garage.changed.connect(func(): sink.append(1))
+	assert_true(garage.mount_from_inventory(0, [1]), "the strut mounts")
+	assert_eq(seen.size(), 1, "a mount announced itself")
+	garage.click_part([1])
+	assert_eq(seen.size(), 2, "a flip announced itself")
+	assert_true(garage.lift([1]), "the strut comes home")
+	assert_eq(seen.size(), 3, "a lift announced itself")
+	assert_true(garage.mount_from_inventory(1, [1]), "the strut mounts again, off the kit's index 1")
+	assert_eq(seen.size(), 4, "the second mount announced itself too")
+	assert_true(not garage.mount_from_inventory(0, [1]), "the taken slot refuses")
+	assert_eq(seen.size(), 4, "and a refusal says nothing")
+	assert_true(garage.drop_part(&"wheel", [0]), "a drop mounts")
+	assert_eq(seen.size(), 5, "and announced itself")
 	_complete()

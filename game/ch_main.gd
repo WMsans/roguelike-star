@@ -70,20 +70,34 @@ func _show_garage() -> void:
 	# node over the same two halves: the layout it shows is the one that was never touched, which
 	# is the brief's "returns to the garage with the layout unchanged".
 	# The screen that was showing leaves before the new one arrives, so the tree holds one
-	# garage at a time whatever the number of fights.
+	# garage at a time whatever the number of fights. A fight is asked for with Enter while this
+	# screen is up (see _unhandled_input).
 	if garage != null and is_instance_valid(garage):
 		garage.free()
 	var next: ChGarage = ResourceLoader.load(GARAGE).instantiate()
 	next.setup(inventory, layout, catalog)
-	next.fight_requested.connect(_on_fight_requested)
 	add_child(next)
 	garage = next
 	screen = &"garage"
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	# shortcut: Task 13 removes this key. The pit no longer carries a Fight button, and the shop screen
+	# that owns the real one is not built yet, so Enter (or Space) starts the one fight the slice has
+	# while the garage is showing.
+	if screen != &"garage" or garage == null:
+		return
+	if not event is InputEventKey or not event.pressed or event.echo:
+		return
+	var key := event as InputEventKey
+	if key.keycode == KEY_ENTER or key.keycode == KEY_SPACE:
+		get_viewport().set_input_as_handled()
+		_on_fight_requested(garage._copy_of_build())
+
+
 func _on_fight_requested(copy: ChChariotLayout) -> void:
-	# The garage asked for a fight; which fight is the owner's call, and the enemy is the
-	# slice's one fixed build, read as data (ChBattle mirrors it so it faces this build).
+	# The fight asked for, from the temporary key above; which fight is the owner's call, and the enemy
+	# is the slice's one fixed build, read as data (ChBattle mirrors it so it faces this build).
 	# shortcut: no copy is made here: the layout arrives already copied by the garage, which is
 	# what keeps the garage's own build off whatever the fight does to it.
 	shown = copy

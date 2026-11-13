@@ -47,21 +47,19 @@ func _run() -> void:
 	for _frame in GARAGE_FRAMES:
 		await process_frame
 	_shot("garage.png")
-	# The part tooltip, from a card and from a mounted part. Signals stand in for the pointer, which a
-	# script cannot put over a window; ~0.3 s lets the pop-in settle.
+	# The part tooltip, off a mounted part. Signals stand in for the pointer, which a script cannot put
+	# over a window; ~0.3 s lets the pop-in settle. The strip's cards are the bar's now (Task 11), so
+	# garage._card_for is gone with them.
 	var garage = main.garage  # untyped: a ChGarage hint compiles it before the Feedback autoload exists
-	for id in [&"flamethrower", &"wheel", &"strut"]:
-		var card = garage._card_for(id)
-		card.mouse_entered.emit()
-		for _frame in 20:
-			await process_frame
-		_shot("tooltip_%s.png" % id)
-		card.mouse_exited.emit()
 	garage._follow_pointer(garage.screen_of([3]))
 	for _frame in 20:
 		await process_frame
 	_shot("tooltip_hull.png")
-	main.garage.request_fight()
+	# shortcut: Task 13 replaces this key with the shop's Fight button; until then Enter is the way in.
+	var key := InputEventKey.new()
+	key.keycode = KEY_ENTER
+	key.pressed = true
+	main._unhandled_input(key)
 	var frames := 0
 	while main.battle == null and frames < MAIN_WAIT:
 		await process_frame

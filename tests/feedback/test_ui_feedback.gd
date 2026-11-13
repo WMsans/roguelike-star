@@ -2,9 +2,10 @@ extends ChTest
 
 # Task 10: the garage and the result screen through the one feedback manager. Every press in the
 # garage and the screen a fight ends on goes through Feedback, so the wiring lives in the screens
-# themselves: a card and a top-bar button carry a Juice and press it, a drop kicks the piece it just
-# built, a lift kicks the card the part goes home to, and a body swap kicks the hull. A beat on a
-# garage that is gone mid-wobble must be skipped rather than raise, which is the round trip below.
+# themselves: a drop kicks the piece it just built, and the result panel's back button carries a Juice
+# and presses it. A beat on a garage that is gone mid-wobble must be skipped rather than raise, which
+# is the round trip below. The strip's cards and the top bar are the bar's and the shop's now, so the
+# beats they played went with them.
 # shortcut: the tests build their own inventory/layout/garage the way test_garage's helpers do, rather
 # than sharing them: those helpers live on that file's test class, not on ChTest.
 
@@ -38,8 +39,8 @@ func _layout(body_id: StringName) -> ChChariotLayout:
 
 func _garage_scene(inventory: ChInventory, layout: ChChariotLayout,
 	catalog: ChCatalog) -> ChGarage:
-	# setup() before add_child, the order ChMain uses: _enter_tree is what builds the strip and the
-	# top bar, so a card only exists once the scene is in the tree.
+	# setup() before add_child, the order ChMain uses: _enter_tree is what builds the pit, so a piece
+	# only exists once the scene is in the tree.
 	var scene: PackedScene = ResourceLoader.load(GARAGE_SCENE)
 	assert_true(scene != null, "garage.tscn loads")
 	var garage: ChGarage = scene.instantiate()
@@ -47,14 +48,6 @@ func _garage_scene(inventory: ChInventory, layout: ChChariotLayout,
 	Engine.get_main_loop().get_root().add_child(garage)
 	_track(garage)
 	return garage
-
-
-func _card_of(garage: ChGarage, id: StringName) -> ChPartCard:
-	var found: ChPartCard = null
-	for node in garage.find_children("*", "ChPartCard", true, false):
-		if node.part_id == id:
-			found = node
-	return found
 
 
 func _main_scene() -> ChMain:
@@ -85,37 +78,6 @@ func _bursts() -> int:
 	return count
 
 
-func test_card_press_and_hover_kick() -> void:
-	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
-	var card := _card_of(garage, &"wheel")
-	assert_true(card != null, "the strip has a wheel card")
-	if card == null:
-		_complete()
-		return
-	var juice := ChJuice.of(card)
-	assert_true(juice != null, "the card carries a Juice child")
-	if juice == null:
-		_complete()
-		return
-	assert_near(juice.scale_value(), 1.0, 0.0001, "a card at rest is unbent")
-	# Task 3: the card is a ChCard, so a click is a press then a release, and the release plays the
-	# activate beat on the card's own Juice. No mouse here: the entry points are the same seam.
-	var at := card.get_global_rect().get_center()
-	card.press(at)
-	card.release(at)
-	# A beat starts at sin(0), so one step to its peak is what shows it landed.
-	juice.advance(PEAK_STEP)
-	assert_near(juice.scale_value() - 1.0, _wigged(0.10), 0.001, "clicking the card beats its juice")
-	# The pick ran too: feedback rides on the screen's own rule, it does not stand in for it.
-	assert_eq(garage.held_id, &"wheel", "and the click still picked the part up")
-	# Step the press beat out (its clock passes BEAT_TIME) so the hover's beat is the only one left.
-	juice.advance(ChJuice.BEAT_TIME)
-	card.mouse_entered.emit()
-	juice.advance(PEAK_STEP)
-	assert_near(juice.scale_value() - 1.0, _wigged(0.04), 0.001, "hover beats it too (hover's 0.04)")
-	_complete()
-
-
 func test_drop_pops_the_new_piece() -> void:
 	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
 	var bursts_before := _bursts()
@@ -137,70 +99,7 @@ func test_drop_pops_the_new_piece() -> void:
 	_complete()
 
 
-func test_lift_pops_the_card() -> void:
-	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
-	assert_true(garage.drop_part(&"wheel", [0]), "the wheel mounts in body slot 0")
-	var card := _card_of(garage, &"wheel")
-	assert_true(card != null, "the wheel has a card to go home to")
-	if card == null:
-		_complete()
-		return
-	var juice := ChJuice.of(card)
-	assert_true(juice != null, "the card carries a Juice child")
-	if juice == null:
-		_complete()
-		return
-	assert_near(juice.scale_value(), 1.0, 0.0001, "the drop beat the piece, not the card")
-	assert_true(garage.lift([0]), "lifting the wheel takes it off the hull")
-	juice.advance(PEAK_STEP)
-	assert_near(juice.scale_value() - 1.0, _wigged(0.10), 0.001,
-		"so the lift beats the card it went back to (activate's 0.10)")
-	assert_eq(garage.card_counts()[&"wheel"], 1, "and the card really did get the part back")
-	_complete()
-
-
-func test_cycle_pops_the_hull() -> void:
-	var layout := _layout(&"cutter")
-	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), layout, _catalog())
-	var hull := garage.hull_piece()
-	assert_true(hull != null, "the pit has a hull piece")
-	if hull == null:
-		_complete()
-		return
-	var juice := ChJuice.of(hull)
-	assert_true(juice != null, "the hull carries a Juice child")
-	if juice == null:
-		_complete()
-		return
-	assert_near(juice.scale_value(), 1.0, 0.0001, "the hull rests until the body changes")
-	garage.cycle_body(1)
-	assert_eq(layout.body_id, &"dozer", "the cycle walked to the next body")
-	juice.advance(PEAK_STEP)
-	assert_near(juice.scale_value() - 1.0, _wigged(0.15), 0.001,
-		"and beat the hull the new body shows on (placed's 0.15)")
-	assert_true(garage.hull_piece() == hull, "on the piece the pit kept, not a rebuilt one")
-	_complete()
-
-
-func test_top_bar_and_back_buttons_juiced() -> void:
-	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
-	for path in ["TopBar/PrevBody", "TopBar/NextBody", "TopBar/FightButton"]:
-		var button: Button = garage.get_node(path)
-		assert_true(button != null, "%s exists" % path)
-		if button == null:
-			continue
-		var juice := ChJuice.of(button)
-		assert_true(juice != null, "%s carries a Juice child" % path)
-		if juice == null:
-			continue
-		var juice_children := 0
-		for child in button.get_children():
-			if child is ChJuice:
-				juice_children += 1
-		assert_eq(juice_children, 1, "%s has exactly one Juice child" % path)
-		button.pressed.emit()
-		juice.advance(PEAK_STEP)
-		assert_near(juice.scale_value() - 1.0, _wigged(0.10), 0.001, "%s beats on press" % path)
+func test_result_back_button_juiced() -> void:
 	# The result screen's one control, built in code the way the HUD is.
 	var panel := ChResultPanel.new()
 	_track(panel)
@@ -235,9 +134,12 @@ func test_round_trip_with_feedback() -> void:
 	# screen's own frames left on it.
 	assert_true(piece_juice != null and absf(piece_juice.scale_value() - 1.0) > _wigged(0.15) * 0.5,
 		"and the placement left it mid-beat")
-	# The fight is asked for on the same frame as that kick, the way a player who just placed a
-	# part and hits Fight does.
-	main.garage.request_fight()
+	# The fight is asked for on the same frame as that kick, the way a player who just placed a part
+	# and presses Enter does (Task 13 replaces the key with the shop's Fight button).
+	var key := InputEventKey.new()
+	key.keycode = KEY_ENTER
+	key.pressed = true
+	main._unhandled_input(key)
 	assert_eq(main.screen, &"fight", "the fight started from the garage")
 	var frames := 0
 	while main.battle == null and frames < 60:
@@ -271,8 +173,7 @@ func test_round_trip_with_feedback() -> void:
 	var rocket := main.layout.get_node([3])
 	assert_true(rocket != null and rocket.part_id == &"cutter_rocket", "the Rocket in the same slot")
 	assert_eq(main.inventory.part_ids.size(), carried, "and the same parts carried")
-	assert_eq(main.garage.find_children("*", "ChPartCard", true, false).size(),
-		main.garage.STRIP_ORDER.size(), "the fresh garage built its own strip")
+	assert_true(main.garage.get_node("Pit") != null, "the fresh garage built its own pit")
 	_complete()
 
 

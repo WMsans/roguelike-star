@@ -365,8 +365,8 @@ const PLAYER_MARK_SECONDS := 3.0
 
 func _garage_built(body_id: StringName, mounts: Array) -> ChChariotLayout:
 	# The build the garage's pointer code makes: ChGarage.drop_part for each part, from an inventory
-	# that carries it, onto the body the player picked. request_fight hands the fight a copy of exactly
-	# this, so passing the layout on is what the Fight button does.
+	# that carries it, onto the body the player picked. ChMain hands the fight a copy of exactly this,
+	# so passing the layout on is what the garage's temporary Enter key does.
 	var inventory := ChInventory.new()
 	for mount in mounts:
 		assert_true(inventory.add(mount[1]), "the kit carries %s" % [mount[1]])
