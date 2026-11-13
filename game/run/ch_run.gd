@@ -3,8 +3,6 @@ class_name ChRun extends RefCounted
 # The run itself: which fight is being fought, on what build, against whose cook, for what pay.
 # No nodes and no screens: the shop phase (Task 7), the fight rules (Task 8) and the main loop
 # (Task 13) all read this one object.
-# shortcut: rules() is deliberately absent. Its return type is ChFightRules, which Task 8 defines,
-# and that task writes the method (one line over modifiers.get(index) and kind(index)) with its tests.
 
 const FIRST_HP := 500  # enemy HP at fight 0; Task 13's balance runner tunes this one line
 const LAST_HP := 1500  # the ramp's top, reached at the last elite, before that fight's x1.25
@@ -67,6 +65,12 @@ func kind(index: int) -> StringName:
 	if ELITE_INDEXES.has(index):
 		return &"elite"
 	return &"normal"
+
+
+func rules(index: int) -> ChFightRules:
+	# What this fight runs under: the modifier it drew (none for a normal fight) and whether the boss's
+	# stronger numbers apply. ChBattle.start takes the result as its fifth argument.
+	return ChFightRules.of(modifiers.get(index, &""), kind(index) == &"boss")
 
 
 func reward(index: int) -> int:

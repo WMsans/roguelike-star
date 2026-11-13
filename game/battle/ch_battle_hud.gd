@@ -14,6 +14,8 @@ const PIP_OFF := ChUi.BUTTON  # an unlit pip: the theme's button grey, so it rea
 const ROW_GAP := 6  # between a block's rows
 const VOLLEY := Color("#ffd166")  # the lit pips a press would spend right now
 const SHORT := Color("#7a2e2e")  # the unlit pips a ready volley would need but the pool lacks
+const BANNER_SECONDS := 2.0  # the spec's banner: named at fight start, then gone
+const COUNTDOWN_OFF := 44.0  # how far below the banner the countdown sits, so neither covers the other
 
 var player_name: Label
 var player_hp: Label
@@ -22,6 +24,12 @@ var energy_pips: Array[ColorRect] = []  # one per energy unit of cap, lit up to 
 var enemy_name: Label
 var enemy_hp: Label
 var enemy_bar: ProgressBar
+
+# The modifier's two readouts, both made on demand so a fight that has no modifier never shows either:
+# the banner names it for the spec's 2 s at the start, and the countdown counts the seconds a time-limit
+# fight has left. Neither touches the two blocks, and neither writes anything the fight reads.
+var banner: Label = null
+var countdown: Label = null
 
 var _pips_row: HBoxContainer = null  # where energy_pips are made
 
@@ -87,6 +95,45 @@ func _enemy_block() -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.add_child(rows)
 	return panel
+
+
+func show_banner(text: String) -> void:
+	# The modifier's name, up for the spec's 2 s and then freed: a banner the player has read stops taking
+	# room on the HUD. The tree's own timer keeps that clock, not the fight's ticks — show_state belongs to
+	# the fight, and the banner was never part of it.
+	if banner == null:
+		banner = _top_label(MARGIN)
+		add_child(banner)
+	banner.text = text
+	banner.visible = true
+	get_tree().create_timer(BANNER_SECONDS).timeout.connect(_banner_over)
+
+
+func _banner_over() -> void:
+	# A battle freed inside those 2 s took the label with it, so the field is cleared rather than trusted.
+	if banner != null and is_instance_valid(banner):
+		banner.queue_free()
+	banner = null
+
+
+func show_countdown(seconds_left: int) -> void:
+	# Only a time-limit fight calls this (ChBattle.start), which is what keeps a timer off every other
+	# fight's HUD. The label is made on the first call and written in place after that.
+	if countdown == null:
+		countdown = _top_label(MARGIN + COUNTDOWN_OFF)
+		add_child(countdown)
+	countdown.text = "%d s" % seconds_left
+
+
+func _top_label(top: float) -> Label:
+	# A centred label across the top of the viewport, in the same pixels the two blocks lay out in, so the
+	# banner and the countdown sit between them instead of moving either one.
+	var label := Label.new()
+	label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	label.offset_top = top
+	label.offset_bottom = top + 28.0
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return label
 
 
 func _bar(fill: Color) -> ProgressBar:
