@@ -23,6 +23,7 @@ const FX = {
   blast: ["chariot/blast", {}],
   fire_blast: ["chariot/blast", { size: 1.4, seed: 3 }],
   fire_nova: ["chariot/fire-nova", { reach: 36 }],
+  flamethrower: ["chariot/flamethrower", { reach: 40 }],
   spark_hit: ["chariot/spark-hit", {}],
   blunt_hit: ["impacts/blunt-hit", { height: 0 }],
   frost: ["chariot/frost", {}],

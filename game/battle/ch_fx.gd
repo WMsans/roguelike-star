@@ -14,6 +14,10 @@ class_name ChFx extends Sprite2D
 
 const DIR := "res://textures/fx/"
 const Z := 5  # above every body (z 0), below the part markers (ChBattle.MARKER_Z)
+# A one-shot's sheet fades in its own frames; a loop has no start or end of its own, so it fades in when it
+# is spawned and out when its owner calls fade_out(), instead of popping on and off the fight.
+const FADE_IN := 0.15  # seconds a looping effect takes to come up to full
+const FADE_OUT := 0.2  # seconds fade_out() takes to take it off
 
 static var _manifest: Dictionary = {}
 
@@ -21,6 +25,9 @@ var _fps := 30.0
 var _frames := 1
 var _loop := false
 var _t := 0.0
+var _fade_in_left := 0.0
+var _fade_out_left := -1.0  # >= 0 once fade_out() is called
+var _fade_from := 1.0  # the alpha the fade-out started from
 
 
 # Plays `fx` under `parent` at `at` (parent-local; the world's transform is the arena's identity, so a
@@ -47,6 +54,8 @@ static func spawn(parent: Node, fx: StringName, at: Vector2, dir := Vector2.RIGH
 	node._fps = float(meta["fps"])
 	node._frames = int(meta["frames"])
 	node._loop = bool(meta["loop"])
+	node._fade_in_left = FADE_IN if node._loop else 0.0
+	node.modulate.a = 0.0 if node._loop else 1.0
 	node.position = at
 	node.face(dir)
 	parent.add_child(node)
@@ -70,7 +79,25 @@ func face(dir: Vector2) -> void:
 	rotation = (-dir).angle() if left else dir.angle()
 
 
+# Fades a looping effect out and frees it, rather than cutting it: a loop taken off the tree mid-cycle
+# pops, and the eye reads that pop as the effect breaking rather than ending.
+func fade_out() -> void:
+	if _fade_out_left >= 0.0:
+		return
+	_fade_from = modulate.a
+	_fade_out_left = FADE_OUT
+
+
 func _physics_process(delta: float) -> void:
+	if _fade_out_left >= 0.0:
+		_fade_out_left -= delta
+		if _fade_out_left <= 0.0:
+			queue_free()
+			return
+		modulate.a = _fade_from * _fade_out_left / FADE_OUT
+	elif _fade_in_left > 0.0:
+		_fade_in_left = maxf(0.0, _fade_in_left - delta)
+		modulate.a = 1.0 - _fade_in_left / FADE_IN
 	# The fight's own frame clock, the one ChProjectile and the world step on.
 	_t += delta
 	var f := int(_t * _fps)

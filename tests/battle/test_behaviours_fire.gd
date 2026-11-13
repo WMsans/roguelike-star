@@ -196,9 +196,10 @@ func _flamethrower_case(scale: int) -> void:
 		"the enemy stayed inside the flamethrower's 40-cell reach")
 	_complete()
 
-# The flame is the sim's own pixels: a burst throws real fire particles, which the engine draws in
-# the material colour while they fly and lands as cells when something blocks them. The only baked
-# thing at the nozzle is a trail puff, and the world owns it, so no cloud swings with the gun.
+# The flame is the sim's own pixels under a baked jet: a burst throws real fire particles, which the
+# engine draws in the material colour while they fly and lands as cells when something blocks them.
+# The only nodes it adds are the jet at the nozzle and the puffs dropped along it, and the world owns
+# both, so no cloud of them swings with the gun.
 const FLAME_MID_BURST_TICKS := 185  # 3.08 s: the 3 s cooldown fired and the 1 s burst is running
 
 func _fx_nodes(world: PixelWorld) -> Array:
@@ -215,7 +216,7 @@ func _puff_nodes(world: PixelWorld) -> Array:
 			found.append(node)
 	return found
 
-func test_flamethrower_burst_is_the_sim_own_flame() -> void:
+func test_flamethrower_burst_throws_fire_and_plays_its_jet() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var catalog := _catalog()
@@ -232,8 +233,63 @@ func test_flamethrower_burst_is_the_sim_own_flame() -> void:
 	assert_true(int(world.get_stats()["particles_material"]) > 0, "the burst has live fire particles in the pool")
 	var strays := 0
 	for node in _fx_nodes(world):
-		strays += 0 if node.texture.resource_path.ends_with("puff_fire.png") else 1
-	assert_eq(strays, 0, "nothing but a nozzle puff stands in for the flame")
+		var sheet: String = node.texture.resource_path
+		strays += 0 if sheet.ends_with("flamethrower.png") or sheet.ends_with("puff_fire.png") else 1
+	assert_eq(strays, 0, "nothing but the jet and its nozzle puffs stands in for the flame")
+	_complete()
+
+# The jet is the look the burst is fired under, so the world holds it and the rig's next roll must not
+# swing its already-emitted tail: it is placed once, at the nozzle, and only the burst's end moves it.
+func test_flamethrower_jet_stays_where_it_was_fired() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"flamethrower"]]), catalog, 0, ORIGIN, false)
+	var flame := _part_of(at, [1])
+	assert_true(flame != null and flame.behaviour != null, "the flamethrower mounted and behaves")
+	var ctx: ChBattleContext = _battle(world, catalog, [at])
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	for _tick in FLAME_MID_BURST_TICKS:
+		world.step(1)
+		ctx.tick(TICK, [0.0], PRESS)
+	var jet: ChFx = flame.behaviour.jet
+	assert_true(jet != null and is_instance_valid(jet), "the burst is playing its looping jet")
+	var fired_at := jet.position
+	var turned_at := jet.rotation
+	var mirrored_at := jet.scale.x
+	# Roll the gun: a tail glued to the head would swing with it.
+	flame.body.global_rotation += 0.6
+	for _tick in 3:
+		flame.behaviour.process(ctx, TICK)
+	assert_true(jet.position.is_equal_approx(fired_at), "the jet stays where it was fired (%s, was %s)" % [jet.position, fired_at])
+	assert_true(is_equal_approx(jet.rotation, turned_at), "the jet does not turn with the rig")
+	assert_true(jet.scale.x == mirrored_at, "the jet keeps its own mirror")
+	_complete()
+
+# A part that breaks mid-burst takes its look with it: the jet is a looping ChFx the world holds, and
+# break_part takes the behaviour off the tick, so nothing calls the burst's own stop any more. The
+# behaviour's teardown is the only other seam, and without it the flame loops on the wreck forever.
+func test_breaking_a_firing_flamethrower_stops_its_jet() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"flamethrower"]]), catalog, 0, ORIGIN, false)
+	var flame := _part_of(at, [1])
+	assert_true(flame != null and flame.behaviour != null, "the flamethrower mounted and behaves")
+	var ctx: ChBattleContext = _battle(world, catalog, [at])
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	for _tick in FLAME_MID_BURST_TICKS:
+		world.step(1)
+		ctx.tick(TICK, [0.0], PRESS)
+	var jet: ChFx = flame.behaviour.jet
+	assert_true(jet != null and is_instance_valid(jet), "the burst is playing its looping jet")
+	at.break_part(flame, ctx)
+	assert_true(flame.behaviour.jet == null, "the broken part's behaviour let the jet go")
+	assert_true(jet.is_queued_for_deletion(), "the jet went off the tree instead of looping on the wreck")
 	_complete()
 
 # The same mid-burst break the old jet test pinned: with no node to fade, all the break owes is that
@@ -301,6 +357,25 @@ func test_fx_refuses_a_parent_that_moves() -> void:
 	var holder := _track(Node2D.new())
 	assert_true(ChFx.spawn(world, &"muzzle", Vector2(100, 100)) != null, "the world takes a baked effect")
 	assert_true(ChFx.spawn(holder, &"muzzle", Vector2.ZERO) == null, "a node that moves does not")
+	_complete()
+
+
+# A one-shot's frames fade themselves in and out, but a loop has no start or end of its own: taken off
+# the tree mid-cycle it pops, which reads as the effect breaking rather than ending. So a loop comes up
+# faded and its owner ends it with fade_out() instead of queue_free().
+func test_looping_fx_fades_in_and_out() -> void:
+	var world: PixelWorld = await make_world()
+	var fx := ChFx.spawn(world, &"flamethrower", Vector2(120, 140), Vector2.RIGHT)
+	assert_true(fx != null, "the looping sheet spawns")
+	assert_true(fx.modulate.a < 1.0, "it comes in faded rather than popped on (%f)" % fx.modulate.a)
+	for _tick in 20:
+		fx._physics_process(TICK)
+	assert_near(fx.modulate.a, 1.0, 0.0001, "and ramps up to full")
+	fx.fade_out()
+	fx._physics_process(ChFx.FADE_OUT * 0.5)
+	assert_near(fx.modulate.a, 0.5, 0.01, "fade_out() takes it down over its own time, not at once")
+	fx._physics_process(ChFx.FADE_OUT)
+	assert_true(fx.is_queued_for_deletion(), "and it frees itself once faded")
 	_complete()
 
 # The hearth charges for 1 s, then rings fire into the air cells 2 cells out from the own hull

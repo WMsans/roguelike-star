@@ -41,6 +41,20 @@
   ],
   "columns": 10
  },
+ "flamethrower": {
+  "fps": 30,
+  "loop": true,
+  "frames": 48,
+  "size": [
+   184,
+   104
+  ],
+  "pivot": [
+   30,
+   60
+  ],
+  "columns": 6
+ },
  "spark_hit": {
   "fps": 30,
   "loop": false,
