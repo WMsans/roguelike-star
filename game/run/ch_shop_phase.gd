@@ -29,7 +29,8 @@ var options: Array[Dictionary] = []  # {kind: &"shop"|&"pack"|&"resource", theme
 var picked: Dictionary = {}  # the card this stage committed to; empty until it does
 var items: Array[Dictionary] = []  # {id, is_body, rarity, price, taken}
 var rerolled := false
-var auto_sold: Array[StringName] = []  # parts a body swap left with nowhere to go, sold at once
+var auto_sold: Array[StringName] = []  # parts a body swap left with nowhere to go, sold at once; every
+# swap in the stage appends to it and next() clears it, so the screen reads the whole stage's beats
 var _last_themes: Array[StringName] = []  # the previous stage's two cards, which this one excludes
 
 
@@ -159,6 +160,7 @@ func next() -> void:
 		_last_themes.append(options[i][&"theme"])
 	picked = {}
 	items.clear()
+	auto_sold.clear()
 	rerolled = false
 	options.clear()
 	if not done():
@@ -245,7 +247,8 @@ func _mount_body(id: StringName) -> void:
 	# A bought body goes in at once. swap_body reseats what fits and hands back the subtrees that found
 	# no slot, already detached, so every part of the old build is in exactly one pile afterwards:
 	# what it detached lands in the inventory until it is full, and the rest is sold on the spot.
-	auto_sold.clear()
+	# auto_sold is not cleared here: a stage can buy two bodies, and the screen reads one list holding
+	# both swaps.
 	for branch in run.layout.swap_body(catalog.body(id), catalog):
 		for part_id in run.layout.subtree_part_ids(branch):
 			if run.inventory.add(part_id):

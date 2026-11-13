@@ -203,6 +203,40 @@ func test_pack_one_take() -> void:
 	_complete()
 
 
+func test_take_refused_on_shop_stage() -> void:
+	# take is the pack's action. On a picked shop stage the three cards are bought, so a free take has
+	# to refuse there; without that check a shop hands out its cards for nothing.
+	var phase := _shop_phase()
+	var run: ChRun = phase.run
+	var carried: Array[StringName] = run.inventory.part_ids.duplicate()
+	var gold_before: int = run.gold
+	assert_eq(phase.picked.get(&"kind"), &"shop", "the stage is a picked shop")
+	assert_true(not phase.take(0), "a shop card cannot be taken for free")
+	assert_true(not bool(phase.items[0]["taken"]), "and the card stays on the counter")
+	assert_eq(run.inventory.part_ids, carried, "and nothing lands in the inventory")
+	assert_eq(run.gold, gold_before, "and nothing is charged")
+	_complete()
+
+
+func test_reroll_refused_when_broke() -> void:
+	# The 3 gold comes off before the reroll happens, so the gold check is the only thing keeping a
+	# broke shop from rerolling its way into negative gold.
+	var phase := _shop_phase()
+	var run: ChRun = phase.run
+	var rolled: Array = []
+	for item in phase.items:
+		rolled.append(item["id"])
+	run.gold = ChPrices.REROLL - 1
+	assert_true(not phase.reroll(), "a reroll is refused one gold short of its 3")
+	assert_eq(run.gold, ChPrices.REROLL - 1, "and gold never goes negative")
+	assert_true(not phase.rerolled, "and the stage has not spent its reroll")
+	var after: Array = []
+	for item in phase.items:
+		after.append(item["id"])
+	assert_eq(after, rolled, "and the counter is untouched")
+	_complete()
+
+
 func test_reroll_once() -> void:
 	# The first reroll is 3 gold, there is only ever one, and the items actually change somewhere in
 	# ten seeds. A fixed seed could land on the same three cards by chance, so the change is checked
@@ -291,6 +325,85 @@ func test_body_swap_overflow_sold() -> void:
 		gained += ChPrices.sell_value(catalog.part(id).rarity)
 	assert_eq(run.gold, gold_before - 2 + gained, "gold rose by the sum of the sell values (%d)" % gained)
 	assert_eq(run.inventory.part_ids.size(), carried_before, "a full inventory carries nothing new")
+	_complete()
+
+
+func test_body_swap_overflow_fills_free_slots_first() -> void:
+	# The other half of the overflow rule: what a swap detaches goes into the inventory until it is
+	# full, and only the rest is sold. test_body_swap_overflow_sold starts with no free slot, so it
+	# cannot see that order at all: always selling passes every assert there.
+	var phase := _shop_phase()
+	var run: ChRun = phase.run
+	var catalog: ChCatalog = phase.catalog
+	run.layout.swap_body(catalog.body(&"dozer"), catalog)
+	_mount_all_slots(run, &"wheel")
+	var mounted_before := _mounted_count(run.layout)
+	assert_eq(mounted_before, 6, "the Dozer build fills all six top-level slots")
+	# An overflow of two subtrees against one free slot, so exactly one of them has to be carried.
+	for id in [&"strut", &"hearth", &"ring_of_fire", &"ember_battery"]:
+		assert_true(run.inventory.add(id), "carry %s" % id)
+	var carried_before := run.inventory.part_ids.size()
+	assert_eq(run.inventory.free_slots(), 1, "one slot is free")
+	phase.items = [{"id": &"cutter", "is_body": true, "rarity": &"common", "price": 2, "taken": false}]
+	run.gold = 2
+	var gold_before := run.gold
+	assert_true(phase.buy(0), "the Cutter is bought")
+	assert_eq(run.layout.body_id, &"cutter", "and it is swapped in")
+	var sold: Array[StringName] = phase.auto_sold.duplicate()
+	assert_eq(sold.size(), 1, "only the overflow the inventory had no room for is sold")
+	assert_eq(run.inventory.part_ids.size(), carried_before + 1, "the free slot filled from the overflow")
+	assert_eq(run.inventory.free_slots(), 0, "and the inventory is full again")
+	# The split is read as counts, not by asking has(): both overflow subtrees are Wheels here, so the
+	# sold id is also a carried id, and ChInventory.has answers presence rather than count.
+	for id in sold:
+		assert_true(catalog.part(id) != null, "%s is an id the catalog can price" % id)
+	var gained := 0
+	for id in sold:
+		gained += ChPrices.sell_value(catalog.part(id).rarity)
+	assert_eq(run.gold, gold_before - 2 + gained, "gold rose by the sell value of what was sold")
+	assert_eq(_mounted_count(run.layout) + run.inventory.part_ids.size() + sold.size(),
+		mounted_before + carried_before,
+		"mounted + carried + sold equals the parts before the buy")
+	_complete()
+
+
+func test_auto_sold_keeps_every_swap_in_the_stage() -> void:
+	# The Task 12 screen reads auto_sold after a body buy to beat the parts it sold, so the list has to
+	# hold every swap the stage made, not just the last one, and start empty for the next stage. Two
+	# bodies in one stage is legal: a body needs no free slot.
+	var phase := _shop_phase()
+	var run: ChRun = phase.run
+	var catalog: ChCatalog = phase.catalog
+	# Corsair (7 slots) then Dozer (6) then Cutter (4), with the inventory full: each swap detaches
+	# subtrees that find no seat, so both swaps sell parts and both piles have to be readable.
+	run.layout.swap_body(catalog.body(&"corsair"), catalog)
+	_mount_all_slots(run, &"wheel")
+	var mounted_before := _mounted_count(run.layout)
+	assert_eq(mounted_before, 7, "the Corsair build fills all seven top-level slots")
+	for i in ChInventory.CAPACITY:
+		assert_true(run.inventory.add(&"strut"), "carry %d" % i)
+	phase.items = [
+		{"id": &"dozer", "is_body": true, "rarity": &"uncommon", "price": 6, "taken": false},
+		{"id": &"cutter", "is_body": true, "rarity": &"common", "price": 2, "taken": false},
+	]
+	run.gold = 8
+	var gold_before := run.gold
+	assert_true(phase.buy(0), "the first body is bought")
+	var first_sold: Array[StringName] = phase.auto_sold.duplicate()
+	assert_eq(first_sold.size(), 1, "one Corsair subtree found no seat on the Dozer")
+	assert_true(phase.buy(1), "a second body in the same stage is allowed")
+	var sold: Array[StringName] = phase.auto_sold.duplicate()
+	assert_eq(sold.size(), 3, "both swaps' overflow is listed, 1 + 2")
+	for id in first_sold:
+		assert_true(sold.has(id), "the first swap's %s is still listed after the second buy" % id)
+	var gained := 0
+	for id in sold:
+		gained += ChPrices.sell_value(catalog.part(id).rarity)
+	assert_eq(run.gold, gold_before - 8 + gained, "gold rose by the sell values of both swaps")
+	assert_eq(_mounted_count(run.layout) + run.inventory.part_ids.size() + sold.size(),
+		mounted_before + ChInventory.CAPACITY, "nothing the build held disappeared")
+	phase.next()
+	assert_eq(phase.auto_sold.size(), 0, "Next empties the list for the next stage")
 	_complete()
 
 
