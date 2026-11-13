@@ -45,6 +45,28 @@ func _shelf_part_ids(screen: ChShopScreen) -> Array[StringName]:
 		ids.append((card as ChPartCard).def.id)
 	return ids
 
+func _stage_item_cards(screen: ChShopScreen) -> Array[ChCard]:
+	# Every item-card face on the stage, whatever card class it is drawn with.
+	var cards: Array[ChCard] = []
+	for child in screen.stage_view.get_children():
+		if child is ChCard:
+			cards.append(child)
+	return cards
+
+func _force_pack(screen: ChShopScreen) -> void:
+	# A pack stage with three real parts, so the take rule is the phase's own.
+	screen.phase.picked = {&"kind": &"pack", &"theme": &"weapon", &"resource": &""}
+	screen.phase.items.clear()
+	for id in [&"wheel", &"strut", &"cutter_rocket"]:
+		screen.phase.items.append({
+			&"id": id,
+			&"is_body": false,
+			&"rarity": &"common",
+			&"price": 0,
+			&"taken": false,
+		})
+	screen._render_stage()
+
 
 func _bar_global(screen: ChShopScreen, rect: Rect2) -> Vector2:
 	return screen.bar.get_global_transform_with_canvas() * rect.get_center()
@@ -148,6 +170,28 @@ func test_bought_card_leaves_the_shelf() -> void:
 	assert_eq(screen.run.gold, gold_after - int(screen.phase.items[1][&"price"]),
 		"and pays its own price")
 	assert_true(_shelf_part_ids(screen).is_empty(), "the bought shelf is empty")
+	_complete()
+
+
+func test_pack_take_clears_the_shelf() -> void:
+	var screen := _screen()
+	_force_pack(screen)
+	assert_eq(_stage_item_cards(screen).size(), 3, "the pack offers three cards")
+	var carried_before := screen.run.inventory.part_ids.size()
+
+	screen._on_item_clicked(0)
+	assert_true(screen.phase.items[0][&"taken"], "the first card is taken")
+	assert_eq(screen.run.inventory.part_ids.size(), carried_before + 1,
+		"the pack grants one part")
+	assert_true(_stage_item_cards(screen).is_empty(), "a spent pack leaves no card on the shelf")
+
+	# Nothing is left on the shelf to click, and a further take spends nothing and adds nothing.
+	var gold_after := screen.run.gold
+	var carried_after := screen.run.inventory.part_ids.size()
+	screen._on_item_clicked(1)
+	screen._on_item_clicked(2)
+	assert_eq(screen.run.gold, gold_after, "a further take spends nothing")
+	assert_eq(screen.run.inventory.part_ids.size(), carried_after, "and adds no part")
 	_complete()
 
 

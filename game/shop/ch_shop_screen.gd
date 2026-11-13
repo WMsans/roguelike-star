@@ -179,8 +179,20 @@ func _try_item(index: int) -> bool:
 	_pop_auto_sold()
 	# A taken card is no longer on offer, so it leaves the row. The cards that stay keep their phase
 	# index (items are never renumbered), which is why a later click still buys the item it names.
-	_drop_taken(index)
+	# A pack grants one card, so its take spends the whole stage: every pack card leaves the row.
+	if kind == &"pack":
+		_clear_shelf()
+	else:
+		_drop_taken(index)
 	return true
+
+
+func _clear_shelf() -> void:
+	for entry in _shelf:
+		var card: Control = entry[&"card"]
+		stage_view.remove_child(card)
+		card.queue_free()
+	_shelf.clear()
 
 
 func _drop_taken(item_index: int) -> void:
