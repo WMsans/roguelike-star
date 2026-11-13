@@ -614,14 +614,14 @@ func test_main_draw_panel() -> void:
 	await _wait_screen(main, &"result")
 	cook.max_hp = cook_hp
 	assert_eq(main.screen, &"result", "the timeout reached the result screen rather than hanging")
-	assert_eq(main.result_panel.title.text, "Draw: time ran out", "and the panel named the draw")
+	assert_eq(main.result_panel.title.text, "Run over", "and the panel said the run ended")
 	assert_true(main.battle != null and not main.battle.ticking, "on a fight that has stopped")
 	main.free()
 	_complete()
 
 
-# Review Focus: "Back to garage" pressed twice in one frame. The first press is the hand-back; the
-# second has to be a no-op rather than a second garage build, which would throw away the screen the
+# Review Focus: the panel's one button pressed twice in one frame. The first press is the hand-back;
+# the second has to be a no-op rather than a second garage build, which would throw away the screen the
 # first press just made. The panel is queue_free'd rather than freed (freeing a Button from inside
 # its own `pressed` signal is not safe), so the second press still reaches this node's handler - and
 # the garage's instance id is what tells the two outcomes apart, because a rebuild would leave one
