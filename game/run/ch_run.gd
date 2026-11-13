@@ -4,7 +4,10 @@ class_name ChRun extends RefCounted
 # No nodes and no screens: the shop phase (Task 7), the fight rules (Task 8) and the main loop
 # (Task 13) all read this one object.
 
-const FIRST_HP := 500  # enemy HP at fight 0; Task 13's balance runner tunes this one line
+# Enemy HP at fight 0. Tuned with tools/balance/run.sh: the starting kit (Cutter, two wheels, the
+# chainsaw on [2]) against the cook at this HP, seeds 1-10, player press mash, enemy AI - 500 won 0 of
+# 10, 150 won 6, 65 won 8 (the two losses leave the cook at 5 HP).
+const FIRST_HP := 65
 const LAST_HP := 1500  # the ramp's top, reached at the last elite, before that fight's x1.25
 const LAST_INDEX := 9  # a run is 10 fights, 0-based, and the last one is the boss
 const ELITE_INDEXES := [2, 5, 8]

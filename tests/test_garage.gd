@@ -9,26 +9,9 @@ extends ChTest
 # hands the path and the screen point to the owner and lifts nothing itself. `-- test_garage` runs
 # them all, and the scene tests at the end instance the shipped garage.tscn rather than a bare
 # ChGarage.
-# ChMain end to end (review finding 3): the brief's headline deliverable is the round trip -
-# garage -> one battle -> result -> garage - and nothing above ever ran it. The seam is the
-# shipped scene rather than a copy of ChMain's loop, which is also where the scene's own nodes
-# get pinned: ChMain makes its screen in code, so main.tscn must not instance a second garage
-# (review finding 2) drawing "Fight" over the live one.
-# Cheapness: a fight stops at its own result (Task 3), so the round trip's low-HP enemy ends the
-# fight in seconds instead of paying ChBattle's whole 3600-tick budget; only the draw test pays that,
-# because a draw IS the budget running out. The three tests that pinned a fight still ticking behind
-# the result window - the watchdog hand-back, the hidden fight's release and ChMain's retiring list -
-# are gone with that machinery: Task 6 replaced them with the result panel and its back button.
-const MAIN_SCENE := "res://game/main.tscn"
-# The screen under test for the parts strip and the input path: ChMain instances this file too.
+# The run's loop itself is tests/run/test_main_run.gd's: the garage here is the embeddable screen
+# the shop puts in the middle, so nothing below starts a fight.
 const GARAGE_SCENE := "res://game/garage/garage.tscn"
-# A hull no fight ends: with both sides on this only the time limit can decide the fight, which is
-# how test_main_draw_panel reaches the draw panel (test_battle.gd spells the same value for its half).
-const TALL_HP := 100000
-# The wait's cap in frames, not seconds: the fight is frame-driven (one tick per awaited frame), so
-# WORLD_WAIT frames of arena streaming plus FIGHT_TICKS ticks is the exact worst case on any machine,
-# and a screen that never changes still fails in a bounded run instead of hanging the suite.
-const SCREEN_FRAMES := 6000
 
 
 func _catalog() -> ChCatalog:
@@ -66,49 +49,6 @@ func _layout(body_id: StringName) -> ChChariotLayout:
 	# its own, and the hull simply shows nothing for it.
 	layout.body_id = body_id
 	return layout
-
-
-func _main_scene() -> ChMain:
-	# The shipped scene, so the test drives ChMain's own loop rather than restating it. ChMain
-	# extends Node (it draws nothing), so it goes under the runner's root viewport like every
-	# other node these tests add. ChMain._init builds the kit, the layout and the first screen,
-	# so the instance answers the round trip with no setup of its own.
-	var scene: PackedScene = ResourceLoader.load(MAIN_SCENE)
-	assert_true(scene != null, "main.tscn loads")
-	var main: ChMain = scene.instantiate()
-	Engine.get_main_loop().get_root().add_child(main)
-	# Finding 2: the screen lives once, and it is the one ChMain made. A second garage.tscn in
-	# main.tscn would draw its own "Body"/"Fight" pair on the same rects, so pick order alone
-	# would decide which button the pointer reaches - and that instance is never setup().
-	var screens := 0
-	for child in main.get_children():
-		# shortcut: one level deep, which is main.tscn's own shape: the panel layer and the garage.
-		if child is ChGarage:
-			screens += 1
-	assert_eq(screens, 1, "the tree holds exactly one garage, the one ChMain made")
-	assert_true(main.garage != null, "and ChMain made it")
-	return main
-
-
-# The wait the ChMain tests use: frames until ChMain's own screen is `want`. ChMain.screen is the
-# state (garage, fight, result) that the deleted bottom-left label used to be read for, and nothing
-# here counts ChMain's frames any more - the fight's ticks do, so a frame cap is the honest bound.
-# The cap costs a silent screen one test's failure rather than hanging the run; every caller asserts
-# the screen it waited for, so a capped wait reads as the failure it is.
-func _wait_screen(main: ChMain, want: StringName) -> void:
-	var frames := 0
-	while main.screen != want and frames < SCREEN_FRAMES:
-		await Engine.get_main_loop().process_frame
-		frames += 1
-
-
-func _ask_fight(main: ChMain) -> void:
-	# The temporary key (Task 13 deletes it): Enter is the only way the embeddable pit asks for the one
-	# fight the slice has, so the tests drive the handler a real key press reaches.
-	var event := InputEventKey.new()
-	event.keycode = KEY_ENTER
-	event.pressed = true
-	main._unhandled_input(event)
 
 
 func test_drop_takes_from_inventory() -> void:
@@ -347,8 +287,8 @@ func test_drop_onto_strut_extension() -> void:
 
 
 func test_copy_of_build() -> void:
-	# The copy ChMain's temporary Enter key hands a fight: the battle receives a copy, so it can never
-	# mutate the garage's build (ChBattle mirrors the layout it is given).
+	# A deep copy of the build, so a caller can hand a fight a layout the fight cannot mutate
+	# (ChBattle mirrors whatever it is given).
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(_inventory([&"wheel", &"wheel"]), layout, _catalog())
 	assert_true(garage.drop_part(&"wheel", [0]), "one mount, so the copy has a node to copy")
@@ -367,153 +307,6 @@ func test_copy_of_build() -> void:
 	assert_true(layout.get_node([0]).flipped, "the garage's own mount changed")
 	assert_eq(copy.get_node([0]).flipped, copy_flip, "and the copy kept its own flip")
 	garage.free()
-	_complete()
-
-
-func test_main_round_trip() -> void:
-	var main: ChMain = _main_scene()
-	# The kit, pinned: every part id the slice owns, two copies each, plus the four wheels.
-	# shortcut: ChCatalog.load_default is the source ChMain spells the kit from, so the expected
-	# counts come from it rather than a second hand-written list that can drift.
-	# shortcut: the ids are counted rather than ordered; ChInventory.add appends in ChMain's own
-	# list order, which is the kit's spelling and nobody's rule.
-	var counts: Dictionary = {}
-	for id in main.inventory.part_ids:
-		counts[id] = int(counts.get(id, 0)) + 1
-	for def in ChCatalog.load_default().parts.values():
-		assert_eq(counts.get(def.id, 0), 4 if def.id == &"wheel" else 2, "two of each part, four wheels")
-	# The build the fight runs, mounted through the garage's own hand: wheels to move and a
-	# Rocket in the Cutter's front slot, unflipped so it fires +x (Task 15's fight build).
-	assert_true(main.garage.drop_part(&"wheel", [0]), "body slot 0 takes a wheel")
-	assert_true(main.garage.drop_part(&"wheel", [1]), "as the other")
-	assert_true(main.garage.drop_part(&"cutter_rocket", [3]), "and the Rocket")
-	# The pin's identity check: ChMain owns ONE layout and ONE inventory whatever the loop does, so
-	# the garage that comes back is the same two halves with the same build on them.
-	var build_id := main.layout.get_instance_id()
-	var carried := main.inventory.part_ids.size()  # the kit minus the three parts just mounted
-	# The fight is asked for the way the screen asks: Enter, which is the temporary key Task 13
-	# replaces with the shop's own Fight button.
-	var results: Array[StringName] = []
-	var sink := results
-	_ask_fight(main)
-	assert_true(main.battle != null, "the fight started, as an instantiated battle.tscn")
-	assert_eq(main.screen, &"fight", "and the loop left the garage for it")
-	# No Space key headless, and the volley is press-driven: the player presses by the enemy's rule.
-	main.battle.pressers[0] = func(b, s): return b.ai_press(s)
-	# ChBattle is an awaited coroutine, so the battle exists before its arena has loaded; the
-	# signal is watched from outside as well, so the result ChMain read is the one it announced.
-	main.battle.finished.connect(func(result: StringName): sink.append(result))
-	# The enemy's HP goes low, the way Task 15's test_battle_finishes overrides it, so `finished`
-	# fires seconds into the fight rather than after its whole 60 s budget.
-	# shortcut: the override is runtime rather than a hand-built catalog; the def on disk is one
-	# shared instance, so mutating it would make another task's Dozer fragile.
-	# shortcut: 1 HP rather than 0, so the low value has to take a hit rather than reading dead
-	# before the fight could; the probe measured ~4.6 HP/s of damage arriving.
-	var frames := 0
-	while main.battle.enemy == null and frames < 60:
-		await Engine.get_main_loop().process_frame
-		frames += 1
-	if main.battle.enemy != null:
-		main.battle.enemy.hp = 1
-	await _wait_screen(main, &"result")
-	assert_eq(results, [&"win"], "the loop saw the fight's result, a win for the low-HP enemy")
-	assert_eq(main.screen, &"result", "and the fight stopped on the result screen")
-	assert_eq(main.result_panel.title.text, "You win", "the panel named the win")
-	assert_true(not main.garage.is_visible_in_tree(), "the garage stays away under it")
-	# The fight is still on screen behind the panel - a still picture, because ChBattle stopped at its
-	# own result (Task 3) - and it is the panel's back button that frees it, not a window closing.
-	# What the fight itself does at its result is pinned in test_battle.gd.
-	var fought := main.battle
-	assert_true(is_instance_valid(fought), "the ended fight is still in the tree under the panel")
-	# A second `finished` is a contract violation, but the panel is the whole result screen: a second
-	# one would stack over the first, so the handler refuses once a panel exists.
-	fought.finished.emit(&"win")
-	assert_eq(main.find_children("*", "ChResultPanel", true, false).size(), 1,
-		"a second finished does not stack a second panel")
-	assert_eq(main.screen, &"result", "and the screen is still the one panel")
-	main.result_panel.back.pressed.emit()
-	assert_eq(main.screen, &"garage", "back went to the garage")
-	assert_true(main.garage != null and main.garage.is_visible_in_tree(), "as a live screen again")
-	# The build and the kit come back untouched whatever the loop did in between: ChMain owns ONE
-	# layout and ONE inventory, and the fight only ever got a copy.
-	assert_true(main.layout.get_instance_id() == build_id, "the SAME layout instance, not a rebuilt one")
-	assert_eq(main.layout.slots.size(), 3, "still holding exactly the three mounts it was given")
-	var rocket := main.layout.get_node([3])
-	assert_true(rocket != null and rocket.part_id == &"cutter_rocket", "the Rocket in the same slot")
-	assert_eq(main.inventory.part_ids.size(), carried, "and the same parts carried")
-	assert_true(main.battle == null, "and ChMain released the ended fight, node and reference")
-	assert_true(not is_instance_valid(fought), "the fight node itself is gone")
-	main.free()
-	_complete()
-
-
-# Review Focus 5 on ChMain's side: a fight whose time runs out reaches the result panel instead of
-# leaving the game on a screen that never names anything. The HP override travels as a catalog
-# (ChTest._fight_catalog), so the fight really does run its whole 3600-tick budget: this is the one
-# test here that pays ChBattle's full clock, because a draw IS the clock running out.
-func test_main_draw_panel() -> void:
-	var main: ChMain = _main_scene()
-	# The same build the round trip fights with, so the player has a weapon; TALL_HP means nothing it
-	# fires can end the fight early.
-	assert_true(main.garage.drop_part(&"wheel", [0]), "body slot 0 takes a wheel")
-	assert_true(main.garage.drop_part(&"wheel", [1]), "as the other")
-	assert_true(main.garage.drop_part(&"cutter_rocket", [3]), "and the Rocket")
-	main.catalog = _fight_catalog(TALL_HP, TALL_HP)
-	# ChMain fights the cached dozer_cook layout, whose own max_hp (1800) wins over the catalog's
-	# TALL_HP, so the cached copy's max_hp is cleared for this fight and put back after it.
-	var cook: ChChariotLayout = ResourceLoader.load(ChMain.ENEMY)
-	var cook_hp := cook.max_hp
-	cook.max_hp = 0
-	_ask_fight(main)
-	assert_eq(main.screen, &"fight", "the fight started")
-	await _wait_screen(main, &"result")
-	cook.max_hp = cook_hp
-	assert_eq(main.screen, &"result", "the timeout reached the result screen rather than hanging")
-	assert_eq(main.result_panel.title.text, "Run over", "and the panel said the run ended")
-	assert_true(main.battle != null and not main.battle.ticking, "on a fight that has stopped")
-	main.free()
-	_complete()
-
-
-# Review Focus: the panel's one button pressed twice in one frame. The first press is the hand-back;
-# the second has to be a no-op rather than a second garage build, which would throw away the screen the
-# first press just made. The panel is queue_free'd rather than freed (freeing a Button from inside
-# its own `pressed` signal is not safe), so the second press still reaches this node's handler - and
-# the garage's instance id is what tells the two outcomes apart, because a rebuild would leave one
-# garage in the tree either way.
-func test_back_twice_one_garage() -> void:
-	var main: ChMain = _main_scene()
-	_ask_fight(main)
-	var frames := 0
-	while main.battle.enemy == null and frames < 60:
-		await Engine.get_main_loop().process_frame
-		frames += 1
-	if main.battle.enemy != null:
-		main.battle.enemy.hp = 1
-	await _wait_screen(main, &"result")
-	assert_eq(main.screen, &"result", "the fight reached its result panel")
-	var back: Button = main.result_panel.back
-	var fought := main.battle
-	back.pressed.emit()
-	assert_true(main.result_panel == null, "the first press let the panel reference go")
-	var first_garage := main.garage.get_instance_id()
-	back.pressed.emit()
-	assert_eq(main.screen, &"garage", "the presses left the loop on the garage")
-	assert_true(main.garage.get_instance_id() == first_garage,
-		"the second press did not rebuild the garage the first one made")
-	var garages := 0
-	for child in main.get_children():
-		if child is ChGarage:
-			garages += 1
-	assert_eq(garages, 1, "and exactly one garage is a child of main")
-	assert_true(main.battle == null and not is_instance_valid(fought),
-		"while the fight was released once")
-	# queue_free is deferred, so the press leaves the panel in the tree for this frame; the next one
-	# proves it really left rather than being dropped from the reference alone.
-	await Engine.get_main_loop().process_frame
-	assert_eq(main.find_children("*", "ChResultPanel", true, false).size(), 0,
-		"and the panel itself left the tree, not just the reference to it")
-	main.free()
 	_complete()
 
 
@@ -544,14 +337,6 @@ func _button(at: Vector2, pressed: bool, button := MOUSE_BUTTON_LEFT) -> void:
 	Engine.get_main_loop().get_root().push_input(event, true)
 
 
-func _press(at: Vector2, button := MOUSE_BUTTON_LEFT) -> void:
-	# One real click through the viewport's own input path. in_local_coords is on purpose: the runner's
-	# window is 64x64 in headless while the canvas is 1280x720, so a non-local event would be scaled by
-	# 1/20 on its way in (measured); a local one arrives in the canvas pixels the screen is laid out in.
-	_button(at, true, button)
-	_button(at, false, button)
-
-
 func _move(at: Vector2) -> void:
 	# A motion, the way the pit reads the pointer: the hover, the tooltip and the marker nearest the
 	# pointer all come from these, so a test that only clicks would never drive them.
@@ -572,98 +357,6 @@ func test_no_hint_labels() -> void:
 			hints.append(text)
 	assert_eq(hints, [], "no label tells the player what to click")
 	assert_true(not garage.tooltip.visible, "the tooltip is away until something is hovered")
-	_complete()
-
-
-# Task 10's evidence. A harness cannot put a human's mouse on a windowed game, so this drives the chain
-# the way the window does: real InputEventMouseButton presses and motions through the viewport, and the
-# pit's own gui_input converting them. The bar's card click is hold() here - the bar itself is Task 11's
-# - and everything below it is the shipped scene. The only thing forced by hand is the ending of the
-# fight, because a Cutter carrying one wheel has nothing to shoot with (tools/screenshot.gd forces its
-# win the same way).
-func test_mouse_chain_plays_a_round_trip() -> void:
-	var main: ChMain = _main_scene()
-	for _frame in 2:
-		await Engine.get_main_loop().process_frame
-	var garage: ChGarage = main.garage
-	var pit: Control = garage.get_node("Pit")
-	assert_eq(pit.get_global_rect(), Rect2(0, 20, 1280, 520),
-		"the pit keeps the bottom 180 px of 1280x720 for the bar")
-	# 1. take a wheel in hand and place it: a click on the pit at the marker screen_of names.
-	garage.hold(&"wheel")
-	assert_eq(garage.held_id, &"wheel", "the bar's click took a wheel in hand")
-	var carried := main.inventory.part_ids.size()
-	_press(garage.get_global_position() + garage.screen_of([0]))
-	assert_true(main.layout.get_node([0]) != null, "the pit click mounted it in body slot 0")
-	assert_eq(main.layout.get_node([0]).part_id, &"wheel", "as a wheel")
-	assert_eq(garage.held_id, &"", "with nothing left in hand")
-	assert_eq(main.inventory.part_ids.size(), carried - 1, "and one of the wheels out of the kit")
-	# The hover: a motion over empty pit space leaves the panel away, a motion over the mounted wheel
-	# shows the part tooltip for its def.
-	var panel: ChPartTooltip = garage.tooltip
-	_move(Vector2(100, 500))
-	assert_true(not panel.visible, "moving off the hull puts the tooltip away")
-	_move(garage.get_global_position() + garage.screen_of([0]))
-	assert_true(panel.visible, "hovering the mounted wheel filled it")
-	assert_eq(garage.tooltip.def.id, &"wheel", "naming the part")
-	# 2. flip it: a right click on the mounted part.
-	_press(garage.get_global_position() + garage.screen_of([0]), MOUSE_BUTTON_RIGHT)
-	assert_true(main.layout.get_node([0]).flipped, "a right click turned the wheel round")
-	# A hold and a click on the root's own empty space - the band above the pit - puts a part back,
-	# which is the one way out of a hold that is not a second click on its own card.
-	garage.hold(&"wheel")
-	assert_eq(garage.held_id, &"wheel", "the bar held a wheel again")
-	_press(Vector2(640, 3))
-	assert_eq(garage.held_id, &"", "a click on the empty root put it back")
-	assert_eq(main.layout.slots.size(), 1, "and mounted nothing extra")
-	# 3. drag the mounted wheel off the pit: past 6 px the release names the path and the screen point,
-	# and the pit itself lifts nothing - the owner decides.
-	var dropped: Array = []
-	var sink := dropped
-	garage.piece_dropped.connect(func(path: Array[int], at: Vector2): sink.append([path, at]))
-	var from: Vector2 = garage.get_global_position() + garage.screen_of([0])
-	_button(from, true)
-	_move(from + Vector2(0, 10))
-	_button(from + Vector2(0, 10), false)
-	assert_eq(dropped.size(), 1, "the drag's release announced where the piece went")
-	if not dropped.is_empty():
-		assert_eq(dropped[0][0], _typed_path([0]), "with the wheel's path")
-	assert_true(main.layout.get_node([0]) != null, "and the pit left it mounted until the owner decided")
-	var piece: ChPitPiece = garage.piece_at(_typed_path([0]))
-	assert_true(piece != null and piece.visible, "so the piece is back in its slot, not under the pointer")
-	# The owner's decision, the way Task 12 will make it: the part comes home to the kit.
-	assert_true(garage.lift([0]), "the owner lifted it off the pit")
-	assert_eq(main.inventory.part_ids.size(), carried, "and the wheel is carried again")
-	# 4. ask for a fight with the temporary Enter key, and watch it end.
-	garage.hold(&"wheel")
-	_press(garage.get_global_position() + garage.screen_of([1]))
-	_press(garage.get_global_position() + garage.screen_of([1]), MOUSE_BUTTON_RIGHT)
-	assert_true(main.layout.get_node([1]).flipped, "the second wheel was placed and flipped")
-	_ask_fight(main)
-	assert_eq(main.screen, &"fight", "Enter started the fight")
-	var frames := 0
-	while main.battle == null and frames < 60:
-		await Engine.get_main_loop().process_frame
-		frames += 1
-	if main.battle == null:
-		assert_true(false, "the fight reached the tree")
-		main.free()
-		_complete()
-		return
-	main.battle.enemy.hp = 0
-	await _wait_screen(main, &"result")
-	assert_eq(main.screen, &"result", "the win reached the result panel")
-	# 5. go back: the panel's own button, clicked where it is drawn.
-	_press(main.result_panel.back.get_global_rect().get_center())
-	assert_eq(main.screen, &"garage", "the back button put the garage up again")
-	for _frame in 2:
-		await Engine.get_main_loop().process_frame
-	# The end state a player sees: the same build facing the way it was left, and a fresh pit holding
-	# nothing in hand.
-	assert_eq(main.layout.slots.size(), 1, "the build came back as it was left")
-	assert_true(main.layout.get_node([1]).flipped, "the flip survived the fight")
-	assert_eq(main.garage.held_id, &"", "and the fresh pit holds nothing")
-	main.free()
 	_complete()
 
 
