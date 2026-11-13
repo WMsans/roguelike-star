@@ -33,7 +33,9 @@ var bar: ChInventoryBar = null
 var garage: ChGarage = null
 
 var _option_cards: Array[ChCard] = []  # the three faces, in phase.options order (for a refusal)
-var _item_cards: Dictionary = {}  # item index -> its card, for the same refusal shake
+# The shelf, in row order: each entry is {&"card": ChCard, &"item_index": int}. Taken items leave the
+# row but phase.items is never renumbered, so the survivor keeps its own index and refusal shake.
+var _shelf: Array[Dictionary] = []
 var _reroll_button: Button = null
 # The auto_sold ledger is per stage and next() clears it, so the screen remembers how far it has read.
 var _auto_sold_seen := 0
@@ -164,7 +166,7 @@ func _try_item(index: int) -> bool:
 	elif kind == &"pack":
 		ok = phase.take(index)
 	if not ok:
-		var card: ChCard = _item_cards.get(index)
+		var card := _card_for(index)
 		if card != null:
 			card.refuse()
 		return false
@@ -175,7 +177,31 @@ func _try_item(index: int) -> bool:
 		Feedback.play(&"placed", carried)
 	_refresh_gold()
 	_pop_auto_sold()
+	# A taken card is no longer on offer, so it leaves the row. The cards that stay keep their phase
+	# index (items are never renumbered), which is why a later click still buys the item it names.
+	_drop_taken(index)
 	return true
+
+
+func _drop_taken(item_index: int) -> void:
+	for at in range(_shelf.size() - 1, -1, -1):
+		if _shelf[at][&"item_index"] != item_index:
+			continue
+		var card: Control = _shelf[at][&"card"]
+		stage_view.remove_child(card)
+		card.queue_free()
+		_shelf.remove_at(at)
+	var row: Array[Control] = []
+	for entry in _shelf:
+		row.append(entry[&"card"])
+	_place_row(row, ROW_CENTRE_Y)
+
+
+func _card_for(item_index: int) -> ChCard:
+	for entry in _shelf:
+		if entry[&"item_index"] == item_index:
+			return entry[&"card"]
+	return null
 
 
 func _on_reroll() -> void:
@@ -280,10 +306,12 @@ func _render_options() -> void:
 func _render_items(show_price: bool) -> void:
 	var row: Array[Control] = []
 	for index in phase.items.size():
+		if phase.items[index][&"taken"]:
+			continue
 		var card := _make_item_card(index, show_price)
 		if card == null:
 			continue
-		_item_cards[index] = card
+		_shelf.append({&"card": card, &"item_index": index})
 		row.append(card)
 	_place_row(row, ROW_CENTRE_Y)
 	for card in row:
@@ -356,7 +384,7 @@ func _place_row(cards: Array[Control], centre_y: float) -> void:
 
 func _clear_stage() -> void:
 	_option_cards.clear()
-	_item_cards.clear()
+	_shelf.clear()
 	_reroll_button = null
 	for child in stage_view.get_children():
 		if child == next_button:

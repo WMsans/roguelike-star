@@ -30,6 +30,22 @@ func _force_shop(screen: ChShopScreen, id := &"wheel", price := 2) -> void:
 	screen._render_stage()
 
 
+func _shelf_part_cards(screen: ChShopScreen) -> Array[ChCard]:
+	# The item cards on the shelf, in the order the row lays them out.
+	var cards: Array[ChCard] = []
+	for child in screen.stage_view.get_children():
+		if child is ChPartCard:
+			cards.append(child)
+	return cards
+
+
+func _shelf_part_ids(screen: ChShopScreen) -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for card in _shelf_part_cards(screen):
+		ids.append((card as ChPartCard).def.id)
+	return ids
+
+
 func _bar_global(screen: ChShopScreen, rect: Rect2) -> Vector2:
 	return screen.bar.get_global_transform_with_canvas() * rect.get_center()
 
@@ -89,6 +105,49 @@ func test_drop_item_elsewhere_does_nothing() -> void:
 	assert_eq(screen.run.gold, gold_before, "a drop off the bar buys nothing")
 	assert_eq(screen.run.inventory.part_ids.size(), carried_before, "and adds no part")
 	assert_true(not screen.phase.items[0][&"taken"], "the item is still on the shelf")
+	_complete()
+
+
+func test_bought_card_leaves_the_shelf() -> void:
+	var screen := _screen()
+	# Two real cards, so the survivor's phase index is not its shelf position after the reflow.
+	screen.phase.picked = {&"kind": &"shop", &"theme": &"weapon", &"resource": &""}
+	screen.phase.items.clear()
+	for id in [&"wheel", &"strut"]:
+		screen.phase.items.append({
+			&"id": id,
+			&"is_body": false,
+			&"rarity": &"common",
+			&"price": ChPrices.price(&"common"),
+			&"taken": false,
+		})
+	screen._render_stage()
+	var both: Array[StringName] = [&"wheel", &"strut"]
+	assert_eq(_shelf_part_ids(screen), both, "both cards start on the shelf")
+	var price: int = screen.phase.items[0][&"price"]
+	var gold_before := screen.run.gold
+	var bought: ChCard = _shelf_part_cards(screen)[0]
+
+	screen._on_item_clicked(0)
+	assert_true(screen.phase.items[0][&"taken"], "the first card is bought")
+	assert_eq(screen.run.gold, gold_before - price, "and its price is paid")
+	var survivor: Array[StringName] = [&"strut"]
+	assert_eq(_shelf_part_ids(screen), survivor, "the bought card leaves the shelf")
+	assert_true(not bought.is_inside_tree(), "and its face is gone from the stage")
+
+	# A second press where that card was is not a second buy.
+	var gold_after := screen.run.gold
+	screen._on_item_clicked(0)
+	assert_eq(screen.run.gold, gold_after, "a second press on the taken card spends nothing")
+	assert_eq(screen.run.inventory.part_ids.count(&"wheel"), 1, "and adds no second wheel")
+
+	# The surviving card is now first on the shelf but is still phase item 1, so it buys the strut.
+	_shelf_part_cards(screen)[0].clicked.emit()
+	assert_true(screen.phase.items[1][&"taken"], "the shifted card buys its own item")
+	assert_true(screen.run.inventory.part_ids.has(&"strut"), "the strut is carried")
+	assert_eq(screen.run.gold, gold_after - int(screen.phase.items[1][&"price"]),
+		"and pays its own price")
+	assert_true(_shelf_part_ids(screen).is_empty(), "the bought shelf is empty")
 	_complete()
 
 
