@@ -28,6 +28,7 @@ const SELL_W := 200.0
 var inventory: ChInventory = null
 var catalog: ChCatalog = null
 var sell_label: Label = null
+var tooltip: ChPartTooltip = null  # a carried card's part, above the bar while it is hovered
 
 # One card per carried part, in inventory order (see the header).
 var _cards: Array[ChPartCard] = []
@@ -39,6 +40,8 @@ var _sell := Rect2()
 var _layer: Control = null
 var _drag_def: ChPartDef = null  # the part a drag carries, while the accepting zones are rimmed
 var _drag_card: ChPartCard = null  # set only for a BAR card's drag: the bar follows the label then
+var _highlighted := false  # rims are up: a shop item carries no def, so this is its own flag
+var _sellable := true  # false while a shop/pack item is dragged: it has no sell price
 
 
 func _init() -> void:
@@ -57,6 +60,10 @@ func _init() -> void:
 	sell_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sell_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_layer.add_child(sell_label)
+	# In the layer so it draws over the cards; its own _init sets the ignore filter and the z index.
+	tooltip = ChPartTooltip.new()
+	tooltip.name = "Tooltip"
+	_layer.add_child(tooltip)
 	# A resize re-places the zones and the cards: refresh is the one path that does both.
 	resized.connect(refresh)
 
@@ -103,6 +110,9 @@ func refresh() -> void:
 			card = _make_card(def)
 		cards.append(card)
 	for card in spare:
+		# A freed card never sends its own exit, so a hovered one is put back down first: it must not
+		# keep its lift or leave the tooltip naming a part that is no longer carried.
+		card.hover(false)
 		_layer.remove_child(card)
 		card.queue_free()
 	_cards = cards
@@ -131,18 +141,26 @@ func over_sell(global: Vector2) -> bool:
 	return _sell.has_point(_to_local(global))
 
 
-func highlight(card_def: ChPartDef) -> void:
+func highlight(card_def: ChPartDef = null, sellable := true) -> void:
 	# While a card is dragged, the zones that would accept it get an ACCENT rim. The def is kept
-	# because it is what the sell zone prices when the pointer is over it.
+	# because it is what the sell zone prices when the pointer is over it; a shelf card carries none
+	# (a shop item is bought, never sold back), so SELL stays unrimmed and its label rests.
+	_highlighted = true
 	_drag_def = card_def
+	_sellable = sellable
+	sell_label.text = "SELL"
 	_layer.queue_redraw()
 
 
 func clear_highlight() -> void:
 	# The drag ended (or was refused): the rims go and the zone label rests on "SELL" again.
+	_highlighted = false
 	_drag_def = null
 	_drag_card = null
+	_sellable = true
 	sell_label.text = "SELL"
+	if tooltip != null:
+		tooltip.hide_tooltip()
 	_layer.queue_redraw()
 
 
@@ -157,11 +175,26 @@ func _make_card(def: ChPartDef) -> ChPartCard:
 	card.set_count(1)
 	card.drag_started.connect(_on_card_drag_started.bind(card))
 	card.dropped.connect(_on_card_dropped.bind(card))
+	card.hover_changed.connect(_on_card_hover.bind(card))
 	return card
+
+
+func _on_card_hover(entered: bool, card: ChPartCard) -> void:
+	# The rest of the tooltip wiring: the hovered card's own def names what is carried. The card's rect
+	# is taken layer-local because place() writes a position in the tooltip parent's pixels.
+	if tooltip == null:
+		return
+	if not entered or card.def == null:
+		tooltip.hide_tooltip()
+		return
+	tooltip.show_part(card.def, Rect2(card.position, card.size), ChPartTooltip.Side.ABOVE,
+		Rect2(Vector2.ZERO, _layer.size))
 
 
 func _on_card_drag_started(card: ChPartCard) -> void:
 	_drag_card = card
+	if tooltip != null:
+		tooltip.hide_tooltip()
 	highlight(card.def)
 
 
@@ -176,9 +209,9 @@ func _on_card_dropped(at: Vector2, card: ChPartCard) -> void:
 
 func _update_sell_label(global: Vector2) -> void:
 	# The zone's label reads the dragged part's sell value only while the pointer is over SELL. The bar
-	# calls this from _input for one of its own cards' drags; Task 12 sets the label itself while a shop
-	# item is dragged.
-	if _drag_def != null and over_sell(global):
+	# calls this from _input for one of its own cards' drags; a shelf item's drag carries no def and
+	# the zone is not sellable, so it never prices it.
+	if _drag_def != null and _sellable and over_sell(global):
 		sell_label.text = "+$%d" % ChPrices.sell_value(_drag_def.rarity)
 	else:
 		sell_label.text = "SELL"
@@ -230,7 +263,8 @@ func _draw_bar() -> void:
 	# The five empty slots and the sell zone, drawn under the cards: an empty slot stays a slot, so a
 	# half-empty bar still reads as five slots with room. They are rects rather than labels because the
 	# screen's minimal HUD has no capacity counter.
-	var rim := ChUi.ACCENT if _drag_def != null else Color(0, 0, 0, 0)
+	var rim := ChUi.ACCENT if _highlighted else Color(0, 0, 0, 0)
 	for rect in _slots:
 		_layer.draw_style_box(ChUi.flat(ChUi.BUTTON, rim), rect)
-	_layer.draw_style_box(ChUi.flat(ChUi.BUTTON, rim), _sell)
+	# SELL takes only a carried part: a shop or pack item has no sell price to offer.
+	_layer.draw_style_box(ChUi.flat(ChUi.BUTTON, rim if _sellable else Color(0, 0, 0, 0)), _sell)

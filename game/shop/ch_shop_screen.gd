@@ -31,6 +31,7 @@ var stage_view: Control = null
 var next_button: Button = null
 var bar: ChInventoryBar = null
 var garage: ChGarage = null
+var tooltip: ChPartTooltip = null  # a shelf part card's def, above the stage row while it is hovered
 
 var _option_cards: Array[ChCard] = []  # the three faces, in phase.options order (for a refusal)
 # The shelf, in row order: each entry is {&"card": ChCard, &"item_index": int}. Taken items leave the
@@ -99,6 +100,13 @@ func _init() -> void:
 	add_child(bar)
 	bar.card_clicked.connect(_on_bar_clicked)
 	bar.card_dropped.connect(_on_bar_dropped)
+	# Last, so it draws over the stage row and the bar; its own _init sets the ignore filter and the
+	# z index.
+	tooltip = ChPartTooltip.new()
+	tooltip.name = "Tooltip"
+	add_child(tooltip)
+	# The backdrop is a full-rect _draw; a resize has to repaint it.
+	resized.connect(queue_redraw)
 
 
 func setup(run_in: ChRun, catalog_in: ChCatalog) -> void:
@@ -144,12 +152,19 @@ func _on_option_clicked(index: int) -> void:
 
 
 func _on_item_clicked(index: int) -> void:
+	# A click never drags, but the zones can still be rimmed from an earlier drag's card.
+	if bar != null:
+		bar.clear_highlight()
 	_try_item(index)
 
 
 func _on_item_dropped(index: int, at: Vector2) -> void:
-	# A drag only means a buy or a take when it is let go on the bar; anywhere else glides home.
-	if bar == null or bar.slot_index_at(at) < 0:
+	# A drag only means a buy or a take when it is let go on the bar; anywhere else glides home. The
+	# rims go whatever the drop means.
+	if bar == null:
+		return
+	bar.clear_highlight()
+	if bar.slot_index_at(at) < 0:
 		return
 	_try_item(index)
 
@@ -190,9 +205,12 @@ func _try_item(index: int) -> bool:
 func _clear_shelf() -> void:
 	for entry in _shelf:
 		var card: Control = entry[&"card"]
+		# A freed card never sends its own exit, so put a hovered one down before it goes.
+		(card as ChCard).hover(false)
 		stage_view.remove_child(card)
 		card.queue_free()
 	_shelf.clear()
+	tooltip.hide_tooltip()
 
 
 func _drop_taken(item_index: int) -> void:
@@ -200,6 +218,7 @@ func _drop_taken(item_index: int) -> void:
 		if _shelf[at][&"item_index"] != item_index:
 			continue
 		var card: Control = _shelf[at][&"card"]
+		(card as ChCard).hover(false)
 		stage_view.remove_child(card)
 		card.queue_free()
 		_shelf.remove_at(at)
@@ -323,6 +342,9 @@ func _render_items(show_price: bool) -> void:
 		var card := _make_item_card(index, show_price)
 		if card == null:
 			continue
+		card.drag_started.connect(_on_shelf_drag_started)
+		if card is ChPartCard:
+			card.hover_changed.connect(_on_shelf_hover.bind(card as ChPartCard))
 		_shelf.append({&"card": card, &"item_index": index})
 		row.append(card)
 	_place_row(row, ROW_CENTRE_Y)
@@ -363,6 +385,22 @@ func _make_item_card(index: int, show_price: bool) -> ChCard:
 	return card
 
 
+func _on_shelf_drag_started() -> void:
+	# A shop or pack item is not sellable, so the slots rim and SELL does not.
+	if bar != null:
+		bar.highlight(null, false)
+
+
+func _on_shelf_hover(entered: bool, card: ChPartCard) -> void:
+	# A shelf part card names its part above itself. A body shelf card is a ChBodyDef and has none.
+	if tooltip == null:
+		return
+	if not entered or card.def == null:
+		tooltip.hide_tooltip()
+		return
+	tooltip.show_part(card.def, card.get_global_rect(), ChPartTooltip.Side.ABOVE, get_viewport_rect())
+
+
 func _add_reroll() -> void:
 	_reroll_button = Button.new()
 	_reroll_button.text = "Reroll $%d" % ChPrices.REROLL
@@ -398,11 +436,21 @@ func _clear_stage() -> void:
 	_option_cards.clear()
 	_shelf.clear()
 	_reroll_button = null
+	tooltip.hide_tooltip()
 	for child in stage_view.get_children():
 		if child == next_button:
 			continue
+		if child is ChCard:
+			(child as ChCard).hover(false)
 		stage_view.remove_child(child)
 		child.queue_free()
+
+
+func _draw() -> void:
+	# The screen is opaque: _show_shop keeps the ended battle in the tree, and without this the arena
+	# and its chariots show through behind the stage row and the gold readout. A parent draws under
+	# its children, so the garage and the cards stay on top.
+	draw_rect(Rect2(Vector2.ZERO, size), ChUi.PANEL)
 
 
 func _option_text(option: Dictionary) -> String:

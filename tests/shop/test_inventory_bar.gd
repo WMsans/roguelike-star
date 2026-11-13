@@ -54,6 +54,15 @@ func _collect_labels(node: Node, into: Array[Label]) -> void:
 		_collect_labels(child, into)
 
 
+func _under_tooltip(label: Label) -> bool:
+	var node := label.get_parent()
+	while node != null:
+		if node is ChPartTooltip:
+			return true
+		node = node.get_parent()
+	return false
+
+
 func test_cards_match_inventory() -> void:
 	var bar := _bar([&"wheel", &"wheel", &"cutter_rocket"])
 	assert_near(bar.size.y, ChInventoryBar.HEIGHT, 0.5, "the bar is the bottom strip")
@@ -69,7 +78,11 @@ func test_cards_match_inventory() -> void:
 	assert_true(bar._sell.size.x > 0.0, "and the sell zone has one")
 	var labels: Array[Label] = []
 	_collect_labels(bar, labels)
-	assert_eq(labels.size(), 1, "the bar adds no capacity counter: only the sell label")
+	var chrome: Array[Label] = []
+	for label in labels:
+		if not _under_tooltip(label):
+			chrome.append(label)
+	assert_eq(chrome.size(), 1, "the bar adds no capacity counter: only the sell label")
 	assert_eq(bar.sell_label.text, "SELL", "which reads SELL at rest")
 	_complete()
 
@@ -146,6 +159,25 @@ func test_card_drag_over_sell_labels_and_drops() -> void:
 	assert_eq(bar.sell_label.text, "SELL", "the drop clears the label back to SELL")
 	assert_true(bar._drag_def == null, "and clears the zones' ACCENT rims")
 	assert_true(bar._drag_card == null, "the bar stops following the pointer")
+	_complete()
+
+
+func test_hover_shows_the_part_tooltip() -> void:
+	# Finding 3: a carried part's name, cost and bullets were unreadable after the strip became the
+	# bar. The card's own hover signal is what the bar listens to in the shipped game.
+	var bar := _bar([&"wheel"])
+	var card := bar._cards[0]
+	card.mouse_entered.emit()
+	assert_true(bar.tooltip.visible, "hovering a carried card shows its part")
+	assert_eq(bar.tooltip.def.id, &"wheel", "with that card's own part")
+	card.mouse_exited.emit()
+	assert_true(not bar.tooltip.visible, "leaving the card hides it")
+	# A drag in hand hides it: the pointer is carrying something, not naming it.
+	card.mouse_entered.emit()
+	var p := _centre_of(card)
+	card.press(p)
+	card.move(p + Vector2(0, 10))
+	assert_true(not bar.tooltip.visible, "and picking the card up hides it")
 	_complete()
 
 

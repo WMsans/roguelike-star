@@ -154,6 +154,27 @@ func test_hover_lifts() -> void:
 	_complete()
 
 
+func test_mouse_signals_drive_the_hover() -> void:
+	# The shipped game has no pointer seam to drive: only the Control's own mouse signals fire, so
+	# hover() alone left every card flat and unrimmed. This drives the signals, not the seam.
+	var card := _card()
+	var flips: Array = []
+	card.hover_changed.connect(func(entered: bool) -> void: flips.append(entered))
+	card.mouse_entered.emit()
+	assert_true(card.hovered, "the mouse entering a card hovers it")
+	assert_eq(flips, [true], "and announces it once")
+	for i in 30:
+		card.advance(DT)
+	assert_near(card.offset.y, -ChCard.HOVER_LIFT, 0.5, "the drawn card lifted off the strip")
+	card.mouse_exited.emit()
+	assert_true(not card.hovered, "the mouse leaving puts it back")
+	assert_eq(flips, [true, false], "and announces the exit")
+	for i in 60:
+		card.advance(DT)
+	assert_near(card.offset.y, 0.0, 0.5, "the lift comes back down")
+	_complete()
+
+
 func test_mid_drag_reorder_keeps_the_drawn_card_in_place() -> void:
 	# Review focus 1 (finding 1): Tasks 4/5/7 drop cards into strips that reorder, and a reorder can
 	# land while the card is still in the hand. A container moving the rect must never teleport the

@@ -266,6 +266,36 @@ func test_next_to_fight() -> void:
 	_complete()
 
 
+func test_shelf_drag_highlights_the_bar_without_a_price() -> void:
+	# Finding 2: a shelf card's drag was wired to nothing, so the accepting zones never rimmed. A shop
+	# item is bought, never sold back, so SELL must stay unrimmed and its label unpriced.
+	var screen := _screen()
+	_force_shop(screen)
+	var card: ChCard = _shelf_part_cards(screen)[0]
+	var p := card.get_global_transform_with_canvas() * (card.size * 0.5)
+	card.press(p)
+	card.move(p + Vector2(0, 10))
+	assert_true(card.dragging, "10 px past the grab is a drag")
+	assert_true(screen.bar._highlighted, "the bar's accepting zones are rimmed")
+	assert_eq(screen.bar.sell_label.text, "SELL", "and SELL offers no price for a shop item")
+	card.release(p + Vector2(0, 10))
+	assert_true(not screen.bar._highlighted, "the release clears the rims")
+	_complete()
+
+
+func test_shelf_hover_shows_the_part_tooltip() -> void:
+	# Finding 3: a part on offer had no readable name, cost or bullets after the strip became the bar.
+	var screen := _screen()
+	_force_shop(screen)
+	var card: ChCard = _shelf_part_cards(screen)[0]
+	card.mouse_entered.emit()
+	assert_true(screen.tooltip.visible, "hovering a shelf card shows its part")
+	assert_eq(screen.tooltip.def.id, &"wheel", "with the card's own part")
+	card.mouse_exited.emit()
+	assert_true(not screen.tooltip.visible, "and leaving it hides the tooltip")
+	_complete()
+
+
 func test_minimal_hud() -> void:
 	var screen := _screen()
 	var labels: Array[Label] = []

@@ -62,6 +62,10 @@ func _init() -> void:
 	var juice := ChJuice.attach(self)
 	juice.writes_parent = false
 	_sway_phase = randf() * TAU
+	# The Control emits these itself, so the lift, scale, lean, rim and hover beat follow the real
+	# mouse in the shipped game; hover() stays the seam the headless tests drive.
+	mouse_entered.connect(hover.bind(true))
+	mouse_exited.connect(hover.bind(false))
 
 
 func _ready() -> void:
