@@ -10,9 +10,10 @@ class_name ChGarage extends Control
 # is not mounted, ChChariotLayout what is. The click methods on top call these same rules, so a test
 # that drives them drives the screen's own rules, with or without a scene.
 # Deliberately thin: take lifts the first copy, add never dedupes and place accepts a slot index no def
-# owns, so the garage adds no rule of its own beyond lift's fit check, the one rule that stops a full
-# inventory from losing a lifted branch. drop_part checks the carry before it places, which is the
-# one order that cannot lose a part on a refused place. The tooltip reads the DEF, never a runtime: no
+# owns, so the garage adds no rule of its own beyond the fit check lift and cycle_body share, the one
+# rule that stops a full inventory from losing a branch - lifted off the hull or orphaned by a body
+# swap. drop_part checks the carry before it places, which is the one order that cannot lose a part on
+# a refused place. The tooltip reads the DEF, never a runtime: no
 # fight has run yet, so cooldown_left, integrity and charges_left do not exist here.
 # Nothing leaves the inventory on a pick: a part in hand is only an id, so a fight asked for or a body
 # swapped mid-hold can lose nothing (both clear the hold first).
@@ -112,14 +113,14 @@ func lift(path) -> bool:
 	# the parent again before the child that needs it.
 	# The fit is checked before anything is cut (spec call 8): a branch whose parts do not all fit is
 	# refused outright, so the layout, the inventory and the pit stay exactly as they were and nothing
-	# is auto-sold. free_slots covers ChMain's unlimited kit with the same rule.
+	# is auto-sold.
 	if inventory == null or layout == null:
 		return false
 	var step: Array[int] = _typed(path)
 	var node: ChSlotNode = layout.get_node(step)
 	if node == null:
 		return false
-	if layout.subtree_part_ids(node).size() > inventory.free_slots():
+	if _overflows(layout.subtree_part_ids(node).size()):
 		_refuse_piece(step)
 		return false
 	# get_node just resolved this path, so remove cannot answer null for it.
@@ -132,13 +133,25 @@ func lift(path) -> bool:
 	return true
 
 
+func _overflows(count: int) -> bool:
+	# The one "does it all fit" rule, and it is read before anything is cut: more ids than the kit has
+	# free slots and the handshake is refused outright, so nothing is auto-sold and nothing is lost.
+	# lift and cycle_body share it. free_slots covers ChMain's unlimited kit with the same rule, and an
+	# inventory that is not there at all has nowhere for a part to go, so it overflows everything.
+	if inventory == null:
+		return true
+	return count > inventory.free_slots()
+
+
 func _refuse_piece(path: Array[int]) -> void:
 	# The refusal shake: the same rotation-only beat ChCard.refuse plays (8 degrees, no pop), on the
 	# pit piece that owns a Juice child from its own _init. Task 10's drag calls this for a drop with
 	# nowhere to go, so it lives here rather than inline in lift.
+	# An empty path names the body, the same way the layout reads it: that is the piece a refused body
+	# swap shakes, since it is the hull the swap would have redrawn.
 	# shortcut: Feedback has no `refuse` profile and ChFeedbackManager.KINDS is pinned at 13, so the
 	# juice is kicked directly; upgrade if a refusal profile is ever added.
-	var piece := piece_at(path)
+	var piece := hull_piece() if path.is_empty() else piece_at(path)
 	var juice := ChJuice.of(piece) if piece != null else null
 	if juice != null:
 		juice.juice_up(0.0, deg_to_rad(8.0))
@@ -227,8 +240,13 @@ func cycle_body(step: int = 1) -> void:
 	var next: StringName = BODIES[((at + step) % count + count) % count]
 	# swap_body resolves the def through the catalog and refuses a swap onto an id it has no def
 	# for, leaving body_id alone, so the cycle only ever announces a body it can seat onto.
-	# shortcut: this chrome (and cycle_body itself) is deleted by Task 10; until then the body cycle
-	# is the one caller that can overflow a 5-slot inventory, and its leftovers stay discarded here.
+	# A swap can orphan any mount, so the whole build has to have somewhere to come home to: the same
+	# fit check lift uses, on every mounted part, refusing before swap_body cuts anything.
+	# shortcut: Task 10 deletes this cycle, and Task 7's shop body buy is the path that auto-sells the
+	# overflow; until then a swap the kit cannot absorb is refused rather than partly applied.
+	if _overflows(layout.all_paths().size()):
+		_refuse_piece([])
+		return
 	_lift_branches(layout.swap_body(catalog.body(next), catalog))
 	# The paths the pointer was over are the old hull's slots, so the hover goes with them.
 	hover_path = []
@@ -249,9 +267,9 @@ func _cycle_index() -> int:
 func _lift_branches(branches) -> Array[StringName]:
 	# Whole subtrees go home, parent first: subtree_part_ids is the order a builder needs, which
 	# is also the order that lets a re-drop mount a parent before the child that needs it.
-	# What does not fit comes back as overflow instead of being dropped on the floor: lift has already
-	# refused such a branch, so the only caller that can overflow today is cycle_body (Task 10 deletes
-	# it) and Task 7 sells what it gets back.
+	# What does not fit comes back as overflow instead of being dropped on the floor: both callers check
+	# free_slots first (lift the branch, cycle_body the whole build), so nothing overflows today. Task
+	# 7's body buy is the first caller that hands back real overflow, and it sells it.
 	var overflow: Array[StringName] = []
 	if inventory == null:
 		return overflow

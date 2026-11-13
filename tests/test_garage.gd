@@ -420,6 +420,72 @@ func test_cycle_body_keeps_parts_and_returns_leftovers() -> void:
 	_complete()
 
 
+# --- The review finding: a body cycle with nowhere to put the leftovers ---------------------------
+# The body buttons live until Task 10 while the run's kit is 5 slots from Task 7 on, so between them a
+# cycle could detach a subtree, fail to carry it and lose it. It refuses instead, on the same fit check
+# lift uses: nothing is cut, so mounted + carried stays what it was ("Nothing is ever lost").
+
+func test_cycle_body_refuses_when_parts_do_not_fit() -> void:
+	# The build the leftover test above pins, where Corsair -> Cutter orphans the strut at slot 2
+	# (-20,-5): that branch is the overflow. Four carried in a 5-slot kit leaves one free, so the two
+	# ids have nowhere to go and the whole cycle refuses rather than keeping one and losing one.
+	var inventory := _inventory([&"wheel", &"wheel", &"wheel", &"wheel"])
+	inventory.capacity = ChInventory.CAPACITY
+	var layout := _layout(&"corsair")
+	var garage: ChGarage = _garage(inventory, layout, _catalog())
+	# Mounted through the layout so the four carried parts stay carried, as in the lift refusal test.
+	assert_true(layout.place(_typed_path([0]), &"wheel"), "Corsair slot 0 at (-21,5)")
+	assert_true(layout.place(_typed_path([1]), &"wheel"), "Corsair slot 1 at (21,5)")
+	assert_true(layout.place(_typed_path([2]), &"strut"), "Corsair slot 2 at (-20,-5)")
+	assert_true(layout.place(_typed_path([2, 0]), &"wheel"), "a wheel bolted under that strut")
+	assert_true(layout.place(_typed_path([3]), &"ember_battery"), "Corsair slot 3 at (-10,-5)")
+	assert_true(layout.place(_typed_path([4]), &"cutter_rocket"), "Corsair slot 4 at (4,-5)")
+	assert_eq(inventory.free_slots(), 1, "one free slot for a two id branch")
+	var mounted_before := layout.all_paths().size()
+	var carried_before := inventory.part_ids.size()
+	var slots_before: Dictionary = layout.slots.duplicate()
+	var carried_list: Array[StringName] = inventory.part_ids.duplicate()
+	garage.cycle_body()
+	# Every part is still somewhere: the swap never happened, so nothing was dropped on the floor.
+	assert_eq(layout.all_paths().size() + inventory.part_ids.size(), mounted_before + carried_before,
+		"mounted plus carried is the count it was")
+	assert_eq(layout.body_id, &"corsair", "the body did not change")
+	assert_eq(layout.slots, slots_before, "and the layout is exactly what it was")
+	assert_eq(inventory.part_ids, carried_list, "and the kit gained nothing and lost nothing")
+	garage.free()
+	_complete()
+
+
+func test_cycle_body_refusal_shakes_the_hull() -> void:
+	# The refusal is felt on the piece a body swap would have redrawn: the hull keeps its node and takes
+	# the same rotation-only shake a refused lift gives its piece.
+	var catalog := _catalog()
+	var inventory := _inventory([&"wheel", &"wheel", &"wheel", &"wheel"])
+	inventory.capacity = ChInventory.CAPACITY
+	var layout := _layout(&"corsair")
+	assert_true(layout.place(_typed_path([2]), &"strut"), "the strut is mounted before the screen is built")
+	assert_true(layout.place(_typed_path([2, 0]), &"wheel"), "with a wheel bolted under it")
+	var garage: ChGarage = _garage_scene(inventory, layout, catalog)
+	var hull: ChPitPiece = garage.hull_piece()
+	assert_true(hull != null, "the pit has a hull piece")
+	if hull == null:
+		_complete()
+		return
+	var juice := ChJuice.of(hull)
+	assert_true(juice != null, "and the hull carries a Juice child")
+	if juice == null:
+		_complete()
+		return
+	garage.cycle_body()
+	assert_eq(layout.body_id, &"corsair", "the cycle refused")
+	assert_true(garage.hull_piece() == hull, "the hull piece was not rebuilt or freed")
+	juice.advance(ROTATION_PEAK_STEP)
+	assert_near(absf(juice.rotation_value()), _wigged_rotation(deg_to_rad(8.0)), 0.0001,
+		"the hull took the 8 degree refusal shake")
+	assert_near(juice.scale_value(), 1.0, 0.0001, "with no pop, as ChCard.refuse does")
+	_complete()
+
+
 func test_fight_emits_layout_copy() -> void:
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(_inventory([&"wheel", &"wheel"]), layout, _catalog())
