@@ -113,6 +113,12 @@ func _build_hud() -> void:
 	# shortcut: this build's CanvasLayer exposes no writable size (get_property_list lists only
 	# layer/offset/rotation/scale/transform/canvas_items/...), so the layer's pixels are the viewport's
 	# by construction — project.godot sets 1280x720 and ChBattleHud lays out in those.
+	# The wash and the vignette go in first: above the world, under the HUD.
+	$HUD.add_child(ChWash.new())
+	var backdrop := ChBackdrop.new()
+	backdrop.dusk = false
+	backdrop.vignette_alpha = 0.35
+	$HUD.add_child(backdrop)
 	$HUD.add_child(hud)
 	# The marker container is made here and parented in _build_world: it belongs to the world's Node2D
 	# layer, not this CanvasLayer, so the camera's position and zoom are what put the markers on the

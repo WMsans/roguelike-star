@@ -48,6 +48,11 @@ func _init() -> void:
 	theme = ChUi.theme()
 	anchor_right = 1.0
 	anchor_bottom = 1.0
+	# The screen is opaque: _show_shop keeps the ended battle in the tree, and without the backdrop the
+	# arena and its chariots show through behind the stage row and the gold readout. A parent draws
+	# under its children, so the garage and the cards stay on top.
+	add_child(ChBackdrop.new())
+	add_child(ChWash.new())
 	gold_label = Label.new()
 	gold_label.name = "GoldLabel"
 	gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -108,8 +113,6 @@ func _init() -> void:
 	tooltip = ChPartTooltip.new()
 	tooltip.name = "Tooltip"
 	add_child(tooltip)
-	# The backdrop is a full-rect _draw; a resize has to repaint it.
-	resized.connect(queue_redraw)
 
 
 func setup(run_in: ChRun, catalog_in: ChCatalog) -> void:
@@ -447,13 +450,6 @@ func _clear_stage() -> void:
 			(child as ChCard).hover(false)
 		stage_view.remove_child(child)
 		child.queue_free()
-
-
-func _draw() -> void:
-	# The screen is opaque: _show_shop keeps the ended battle in the tree, and without this the arena
-	# and its chariots show through behind the stage row and the gold readout. A parent draws under
-	# its children, so the garage and the cards stay on top.
-	draw_rect(Rect2(Vector2.ZERO, size), ChUi.PANEL)
 
 
 func _option_text(option: Dictionary) -> String:
