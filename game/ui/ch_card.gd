@@ -214,8 +214,10 @@ func refuse() -> void:
 # Subclasses draw the face as if its top-left were the origin; _draw has already moved the drawing
 # origin there and spun/scaled it about the card's centre.
 func _paint_face() -> void:
-	var rim := ChUi.ACCENT if hovered else Color(0, 0, 0, 0)
-	draw_style_box(ChUi.flat(ChUi.BUTTON, rim), Rect2(Vector2.ZERO, size))
+	var face := Rect2(Vector2.ZERO, size)
+	if hovered:
+		draw_rect(face.grow(4.0), Color(ChUi.ACCENT, 0.3))
+	draw_style_box(ChUi.panel(ChUi.ACCENT if hovered else ChUi.RIM), face)
 
 
 func _draw() -> void:

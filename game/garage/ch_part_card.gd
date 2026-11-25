@@ -14,8 +14,8 @@ const ZOOM := ChGarage.ZOOM  # the pit's zoom, so a card and the hull show a par
 const MIN_WIDTH := 88.0
 const HEIGHT := 132.0
 const PAD := 8.0
-const FONT := 12  # the card's own size: the theme's 20 would not fit a name in 88 pixels
-const LINE := 16.0  # one text row
+const FONT := ChUi.SMALL  # 16 overflows "Flamethrower" in 88 px
+static var LINE: float = ChUi.BODY_FONT.get_height(FONT)  # one text row, from the font
 const NAME_LINES := 2  # a name wraps to two rows before it would run into the cost
 static var _looks := {}  # def.texture -> its ringed look, built once per sprite
 
@@ -26,6 +26,8 @@ var count := 0
 var price := -1
 # When false, the "×n" count is hidden (a strip that shows one part per card has no count to read).
 var show_count := true
+# When false, no cost row either (a pack's cards are already paid for).
+var show_cost := true
 
 
 func _init(def_in: ChPartDef, on_click: Callable) -> void:
@@ -57,10 +59,8 @@ func set_count(carried: int) -> void:
 func _paint_face() -> void:
 	if def == null:
 		return
-	# The base face: the flat BUTTON slab with an ACCENT rim while hovered, which is the slab the
-	# Button's theme style used to draw under all of this.
 	super()
-	var font := get_theme_default_font()
+	var font: Font = ChUi.BODY_FONT
 	var inner := size.x - PAD * 2.0
 	# The name, wrapped over the rows an 88 pixel card has room for, then the cost under it with the
 	# count at its right end. The count shares the cost's row rather than the name's because a wrapped
@@ -70,16 +70,18 @@ func _paint_face() -> void:
 		at += LINE
 		draw_string(font, Vector2(PAD, at), line, HORIZONTAL_ALIGNMENT_LEFT, inner, FONT, ChUi.TEXT)
 	at += LINE
-	var cost := "$%d" % price if price >= 0 else "Cost %d" % def.energy_cost
-	draw_string(font, Vector2(PAD, at), cost, HORIZONTAL_ALIGNMENT_LEFT, inner - 24.0, FONT, ChUi.TEXT)
+	if price < 0 and show_cost:
+		draw_string(font, Vector2(PAD, at), "Cost %d" % def.energy_cost, HORIZONTAL_ALIGNMENT_LEFT,
+			inner - 24.0, FONT, ChUi.TEXT)
 	if show_count:
 		draw_string(font, Vector2(PAD, at), "×%d" % count, HORIZONTAL_ALIGNMENT_RIGHT, inner, FONT,
 			ChUi.ACCENT if count > 0 else ChUi.TEXT)
-	# The part itself, on a dark slab: a wheel's colour is the button's own grey, so without something
-	# behind it the card would look empty. The slab is the theme's panel, not part art.
+	# The part itself, in a socket, so a grey wheel does not read as an empty card.
 	var top := at + 8.0
-	draw_rect(Rect2(Vector2(4.0, top - 6.0), Vector2(size.x - 8.0, size.y - top + 2.0)), ChUi.PANEL)
+	ChUi.draw_socket(self, Rect2(Vector2(4.0, top - 6.0), Vector2(size.x - 8.0, size.y - top + 2.0)))
 	ChPartCard.paint(self, Vector2(size.x * 0.5, (top + size.y) * 0.5), def, ZOOM)
+	if price >= 0:
+		ChUi.draw_pill(self, Vector2(size.x * 0.5, size.y), "%d$" % price)
 
 
 func _wrap(font: Font, text: String, width: float) -> PackedStringArray:

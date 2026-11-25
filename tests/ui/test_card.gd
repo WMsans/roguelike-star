@@ -259,3 +259,17 @@ func _motion(at: Vector2) -> InputEventMouseMotion:
 func _lean_at(card: ChCard, cursor_x: float) -> float:
 	return clampf((cursor_x - card.global_position.x - card.size.x * 0.5) / maxf(card.size.x, 1.0),
 		-0.5, 0.5) * ChCard.HOVER_LEAN
+
+
+func test_every_part_name_fits_its_card() -> void:
+	var catalog := ChCatalog.load_default()
+	for def: ChPartDef in catalog.parts.values():
+		var card := ChPartCard.new(def, func() -> void: pass)
+		_track(card)
+		var inner := card.custom_minimum_size.x - ChPartCard.PAD * 2.0
+		var lines := card._wrap(ChUi.BODY_FONT, def.display_name, inner)
+		assert_true(lines.size() <= ChPartCard.NAME_LINES, "%s wraps into the card" % def.id)
+		for line in lines:
+			assert_true(ChUi.BODY_FONT.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1,
+				ChPartCard.FONT).x <= inner, "%s: '%s' fits the width" % [def.id, line])
+	_complete()

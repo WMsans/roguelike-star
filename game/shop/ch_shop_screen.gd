@@ -539,13 +539,12 @@ class OptionCard extends ChCard:
 		super()
 
 	func _paint_face() -> void:
-		var rim := ChUi.ACCENT if hovered else Color(0, 0, 0, 0)
-		draw_style_box(ChUi.flat(ChUi.BUTTON, rim), Rect2(Vector2.ZERO, size))
-		var font := get_theme_default_font()
-		var line_h := font.get_height(ChUi.FONT_SIZE)
-		var baseline := (size.y - line_h) * 0.5 + font.get_ascent(ChUi.FONT_SIZE)
+		super()
+		var font := ChUi.HEAD_FONT
+		var line_h := font.get_height(ChUi.BODY)
+		var baseline := (size.y - line_h) * 0.5 + font.get_ascent(ChUi.BODY)
 		draw_string(font, Vector2(8.0, baseline), card_text, HORIZONTAL_ALIGNMENT_CENTER,
-			size.x - 16.0, ChUi.FONT_SIZE, ChUi.TEXT)
+			size.x - 16.0, ChUi.BODY, ChUi.TEXT)
 
 
 # A body on the shelf: its name, its price and the hull at the pit's zoom. The hull is drawn the way
@@ -562,14 +561,13 @@ class BodyItemCard extends ChCard:
 		super()
 		if body_def == null:
 			return
-		var font := get_theme_default_font()
 		var inner := size.x - 16.0
-		draw_string(font, Vector2(8.0, 24.0), body_def.display_name,
-			HORIZONTAL_ALIGNMENT_LEFT, inner, 16, ChUi.TEXT)
+		draw_string(ChUi.BODY_FONT, Vector2(8.0, 24.0), body_def.display_name,
+			HORIZONTAL_ALIGNMENT_LEFT, inner, ChUi.BODY, ChUi.TEXT)
+		ChUi.draw_socket(self, Rect2(4.0, 32.0, size.x - 8.0, size.y - 36.0))
 		if price >= 0:
-			draw_string(font, Vector2(8.0, 42.0), "$%d" % price,
-				HORIZONTAL_ALIGNMENT_LEFT, inner, 14, ChUi.TEXT)
-		var centre := Vector2(size.x * 0.5, 56.0 + (size.y - 56.0) * 0.5)
+			ChUi.draw_pill(self, Vector2(size.x * 0.5, size.y), "%d$" % price)
+		var centre := Vector2(size.x * 0.5, 32.0 + (size.y - 36.0) * 0.5)
 		var hull := Vector2(maxi(1, body_def.size.x), maxi(1, body_def.size.y)) * ChGarage.ZOOM
 		if body_def.texture != null:
 			draw_texture_rect(body_def.texture, Rect2(centre - hull * 0.5, hull), false)
@@ -589,21 +587,5 @@ class BodyItemCard extends ChCard:
 class PackItemCard extends ChPartCard:
 	func _init(def_in: ChPartDef, on_click: Callable) -> void:
 		super(def_in, on_click)
+		show_cost = false
 
-	func _paint_face() -> void:
-		if def == null:
-			return
-		var rim := ChUi.ACCENT if hovered else Color(0, 0, 0, 0)
-		draw_style_box(ChUi.flat(ChUi.BUTTON, rim), Rect2(Vector2.ZERO, size))
-		var font := get_theme_default_font()
-		var inner := size.x - ChPartCard.PAD * 2.0
-		var at := ChPartCard.PAD
-		for line in _wrap(font, def.display_name, inner):
-			at += ChPartCard.LINE
-			draw_string(font, Vector2(ChPartCard.PAD, at), line,
-				HORIZONTAL_ALIGNMENT_LEFT, inner, ChPartCard.FONT, ChUi.TEXT)
-		var top := at + 8.0
-		draw_rect(Rect2(Vector2(4.0, top - 6.0),
-			Vector2(size.x - 8.0, size.y - top + 2.0)), ChUi.PANEL)
-		ChPartCard.paint(self, Vector2(size.x * 0.5, (top + size.y) * 0.5), def,
-			ChPartCard.ZOOM)
