@@ -26,4 +26,8 @@ func test_battle_wash_sits_under_the_hud() -> void:
 	assert_true(kids[2] is ChBattleHud, "HUD on top")
 	for i in 2:
 		assert_eq((kids[i] as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE)
+	var wash: ChWash = kids[0]
+	wash._process(0.0)
+	var view: Vector2 = wash.get_viewport_rect().size
+	assert_true(wash.size.x > view.x and wash.size.y > view.y, "the wash is grown past the viewport under a CanvasLayer")
 	_complete()

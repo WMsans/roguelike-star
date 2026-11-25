@@ -40,12 +40,12 @@ func _init() -> void:
 
 func _process(_delta: float) -> void:
 	# Grown by one texture so sliding it back by the wrapped drift never shows an edge. The anchors
-	# would fight the offsets, so the rect is set from the parent's size.
-	var parent := get_parent() as Control
-	if parent == null:
-		return
+	# would fight the offsets, so the rect is set explicitly. Under a CanvasLayer (the battle) the
+	# parent is no Control, so the viewport is the base.
+	var parent := get_parent()
+	var base: Vector2 = (parent as Control).size if parent is Control else get_viewport_rect().size
 	var drift := drift_at(Time.get_ticks_msec() / 1000.0)
 	var wrapped := Vector2(fposmod(drift.x, _tex_size.x), fposmod(drift.y, _tex_size.y))
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
-	size = parent.size + _tex_size
+	size = base + _tex_size
 	position = -wrapped
