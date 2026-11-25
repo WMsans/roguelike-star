@@ -161,9 +161,13 @@ func show_countdown(seconds_left: int) -> void:
 
 func _top_label(top: float) -> Label:
 	# A centred label across the top of the viewport, in the same pixels the two blocks lay out in, so the
-	# banner and the countdown sit between them instead of moving either one.
+	# banner and the countdown sit between them instead of moving either one. Centre-anchored and grown
+	# both ways from its text, not stretched across the top: the banner's plaque box is drawn over the
+	# label's whole rect, and a full-width plaque covered both blocks' names.
 	var label := Label.new()
-	label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	label.anchor_left = 0.5
+	label.anchor_right = 0.5
+	label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	label.offset_top = top
 	label.offset_bottom = top + 28.0
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
