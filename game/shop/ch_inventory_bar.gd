@@ -47,6 +47,7 @@ var _sellable := true  # false while a shop/pack item is dragged: it has no sell
 func _init() -> void:
 	# The one theme, set here rather than in a scene: PanelContainer draws its own panel from it.
 	theme = ChUi.theme()
+	add_theme_stylebox_override(&"panel", StyleBoxEmpty.new())
 	_layer = Control.new()
 	_layer.name = "Layer"
 	# Transparent to the mouse: the cards under it still get their own clicks, and a press on an empty
@@ -59,6 +60,7 @@ func _init() -> void:
 	sell_label.text = "SELL"
 	sell_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sell_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	sell_label.add_theme_color_override(&"font_color", ChUi.SELL_TEXT)
 	_layer.add_child(sell_label)
 	# In the layer so it draws over the cards; its own _init sets the ignore filter and the z index.
 	tooltip = ChPartTooltip.new()
@@ -263,8 +265,8 @@ func _draw_bar() -> void:
 	# The five empty slots and the sell zone, drawn under the cards: an empty slot stays a slot, so a
 	# half-empty bar still reads as five slots with room. They are rects rather than labels because the
 	# screen's minimal HUD has no capacity counter.
-	var rim := ChUi.ACCENT if _highlighted else Color(0, 0, 0, 0)
 	for rect in _slots:
-		_layer.draw_style_box(ChUi.flat(ChUi.BUTTON, rim), rect)
+		ChUi.draw_socket(_layer, rect, true, _highlighted)
+	ChUi.draw_group_label(_layer, _slots[0].position - Vector2(0, 6), "PARTS")
 	# SELL takes only a carried part: a shop or pack item has no sell price to offer.
-	_layer.draw_style_box(ChUi.flat(ChUi.BUTTON, rim if _sellable else Color(0, 0, 0, 0)), _sell)
+	_layer.draw_style_box(ChUi.panel(ChUi.ACCENT if _highlighted and _sellable else ChUi.SELL_RIM), _sell)

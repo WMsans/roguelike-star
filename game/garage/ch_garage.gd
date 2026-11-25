@@ -33,8 +33,8 @@ const MARK_PX := 32.0  # a free slot's marker, and how close a pointer has to si
 const DRAG_THRESHOLD := 6.0  # px a press on a mounted piece moves before it is a drag, as ChCard's
 const DASH := 6.0  # one dash of an empty slot's marker
 const GAP := 4.0  # and the space after it
-const MARK_COLOR := Color(0.75, 0.7, 0.55, 0.8)  # an empty slot, dim so it never competes
-const HOVER_COLOR := Color(0.95, 0.9, 0.5)  # the hovered part and its range
+const MARK_COLOR := ChUi.RIM  # an empty slot, dim so it never competes
+const HOVER_COLOR := ChUi.ACCENT  # the hovered part and its range
 
 var inventory: ChInventory = null
 var layout: ChChariotLayout = null

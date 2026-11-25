@@ -318,3 +318,13 @@ func test_minimal_hud() -> void:
 	assert_true(kept.has(screen.gold_label), "the gold readout is one")
 	assert_true(kept.has(screen.bar.sell_label), "and the bar's sell label the other")
 	_complete()
+
+
+func test_shop_chrome_lets_clicks_through() -> void:
+	var screen := _screen()
+	assert_eq(screen.stage_panel.mouse_filter, Control.MOUSE_FILTER_IGNORE, "clicks reach the shelf")
+	assert_true(screen.stage_rect.size.x > 0.0, "the panel spans the stage row")
+	assert_eq(screen.next_button.theme_type_variation, &"GoButton")
+	screen._on_toggle()
+	assert_true(not screen.stage_panel.is_visible_in_tree(), "the panel and plaque go with the shop view")
+	_complete()
