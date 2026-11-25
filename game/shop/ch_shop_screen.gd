@@ -55,7 +55,7 @@ func _init() -> void:
 	# arena and its chariots show through behind the stage row and the gold readout. A parent draws
 	# under its children, so the garage and the cards stay on top.
 	add_child(ChBackdrop.new())
-	add_child(ChWash.new())
+	add_child(ChWash.new(ChWash.SHOP_ALPHA))
 	gold_label = Label.new()
 	gold_label.name = "GoldLabel"
 	gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -565,8 +565,6 @@ class BodyItemCard extends ChCard:
 		draw_string(ChUi.BODY_FONT, Vector2(8.0, 24.0), body_def.display_name,
 			HORIZONTAL_ALIGNMENT_LEFT, inner, ChUi.BODY, ChUi.TEXT)
 		ChUi.draw_socket(self, Rect2(4.0, 32.0, size.x - 8.0, size.y - 36.0))
-		if price >= 0:
-			ChUi.draw_pill(self, Vector2(size.x * 0.5, size.y), "%d$" % price)
 		var centre := Vector2(size.x * 0.5, 32.0 + (size.y - 36.0) * 0.5)
 		var hull := Vector2(maxi(1, body_def.size.x), maxi(1, body_def.size.y)) * ChGarage.ZOOM
 		if body_def.texture != null:
@@ -580,6 +578,10 @@ class BodyItemCard extends ChCard:
 				body_def.color.darkened(0.3), 1.0)
 		else:
 			draw_rect(Rect2(centre - hull * 0.5, hull), body_def.color)
+		# After the hull: a tall hull (the dozer's 30 cells) overhangs the card's foot, and the price
+		# is what the player reads off it.
+		if price >= 0:
+			ChUi.draw_pill(self, Vector2(size.x * 0.5, size.y), "%d$" % price)
 
 
 # A part in a pack: the part at the pit's zoom and its name, with no price row because the pack was

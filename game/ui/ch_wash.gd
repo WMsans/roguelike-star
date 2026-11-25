@@ -2,7 +2,8 @@ class_name ChWash
 extends TextureRect
 ## The slow Celeste colour wash: tiled noise, additive, drifting in whole art pixels.
 
-const ALPHA := 0.15
+const ALPHA := 0.15  # the battle's: the Celeste source's own, over a bright sky
+const SHOP_ALPHA := 0.06  # over the dark Dusk backdrop 0.15 reads as blotches, not the mockup's haze
 const SPEED := Vector2(4, 4)  # art px per second
 
 var _tex_size := Vector2(512, 288)
@@ -12,7 +13,7 @@ static func drift_at(seconds: float) -> Vector2:
 	return (SPEED * seconds).floor()
 
 
-func _init() -> void:
+func _init(alpha := ALPHA) -> void:
 	var noise := FastNoiseLite.new()
 	noise.seed = 7
 	noise.frequency = 0.004
@@ -30,7 +31,7 @@ func _init() -> void:
 	var mat := CanvasItemMaterial.new()
 	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	material = mat
-	modulate.a = ALPHA
+	modulate.a = alpha
 	stretch_mode = TextureRect.STRETCH_TILE
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
