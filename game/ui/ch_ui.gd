@@ -9,6 +9,7 @@ class_name ChUi
 
 const INK := Color("#0d0709")
 const PANEL := Color("#140912", 0.84)  # the translucent wine slab a label sits on
+const PANEL_SOLID := Color("#140912")  # a tooltip's slab: it floats over buttons, so nothing may show through
 const RIM := Color("#b8804f")
 const TEXT := Color("#f2e2c2")
 const LABEL := Color("#e0b88a")
@@ -102,6 +103,10 @@ static func _box(fill: Color, rim: Color) -> StyleBoxFlat:
 
 static func panel(rim := RIM) -> StyleBoxFlat:
 	return _box(PANEL, rim)
+
+
+static func panel_solid(rim := RIM) -> StyleBoxFlat:
+	return _box(PANEL_SOLID, rim)
 
 
 static func socket(empty := false, hot := false) -> StyleBoxFlat:

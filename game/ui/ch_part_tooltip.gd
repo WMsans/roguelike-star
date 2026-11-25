@@ -162,7 +162,7 @@ func _fill_keyword(i: int, key: StringName) -> void:
 		_label(rows, ChUi.BODY, ChUi.TEXT).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_pool.append(rows.get_parent() as PanelContainer)
 	var box := _pool[i]
-	box.add_theme_stylebox_override("panel", ChUi.panel(color))
+	box.add_theme_stylebox_override("panel", ChUi.panel_solid(color))
 	var labels := box.get_child(0).get_children()
 	labels[0].text = ChKeywords.name_of(key)
 	labels[1].text = ChKeywords.text_of(key)
@@ -174,7 +174,7 @@ func _fill_keyword(i: int, key: StringName) -> void:
 func _box(rim: Color) -> VBoxContainer:
 	var box := PanelContainer.new()
 	box.custom_minimum_size.x = WIDTH
-	box.add_theme_stylebox_override("panel", ChUi.panel(rim))
+	box.add_theme_stylebox_override("panel", ChUi.panel_solid(rim))
 	box.mouse_filter = MOUSE_FILTER_IGNORE
 	add_child(box)
 	var rows := VBoxContainer.new()

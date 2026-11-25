@@ -20,3 +20,8 @@ func test_plaque_has_hard_drop_shadow() -> void:
 	assert_true(ChUi.plaque().shadow_size > 0, "size 0 would draw no shadow")
 	assert_eq(ChUi.plaque().shadow_offset, Vector2(3, 3))
 	_complete()
+
+func test_tooltip_panel_is_opaque() -> void:
+	assert_eq(ChUi.panel_solid().bg_color.a, 1.0, "a tooltip hides what it floats over")
+	assert_true(ChUi.panel().bg_color.a < 1.0, "cards and the stage panel stay see-through")
+	_complete()
