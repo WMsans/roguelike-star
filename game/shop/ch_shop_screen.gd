@@ -69,13 +69,16 @@ func _init() -> void:
 	toggle.offset_bottom = 22.0
 	toggle.pressed.connect(_on_toggle)
 	Feedback.attach_button(toggle)
-	add_child(toggle)
+	# Added after middle, not with the gold label: the garage is a full-rect Control inside middle, and a
+	# Control eats the click of anything drawn under it, so a toggle added first would be dead in the one
+	# view it has to get out of.
 	middle = Control.new()
 	middle.name = "Middle"
 	middle.anchor_right = 1.0
 	middle.anchor_bottom = 1.0
 	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(middle)
+	add_child(toggle)
 	stage_view = Control.new()
 	stage_view.name = "Stage"
 	stage_view.anchor_right = 1.0

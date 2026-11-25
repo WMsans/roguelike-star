@@ -252,6 +252,15 @@ func test_toggle_keeps_stage() -> void:
 	_complete()
 
 
+func test_toggle_is_above_the_garage() -> void:
+	# The garage is a full-rect Control inside middle, and a Control eats the click of whatever is drawn
+	# under it: a toggle added before middle is dead in the one view it exists to leave.
+	var screen := _screen()
+	assert_true(screen.toggle.get_index() > screen.middle.get_index(),
+		"the toggle is the later sibling, so a click on it is the toggle's")
+	_complete()
+
+
 func test_next_to_fight() -> void:
 	var screen := _screen()
 	var fights: Array = []
