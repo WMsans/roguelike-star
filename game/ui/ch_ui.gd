@@ -33,7 +33,6 @@ const SHORT := Color("#7a2e2e")
 const SMALL := 8
 const BODY := 16
 const BIG := 24
-const FONT_SIZE := BODY
 
 static var BODY_FONT: FontFile = font("res://game/ui/fonts/Tiny5.ttf")
 static var HEAD_FONT: FontFile = font("res://game/ui/fonts/Silkscreen-Regular.ttf")  # draws capitals
@@ -59,7 +58,8 @@ static func _build() -> Theme:
 	# A Button is drawn from these five states. Without them Godot's own look shows through on hover
 	# and press, which is the one place a code-built theme leaks the default theme.
 	out.set_font("font", "Button", HEAD_FONT)
-	out.set_color("font_color", "Button", TEXT)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
+		out.set_color(c, "Button", TEXT)
 	out.set_stylebox("normal", "Button", panel())
 	out.set_stylebox("hover", "Button", panel(ACCENT))
 	out.set_stylebox("pressed", "Button", panel(ACCENT))
@@ -70,7 +70,7 @@ static func _build() -> Theme:
 	for state in ["normal", "hover", "pressed", "disabled"]:
 		out.set_stylebox(state, &"GoButton", panel(ACCENT))
 	out.set_stylebox("focus", &"GoButton", _box(Color(0, 0, 0, 0), ACCENT))
-	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_disabled_color"]:
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color", "font_disabled_color"]:
 		out.set_color(c, &"GoButton", ACCENT)
 	out.set_type_variation(&"Plaque", &"Label")
 	out.set_font("font", &"Plaque", PLAQUE_FONT)

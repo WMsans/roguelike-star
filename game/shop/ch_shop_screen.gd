@@ -228,6 +228,7 @@ func _clear_shelf() -> void:
 		stage_view.remove_child(card)
 		card.queue_free()
 	_shelf.clear()
+	_reset_stage_rect()
 	tooltip.hide_tooltip()
 
 
@@ -437,6 +438,7 @@ func _place_row(cards: Array[Control], centre_y: float) -> void:
 	# One row centred on the screen: each card keeps its own width (a body is wider than a part) and
 	# the row never runs off either side at three cards.
 	if cards.is_empty():
+		_reset_stage_rect()
 		return
 	var total := 0.0
 	for card in cards:
@@ -455,6 +457,11 @@ func _place_row(cards: Array[Control], centre_y: float) -> void:
 	stage_panel.queue_redraw()
 
 
+func _reset_stage_rect() -> void:
+	stage_rect = Rect2()
+	stage_panel.queue_redraw()
+
+
 func _draw_stage_panel() -> void:
 	if stage_rect.size.x <= 0.0:
 		return
@@ -463,6 +470,7 @@ func _draw_stage_panel() -> void:
 
 
 func _clear_stage() -> void:
+	_reset_stage_rect()
 	_option_cards.clear()
 	_shelf.clear()
 	_reroll_button = null
@@ -581,7 +589,7 @@ class BodyItemCard extends ChCard:
 		# After the hull: a tall hull (the dozer's 30 cells) overhangs the card's foot, and the price
 		# is what the player reads off it.
 		if price >= 0:
-			ChUi.draw_pill(self, Vector2(size.x * 0.5, size.y), "%d$" % price)
+			ChUi.draw_pill(self, Vector2(size.x * 0.5, size.y), "$%d" % price)
 
 
 # A part in a pack: the part at the pit's zoom and its name, with no price row because the pack was

@@ -184,6 +184,7 @@ func test_pack_take_clears_the_shelf() -> void:
 	assert_eq(screen.run.inventory.part_ids.size(), carried_before + 1,
 		"the pack grants one part")
 	assert_true(_stage_item_cards(screen).is_empty(), "a spent pack leaves no card on the shelf")
+	assert_eq(screen.stage_rect.size, Vector2.ZERO, "and no stage panel frames the empty row")
 
 	# Nothing is left on the shelf to click, and a further take spends nothing and adds nothing.
 	var gold_after := screen.run.gold

@@ -81,7 +81,7 @@ func _paint_face() -> void:
 	ChUi.draw_socket(self, Rect2(Vector2(4.0, top - 6.0), Vector2(size.x - 8.0, size.y - top + 2.0)))
 	ChPartCard.paint(self, Vector2(size.x * 0.5, (top + size.y) * 0.5), def, ZOOM)
 	if price >= 0:
-		ChUi.draw_pill(self, Vector2(size.x * 0.5, size.y), "%d$" % price)
+		ChUi.draw_pill(self, Vector2(size.x * 0.5, size.y), "$%d" % price)
 
 
 func _wrap(font: Font, text: String, width: float) -> PackedStringArray:

@@ -6,6 +6,8 @@ func test_fonts_are_crisp() -> void:
 		assert_eq(f.hinting, TextServer.HINTING_NONE)
 	assert_eq(ChUi.theme().default_font, ChUi.BODY_FONT, "body text is Tiny5")
 	assert_eq(ChUi.theme().get_font(&"font", &"Button"), ChUi.HEAD_FONT, "buttons read in capitals")
+	assert_eq(ChUi.theme().get_color(&"font_focus_color", &"GoButton"), ChUi.ACCENT, "a focused GoButton stays gold")
+	assert_eq(ChUi.theme().get_color(&"font_focus_color", &"Button"), ChUi.TEXT, "a focused Button stays parchment")
 	_complete()
 
 func test_socket_states() -> void:
