@@ -15,3 +15,8 @@ func test_socket_states() -> void:
 	assert_true(ChUi.socket(false, true).shadow_size > 0, "and the glow")
 	assert_eq(ChUi.socket().shadow_size, 0, "a cold socket has no glow")
 	_complete()
+
+func test_plaque_has_hard_drop_shadow() -> void:
+	assert_true(ChUi.plaque().shadow_size > 0, "size 0 would draw no shadow")
+	assert_eq(ChUi.plaque().shadow_offset, Vector2(3, 3))
+	_complete()
