@@ -29,10 +29,6 @@ const GRID := Color(1.0, 0.667, 0.588, 0.10)
 const VOLLEY := Color("#ffe08a")
 const SHORT := Color("#7a2e2e")
 
-# Kept until Task 8 removes them; no new code reads these.
-const GO := Color("#b5532d")  # the garage's Fight button
-const BUTTON := Color("#3c3c46")
-
 const SMALL := 8
 const BODY := 16
 const BIG := 24
@@ -154,13 +150,3 @@ static func draw_plaque(canvas: CanvasItem, centre: Vector2, text: String) -> Re
 static func draw_group_label(canvas: CanvasItem, bottom_left: Vector2, text: String) -> void:
 	canvas.draw_string(HEAD_FONT, bottom_left, text, HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL, LABEL)
 
-
-static func flat(fill: Color, rim := Color(0, 0, 0, 0)) -> StyleBoxFlat:
-	# Kept until Task 8 removes it.
-	var box := StyleBoxFlat.new()
-	box.bg_color = fill
-	box.border_color = rim
-	box.set_border_width_all(1)
-	box.set_corner_radius_all(3)
-	box.set_content_margin_all(6)
-	return box
