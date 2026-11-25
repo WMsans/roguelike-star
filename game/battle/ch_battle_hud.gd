@@ -7,13 +7,13 @@ class_name ChBattleHud extends Control
 # The reader is show_state, called once per fight tick by ChBattle._hud_tick; nothing else writes it.
 
 const MARGIN := 20.0  # the gap from the viewport's top corners
-const BAR := Vector2(320, 20)  # the HP bar, the brief's 320x20
-const PIP := Vector2(10, 12)  # one energy unit
+const BAR := Vector2(220, 6)  # a thin HP bar
+const PIP := Vector2(8, 8)  # one energy unit
 const PIP_GAP := 4
-const PIP_OFF := ChUi.BUTTON  # an unlit pip: the theme's button grey, so it reads as a socket
+const PIP_OFF := ChUi.SOCKET_EMPTY  # an unlit pip reads as an empty socket
 const ROW_GAP := 6  # between a block's rows
-const VOLLEY := Color("#ffd166")  # the lit pips a press would spend right now
-const SHORT := Color("#7a2e2e")  # the unlit pips a ready volley would need but the pool lacks
+const VOLLEY := ChUi.VOLLEY  # the lit pips a press would spend right now
+const SHORT := ChUi.SHORT  # the unlit pips a ready volley would need but the pool lacks
 const BANNER_SECONDS := 2.0  # the spec's banner: named at fight start, then gone
 const COUNTDOWN_OFF := 44.0  # how far below the banner the countdown sits, so neither covers the other
 
@@ -68,33 +68,62 @@ func _player_block() -> PanelContainer:
 	# Name, then the HP bar, then the pips.
 	var rows := VBoxContainer.new()
 	rows.add_theme_constant_override("separation", ROW_GAP)
-	player_name = Label.new()
-	player_hp = Label.new()
+	player_name = _text(HORIZONTAL_ALIGNMENT_LEFT, true)
+	player_hp = _text()
 	player_bar = _bar(ChUi.HP_PLAYER)
 	_pips_row = HBoxContainer.new()
 	_pips_row.add_theme_constant_override("separation", PIP_GAP)
-	for piece in [player_name, player_hp, player_bar]:
-		rows.add_child(piece)
+	rows.add_child(player_name)
+	rows.add_child(_hp_row(player_hp, ChUi.HP_PLAYER))
+	rows.add_child(player_bar)
 	rows.add_child(_pips_row)
-	var panel := PanelContainer.new()
-	panel.add_child(rows)
-	return panel
+	return _block(rows)
 
 
 func _enemy_block() -> PanelContainer:
 	# The enemy's block is the short one: the brief gives it a name and its HP, nothing else.
 	var rows := VBoxContainer.new()
 	rows.add_theme_constant_override("separation", ROW_GAP)
-	enemy_name = Label.new()
-	enemy_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	enemy_hp = Label.new()
-	enemy_hp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	enemy_name = _text(HORIZONTAL_ALIGNMENT_RIGHT, true)
+	enemy_hp = _text(HORIZONTAL_ALIGNMENT_RIGHT)
 	enemy_bar = _bar(ChUi.HP_ENEMY)
-	for piece in [enemy_name, enemy_hp, enemy_bar]:
-		rows.add_child(piece)
+	rows.add_child(enemy_name)
+	rows.add_child(_hp_row(enemy_hp, ChUi.HP_ENEMY))
+	rows.add_child(enemy_bar)
+	return _block(rows)
+
+
+func _block(rows: Control) -> PanelContainer:
+	# No slab: an empty panel box lets the world show behind the HUD.
 	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	panel.add_child(rows)
 	return panel
+
+
+func _text(align := HORIZONTAL_ALIGNMENT_LEFT, head := false) -> Label:
+	# An inked outline lets the text read over the bright sky. Names use the head font.
+	var label := Label.new()
+	label.horizontal_alignment = align
+	if head:
+		label.add_theme_font_override("font", ChUi.HEAD_FONT)
+	label.add_theme_font_size_override("font_size", ChUi.BODY)
+	label.add_theme_constant_override("outline_size", 2)
+	label.add_theme_color_override("font_outline_color", ChUi.INK)
+	return label
+
+
+func _hp_row(hp: Label, colour: Color) -> HBoxContainer:
+	# The head font has no cross glyph, so a "+" in the side's HP colour stands in front of the readout.
+	var plus := _text(HORIZONTAL_ALIGNMENT_LEFT, true)
+	plus.text = "+"
+	plus.add_theme_color_override("font_color", colour)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", PIP_GAP)
+	row.alignment = BoxContainer.ALIGNMENT_END if hp.horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT else BoxContainer.ALIGNMENT_BEGIN
+	row.add_child(plus)
+	row.add_child(hp)
+	return row
 
 
 func show_banner(text: String) -> void:
@@ -103,6 +132,7 @@ func show_banner(text: String) -> void:
 	# the fight, and the banner was never part of it.
 	if banner == null:
 		banner = _top_label(MARGIN)
+		banner.theme_type_variation = &"Plaque"
 		add_child(banner)
 	banner.text = text
 	banner.visible = true
@@ -121,6 +151,10 @@ func show_countdown(seconds_left: int) -> void:
 	# fight's HUD. The label is made on the first call and written in place after that.
 	if countdown == null:
 		countdown = _top_label(MARGIN + COUNTDOWN_OFF)
+		countdown.add_theme_font_override("font", ChUi.HEAD_FONT)
+		countdown.add_theme_font_size_override("font_size", ChUi.BIG)
+		countdown.add_theme_constant_override("outline_size", 2)
+		countdown.add_theme_color_override("font_outline_color", ChUi.INK)
 		add_child(countdown)
 	countdown.text = "%d s" % seconds_left
 
@@ -143,8 +177,10 @@ func _bar(fill: Color) -> ProgressBar:
 	bar.custom_minimum_size = BAR
 	bar.show_percentage = false
 	bar.max_value = 100.0
-	bar.add_theme_stylebox_override("background", ChUi.flat(ChUi.PANEL))
-	bar.add_theme_stylebox_override("fill", ChUi.flat(fill))
+	for part in [&"background", &"fill"]:
+		var box := StyleBoxFlat.new()  # square, no rim
+		box.bg_color = ChUi.INK if part == &"background" else fill
+		bar.add_theme_stylebox_override(part, box)
 	return bar
 
 
