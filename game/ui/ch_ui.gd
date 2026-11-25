@@ -125,7 +125,7 @@ static func draw_socket(canvas: CanvasItem, rect: Rect2, empty := false, hot := 
 static func plaque() -> StyleBoxFlat:
 	var box := _box(PLAQUE, TEXT)
 	box.shadow_color = INK
-	box.shadow_size = 0
+	box.shadow_size = 1  # 0 draws no shadow at all; 1 keeps it a hard 3px drop
 	box.shadow_offset = Vector2(3, 3)
 	box.content_margin_top = 2
 	box.content_margin_bottom = 2
