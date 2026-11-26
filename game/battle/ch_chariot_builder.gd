@@ -8,7 +8,6 @@ class_name ChChariotBuilder extends RefCounted
 const MOTOR_TORQUE := 3e6
 const WHEEL_FREQUENCY := 5.0
 const WHEEL_FRICTION := 1.5  # rubber: the grip the demo car's wheels need on a sand pile
-const WHEEL_ID := &"wheel"  # shortcut: one wheel type in the slice; a wheel set wants a flag on ChPartDef
 const HULL_MATERIAL := &"wood"  # PixelRigidBody refuses an unknown pixel_material, so a def that leaves material empty is stamped in the hull material instead of joining nothing
 
 
@@ -58,7 +57,7 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		if mirror_x:
 			anchor.x = -anchor.x
 		var at := origin + anchor
-		var wheel := def.id == WHEEL_ID
+		var wheel := def.is_wheel()
 		# A wheel is a disc so Box2D joins a circle it can roll; everything else is a box hull.
 		# The art faces +x, so it mirrors when the part's facing and the build's mirror disagree.
 		var texture := ChTextures.art(def.texture, node.flipped != mirror_x) if def.texture != null \

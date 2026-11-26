@@ -3,9 +3,8 @@ extends ChBehaviour
 # The Flamethrower (spec §5.4): a 1 s burst of fire particles out along facing() and the def's damage spread
 # over that burst. The particles fly in the particle pool, so the burn itself is the sim's: they write
 # grid cells once something blocks them, and the status second turns those cells into Flame.
-# The reach numbers live here, not on ChPartDef (Task 4b's ruling): proximity_range 0 on the def means
-# no proximity passives, and ChBehaviour._reach_box measures that range, so the box is grown out to this
-# part's own 40-cell reach on both sides, which is how _reach_box keeps its box symmetric about the anchor.
+# The reach is the def's own field (ChPartDef.reach, 40 cells here), which ChBehaviour._reach_box
+# measures; proximity_range is the proximity-chain range and stays 40 for the passives' sake.
 # shortcut: the burn lands where the particles fall, not where the reach box ends, so PARTICLE_SPEED is
 # the burn's own reach. Measured with the nozzle at a settled rig's height (6 cells above the rock floor):
 # a 1 s burst reaches ~8 cells out at 90 cells/s and the test reads back >= 3 fire cells in a target 30
@@ -25,7 +24,6 @@ const NOZZLE := 5.0
 const PARTICLE_SPEED := 240.0  # cells per second out of the nozzle
 const PARTICLES_PER_TICK := 3
 const PARTICLE_SPREAD := 0.25  # radians, the cone the shot fans over
-const REACH := 40.0
 const PULSES := 9
 const PUFF_GAP := 0.05  # seconds between nozzle puffs: they overlap into a plume, ~20 over the burst
 
@@ -35,16 +33,6 @@ var pulse_left := 0.0  # seconds until the next pulse
 var pulses_left := 0  # pulses still to spend
 var puff_left := 0.0  # seconds until the next nozzle puff
 var jet: ChFx = null  # the flame's look, left at the nozzle it was fired from for the burst
-
-
-func _flame_box() -> Rect2:
-	# ChBehaviour's reach box at this part's own reach rather than the def's proximity_range.
-	# shortcut: REACH - proximity_range is the only extra, so the box keeps _reach_box's shape.
-	var box := _reach_box()
-	var extra := REACH - part.def.proximity_range
-	var dir := part.facing()
-	var pad := Vector2(extra * absf(dir.x), extra * absf(dir.y))
-	return Rect2(box.position - pad, box.size + pad * 2)
 
 
 func fire(ctx: ChBattleContext) -> void:
@@ -91,7 +79,7 @@ func process(ctx: ChBattleContext, delta: float) -> void:
 		return
 	pulse_left += pulse_gap
 	pulses_left -= 1
-	var target := _nearest_enemy_body(ctx, _flame_box())
+	var target := _nearest_enemy_body(ctx, _reach_box())
 	if target != null:
 		ctx.deal_hit(part, target, pulse_damage())
 

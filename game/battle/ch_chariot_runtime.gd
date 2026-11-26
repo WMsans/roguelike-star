@@ -23,7 +23,6 @@ var last_anchor: Vector2 = Vector2.ZERO  # the last chassis reading, for a freed
 var _mass_settled := false  # settle_mass has applied the def mass
 
 const MOTOR_SPEED := 12.0  # rad/s at full drive, as the demo car's export
-const WHEEL_ID := &"wheel"  # shortcut: one wheel type in the slice; a wheel set wants a flag on ChPartDef
 
 func anchor_world() -> Vector2:
 	if chassis != null and is_instance_valid(chassis):
@@ -42,13 +41,23 @@ func sample_rect() -> Rect2i:
 	return Rect2i(lo - m, hi - lo + m * 2)
 
 func wheels() -> Array[ChPartRuntime]:
-	# The parts the builder motorised. A wheel is recognised by its def id, the same rule the
-	# builder uses to give a body a PixelWheelJoint.
+	# The parts the builder motorised, recognised by the wheel tag on the def (ChPartDef.is_wheel).
 	var out: Array[ChPartRuntime] = []
 	for part in parts:
-		if part.def != null and part.def.id == WHEEL_ID:
+		if part.def != null and part.def.is_wheel():
 			out.append(part)
 	return out
+
+
+func drive_cost() -> float:
+	# The drive's price per second: the energy_per_second of every unbroken wheel. A frozen wheel
+	# still counts (the spec says unbroken), and a broken one is out of the fight.
+	var total := 0.0
+	for part in parts:
+		if part.def != null and part.def.is_wheel() and not part.broken:
+			total += part.def.energy_per_second
+	return total
+
 
 func drive(direction: float) -> void:
 	# The demo car's rule: the motor runs while a direction is held. A frozen or broken wheel gets

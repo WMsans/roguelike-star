@@ -2,7 +2,7 @@ extends ChTest
 
 # Task 12: the first weapons actually working. World-backed and on the real defs, so the
 # behaviour scripts the .tres files name are the ones under test rather than a double.
-# The reach test is geometric (the brief's ruling: reach comes from def.proximity_range), so the
+# The reach test is geometric (the brief's ruling: reach is ChPartDef.reach), so the
 # rigs stay where ChChariotBuilder put them, as in tests/battle/test_context.gd: no world.step in
 # the reach tests, since nothing drives them and a settle would move the anchors the box measures.
 # shortcut: rig numbers are literals per def below; the slice's weapon tuning lives in game/data/parts.
@@ -35,7 +35,7 @@ func _rig() -> ChBodyDef:
 	return def
 
 # The real defs from res://game/data/parts under that rig body, so a build reads the weapon numbers
-# off the .tres (proximity_range as reach, damage, cooldown) and gets the behaviour the .tres names.
+# off the .tres (reach, damage, cooldown) and gets the behaviour the .tres names.
 func _catalog() -> ChCatalog:
 	var loaded := ChCatalog.load_default()
 	var defs: Array[ChPartDef] = []
@@ -89,7 +89,7 @@ func _battle(world: PixelWorld, catalog: ChCatalog, rigs: Array[ChChariotRuntime
 func _ground(world: PixelWorld) -> void:
 	assert_eq(world.fill_rect(Rect2i(0, GROUND_TOP, 480, 20), &"rock"), 480 * 20, "rock floor laid")
 
-# The mace's reach box is its def's proximity_range (6 cells) plus half the part's own 8-cell body, out
+# The mace's reach box is its def's reach (6 cells) plus half the part's own 8-cell body, out
 # along facing() and as tall as the part: 10.5 cells either side of the anchor at (125, 137), so the box
 # spans x 114.5 .. 135.5 and y 135 .. 139. In reach: origins 12 apart, so the foe's body (x 125.5 ..
 # 128.5, the 3x8 strut) and its chassis (x 127 .. 137) both overlap the box and the nearer body takes
@@ -110,7 +110,7 @@ func test_mace_hits_in_reach_only() -> void:
 	var foe_part := _part_of(foe, [0])
 	assert_true(mace != null and foe_part != null, "the mace and the foe's part both mounted")
 	assert_true(mace.behaviour != null, "the mace's def carries its behaviour script")
-	assert_near(mace.anchor_world().x + mace.def.proximity_range, 131.0, 0.001, "reach is the def's proximity_range in cells")
+	assert_near(mace.anchor_world().x + mace.def.reach, 131.0, 0.001, "reach is the def's reach in cells")
 	var rigs: Array[ChChariotRuntime] = [at, foe]
 	var ctx: ChBattleContext = _battle(world, catalog, rigs)
 	var hits: Array[ChPartRuntime] = []
@@ -142,7 +142,7 @@ func test_mace_hits_in_reach_only() -> void:
 	var far_hp := far_foe.hp
 	for _tick in MACE_TICKS:
 		far_ctx.tick(TICK, [0.0, 0.0], PRESS)
-	assert_true(far_foe_part.anchor_world().x > far_mace.anchor_world().x + far_mace.def.proximity_range, "the foe sits past the box")
+	assert_true(far_foe_part.anchor_world().x > far_mace.anchor_world().x + far_mace.def.reach, "the foe sits past the box")
 	assert_eq(far_hits, [], "so the fire landed nothing")
 	assert_eq(far_foe.hp, far_hp, "and paid no HP")
 	_complete()

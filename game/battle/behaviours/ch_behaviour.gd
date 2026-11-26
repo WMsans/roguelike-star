@@ -29,10 +29,11 @@ func fire(ctx: ChBattleContext) -> void:
 	pass
 
 
-# The melee geometry Tasks 12-14 share: a weapon's reach box and the enemy body its swing hits. ChPartDef
-# has no reach field, so def.proximity_range doubles as the reach in cells - PixelRigidBody's per-body
-# hit signal only fires on contact begin, so reach is measured geometrically instead (the brief's call).
-# These read `part`, the part this behaviour drives, so a weapon measures from its own mount.
+# The melee geometry Tasks 12-14 share: a weapon's reach box and the enemy body its swing hits.
+# ChPartDef.reach is the reach in cells, measured from the part's own edge along its facing;
+# PixelRigidBody's per-body hit signal only fires on contact begin, so reach is measured geometrically
+# instead (the brief's call). These read `part`, the part this behaviour drives, so a weapon measures
+# from its own mount.
 # The box the swing measures: reach cells out from the part's own edge along facing(), as tall as the
 # part. A cell at (x, y) spans x .. x + 1, so the part's edge sits half a cell out from its anchor, and
 # the part's own extent is def.size in cells.
@@ -42,7 +43,7 @@ func _reach_box() -> Rect2:
 	# The part's extent along facing and across it, so a turned or mirrored part keeps one box.
 	var along := absf(dir.x) * size.x + absf(dir.y) * size.y
 	var across := absf(dir.x) * size.y + absf(dir.y) * size.x
-	var half_along := part.def.proximity_range + 0.5 + 0.5 * along
+	var half_along := part.def.reach + 0.5 + 0.5 * along
 	var half_across := 0.5 * across
 	var span := Vector2(absf(dir.x) * half_along + absf(dir.y) * half_across,
 		absf(dir.y) * half_along + absf(dir.x) * half_across)

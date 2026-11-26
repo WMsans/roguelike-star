@@ -14,6 +14,7 @@ rarity = &"uncommon"
 description = PackedStringArray("{passive} When one of your parts {flame:catches fire}, gain 3 {energy}.", "{passive} At most once every 0.5 s.")
 energy_cost = 0
 cooldown = 0.0
+mode = &"passive"
 damage = 0
 size = Vector2i(5, 5)
 color = Color(0.95, 0.6, 0.25, 1)

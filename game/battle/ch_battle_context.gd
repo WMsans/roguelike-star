@@ -326,6 +326,9 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 			continue
 		# A cooldown only counts down here; whether the part fires is the press's call.
 		part.tick_cooldown(delta)
+	# The drive's price is this chariot's unbroken wheels (ChChariotRuntime.drive_cost), so a wheel
+	# that broke this tick stops costing at once.
+	chariot.energy.drive_cost = chariot.drive_cost()
 	var result: Dictionary = chariot.energy.tick(delta, direction != 0.0, _regen_mult(chariot))
 	var fired_count := 0
 	if pressed:

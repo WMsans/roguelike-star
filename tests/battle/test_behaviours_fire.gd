@@ -29,7 +29,7 @@ func _rig() -> ChBodyDef:
 
 
 # The real defs from res://game/data/parts under that rig body, so a build reads the emitters'
-# numbers (cost, cooldown, damage, proximity_range as reach) off the .tres and gets the behaviour
+# numbers (cost, cooldown, damage, reach) off the .tres and gets the behaviour
 # the .tres names.
 # damage_scale > 1 hands the Flamethrower and the Hearth a copy of their def with that many times the
 # damage, so a test can show the pulses are cut from def.damage rather than from a constant.
@@ -114,8 +114,7 @@ func _ground(world: PixelWorld) -> void:
 # The rig gap the flamethrower test uses: 40 cells between origins, so the enemy's part (its rig's
 # slot 0 at -5) sits 30 cells out from the flamethrower's own anchor (slot 1 at +5), the far end of
 # the brief's "an enemy part within 30 cells". The burn has to prove itself there, not at 10 cells.
-# ChBehaviour._reach_box measures def.proximity_range, which the flamethrower's def leaves 0, so the
-# behaviour grows that box out to its own 40-cell reach: the enemy sits well inside it.
+# ChBehaviour._reach_box measures the flamethrower's own 40-cell def.reach, so the enemy sits inside it.
 const FLAME_GAP := 40
 const FLAME_TICKS := 272  # 3.03 s to the first fire (def.cooldown 3.0) plus 1.5 s of burn window
 

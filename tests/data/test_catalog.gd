@@ -98,6 +98,45 @@ func test_every_part_has_rarity_and_tags() -> void:
 	_complete()
 
 
+# Task 1 (Stage 3): every part says how it fires. mode is one of ChPartDef's five constants, the
+# wheel tag is what makes a part a wheel, and is_continuous is the mode's own question.
+func test_every_part_has_a_mode() -> void:
+	var catalog := ChCatalog.load_default()
+	var modes := [ChPartDef.MODE_COOLDOWN, ChPartDef.MODE_MELEE, ChPartDef.MODE_BEAM,
+		ChPartDef.MODE_PASSIVE, ChPartDef.MODE_WHEEL]
+	for id in catalog.parts:
+		var def: ChPartDef = catalog.parts[id]
+		assert_true(def.mode in modes, "%s has one of the five modes" % id)
+		assert_eq(def.is_wheel(), def.tags.has("wheel"), "%s: the wheel tag is the wheel" % id)
+		assert_eq(def.is_wheel(), def.mode == ChPartDef.MODE_WHEEL,
+			"%s: the wheel tag holds exactly when the mode is wheel" % id)
+		assert_eq(def.is_continuous(), def.mode == ChPartDef.MODE_MELEE or def.mode == ChPartDef.MODE_BEAM,
+			"%s: is_continuous matches the mode" % id)
+	_complete()
+
+
+# The reach the driver closes with is ChPartDef.reach, not proximity_range: the old weapons keep
+# the range they had, and the Harpoon's 120 cells move onto the field.
+func test_old_weapons_kept_their_reach() -> void:
+	var catalog := ChCatalog.load_default()
+	for pair in [[&"ice_cream_mace", 6.0], [&"cutter_chainsaw", 14.0], [&"corsair_harpoon", 120.0]]:
+		var def: ChPartDef = catalog.part(pair[0])
+		assert_true(def != null, "%s loads" % pair[0])
+		if def != null:
+			assert_near(def.reach, pair[1], 0.001, "%s reach is %s" % [pair[0], pair[1]])
+	for id in catalog.parts:
+		var def: ChPartDef = catalog.parts[id]
+		if def.damage <= 0 or def.cooldown <= 0.0:
+			# A passive (Freeze Charge, Ember Battery, Strut) or a wheel brought nothing to bear
+			# before, so its reach stays 0 whatever its proximity_range is.
+			continue
+		if def.id == &"corsair_harpoon":
+			# The Harpoon owns no proximity_range: its reach is its behaviour's own 120-cell line.
+			continue
+		assert_near(def.reach, def.proximity_range, 0.001, "%s reach equals its proximity_range" % id)
+	_complete()
+
+
 func test_body_rarities() -> void:
 	# Bodies are bought the same way parts are, so each carries a rarity too: Cutter common,
 	# Dozer uncommon, Corsair rare.

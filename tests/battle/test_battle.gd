@@ -36,9 +36,8 @@ func test_ai_approaches_then_holds() -> void:
 	assert_eq(ai.decide(420.0, 426.0, 6.0), 0.0, "exactly at reach: hold, the rule is |dx| <= range")
 	assert_eq(ai.decide(420.0, 426.5, 6.0), 1.0, "one hair past reach: close in")
 	assert_eq(ai.decide(100.0, 100.0, 0.0), 0.0, "no range to close: hold still")
-	# The reach table ChBattle hands that parameter: a weapon's proximity_range is its reach in
-	# cells (ChBehaviour._reach_box), and the Harpoon owns its behaviour's own range, counted only
-	# while it can fire.
+	# The reach table ChBattle hands that parameter: a weapon's reach is ChPartDef.reach in cells
+	# (ChBehaviour._reach_box), and the Harpoon's 120 cells are its own field now.
 	var catalog := ChCatalog.load_default()
 	var mace := ChPartRuntime.new()
 	mace.def = catalog.part(&"ice_cream_mace")
@@ -50,15 +49,14 @@ func test_ai_approaches_then_holds() -> void:
 	var rig := ChChariotRuntime.new()
 	rig.parts = parts
 	assert_near(ai.reach(rig), 6.0, 0.001, "the shortest reach the Dozer can bring to bear is the Mace's 6")
-	# The Harpoon's 120 cells count only while it can fire, so a Harpoon whose cooldown is still
-	# running owns no range at all and the driver has nothing to close.
+	# The Harpoon's 120 cells count while it is on cooldown too (Task 1's ruling: the special case
+	# goes away), so a lone Harpoon still gives the driver a range to close.
 	var ranged := ChChariotRuntime.new()
 	var only: Array[ChPartRuntime] = [harpoon]
 	ranged.parts = only
-	assert_true(is_inf(ai.reach(ranged)), "an unready Harpoon leaves the chariot with no range")
-	assert_eq(ai.decide(60.0, 420.0, ai.reach(ranged)), 0.0, "so it stays put instead of charging")
+	assert_near(ai.reach(ranged), 120.0, 0.001, "a Harpoon counts at its own 120 cells, ready or not")
+	assert_eq(ai.decide(60.0, 420.0, ai.reach(ranged)), 1.0, "so it closes in")
 	harpoon.cooldown_left = 0.0
-	assert_near(ai.reach(ranged), 120.0, 0.001, "a ready Harpoon counts at its own 120 cells")
 	assert_near(ai.reach(rig), 6.0, 0.001, "and the Mace is still the shortest reach")
 	_complete()
 

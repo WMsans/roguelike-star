@@ -14,13 +14,31 @@ class FakeBody:
 
 
 func _part(id: StringName, ready := true, flipped := false) -> ChPartRuntime:
-	var part := ChPartRuntime.new()
-	part.def = ChCatalog.load_default().part(id)
-	part.charges_left = -1
-	part.cooldown_left = 0.0 if ready else part.def.cooldown
+	var part := _part_with(ChCatalog.load_default().part(id), ready)
 	part.flipped = flipped
+	return part
+
+
+# A part on a hand-built def, so a test can set the fields the catalog's parts do not carry.
+func _part_with(def: ChPartDef, ready := true) -> ChPartRuntime:
+	var part := ChPartRuntime.new()
+	part.def = def
+	part.charges_left = -1
+	part.cooldown_left = 0.0 if ready else def.cooldown
 	part.body = FakeBody.new()
 	return part
+
+
+# A weapon def with the given reach and proximity_range, so a test can tell the two fields apart.
+func _weapon(reach: float, proximity := 0.0) -> ChPartDef:
+	var def := ChPartDef.new()
+	def.id = &"test_weapon"
+	def.damage = 5
+	def.cooldown = 1.0
+	def.reach = reach
+	def.proximity_range = proximity
+	def.charges = -1
+	return def
 
 
 # A chariot with these parts and a pool of `cap` holding `share` of it. Costs are per-part, so the
@@ -51,11 +69,24 @@ func test_in_reach_and_enough_energy_presses() -> void:
 	var mace := _part(&"ice_cream_mace")
 	var rig := _rig([mace], 20.0, 0.0)
 	var cost := float(mace.def.energy_cost)
-	var dx := mace.def.proximity_range + HALF  # measured from the part: range + target half
+	var dx := mace.def.reach + HALF  # measured from the part: reach + target half
 	rig.energy.value = cost * ChEnemyAI.PRESS_SHARE
 	assert_true(ChEnemyAI.should_press(rig, dx, HALF), "in reach with 60% of the volley presses")
 	rig.energy.value = cost * 0.5
 	assert_true(not ChEnemyAI.should_press(rig, dx, HALF), "at 50% it waits")
+	_complete()
+
+
+# Task 1: reach() reads ChPartDef.reach, the cells a weapon brings to bear. proximity_range is the
+# proximity-chain range and never a weapon's reach, and a cooldown part with no charges left is out.
+func test_reach_reads_the_reach_field() -> void:
+	var near := _rig([_part_with(_weapon(30.0))], 20.0, 20.0)
+	assert_near(ChEnemyAI.reach(near), 30.0, 0.001, "a part with reach 30 gives reach 30")
+	var far := _rig([_part_with(_weapon(0.0, 30.0))], 20.0, 20.0)
+	assert_true(is_inf(ChEnemyAI.reach(far)), "proximity_range 30 is not a weapon's reach")
+	var spent := _part_with(_weapon(30.0))
+	spent.charges_left = 0
+	assert_true(is_inf(ChEnemyAI.reach(_rig([spent], 20.0, 20.0))), "a spent cooldown part is out of reach")
 	_complete()
 
 

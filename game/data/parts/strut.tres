@@ -12,6 +12,7 @@ rarity = &"common"
 description = PackedStringArray("{passive} Holds 2 more parts ({extension}).")
 energy_cost = 0
 cooldown = 0.0
+mode = &"passive"
 damage = 0
 extension_slots = PackedVector2Array(0, -6, 4, -6)
 size = Vector2i(3, 8)

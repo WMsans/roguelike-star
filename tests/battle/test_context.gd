@@ -113,6 +113,18 @@ func _part(id: StringName, cost: int, cooldown: float, integrity: int, extension
 	def.extension_slots = slots
 	return def
 
+# A wheel: the tag is what makes it one (ChPartDef.is_wheel), and its energy_per_second is the
+# drive's price per second.
+func _wheel_def() -> ChPartDef:
+	var def := ChPartDef.new()
+	def.id = &"wheel"
+	def.tags = PackedStringArray(["passive", "wheel"])
+	def.mode = ChPartDef.MODE_WHEEL
+	def.energy_per_second = 1.0
+	def.size = Vector2i(2, 2)
+	def.charges = -1
+	return def
+
 # The body every rig sits on: four slots, 6 and 12 cells from the first (inside the modifier's
 # range) and 30 (outside it), so a test picks a range case by picking a slot.
 func _body(cap: int) -> ChBodyDef:
@@ -154,6 +166,7 @@ func _catalog(cap: int) -> ChCatalog:
 		_part(&"child", 1, 1.0, 100, 0),
 		_part(&"modifier", 0, 0.0, 100, 0, MODIFIER_RANGE),
 		_part(&"target", 0, 0.0, 10, 0),
+		_wheel_def(),
 	]
 	return ChCatalog.from_defs(parts, [_body(cap)])
 
@@ -410,10 +423,11 @@ func test_hit_names_the_side_it_landed_on() -> void:
 # --- The volley: a press fires every ready part the pool can pay, dearest first ---
 
 # A rig whose gun-like parts have the given costs, mounted in the given order, over a pool of
-# `pool` energy and 0 regen. Parts hang off one strut with enough extension slots.
+# `pool` energy and 0 regen. Parts hang off one strut with enough extension slots; one wheel on
+# body slot 1 gives the rig a drive cost to pay.
 func _volley_rig(world: PixelWorld, costs: Array, pool: int) -> Array:
-	var defs: Array[ChPartDef] = [_part(&"strut", 0, 0.0, 100, costs.size())]
-	var mounts := [[[0], &"strut"]]
+	var defs: Array[ChPartDef] = [_part(&"strut", 0, 0.0, 100, costs.size()), _wheel_def()]
+	var mounts := [[[0], &"strut"], [[1], &"wheel"]]
 	for at in costs.size():
 		var id := StringName("p%d" % at)
 		defs.append(_part(id, costs[at], 1.0, 100, 0))
@@ -513,11 +527,44 @@ func test_drive_is_paid_before_the_volley() -> void:
 	var set := _volley_rig(world, [2, 3], 10)
 	var rig: ChChariotRuntime = set[0]
 	# The 0.001 absorbs float rounding in (drive + 2) - drive, which would land a hair under 2.
-	rig.energy.value = rig.energy.drive_cost * TICK + 2.0 + 0.001
+	# The drive is the wheels' sum (ChChariotRuntime.drive_cost), which _tick_chariot writes into the
+	# pool before energy.tick pays it.
+	rig.energy.value = rig.drive_cost() * TICK + 2.0 + 0.001
 	var fired := (set[1] as ChBattleContext).tick(TICK, [1.0], PRESS)
 	assert_eq(fired, [1], "one part fired")
 	assert_eq([set[2][0].fired, set[2][1].fired], [1, 0], "the 2-cost fired, the 3-cost could not")
 	assert_near(rig.energy.value, 0.001, 0.0001, "drive and the 2 took the rest")
+	_complete()
+
+# Task 1: the drive's price is the unbroken wheels' energy_per_second, summed. A broken wheel stops
+# costing that same tick, and a chariot with no wheel left pays nothing to "drive".
+func test_drive_cost_is_the_wheels_sum() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog(20)
+	var layout := _mount([[[0], &"wheel"], [[1], &"wheel"]])
+	var rig: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), layout, catalog, 0, ORIGIN, false)
+	var wheels := rig.wheels()
+	assert_eq(wheels.size(), 2, "both wheels are wheels by tag")
+	var rigs: Array[ChChariotRuntime] = [rig]
+	var ctx: ChBattleContext = _battle(world, catalog, rigs)
+	assert_near(rig.drive_cost(), 2.0, 0.001, "two wheels cost 2.0 a second")
+	rig.energy.value = 20.0
+	ctx.tick(TICK, [1.0])
+	assert_near(rig.energy.value, 20.0 - 2.0 * TICK, 0.0001, "a held drive pays 2.0 * delta")
+	rig.break_part(wheels[0], ctx)
+	assert_near(rig.drive_cost(), 1.0, 0.001, "a broken wheel stops costing")
+	rig.energy.value = 20.0
+	ctx.tick(TICK, [1.0])
+	assert_near(rig.energy.value, 20.0 - 1.0 * TICK, 0.0001, "and the drive pays the wheel left")
+	rig.break_part(wheels[1], ctx)
+	assert_near(rig.drive_cost(), 0.0, 0.001, "no unbroken wheel costs nothing")
+	rig.energy.value = 20.0
+	var spent := rig.energy.spent
+	var fired := ctx.tick(TICK, [1.0])
+	assert_eq(fired, [0], "nothing fired")
+	assert_near(rig.energy.value, 20.0, 0.0001, "a held drive with no wheels pays nothing")
+	assert_near(rig.energy.spent, spent, 0.0001, "and spends nothing")
 	_complete()
 
 func test_press_ties_break_on_mount_order() -> void:

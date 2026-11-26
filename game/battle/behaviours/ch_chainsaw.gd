@@ -3,8 +3,8 @@ extends ChBehaviour
 # The Cutter Chainsaw (spec §5.4): it cuts whatever stands inside the def's reach (14 cells), and
 # every cut throws fire sparks that can light flammable ground. A cut through a part is a hit, so it
 # goes through deal_hit like every other weapon; a cut with nothing in reach bites the ground at the
-# tip. Reach numbers live here, not on ChPartDef: proximity_range is the reach in cells. The box it
-# measures and the body it hits are ChBehaviour's, shared with every melee part.
+# tip. The reach is ChPartDef.reach, which ChBehaviour._reach_box measures. The box it measures and
+# the body it hits are ChBehaviour's, shared with every melee part.
 const SPARK_COUNT := 4
 const SPARK_SPEED := 40.0  # cells per second the sparks fly
 const SPARK_SPREAD := 0.6  # radians, the full cone

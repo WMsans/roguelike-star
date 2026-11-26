@@ -196,7 +196,7 @@ func test_body_freeze_pauses_regen() -> void:
 
 func test_frozen_wheel_locks_motor() -> void:
 	var wheel := _part(0, Vector2.ZERO)
-	wheel.def.id = ChChariotRuntime.WHEEL_ID
+	wheel.def.tags = PackedStringArray(["passive", "wheel"])
 	wheel.joint = _track(PixelWheelJoint.new())
 	wheel.statuses.stacks[ChStatuses.FREEZE] = 1
 	var c := _chariot(0, Vector2(1000, 1000), [wheel])

@@ -14,6 +14,7 @@ rarity = &"uncommon"
 description = PackedStringArray("{passive} Weapons within 24 cells ({proximity}) also {freeze} what they hit.", "{passive} One hit freezes a part.")
 energy_cost = 0
 cooldown = 0.0
+mode = &"passive"
 damage = 0
 proximity_range = 24.0
 size = Vector2i(4, 4)

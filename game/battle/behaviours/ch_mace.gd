@@ -1,8 +1,8 @@
 extends ChBehaviour
 
 # The Ice Cream Mace (spec §5.4): a melee swing out to the def's reach and the Shatter, which pays
-# ChDamage's x3 to a frozen target and ends that freeze. The weapon's numbers live here: ChPartDef
-# has no reach field, so proximity_range (6 cells for a mace) is its reach, because the engine's
+# ChDamage's x3 to a frozen target and ends that freeze. The weapon's numbers live here: ChPartDef.reach
+# (6 cells for a mace) is its reach, and ChBehaviour._reach_box measures it, because the engine's
 # per-body hit signal only fires on contact begin and cannot give a reach. The box the swing measures
 # and the body it hits are ChBehaviour's, shared with every melee part.
 func fire(ctx: ChBattleContext) -> void:

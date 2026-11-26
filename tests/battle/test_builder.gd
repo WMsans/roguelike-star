@@ -393,7 +393,7 @@ func test_bodies_hide_and_carry_a_visual() -> void:
 		var hand := false
 		for part in runtime.parts:
 			if part.body == body:
-				hand = part.def.texture != null and part.def.id != &"wheel"
+				hand = part.def.texture != null and not part.def.is_wheel()
 		if hand:
 			assert_eq((visual as Sprite2D).texture.get_size(), body.texture.get_size() + Vector2(2, 2), "a hand sprite's rim is 1 px outside the body")
 			var img: Image = body.texture.get_image()

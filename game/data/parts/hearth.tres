@@ -16,6 +16,7 @@ energy_cost = 3
 cooldown = 4.0
 damage = 36
 proximity_range = 2.0
+reach = 2.0
 size = Vector2i(6, 6)
 color = Color(0.75, 0.3, 0.2, 1)
 texture = ExtResource("tex_sprite")
