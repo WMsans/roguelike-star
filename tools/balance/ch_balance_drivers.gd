@@ -38,6 +38,18 @@ static func make_press(policy: String) -> Callable:
 	return func(battle, side): return battle.ai_press(side)
 
 
+static func make_hold(policy: String) -> Callable:
+	# The held button, ChBattle.holders entries: func(battle, side) -> bool. It follows the press policy
+	# of the same name, so the scenario schema needs no separate hold key: "mash" holds both, "never"
+	# holds neither, and "ai" holds by the enemy AI's own rule.
+	match policy:
+		"mash":
+			return func(_battle, _side): return true
+		"never":
+			return func(_battle, _side): return false
+	return func(battle, side): return battle.ai_hold(side)
+
+
 static func charge_toward(self_x: float, other_x: float) -> float:
 	# Always at the other chariot, never holding off: -1, 0 or 1.
 	return signf(other_x - self_x)

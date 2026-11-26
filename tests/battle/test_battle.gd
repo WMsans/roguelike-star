@@ -678,3 +678,94 @@ func test_outline_shows_while_ready() -> void:
 	assert_true(not rocket.outline.visible, "the press spent it, so the glow is off")
 	battle.free()
 	_complete()
+
+
+# --- Task 3: the held button's plumbing -----------------------------------------------------------
+# The slice ships no melee/beam part yet, so these tests mount the continuous fixture the way
+# test_continuous.gd does: its def joins the fight's catalog by id, and the builder mounts it like any
+# shipped part.
+const MELEE_FIXTURE := "res://tests/battle/fixtures/ch_fixture_melee.gd"
+const PER_SECOND := 2.0
+
+
+func _runner_def() -> ChPartDef:
+	# A melee part: continuous by mode, so can_run() is true, paying PER_SECOND while it runs.
+	var def := ChPartDef.new()
+	def.id = &"test_melee"
+	def.mode = ChPartDef.MODE_MELEE
+	def.damage = 10
+	def.reach = 24.0
+	def.energy_per_second = PER_SECOND
+	def.integrity = 100
+	def.size = Vector2i(2, 2)
+	def.charges = -1
+	def.behaviour = load(MELEE_FIXTURE)
+	return def
+
+
+func _runner_catalog() -> ChCatalog:
+	# _fight_catalog's defs plus the fixture. Both sides get TALL_HP, so no result can end the fight
+	# while a test is reading its ticks.
+	var base := _fight_catalog(TALL_HP, TALL_HP)
+	var parts: Array[ChPartDef] = []
+	for def in base.parts.values():
+		parts.append(def)
+	parts.append(_runner_def())
+	var bodies: Array[ChBodyDef] = []
+	for def in base.bodies.values():
+		bodies.append(def)
+	return ChCatalog.from_defs(parts, bodies)
+
+
+func _runner_layout() -> ChChariotLayout:
+	# The player's Cutter with its two wheels and the fixture in the front slot (3), facing +x.
+	var layout := ChChariotLayout.new()
+	layout.body_id = &"cutter"
+	for mount in [[[0], &"wheel"], [[1], &"wheel"], [[3], &"test_melee"]]:
+		assert_true(layout.place(_typed_path(mount[0]), mount[1]), "%s mounts" % [_typed_path(mount[0])])
+	return layout
+
+
+func _part_by_id(rig: ChChariotRuntime, id: StringName) -> ChPartRuntime:
+	for part in rig.parts:
+		if part.def != null and part.def.id == id:
+			return part
+	return null
+
+
+func test_holders_reach_the_tick() -> void:
+	var battle := _battle_scene()
+	var held := [true]
+	battle.holders = [func(_b, _s): return held[0], func(_b, _s): return false]
+	_start_fight(battle, _runner_layout(), _enemy_layout(), _runner_catalog())
+	await _frames_ready(battle)
+	var part := _part_by_id(battle.player, &"test_melee")
+	assert_true(part != null, "the fixture melee part mounted on the player")
+	for _i in 3:
+		await Engine.get_main_loop().process_frame
+	assert_true(part.running, "a holders callable answering true runs the side-0 melee part")
+	held[0] = false
+	for _i in 3:
+		await Engine.get_main_loop().process_frame
+	assert_true(not part.running, "and answering false leaves it off")
+	battle.free()
+	_complete()
+
+
+func test_fire_key_held_holds() -> void:
+	var battle := _battle_scene()
+	_start_fight(battle, _runner_layout(), _enemy_layout(), _runner_catalog())
+	await _frames_ready(battle)
+	var part := _part_by_id(battle.player, &"test_melee")
+	assert_true(part != null, "the fixture melee part mounted on the player")
+	assert_true(not part.running, "no key down, no hold: the melee part is off")
+	Input.action_press(&"fire")
+	for _i in 3:
+		await Engine.get_main_loop().process_frame
+	assert_true(part.running, "the fire key held across ticks keeps the hold")
+	Input.action_release(&"fire")
+	for _i in 3:
+		await Engine.get_main_loop().process_frame
+	assert_true(not part.running, "releasing the key stops it")
+	battle.free()
+	_complete()

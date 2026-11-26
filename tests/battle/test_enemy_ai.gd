@@ -181,3 +181,58 @@ func test_kiter_with_melee_reach_band_edges() -> void:
 	assert_eq(ChEnemyAI.decide(0.0, hold + 0.5, SAW_REACH, TOWER_HALF, WEDGE_HALF, &"kiter"), 1.0,
 		"past hold it closes")
 	_complete()
+
+
+# --- Task 3: the held button ----------------------------------------------------------------------
+# A continuous part pays energy_per_second for every frame the button is down, so the share is taken of
+# that per-second cost rather than a volley's. Reach is measured from the part exactly as should_press
+# measures it.
+const PER_SECOND := 2.0
+
+
+# A melee part: continuous by mode, so can_run() is true, with its own per-second price.
+func _runner(reach: float, per_second := PER_SECOND) -> ChPartDef:
+	var def := _weapon(reach)
+	def.mode = ChPartDef.MODE_MELEE
+	def.cooldown = 0.0
+	def.energy_per_second = per_second
+	return def
+
+
+func test_holds_with_a_melee_part_in_reach() -> void:
+	var part := _part_with(_runner(10.0))
+	var rig := _rig([part], 20.0, PER_SECOND * ChEnemyAI.HOLD_SHARE)
+	var dx := part.def.reach + HALF  # measured from the part: reach + target half
+	assert_true(ChEnemyAI.should_hold(rig, dx, HALF),
+		"a melee part with the target in reach and half its cost in the pool holds")
+	# A second runner out of reach must not raise the bar: only the in-reach parts' cost counts.
+	var far := _part_with(_runner(2.0))
+	far.body.global_position = Vector2(500.0, 0.0)
+	rig.parts = [part, far] as Array[ChPartRuntime]
+	assert_true(ChEnemyAI.should_hold(rig, dx, HALF),
+		"a runner that cannot reach the target is not part of the hold's cost")
+	_complete()
+
+
+func test_no_hold_out_of_reach() -> void:
+	var rig := _rig([_part_with(_runner(10.0))], 20.0, 20.0)
+	assert_true(not ChEnemyAI.should_hold(rig, 100.0, HALF),
+		"a full pool holds nothing with no part in reach")
+	_complete()
+
+
+func test_no_hold_below_the_share() -> void:
+	var part := _part_with(_runner(10.0))
+	var rig := _rig([part], 20.0, PER_SECOND * ChEnemyAI.HOLD_SHARE - 0.01)
+	var dx := part.def.reach + HALF
+	assert_true(not ChEnemyAI.should_hold(rig, dx, HALF), "a hair under half the per-second cost waits")
+	rig.energy.value = PER_SECOND * ChEnemyAI.HOLD_SHARE
+	assert_true(ChEnemyAI.should_hold(rig, dx, HALF), "and exactly half holds: the rule is at least")
+	_complete()
+
+
+func test_no_hold_without_continuous_parts() -> void:
+	# A cooldown part is what a press fires; the hold has nothing of its own to keep running.
+	var rig := _rig([_part_with(_weapon(10.0))], 20.0, 20.0)
+	assert_true(not ChEnemyAI.should_hold(rig, 2.0, HALF), "a cooldown-only rig never holds")
+	_complete()

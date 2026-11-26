@@ -91,6 +91,7 @@ func _fight(m: ChBalanceMatchup, seed: int) -> Dictionary:
 	tree.root.add_child(battle)
 	battle.drivers = [ChBalanceDrivers.make(m.drive[0]), ChBalanceDrivers.make(m.drive[1])]
 	battle.pressers = [ChBalanceDrivers.make_press(m.press[0]), ChBalanceDrivers.make_press(m.press[1])]
+	battle.holders = [ChBalanceDrivers.make_hold(m.press[0]), ChBalanceDrivers.make_hold(m.press[1])]
 	var stats := ChFightStats.new()
 	stats.bind(battle)
 	var results: Array[StringName] = []

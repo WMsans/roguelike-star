@@ -73,6 +73,11 @@ var _fire_held := false  # the fire key's state at the previous fight tick: _pla
 # edge for side 0 and ChEnemyAI.should_press for side 1. A headless run has no keys, so tests and the
 # balance runner press the player through here.
 var pressers: Array = [Callable(), Callable()]
+# CONTRACT: the same shape for the button held down: a valid `func(battle: ChBattle, side) -> bool`
+# replaces that side's held state (true = the button was down this tick). A press is an edge, a hold is
+# the state itself: a press fires the volley once, a hold runs the melee and beam parts. The defaults
+# are the fire key for side 0 and ChEnemyAI.should_hold for side 1.
+var holders: Array = [Callable(), Callable()]
 
 
 func _init() -> void:
@@ -328,7 +333,12 @@ func _step(delta: float) -> void:
 	var presses: Array = [
 		pressers[0].call(self, 0) if pressers[0].is_valid() else _player_press(),
 		pressers[1].call(self, 1) if pressers[1].is_valid() else ai_press(1)]
-	var fired := ctx.tick(delta, drives, presses)
+	# The holds are read after the presses in the same tick, so both see the same key state: no frame
+	# runs between them, and _player_press's `_fire_held` only remembers the previous tick.
+	var holds: Array = [
+		holders[0].call(self, 0) if holders[0].is_valid() else _player_hold(),
+		holders[1].call(self, 1) if holders[1].is_valid() else ai_hold(1)]
+	var fired := ctx.tick(delta, drives, presses, holds)
 	# A press that fired nothing is a dud: the hull flinches, so the button always answers. Feedback
 	# is visual only, so a hull without a visual (a fake rig, a freed body) just skips it.
 	if presses[0] and fired[0] == 0 and player.chassis_visual != null \
@@ -385,6 +395,13 @@ func ai_press(side: int) -> bool:
 	return ChEnemyAI.should_press(me, other.chassis.global_position.x, _half_width(other))
 
 
+func ai_hold(side: int) -> bool:
+	# ChEnemyAI's hold decision for either side, toward the other chariot (see ai_drive).
+	var me := player if side == 0 else enemy
+	var other := enemy if side == 0 else player
+	return ChEnemyAI.should_hold(me, other.chassis.global_position.x, _half_width(other))
+
+
 func _player_press() -> bool:
 	# The button's edge: holding Space fires once, so the volley is a decision and not a held key.
 	# The edge is derived from the held state against the previous fight tick's, not read from
@@ -395,6 +412,13 @@ func _player_press() -> bool:
 	var edge := held and not _fire_held
 	_fire_held = held
 	return edge
+
+
+func _player_hold() -> bool:
+	# The held state itself, not the edge: holding Space runs the continuous parts. It reads the same
+	# physical key as _player_press, and both are read before ctx.tick on one tick, so the two agree
+	# even though the press has already updated _fire_held (which only the next tick reads).
+	return Input.is_action_pressed(&"fire")
 
 
 func _player_drive() -> float:

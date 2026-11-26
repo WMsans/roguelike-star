@@ -97,3 +97,23 @@ static func should_press(chariot: ChChariotRuntime, target_x: float, target_half
 		return false
 	var pool := chariot.energy
 	return pool.value >= pool.cap or (in_reach and pool.value >= PRESS_SHARE * cost)
+
+# The held button's share: a continuous part pays energy_per_second for every frame it runs, so the
+# pool has to cover a share of that rate before the enemy holds. Half a second of the running parts'
+# rate is enough for the hold to keep paying rather than start and starve.
+const HOLD_SHARE := 0.5
+
+static func should_hold(chariot: ChChariotRuntime, target_x: float, target_half: float) -> bool:
+	# Hold when a part the button would run has the target in reach and the pool holds HOLD_SHARE of
+	# the summed energy_per_second of exactly those parts. Reach is measured from the part's own
+	# position, as should_press measures it, so the attacker's half-width is already covered.
+	var per_second := 0.0
+	var in_reach := false
+	for part in chariot.parts:
+		if not part.can_run():
+			continue
+		if absf(target_x - part.anchor_world().x) > part.def.reach + target_half:
+			continue
+		in_reach = true
+		per_second += part.def.energy_per_second
+	return in_reach and chariot.energy.value >= HOLD_SHARE * per_second
