@@ -1,6 +1,6 @@
 class_name ChBehaviour extends RefCounted
 
-# The base a part's behaviour script extends (Tasks 12-14 file one per part): `part` plus four
+# The base a part's behaviour script extends (Tasks 12-14 file one per part): `part` plus five
 # hooks, all no-ops here, so a behaviour overrides only the ones it needs. A part with no behaviour
 # (ChPartDef.behaviour left null until Tasks 12-14 set it) is never asked any of them.
 # A behaviour is also the listener its subscriptions are keyed on: ChBattleContext calls setup so
@@ -13,6 +13,13 @@ var part: ChPartRuntime = null  # the part this behaviour drives
 # that listens for a nearby event, a weapon that listens for a status, both go through here.
 # shortcut: the base subscribes nothing, so a behaviour that needs no listener stays a no-op.
 func setup(ctx: ChBattleContext) -> void:
+	pass
+
+# Called once when the part breaks, after break_part has taken this behaviour off the bus and
+# before the part's PART_BROKEN goes out: whatever the behaviour holds that outlives process - a
+# looping fx riding the world - is stopped here, since the tick no longer calls process.
+# shortcut: the base holds nothing, so it does nothing; a behaviour that owns a node overrides it.
+func teardown() -> void:
 	pass
 
 # Called once ChBattleContext.tick has paid this part's energy cost. The loop resets the cooldown

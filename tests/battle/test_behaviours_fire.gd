@@ -12,6 +12,7 @@ extends ChTest
 const GROUND_TOP := 160  # first rock row: the bottom 20 rows of ChTest's 480x180 arena
 const ORIGIN := Vector2(120, 140)  # the player's rig origin (Task 9's spawn ruling)
 const TICK := 1.0 / 60.0  # the fight's clock per engine tick
+const PRESS := [true, true]  # both sides press every tick: a part fires the moment it is ready
 const SETTLE := 90  # awaited frames that let a rig join the world and fall onto the floor
 
 # The rig body every test's chariot sits on: a 10x6 hull with four slots, so the distances the
@@ -30,18 +31,32 @@ func _rig() -> ChBodyDef:
 # The real defs from res://game/data/parts under that rig body, so a build reads the emitters'
 # numbers (cost, cooldown, damage, proximity_range as reach) off the .tres and gets the behaviour
 # the .tres names.
-func _catalog() -> ChCatalog:
+# damage_scale > 1 hands the Flamethrower and the Hearth a copy of their def with that many times the
+# damage, so a test can show the pulses are cut from def.damage rather than from a constant.
+func _catalog(damage_scale: int = 1) -> ChCatalog:
 	var loaded := ChCatalog.load_default()
 	var defs: Array[ChPartDef] = []
 	for id in [&"flamethrower", &"hearth", &"ring_of_fire", &"ember_battery", &"strut"]:
 		var def: ChPartDef = loaded.part(id)
 		assert_true(def != null, "%s loads from res://game/data/parts" % id)
+		if damage_scale != 1 and id in [&"flamethrower", &"hearth"]:
+			# ChPartDef's fields are plain vars, which Resource.duplicate() does not copy, so the copy
+			# is made field by field.
+			var copy := ChPartDef.new()
+			for prop in def.get_property_list():
+				if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+					copy.set(prop.name, def.get(prop.name))
+			copy.damage *= damage_scale
+			def = copy
 		# The emitters stay unlimited-charge parts: the brief never spends charges on them.
 		# A charge-limited emitter would read charges_left in process, and the loop's -1 sentinel
 		# means unlimited, so a limited behaviour would have to park cooldown_left at INF (Task 13's
 		# convention). Not tested here because no fire emitter in the slice is limited.
 		defs.append(def)
-	var catalog := ChCatalog.from_defs(defs, [_rig()])
+	# The rig's HP grows with the scale, so a scaled burst still lands whole on a live target.
+	var rig := _rig()
+	rig.hp *= damage_scale
+	var catalog := ChCatalog.from_defs(defs, [rig])
 	for pair in [[&"flamethrower", true], [&"hearth", true], [&"ring_of_fire", true],
 	 [&"ember_battery", true], [&"strut", false]]:
 		# A part the brief leaves behaviour-less (the strut) stays a plain mountable shell.
@@ -110,16 +125,22 @@ const FLAME_TICKS := 272  # 3.03 s to the first fire (def.cooldown 3.0) plus 1.5
 # Where they land is gravity's, so the speed that reaches the brief's 30 cells is this file's and the
 # behaviour's, measured together: at the behaviour's PARTICLE_SPEED the 1 s burst writes fire cells
 # past 30 cells out, which is what the peak and the catch below read back.
-# Fix-wave item 7 measured how much room that pin has, running this shape with the rig gap varied and
-# reading the peak fire-cell count the target's own sample_rect sees: 7 cells at 20 apart, 6 at the 30
-# this test pins, 5 at 34, and 3 - ChPartRuntime's own threshold, no margin - at 38. So the jet stops
-# reaching somewhere past 34 cells part to part, and the brief's 30 sits inside it with a 3-cell
-# cushion rather than on the edge. Nothing here is weakened; the numbers are recorded so a future
-# tuning change to PARTICLE_SPEED knows what it is moving.
+# What this test pins about the jet is the peak fire-cell count inside the target's own sample_rect, 30
+# cells down the barrel: it has to reach the 3 cells ChPartRuntime samples into `burning`. Measured in the
+# fix round: put the behaviour's NOZZLE back at 2.0, which sits inside this part's own 8-cell body, and
+# that same assert reads peak 0 and the burst never leaves the chariot. So the nozzle clearing the body it
+# is mounted on is pinned by an assert, not by prose.
 func test_flamethrower_sets_target_burning() -> void:
+	await _flamethrower_case(1)
+
+# The pulses split the def's damage: twice the def damage pays twice per pulse.
+func test_flamethrower_pulses_follow_def_damage() -> void:
+	await _flamethrower_case(2)
+
+func _flamethrower_case(scale: int) -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
-	var catalog := _catalog()
+	var catalog := _catalog(scale)
 	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"flamethrower"]]), catalog, 0, ORIGIN, false)
 	var foe: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[0], &"strut"]]), catalog, 1, ORIGIN + Vector2(FLAME_GAP, 0), false)
 	var flame := _part_of(at, [1])
@@ -148,7 +169,7 @@ func test_flamethrower_sets_target_burning() -> void:
 		# The sim and the fight tick together, one step per fight tick: no awaited frames here,
 		# so a physics frame cannot add an extra sim tick and make the fire read frame-rate dependent.
 		world.step(1)
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 		var counts: Dictionary = world.count_materials(foe_part.sample_rect())
 		# The peak is what ChPartRuntime's 3-cell threshold gets to see, so the assert below names it.
 		peak = maxi(peak, counts.get(&"fire", 0) + counts.get(&"lava", 0) + counts.get(&"burning", 0))
@@ -162,13 +183,199 @@ func test_flamethrower_sets_target_burning() -> void:
 	assert_true(burn_at >= 0.0, "the target read as burning during the window")
 	assert_true(fired_at.size() == 1 and burn_at >= 0.0 and burn_at - fired_at[0] <= 1.5,
 		"the target caught within 1.5 s of the burst")
+	# The pulse is the def's damage over the 9 pulses (63 -> 7 at today's .tres), read off the def the
+	# rig was built with, so a scaled def has to scale every pulse.
+	var pulse := roundi(flame.def.damage / 9.0)
 	assert_eq(hits.size(), 9, "the burst spends 9 damage pulses")
-	assert_eq(paid, 45, "the 45 direct damage lands as 9 x 5")
+	assert_eq(paid, 9 * pulse, "the def's %d direct damage lands as 9 x %d" % [flame.def.damage, pulse])
 	assert_true(hits[0].data["target_part"] == foe_part, "the pulses went to the enemy's part")
-	assert_true(foe_part.def != null and foe_part.integrity == foe_part.def.integrity - 27,
-		"the part wore ChDamage's half of each pulse (9 x round(5 x 0.5))")
+	var wear := 9 * roundi(pulse * 0.5)
+	assert_true(foe_part.def != null and foe_part.integrity == foe_part.def.integrity - wear,
+		"the part wore ChDamage's half of each pulse (9 x round(%d x 0.5))" % pulse)
 	assert_true(foe.chassis.global_position.distance_to(flame.anchor_world()) <= 40.0,
 		"the enemy stayed inside the flamethrower's 40-cell reach")
+	_complete()
+
+# The flame is the sim's own pixels under a baked jet: a burst throws real fire particles, which the
+# engine draws in the material colour while they fly and lands as cells when something blocks them.
+# The only nodes it adds are the jet at the nozzle and the puffs dropped along it, and the world owns
+# both, so no cloud of them swings with the gun.
+const FLAME_MID_BURST_TICKS := 185  # 3.08 s: the 3 s cooldown fired and the 1 s burst is running
+
+func _fx_nodes(world: PixelWorld) -> Array:
+	var found: Array = []
+	for child in world.get_children():
+		if child is ChFx:
+			found.append(child)
+	return found
+
+func _puff_nodes(world: PixelWorld) -> Array:
+	var found: Array = []
+	for node in _fx_nodes(world):
+		if node.texture.resource_path.ends_with("puff_fire.png"):
+			found.append(node)
+	return found
+
+func test_flamethrower_burst_throws_fire_and_plays_its_jet() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"flamethrower"]]), catalog, 0, ORIGIN, false)
+	var flame := _part_of(at, [1])
+	assert_true(flame != null and flame.behaviour != null, "the flamethrower mounted and behaves")
+	var ctx: ChBattleContext = _battle(world, catalog, [at])
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	for _tick in FLAME_MID_BURST_TICKS:
+		world.step(1)
+		ctx.tick(TICK, [0.0], PRESS)
+	assert_true(int(world.get_stats()["particles_material"]) > 0, "the burst has live fire particles in the pool")
+	var strays := 0
+	for node in _fx_nodes(world):
+		var sheet: String = node.texture.resource_path
+		strays += 0 if sheet.ends_with("flamethrower.png") or sheet.ends_with("puff_fire.png") else 1
+	assert_eq(strays, 0, "nothing but the jet and its nozzle puffs stands in for the flame")
+	_complete()
+
+# The jet is the look the burst is fired under, so the world holds it and the rig's next roll must not
+# swing its already-emitted tail: it is placed once, at the nozzle, and only the burst's end moves it.
+func test_flamethrower_jet_stays_where_it_was_fired() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"flamethrower"]]), catalog, 0, ORIGIN, false)
+	var flame := _part_of(at, [1])
+	assert_true(flame != null and flame.behaviour != null, "the flamethrower mounted and behaves")
+	var ctx: ChBattleContext = _battle(world, catalog, [at])
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	for _tick in FLAME_MID_BURST_TICKS:
+		world.step(1)
+		ctx.tick(TICK, [0.0], PRESS)
+	var jet: ChFx = flame.behaviour.jet
+	assert_true(jet != null and is_instance_valid(jet), "the burst is playing its looping jet")
+	var fired_at := jet.position
+	var turned_at := jet.rotation
+	var mirrored_at := jet.scale.x
+	# Roll the gun: a tail glued to the head would swing with it.
+	flame.body.global_rotation += 0.6
+	for _tick in 3:
+		flame.behaviour.process(ctx, TICK)
+	assert_true(jet.position.is_equal_approx(fired_at), "the jet stays where it was fired (%s, was %s)" % [jet.position, fired_at])
+	assert_true(is_equal_approx(jet.rotation, turned_at), "the jet does not turn with the rig")
+	assert_true(jet.scale.x == mirrored_at, "the jet keeps its own mirror")
+	_complete()
+
+# A part that breaks mid-burst takes its look with it: the jet is a looping ChFx the world holds, and
+# break_part takes the behaviour off the tick, so nothing calls the burst's own stop any more. The
+# behaviour's teardown is the only other seam, and without it the flame loops on the wreck forever.
+func test_breaking_a_firing_flamethrower_stops_its_jet() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"flamethrower"]]), catalog, 0, ORIGIN, false)
+	var flame := _part_of(at, [1])
+	assert_true(flame != null and flame.behaviour != null, "the flamethrower mounted and behaves")
+	var ctx: ChBattleContext = _battle(world, catalog, [at])
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	for _tick in FLAME_MID_BURST_TICKS:
+		world.step(1)
+		ctx.tick(TICK, [0.0], PRESS)
+	var jet: ChFx = flame.behaviour.jet
+	assert_true(jet != null and is_instance_valid(jet), "the burst is playing its looping jet")
+	at.break_part(flame, ctx)
+	assert_true(flame.behaviour.jet == null, "the broken part's behaviour let the jet go")
+	assert_true(jet.is_queued_for_deletion(), "the jet went off the tree instead of looping on the wreck")
+	_complete()
+
+# The same mid-burst break the old jet test pinned: with no node to fade, all the break owes is that
+# the wreck stops throwing. The fire already in the pool keeps burning, which is the sim's, not the
+# part's, so nothing here takes it back.
+func test_breaking_a_firing_flamethrower_stops_its_burst() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"flamethrower"]]), catalog, 0, ORIGIN, false)
+	var flame := _part_of(at, [1])
+	assert_true(flame != null and flame.behaviour != null, "the flamethrower mounted and behaves")
+	var ctx: ChBattleContext = _battle(world, catalog, [at])
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	for _tick in FLAME_MID_BURST_TICKS:
+		world.step(1)
+		ctx.tick(TICK, [0.0], PRESS)
+	var thrown := int(world.get_stats()["particles_material"])
+	assert_true(thrown > 0, "the burst threw fire particles before the break")
+	at.break_part(flame, ctx)
+	var pool_after := int(world.get_stats()["particles_material"])
+	var puffs_after := _puff_nodes(world).size()
+	assert_true(puffs_after > 0, "the burst was dropping puffs when it broke")
+	for _tick in 30:
+		world.step(1)
+		ctx.tick(TICK, [0.0], PRESS)
+	# A burst still running would add ~90 particles; the landed ones only drain the pool.
+	assert_true(int(world.get_stats()["particles_material"]) <= pool_after, "the wreck throws nothing more")
+	# Nothing takes a puff back, so the break owes only that no new one is born: no frames run here,
+	# so a puff already out is still in the tree and the count is the evidence.
+	assert_eq(_puff_nodes(world).size(), puffs_after, "and leaves no further effect behind")
+	_complete()
+
+# The plume's mass: the sim's fire particles carry its shape, and a puff at the nozzle thickens where
+# the fuel leaves the barrel. The puff is the world's, born at the nozzle, and the behaviour keeps no
+# reference to it, so a break has nothing to fade and a roll drags no tail.
+func test_flamethrower_burst_drops_puffs_at_the_nozzle() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var catalog := _catalog()
+	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[1], &"flamethrower"]]), catalog, 0, ORIGIN, false)
+	var flame := _part_of(at, [1])
+	assert_true(flame != null and flame.behaviour != null, "the flamethrower mounted and behaves")
+	var ctx: ChBattleContext = _battle(world, catalog, [at])
+	for _settle in SETTLE:
+		await Engine.get_main_loop().process_frame
+		world.step(1)
+	for _tick in FLAME_MID_BURST_TICKS:
+		world.step(1)
+		ctx.tick(TICK, [0.0], PRESS)
+	var puffs := _puff_nodes(world)
+	assert_true(puffs.size() > 0, "the burst dropped puffs at the nozzle")
+	var nozzle := flame.anchor_world() + flame.facing() * 5.0
+	assert_true(puffs[0].position.distance_to(nozzle) <= 12.0,
+		"the puff is at the nozzle (%s, nozzle %s)" % [puffs[0].position, nozzle])
+	_complete()
+
+# A baked effect draws in cell space, so the world node is its only parent: hung on a body, the whole
+# baked cloud rides that body's transform, which is the bug every test in this file exists to keep out.
+func test_fx_refuses_a_parent_that_moves() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var holder := _track(Node2D.new())
+	assert_true(ChFx.spawn(world, &"muzzle", Vector2(100, 100)) != null, "the world takes a baked effect")
+	assert_true(ChFx.spawn(holder, &"muzzle", Vector2.ZERO) == null, "a node that moves does not")
+	_complete()
+
+
+# A one-shot's frames fade themselves in and out, but a loop has no start or end of its own: taken off
+# the tree mid-cycle it pops, which reads as the effect breaking rather than ending. So a loop comes up
+# faded and its owner ends it with fade_out() instead of queue_free().
+func test_looping_fx_fades_in_and_out() -> void:
+	var world: PixelWorld = await make_world()
+	var fx := ChFx.spawn(world, &"flamethrower", Vector2(120, 140), Vector2.RIGHT)
+	assert_true(fx != null, "the looping sheet spawns")
+	assert_true(fx.modulate.a < 1.0, "it comes in faded rather than popped on (%f)" % fx.modulate.a)
+	for _tick in 20:
+		fx._physics_process(TICK)
+	assert_near(fx.modulate.a, 1.0, 0.0001, "and ramps up to full")
+	fx.fade_out()
+	fx._physics_process(ChFx.FADE_OUT * 0.5)
+	assert_near(fx.modulate.a, 0.5, 0.01, "fade_out() takes it down over its own time, not at once")
+	fx._physics_process(ChFx.FADE_OUT)
+	assert_true(fx.is_queued_for_deletion(), "and it frees itself once faded")
 	_complete()
 
 # The hearth charges for 1 s, then rings fire into the air cells 2 cells out from the own hull
@@ -184,9 +391,16 @@ const HEARTH_PULSE_TICKS := 135  # 2.25 s: 9 pulses at 0.25 s plus margin
 const RING := 2  # cells the ring sits out from the own hull, the brief's number
 
 func test_hearth_damages_touching_enemy_only_after_charge() -> void:
+	await _hearth_case(1)
+
+# The pulses split the def's damage: twice the def damage pays twice per pulse.
+func test_hearth_pulses_follow_def_damage() -> void:
+	await _hearth_case(2)
+
+func _hearth_case(scale: int) -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
-	var catalog := _catalog()
+	var catalog := _catalog(scale)
 	var at: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([[[0], &"hearth"]]), catalog, 0, ORIGIN, false)
 	var near: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([]), catalog, 1, ORIGIN + Vector2(HEARTH_GAP, 0), false)
 	var far: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), _mount([]), catalog, 1, ORIGIN + Vector2(HEARTH_FAR, 0), false)
@@ -201,14 +415,14 @@ func test_hearth_damages_touching_enemy_only_after_charge() -> void:
 	var near_hp := near.hp
 	var far_hp := far.hp
 	for _charge in HEARTH_CHARGE_TICKS:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 	# Nothing of the charge may pay: the ring only opens once the 1 s charge is done.
 	assert_eq(hits.size(), 0, "the charge dealt nothing")
 	assert_eq(near.hp, near_hp, "so the touching hull is unharmed")
 	assert_eq(far.hp, far_hp, "and so is the control hull")
 	var peak := 0
 	for _pulse in HEARTH_PULSE_TICKS:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 		# The ring's own readback: fire cells inside the band the hearth fills.
 		peak = maxi(peak, world.count_materials(Rect2i(band)).get(&"fire", 0))
 	var paid := 0
@@ -222,29 +436,29 @@ func test_hearth_damages_touching_enemy_only_after_charge() -> void:
 		% [hull.get_center(), band, near_box])
 	assert_true(peak >= 1, "the ring left fire cells in the band (peak %d)" % peak)
 	assert_eq(hits.size(), 9, "9 pulses paid the touching hull")
-	assert_eq(paid, 45, "the hearth's 45 lands as 9 x 5")
-	assert_eq(near.hp, near_hp - 45, "all of it on the near hull")
+	assert_eq(paid, 36 * scale, "the hearth's %d lands as 9 x %d" % [36 * scale, 4 * scale])
+	assert_eq(near.hp, near_hp - 36 * scale, "all of it on the near hull")
 	assert_eq(far.hp, far_hp, "and the control hull paid nothing")
 	_complete()
 
-# The ring of fire expands from the part's own anchor: radius 0 -> 24 in 1 s, fire into the air cells
-# on the circumference every 0.1 s, and deal_hit once per body the first time the ring crosses it,
-# on both sides including the chassis the part hangs on. The own hull's centre sits 12 cells out and
-# the enemy's 15, so both cross; the far hull's 40 never does.
+# The ring of fire expands from the part's own anchor: radius 0 -> 36 in 1 s, fire into the air cells
+# on the circumference every 0.1 s, and deal_hit once per enemy body the first time the ring crosses
+# it. Its own chariot takes no hit (the balance pass's call: the ring killed its own chariot). The own
+# hull's centre sits 6 cells out and the enemy's 15, so both are inside; the far hull's 55 never is.
 # The water pool is not part of the rule: it keeps the ring's own part out of ChPartRuntime's burning
-# transition (6 water cells douse), so the own HP below is the ring's hit alone rather than a hit plus
-# the chariot-wide burn, which the ember test reads separately. The ring still fills fire in air cells,
+# transition (6 water cells douse), so an unchanged own HP below shows the ring paid it nothing rather
+# than hiding a chariot-wide burn, which the ember test reads separately. The ring still fills fire in air cells,
 # which is why the pool sits inside the ring's reach and the ring's fill never replaces it.
 # The ring's two hits are a pinned window total, and the walk each step takes (ChBehaviour._bodies)
 # runs before the fill, so no part can break mid-window and drop a later crossing (see that helper's note).
 # shortcut: DOUSE_CELLS is ChPartRuntime's own 6-cell rule, pinned by tests/battle/test_part_runtime.gd.
 # A doused part stays unburning whatever the ring writes next to it.
 const RING_NEAR := 20  # origins apart, so the enemy hull's centre is 15 cells from the ring anchor
-const RING_FAR := 40  # the control hull, 35 cells out, which the 24-cell ring never crosses
-const RING_TICKS := 422  # 4.03 s to the 6 s cooldown's first fire, plus the 1 s ring
+const RING_FAR := 60  # the control hull, 55 cells out, which the 36-cell ring never crosses
+const RING_TICKS := 302  # 5.03 s: the 4 s cooldown's first fire, plus the 1 s ring
 const RING_POOL := Rect2i(120, 132, 12, 12)  # water inside the ring's first steps
 
-func test_ring_of_fire_hits_self_and_enemy_once_each() -> void:
+func test_ring_of_fire_hits_enemy_once_not_self() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var catalog := _catalog()
@@ -265,31 +479,31 @@ func test_ring_of_fire_hits_self_and_enemy_once_each() -> void:
 	var foe_hp := foe.hp
 	var ctl_hp := ctl.hp
 	var anchor := ring.anchor_world()
-	var ring_rect := Rect2i(Vector2i(anchor) - Vector2i(24, 24), Vector2i(49, 49))
+	var ring_rect := Rect2i(Vector2i(anchor) - Vector2i(36, 36), Vector2i(73, 73))
 	var peak := 0
 	for _tick in RING_TICKS:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 		# The ring's fill read back during the run: a post-loop read would miss consumed fire.
 		peak = maxi(peak, world.count_materials(ring_rect).get(&"fire", 0))
 	var paid := 0
 	for hit in hits:
 		paid += hit.data["hp_damage"]
 	# The crossing distances the ring reads: the own hull's centre is 5.8 cells out (the part hangs on the
-# hull's own top row) and the enemy's 15.3, both inside the 24-cell radius; the control hull's centre
-	# is 35, outside it. What the ring actually tests is the nearest point of each body box, so these
+	# hull's own top row) and the enemy's 15.3, both inside the 36-cell radius; the control hull's centre
+	# is 55, outside it. What the ring actually tests is the nearest point of each body box, so these
 	# reads are the preconditions, not the crossing rule.
 	assert_near(at.chassis.global_position.distance_to(anchor), 5.83, 0.01, "own hull centre is inside the ring")
 	assert_near(foe.chassis.global_position.distance_to(anchor), 15.3, 0.1, "enemy hull centre is inside the ring")
-	assert_true(ctl.chassis.global_position.distance_to(anchor) > 24.0, "the control hull never crosses")
-	# The ring fills fire on the circumference, so the sim's own light sees it: the widest ring (24 cells
+	assert_true(ctl.chassis.global_position.distance_to(anchor) > 36.0, "the control hull never crosses")
+	# The ring fills fire on the circumference, so the sim's own light sees it: the widest ring (36 cells
 	# around the anchor) is read back as fire cells while the ring runs.
 	assert_true(peak >= 1, "the ring left fire cells on its circumference (peak %d)" % peak)
-	assert_eq(hits.size(), 2, "the ring crossed two bodies and no more")
-	assert_eq(paid, 2 * ring.def.damage, "each body paid once, at 10")
-	assert_eq(at.hp, at_hp - ring.def.damage, "own chariot took it, since the ring is not friendly")
-	assert_eq(foe.hp, foe_hp - ring.def.damage, "and so did the enemy hull")
+	assert_eq(hits.size(), 1, "the ring crossed the enemy hull and no more")
+	assert_eq(paid, ring.def.damage, "which paid once, at the def's damage")
+	assert_eq(foe.hp, foe_hp - ring.def.damage, "on the enemy hull")
+	assert_eq(at.hp, at_hp, "own chariot took nothing, though its hull is inside the ring")
 	assert_eq(ctl.hp, ctl_hp, "the control hull paid nothing")
-	assert_true(at.hp == at_hp - 10 and ring.burning == false, "the pool kept the mount unburning, so the 10 is the hit alone")
+	assert_true(ring.burning == false, "the pool kept the mount unburning, so the own HP read is the ring's alone")
 	_complete()
 
 # Chain 3 (spec §5.6): a Hearth that heats its own chariot pays an Ember Battery on the same chariot.
@@ -314,11 +528,14 @@ func test_ember_battery_pays_for_own_hearth() -> void:
 	var rigs: Array[ChChariotRuntime] = [at, foe]
 	var ctx: ChBattleContext = _battle(world, catalog, rigs)
 	var gained_at: Array[float] = []
+	var gained_amount: Array[float] = []
 	var caught: Array[ChEvent] = []
 	var fired_at: Array[float] = []
 	var hits: Array[ChEvent] = []
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.ENERGY_GAINED,
-		func(event: ChEvent): gained_at.append(ctx.time))
+		func(event: ChEvent):
+			gained_at.append(ctx.time)
+			gained_amount.append(float(event.data.get("amount", -1.0))))
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.CAUGHT_FIRE, func(event: ChEvent): caught.append(event))
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.PART_FIRED, func(event: ChEvent): fired_at.append(ctx.time))
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.HIT, func(event: ChEvent): hits.append(event))
@@ -329,7 +546,7 @@ func test_ember_battery_pays_for_own_hearth() -> void:
 	var hull := Rect2(at.chassis.global_position - Vector2(at.body_def.size) * 0.5, Vector2(at.body_def.size))
 	var band := Rect2i(hull.grow(float(RING)))
 	for _tick in EMBER_TICKS:
-		ctx.tick(TICK, [0.0, 0.0])
+		ctx.tick(TICK, [0.0, 0.0], PRESS)
 		# The ring's fill read where the own parts sample it.
 		peak = maxi(peak, world.count_materials(band).get(&"fire", 0))
 	# Chain 3 read: the hearth's own ring lights the chariot, and the battery pays for that risk.
@@ -342,7 +559,8 @@ func test_ember_battery_pays_for_own_hearth() -> void:
 	assert_true(gained_at.size() >= 1, "so the battery announced ENERGY_GAINED")
 	assert_true(fired_at.size() >= 1 and gained_at[0] - fired_at[0] <= EMBER_WINDOW,
 		"the gain fell within 3 s of the hearth's fire")
-	assert_near(at.energy.value, 6.0, 0.0001, "the pool paid the hearth's 2 and gained the battery's 3")
+	assert_near(at.energy.value, 5.0, 0.0001, "the pool paid the hearth's 3 and gained the battery's 3")
+	assert_near(gained_amount[0], 3.0, 0.0001, "the event carries the energy that landed")
 	# The battery's cooldown keeps a second catch inside 0.5 s out, which Ember Battery's own test pins
 	# in the melee suite; what this test adds is that the catch comes from the part's own side.
 	# shortcut: a catch from the other side is that suite's subject, not this chain's.

@@ -87,6 +87,8 @@ void PixelRigidBody::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_lock_rotation"), &PixelRigidBody::get_lock_rotation);
 	ClassDB::bind_method(D_METHOD("set_terrain_collision", "value"), &PixelRigidBody::set_terrain_collision);
 	ClassDB::bind_method(D_METHOD("get_terrain_collision"), &PixelRigidBody::get_terrain_collision);
+	ClassDB::bind_method(D_METHOD("set_collision_group", "value"), &PixelRigidBody::set_collision_group);
+	ClassDB::bind_method(D_METHOD("get_collision_group"), &PixelRigidBody::get_collision_group);
 	ClassDB::bind_method(D_METHOD("set_cell_proxies", "value"), &PixelRigidBody::set_cell_proxies);
 	ClassDB::bind_method(D_METHOD("get_cell_proxies"), &PixelRigidBody::get_cell_proxies);
 	ClassDB::bind_method(D_METHOD("set_proxy_step_height", "value"), &PixelRigidBody::set_proxy_step_height);
@@ -109,6 +111,7 @@ void PixelRigidBody::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "angular_damping"), "set_angular_damping", "get_angular_damping");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "lock_rotation"), "set_lock_rotation", "get_lock_rotation");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "terrain_collision"), "set_terrain_collision", "get_terrain_collision");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "collision_group"), "set_collision_group", "get_collision_group");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "cell_proxies"), "set_cell_proxies", "get_cell_proxies");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "proxy_step_height"), "set_proxy_step_height", "get_proxy_step_height");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "can_sleep"), "set_can_sleep", "get_can_sleep");

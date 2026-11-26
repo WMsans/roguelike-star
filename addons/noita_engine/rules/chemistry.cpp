@@ -161,9 +161,11 @@ void burn(Chem& c) {
 
 	// The ignition tick counts against burn_life, so wood with burn_life 60 is air 60 ticks
 	// after it lights. Guarding on 1 keeps a burn_life 0 cell from wrapping the uint8.
+	// An explosive never burns away: it stays lit until PixelWorld's detonation scan sets it off,
+	// which also keeps the cells a capped tick passed over lit for the next one.
 	if (c.self.life > 1) {
 		--c.self.life;
-	} else {
+	} else if (def.explode_radius == 0) {
 		const MatId into = def.burns_into == NO_MAT ? MAT_AIR : def.burns_into;
 		c.self = spawn_cell(into, c.mt, c.seed, c.wx, c.wy);
 	}

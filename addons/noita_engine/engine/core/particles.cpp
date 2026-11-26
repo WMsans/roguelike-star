@@ -179,10 +179,17 @@ ExplodeResult explode(WorldGrid& grid, ParticlePool& pool, int cx, int cy, int r
 			const int x = cx + dx, y = cy + dy;
 			Cell c{};
 			if (!grid.get(x, y, c) || c.mat == MAT_AIR || (c.flags & FLAG_BODY) || mt.get(c.mat).indestructible) continue;
+			const CompiledMaterial& def = mt.get(c.mat);
+			if (def.explode_radius > 0) {  // lit, not removed: PixelWorld's scan sets it off later
+				c.flags |= FLAG_BURNING;
+				if (def.ignite_temp != NO_TEMP && c.temp < def.ignite_temp) c.temp = def.ignite_temp;
+				grid.put(x, y, c);
+				continue;
+			}
 			++result.removed;
 			grid.set(x, y, MAT_AIR);
 			cleared.push_back({dx, dy});
-			const MatClass cls = mt.get(c.mat).cls;
+			const MatClass cls = def.cls;
 			const bool is_loose = cls == MatClass::Powder || cls == MatClass::Liquid;
 			if (is_loose && hash_unit(hash5(seed, salt, x, y, SALT_THROW)) < EXPLODE_THROW_CHANCE) {
 				loose.push_back({dx, dy, c});

@@ -4,3 +4,7 @@
 
 # git worktrees
 .worktrees/
+/build.sh
+
+.superpowers/
+.claude/worktrees/

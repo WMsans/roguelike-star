@@ -22,6 +22,9 @@ struct BodyProps {
 	bool lock_rotation = false, terrain_collision = true, can_sleep = true;
 	bool cell_proxies = false;
 	int proxy_step_height = 0;
+	// Bodies sharing an equal non-zero group never collide with each other (one chariot's own
+	// parts); 0 = no group. Separate from Box2D groupIndex, which carries the cell-proxy group.
+	int collision_group = 0;
 };
 
 // A body's pixels and spawn pose. Box2D works in cells (see PhysicsWorld), y down.
@@ -42,6 +45,16 @@ struct BodyHit {
 
 struct PhysicsStats {
 	int bodies = 0, awake = 0, terrain_bodies = 0, shape_builds = 0;
+	// Cells this tick's stamp() skipped because another body already holds them: the first holder
+	// keeps the cell, so the other body's pixels are absent from the grid there.
+	// Measured once (garage-battle-ui final review): over the 28 cells two same-group 10x4 hulls
+	// share, a frame-boundary count_materials read - the read ChPartRuntime.sample_rect feeds -
+	// returns the 28 underlying sand cells unchanged on frame 1 and frame 30, and no wood at all.
+	// Nothing can mis-report the skip: stamp()/unstamp() wrap the whole tick (pixel_world.cpp:337-350)
+	// so no GDScript read ever runs over a stamped cell, and the in-tick readers see the first
+	// holder's pixel, which is a body cell with FLAG_BODY either way (particles.cpp:181,
+	// grid_query.cpp:31/108/137 and outline.cpp:76/85 skip those outright).
+	int stamp_contests = 0;
 	double physics_ms = 0, shape_ms = 0, stamp_ms = 0;
 };
 
@@ -162,6 +175,10 @@ private:
 	void destroy_proxies(Body& body);
 	void place_proxies(Body& body);
 	void set_proxy(Body& body, int side, bool on, float x, float y);
+
+	// The b2World_SetCustomFilterCallback filter: rejects a pair only when both shapes belong to
+	// live bodies with an equal non-zero collision_group. Runs on Box2D worker threads: read-only.
+	static bool group_filter(b2ShapeId shape_a, b2ShapeId shape_b, void* context);
 
 	WorldGrid& grid;
 	float gravity;

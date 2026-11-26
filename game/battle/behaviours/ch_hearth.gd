@@ -4,14 +4,14 @@ extends ChBehaviour
 # own chariot's hull, every 0.25 s, and pays the enemy bodies standing in that ring. The ring is the
 # burn's source: ChPartRuntime samples those cells and sets its own parts alight, which is chain 3's
 # risk. The charge's tint belongs to the renderer, so the charge itself is a timer here.
-# shortcut: PULSES x PULSE_SECONDS is 2.25 s of ring, the plan's "45 total over 9 pulses"; the brief's
-# "3 s" window would pay 60, so the pulse count is what the plan pins.
+# shortcut: PULSES x PULSE_SECONDS is 2.25 s of ring, and the def's damage is split over the 9 pulses
+# (45 -> 9 x 5, see pulse_damage); the brief's "3 s" window would pay a third more, so the pulse
+# count is what the plan pins.
 
 const CHARGE_SECONDS := 1.0
 const RING := 2  # cells the ring sits out from the own hull
 const PULSE_SECONDS := 0.25
 const PULSES := 9
-const PULSE_DAMAGE := 5
 
 var charge_left := 0.0  # seconds of charge left before the ring opens
 var pulse_left := 0.0  # seconds until the next pulse
@@ -104,4 +104,10 @@ func _pulse(ctx: ChBattleContext, hull_cells: Rect2i, bodies: Array) -> void:
 			continue
 		if Rect2(hull_cells).encloses(box):
 			continue
-		ctx.deal_hit(part, entry[1], PULSE_DAMAGE)
+		ctx.deal_hit(part, entry[1], pulse_damage())
+
+
+func pulse_damage() -> int:
+	# One pulse's share of the def's damage, rounded per pulse (integer hits), so a damage that does
+	# not split evenly over PULSES lands within PULSES / 2 of def.damage.
+	return roundi(float(part.def.damage) / PULSES)

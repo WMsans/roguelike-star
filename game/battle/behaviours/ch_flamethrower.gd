@@ -1,6 +1,6 @@
 extends ChBehaviour
 
-# The Flamethrower (spec §5.4): a 1 s burst of fire particles out along facing() and 45 damage spread
+# The Flamethrower (spec §5.4): a 1 s burst of fire particles out along facing() and the def's damage spread
 # over that burst. The particles fly in the particle pool, so the burn itself is the sim's: they write
 # grid cells once something blocks them, and ChPartRuntime's sampling turns those cells into `burning`.
 # The reach numbers live here, not on ChPartDef (Task 4b's ruling): proximity_range 0 on the def means
@@ -8,23 +8,33 @@ extends ChBehaviour
 # part's own 40-cell reach on both sides, which is how _reach_box keeps its box symmetric about the anchor.
 # shortcut: the burn lands where the particles fall, not where the reach box ends, so PARTICLE_SPEED is
 # the burn's own reach. Measured with the nozzle at a settled rig's height (6 cells above the rock floor):
-# a 1 s burst reaches ~8 cells out at 90 cells/s and the test reads back >= 3 fire cells in a target 28
+# a 1 s burst reaches ~8 cells out at 90 cells/s and the test reads back >= 3 fire cells in a target 30
 # cells out at 240 cells/s; the landing extent is stochastic, so the test's peak is the evidence, not a
-# radius. Upgrade to a raised nozzle or an aimed shot if the burn has to reach the full 40-cell reach.
+# radius. That same peak is what pins the nozzle clearing the body it is mounted on (see NOZZLE): a nozzle
+# left inside the part's own 8-cell footprint reads back 0 fire cells at that target.
+# The plume is two things the world owns and the behaviour never parents to the gun: a looping baked jet
+# spawned once at the nozzle, and the puffs dropped along it, which are mass where the fuel leaves the
+# barrel. Both are born in cell space and left there, so a rig that rolls mid-burst drags no tail with it;
+# the jet is the one the behaviour holds, to take it off the wreck on a break.
 
 const BURST_SECONDS := 1.0
-const NOZZLE := 2.0  # cells out from the anchor the flame leaves the barrel
+# shortcut: cells out from the anchor the flame leaves the barrel, fixed at 5 for this part's 8-cell
+# body (half its width is 4): the burst has to clear its own body or it lands on the flamethrower
+# itself instead of down the arena. Derive it from def.size.x if part sizes start moving again.
+const NOZZLE := 5.0
 const PARTICLE_SPEED := 240.0  # cells per second out of the nozzle
 const PARTICLES_PER_TICK := 3
 const PARTICLE_SPREAD := 0.25  # radians, the cone the shot fans over
 const REACH := 40.0
 const PULSES := 9
-const PULSE_DAMAGE := 5  # 9 x 5 = 45, the def's damage spread over the burst
+const PUFF_GAP := 0.05  # seconds between nozzle puffs: they overlap into a plume, ~20 over the burst
 
 var burst_left := 0.0  # seconds of burst left to spray
 var pulse_gap := 0.0  # seconds between damage pulses
 var pulse_left := 0.0  # seconds until the next pulse
 var pulses_left := 0  # pulses still to spend
+var puff_left := 0.0  # seconds until the next nozzle puff
+var jet: ChFx = null  # the flame's look, left at the nozzle it was fired from for the burst
 
 
 func _flame_box() -> Rect2:
@@ -44,19 +54,36 @@ func fire(ctx: ChBattleContext) -> void:
 	pulses_left = PULSES
 	pulse_gap = BURST_SECONDS / PULSES
 	pulse_left = 0.0
+	puff_left = 0.0
+	if jet == null or not is_instance_valid(jet):
+		jet = ChFx.spawn(ctx.world, &"flamethrower", part.anchor_world() + part.facing() * NOZZLE, part.facing())
 
 
 func process(ctx: ChBattleContext, delta: float) -> void:
 	if burst_left <= 0.0:
 		return
 	burst_left = maxf(0.0, burst_left - delta)
+	# The plume stays where fire() put it: a flame is emitted, so its tail must not swing with the
+	# gun as the rig rolls and tips. Only the burst's end touches it here.
+	if jet != null and is_instance_valid(jet) and burst_left <= 0.0:
+		jet.fade_out()
+		jet = null
 	if ctx.world != null:
-		# The brief's shot: 3 fire particles at the nozzle, facing() x 90 cells/s over a 0.25 rad cone.
+		# The shot the brief asks for, and the flame itself: the engine draws a particle in its material
+		# colour while it flies and lands it as a cell when something blocks it, so the plume is born at
+		# the nozzle and then belongs to the sim.
 		var nozzle := part.anchor_world() + part.facing() * NOZZLE
 		ctx.world.spawn_particles(&"fire", nozzle, part.facing() * PARTICLE_SPEED,
 			PARTICLES_PER_TICK, PARTICLE_SPREAD)
-	# The damage pulses land every pulse_gap seconds over the burst, so 9 pulses x 5 spread the
-	# def's 45 across the 1 s. A pulse that met nothing spends itself rather than banking a hit.
+		# The mass around that flame: dropped into the world and never held, so the rig's next roll
+		# leaves it where it was born.
+		puff_left -= delta
+		if puff_left <= 0.0:
+			puff_left += PUFF_GAP
+			ChFx.spawn(ctx.world, &"puff_fire", nozzle, part.facing())
+	# The damage pulses land every pulse_gap seconds over the burst, so the def's damage is spread as
+	# PULSES equal pulses across the 1 s (45 -> 9 x 5). A pulse that met nothing spends itself rather
+	# than banking a hit.
 	if pulses_left <= 0:
 		return
 	pulse_left -= delta
@@ -66,4 +93,19 @@ func process(ctx: ChBattleContext, delta: float) -> void:
 	pulses_left -= 1
 	var target := _nearest_enemy_body(ctx, _flame_box())
 	if target != null:
-		ctx.deal_hit(part, target, PULSE_DAMAGE)
+		ctx.deal_hit(part, target, pulse_damage())
+
+
+func teardown() -> void:
+	# A part broken mid-burst is off the tick, so process never reaches its own stop: this is the
+	# one call left to take the looping jet off the wreck. A break is a destruction, so the jet goes
+	# at once with the part rather than fading out the way a burst that ran its course does.
+	if jet != null and is_instance_valid(jet):
+		jet.queue_free()
+	jet = null
+
+
+func pulse_damage() -> int:
+	# One pulse's share of the def's damage. Integer hits: a damage that does not split evenly
+	# rounds per pulse, so the burst total can differ from def.damage by up to PULSES / 2.
+	return roundi(float(part.def.damage) / PULSES)

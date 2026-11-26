@@ -1,16 +1,21 @@
-[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+[gd_resource type="Resource" script_classes=1 load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
 [ext_resource type="Script" path="res://game/battle/behaviours/ch_mace.gd" id="2_mace"]
+[ext_resource type="Texture2D" path="res://textures/sprites/ice_cream_mace.png" id="tex_sprite"]
 
 [resource]
 script = ExtResource("1_part")
 id = &"ice_cream_mace"
 behaviour = ExtResource("2_mace")
 display_name = "Ice Cream Mace"
-hook_text = "Shatter: hitting a frozen part deals x3 damage and ends its freeze"
+tags = PackedStringArray("weapon", "triggered", "ice")
+rarity = &"common"
+description = PackedStringArray("{press} Swings at anything within 6 cells: 20 damage.", "{passive} Hits on a {freeze:frozen} part deal ×3 and thaw it.")
 energy_cost = 1
 cooldown = 1.0
 damage = 20
 proximity_range = 6.0
+size = Vector2i(8, 4)
 color = Color(0.95, 0.75, 0.8, 1)
+texture = ExtResource("tex_sprite")

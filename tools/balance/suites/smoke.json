@@ -1,0 +1,14 @@
+{
+  "name": "smoke",
+  "scenarios": [
+    {
+      "name": "smoke-cutter-rocket-vs-dozer-cook",
+      "player": {"body_id": "cutter", "parts": [
+        {"slot": [0], "part": "wheel"}, {"slot": [1], "part": "wheel"},
+        {"slot": [2], "part": "cutter_rocket"}]},
+      "enemy": {"layout": "res://game/data/enemies/dozer_cook.tres"},
+      "seeds": {"from": 1, "count": 3},
+      "expect": {"aborted": [0, 0]}
+    }
+  ]
+}

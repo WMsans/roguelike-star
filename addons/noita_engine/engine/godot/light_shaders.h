@@ -342,7 +342,8 @@ void main() {
 }
 )GLSL";
 
-// Multiplies what is already on screen by ambient * ambient_tint + light. Linear filtering, one
+// Multiplies what is already on screen by ambient * ambient_tint + light, capped at light_headroom
+// (above 1.0 only on an HDR canvas: an 8-bit target clamps the factor in the blend). Linear filtering, one
 // texel per cell.
 inline constexpr const char *LIGHT_OVERLAY_SHADER = R"GLSL(
 shader_type canvas_item;
@@ -351,9 +352,10 @@ render_mode blend_mul, unshaded;
 uniform float ambient = 0.40;
 uniform vec4 ambient_tint = vec4(0.62, 0.69, 1.0, 1.0);
 uniform float light_exposure = 1.0;
+uniform float light_headroom = 1.0;
 
 void fragment() {
-	COLOR = vec4(min(ambient * ambient_tint.rgb + texture(TEXTURE, UV).rgb * light_exposure, 1.0), 1.0);
+	COLOR = vec4(min(ambient * ambient_tint.rgb + texture(TEXTURE, UV).rgb * light_exposure, vec3(light_headroom)), 1.0);
 }
 )GLSL";
 

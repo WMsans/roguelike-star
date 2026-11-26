@@ -10,6 +10,13 @@ class_name ChEventBus extends RefCounted
 const MAX_DELIVERIES := 256
 
 var subscriptions: Array = []  # of {"listener": Object, "type": StringName, "callback": Callable, "proximity_of": Object, "range": float}
+# The chain handicap (spec's "Chains weakened"), indexed by the listener's side: [1.0, 1.0] delivers
+# everything, which is every fight that has no modifier. ChBattle.start puts its rule's number on side 0,
+# the player's, because these modifiers handicap the player.
+var chain_pass: Array = [1.0, 1.0]
+# The draw the chain filter makes. ChBattle seeds it from the fight's seed, so a replayed fight drops the
+# same deliveries; it belongs to the bus, not the rules, because it is the bus's own bookkeeping.
+var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var queued: Array = []  # ChEvents emitted during a delivery, waiting for their turn
 var running: bool = false  # an emit is already delivering, so a nested emit must queue
 var deliveries: int = 0  # callbacks called by the outer emit in flight
@@ -80,6 +87,9 @@ func _deliver(event: ChEvent) -> void:
 			continue
 		if not _in_range(subscription["proximity_of"], subscription["range"], event):
 			continue
+		if not _chain_allows(subscription["listener"]):
+			# A dropped delivery is not a delivery: like a proximity miss, it spends none of the cap.
+			continue
 		# emit above already refused the queued events; this keeps the cap hard for the subscribers of
 		# one event, so a delivery never overruns it. The eligibility checks run first so `capped`
 		# only trips when a callback that would have fired is the one being dropped.
@@ -91,6 +101,26 @@ func _deliver(event: ChEvent) -> void:
 		deliveries += 1
 		# The callback takes the event as its only argument; bound arguments come first.
 		(subscription["callback"] as Callable).call(event)
+
+
+func _chain_allows(listener: Object) -> bool:
+	# The modifier's share of the deliveries, read off the listener's own side: a behaviour is the
+	# listener its subscriptions are keyed on, and ChBehaviour names the part it drives, so `part` is what
+	# says whose chain this is. Read duck-typed and skipped when absent: ChBattleFeedback and a test's sink
+	# drive no part, so they are not links in a chain and always hear.
+	var part: Object = listener.get("part")
+	if part == null:
+		return true
+	var side: Variant = part.get("side")
+	if side == null:
+		return true
+	var at_side: int = int(side)
+	var pass_chance: float = chain_pass[at_side] if at_side >= 0 and at_side < chain_pass.size() else 1.0
+	if pass_chance >= 1.0:
+		# The whole point of the default: an unmodified fight draws no random number at all, so it stays
+		# as deterministic as it was before modifiers existed.
+		return true
+	return rng.randf() < pass_chance
 
 
 func _in_range(proximity_of: Object, range: float, event: ChEvent) -> bool:

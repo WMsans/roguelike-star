@@ -8,6 +8,11 @@ extends ChBehaviour
 const SPEED := 160.0  # cells per second along facing()
 const BLAST_RADIUS := 6
 const BLAST_POWER := 300.0
+# Point-blank: a hit this close to the part's own anchor pays POINT_BLANK_SHARE of the damage, so a
+# Rocket pressed into a chariot that drove onto it is not the best weapon in the game (the Cook
+# drove into lone Rockets and lost 7 of 8 in the cook-and-arena spec's lazy runs).
+const POINT_BLANK := 20.0
+const POINT_BLANK_SHARE := 0.25
 
 func setup(ctx: ChBattleContext) -> void:
 	# Ignition hears every caught fire, on either side, so the subscription carries no range.
@@ -25,6 +30,8 @@ func fire(ctx: ChBattleContext) -> void:
 	ctx.world.add_child(bolt)
 	bolt.global_position = part.anchor_world()
 	bolt.setup(ctx, part, part.facing() * SPEED, 0.0, func(shot: Dictionary): _impact(ctx, shot))
+	# The look: a launch flash at the mount, and a trail thrown from the bolt as it flies.
+	ChFx.spawn(ctx.world, &"muzzle", part.anchor_world(), part.facing())
 
 func _ignite() -> void:
 	# Ignition: the countdown left before the next shot is halved, so a caught fire buys speed
@@ -38,9 +45,13 @@ func _impact(ctx: ChBattleContext, shot: Dictionary) -> void:
 	var at: Vector2i = shot["position"]
 	# The blast goes off whatever was met, so a miss still digs.
 	ctx.world.explode(at, BLAST_RADIUS, BLAST_POWER)
+	ChFx.spawn(ctx.world, &"blast", Vector2(at))
 	var met: Object = shot.get("collider")
 	if met != null and is_instance_valid(met):
 		# A body hit is a fight hit, so it pays through the fight's one damage entry point.
 		# A hull hit answers no part, which is ChDamage's chassis split, not something here repeats.
 		# shortcut: the blast itself deals no area damage in the slice; only the direct hit pays.
-		ctx.deal_hit(part, met, part.def.damage)
+		var damage := part.def.damage
+		if Vector2(at).distance_to(part.anchor_world()) <= POINT_BLANK:
+			damage = roundi(damage * POINT_BLANK_SHARE)
+		ctx.deal_hit(part, met, damage)

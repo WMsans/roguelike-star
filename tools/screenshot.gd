@@ -1,0 +1,151 @@
+extends SceneTree
+
+# The design session's shot script, kept in the repo: it drives the real game (main.tscn: ChMain's
+# run loop) in a real window and saves what the player actually sees, screen by screen: the run's
+# shop, then its embedded garage (the garage and its part tooltip), then a fight with the elite
+# banner, then the result panel. The headless suite can only assert numbers; a frame being *readable* is a thing to
+# look at. Not a test: it asserts nothing, it only prints what it saw.
+#   godot --path . --resolution 1280x720 -s res://tools/screenshot.gd -- <outdir>
+# <outdir> is made if missing and should live OUTSIDE the repo, so no PNG ever lands in git.
+# It needs a window server, so it runs WITHOUT --headless on purpose: a headless window has no
+# rendered frame to grab.
+# project.godot pins the window at the canvas's own 1280x720 and turns resizing off, so the canvas is
+# never stretched by a fraction and ChUi.PX stays a whole number of screen pixels. The PNG is what the
+# player sees (2x on a HiDPI screen), which is the point.
+
+const GARAGE_FRAMES := 60  # frames the garage gets before garage.png
+const BATTLE_FRAMES := 400  # frames of fighting before battle.png, the brief's 400
+const MAIN_WAIT := 600  # frames ChMain is given to put its fight in the tree
+const RESULT_WAIT := 600  # frames the forced win is given to reach the result panel after battle.png
+# What the shot mounts on the run's build, as the shop's buy then the bar's drop would. The run
+# starts with its kit already mounted (two wheels and the chainsaw), so [3] is the free slot, and it
+# is the part tooltip_hull.png points at.
+const MOUNTS := [[[3], &"ice_cream_mace"]]
+const SHELF := [&"dozer", &"flamethrower", &"ice_cream_mace"]  # what shop.png's shelf offers, in row order
+
+var outdir := ""
+var started := false
+
+
+func _init() -> void:
+	var args := OS.get_cmdline_user_args()
+	outdir = args[0] if not args.is_empty() else ""
+	self.process_frame.connect(_run)
+
+
+func _run() -> void:
+	# The signal fires every frame; the script runs once, like tests/run_tests.gd's runner.
+	if started:
+		return
+	started = true
+	if outdir == "":
+		print("usage: godot --path . -s res://tools/screenshot.gd -- <outdir>")
+		quit(1)
+		return
+	DirAccess.make_dir_recursive_absolute(outdir)
+	var main: Node = ResourceLoader.load("res://game/main.tscn").instantiate()
+	get_root().add_child(main)
+	# The game opens in fight 1, so the shot walks the run's own screens: the shop comes up and its
+	# toggle shows the garage inside it, which is the screen the player edits a build on.
+	main._show_shop()
+	# The shop view first, with a shelf up: the only shot that shows card faces and price pills. The
+	# stage's own roll may offer no shop, so the shelf is set on the phase as a shop pick would leave it,
+	# then drawn by the screen's own render. The long name and the body card are the two that crowd
+	# their faces, and the hover is what puts the gold glow and the shelf tooltip up.
+	var phase = main.shop.phase
+	phase.picked = {&"kind": &"shop", &"theme": &"fire"}
+	phase.items.clear()
+	for id in SHELF:
+		var def = main.shop.catalog.part(id) if main.shop.catalog.part(id) != null else main.shop.catalog.body(id)
+		phase.items.append({&"id": id, &"is_body": not def is ChPartDef, &"rarity": def.rarity,
+			&"price": ChPrices.price(def.rarity), &"taken": false})
+	main.shop._render_stage()
+	main.shop._card_for(1).hover(true)
+	for _frame in GARAGE_FRAMES:
+		await process_frame
+	_shot("shop.png")
+	main.shop._card_for(1).hover(false)
+	main.shop._on_toggle()
+	# The garage's own drop path builds the kit on the run's layout, from the run's inventory: a shop
+	# buy is the same add, and the drop is the bar's route onto a free slot.
+	var garage = main.shop.garage  # untyped: a ChGarage hint compiles it before the Feedback autoload exists
+	for mount in MOUNTS:
+		main.run.inventory.add(mount[1])
+		if not garage.drop_part(mount[1], mount[0]):
+			print("tool: %s would not mount at %s" % [mount[1], mount[0]])
+	for _frame in GARAGE_FRAMES:
+		await process_frame
+	_shot("garage.png")
+	# The part tooltip, off a mounted part. Signals stand in for the pointer, which a script cannot put
+	# over a window; ~0.3 s lets the pop-in settle. The strip's cards are the bar's now (Task 11), so
+	# garage._card_for is gone with them.
+	garage._follow_pointer(garage.screen_of([3]))
+	for _frame in 20:
+		await process_frame
+	_shot("tooltip_hull.png")
+	# The fight, started by the loop's own handler - what the shop's Fight button ends up calling. The
+	# opening fight was still running behind the shop, and _start_battle frees it as the next one starts.
+	main._start_battle()
+	var frames := 0
+	while main.battle == null and frames < MAIN_WAIT:
+		await process_frame
+		frames += 1
+	if main.battle == null:
+		print("tool: no fight reached the tree, so there is nothing to shoot")
+		quit(1)
+		return
+	for _frame in BATTLE_FRAMES:
+		await process_frame
+	var battle = main.battle
+	if battle.player == null or battle.enemy == null or battle.ctx == null:
+		print("tool: the fight never built its chariots (result %s)" % battle.outcome)
+		quit(1)
+		return
+	print("fight: result %s ticking %s clock %.2f s" % [battle.outcome, battle.ticking,
+		battle.ctx.time])
+	# The camera's own numbers, so a shot that looks wrong can be tied to a frame that is.
+	var zoom := float(battle.camera.zoom.x)
+	var view: Vector2 = battle.VIEW / zoom
+	var at: Vector2 = battle.camera.position
+	print("camera at %s zoom %.3f -> view %s cells, x %.0f..%.0f y %.0f..%.0f" % [at, zoom, view,
+		at.x - view.x * 0.5, at.x + view.x * 0.5, at.y - view.y * 0.5, at.y + view.y * 0.5])
+	for rig in [battle.player, battle.enemy]:
+		var hull: Vector2 = rig.chassis.global_position
+		var size := Vector2(rig.body_def.size.x, rig.body_def.size.y)
+		print("side %s hull %s size %s" % [rig.side, hull, size])
+	_shot("battle.png")
+	# The elite/boss banner, which only an elite fight puts up on its own: called here on this fight's
+	# HUD so the plaque can be checked for clipping. A few frames for the label's layout; it is up for 2 s.
+	battle.hud.show_banner("Chains weakened")
+	for _frame in 10:
+		await process_frame
+	_shot("banner.png")
+	# Task 6: the result panel. The win is forced by emptying the enemy's hull (ChBattle._step reads
+	# is_dead each tick), so the shot does not wait on the melee build landing a hit; ChMain then puts
+	# its panel up over the stopped fight.
+	battle.enemy.hp = 0
+	frames = 0
+	while main.screen != &"result" and frames < RESULT_WAIT:
+		await process_frame
+		frames += 1
+	if main.screen != &"result":
+		print("tool: the forced win never reached the result panel (screen %s)" % main.screen)
+		quit(1)
+		return
+	# Two frames for the panel's own layout (a Container sorts its children at the end of a frame)
+	# before the grab, so the shot is the rect the player gets rather than a half-sorted one.
+	for _frame in 2:
+		await process_frame
+	var panel = main.result_panel
+	var rect: Rect2 = panel.get_global_rect()
+	print("result: %s, panel \"%s\" at %s size %s, centre %s of viewport %s" % [battle.outcome,
+		panel.title.text, rect.position, rect.size, rect.get_center(), battle.VIEW])
+	_shot("result.png")
+	quit(0)
+
+
+func _shot(file: String) -> void:
+	# The window's own pixels, straight off the root viewport (the same grab the design session used).
+	var path := outdir.path_join(file)
+	var err := get_root().get_texture().get_image().save_png(path)
+	print("saved %s (%s)" % [path, "ok" if err == OK else err])

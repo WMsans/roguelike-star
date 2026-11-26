@@ -1,8 +1,9 @@
 extends ChBehaviour
 
-# The Ember Battery (spec §5.4): when anything catches fire - either chariot - its own chariot gains
-# 3 energy, clamped to the pool's cap, and says so. setup is where a behaviour subscribes, and the
-# subscription carries no proximity, which is the whole "anything" in the rule. ChPartRuntime's own
+# The Ember Battery (spec §5.4): when one of its own chariot's parts catches fire, that chariot gains
+# 3 energy, clamped to the pool's cap, and says so. Own side only (a design call in the balance pass):
+# counting either chariot paid a self-burner's opponent as much as the self-burner. The subscription
+# carries no proximity, so any own part counts wherever it sits. ChPartRuntime's own
 # CAUGHT_FIRE transition is what usually makes the event; a battery never stops a fire, it spends it.
 const BATTERY_COOLDOWN := 0.5  # seconds between gains, the brief's internal cooldown
 const GAIN := 3.0
@@ -10,7 +11,9 @@ const GAIN := 3.0
 var cooldown_left := 0.0  # seconds until this battery can gain again
 
 func setup(ctx: ChBattleContext) -> void:
-	ctx.bus.subscribe(self, ChEvent.CAUGHT_FIRE, func(caught: ChEvent): _gain(ctx))
+	ctx.bus.subscribe(self, ChEvent.CAUGHT_FIRE, func(caught: ChEvent):
+		if caught.side == part.side:
+			_gain(ctx))
 
 func process(ctx: ChBattleContext, delta: float) -> void:
 	# The gate is a countdown against the same delta the fight hands every part, cooldown and pool.
@@ -28,10 +31,14 @@ func _gain(ctx: ChBattleContext) -> void:
 	if chariot == null:
 		return
 	cooldown_left = BATTERY_COOLDOWN
+	var before := chariot.energy.value
 	chariot.energy.value = minf(chariot.energy.value + GAIN, chariot.energy.cap)
 	var event := ChEvent.new()
 	event.type = ChEvent.ENERGY_GAINED
 	event.side = part.side
 	event.source = part
 	event.position = part.anchor_world()
+	# What actually landed, after the cap: a battery firing into a full pool gained nothing, and the
+	# balance runner sums this to price the battery.
+	event.data = {"amount": chariot.energy.value - before}
 	ctx.bus.emit(event)

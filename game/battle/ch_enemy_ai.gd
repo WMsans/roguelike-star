@@ -27,20 +27,24 @@ static func reach(chariot: ChChariotRuntime) -> float:
 			# holds no weapon, so it brings nothing to bear. A broken part is out of the fight.
 			continue
 		if def.id == HARPOON_ID:
-			if _can_fire(part):
+			if part.is_ready():
 				best = minf(best, HARPOON_RANGE)
 		elif def.proximity_range > 0.0:
 			best = minf(best, def.proximity_range)
 	return best
 
-static func _can_fire(part: ChPartRuntime) -> bool:
-	# The fight's own readiness, the same three conditions ChBattleContext.tick gates a fire on:
-	# a still-counting cooldown, a part out of charges (ChPartRuntime parks cooldown_left at INF
-	# when it runs out, which also holds here) and a frozen part, whose countdown is paused.
-	return part.cooldown_left <= 0.0 and part.charges_left != 0 and not part.is_frozen()
+# cells; how far the kiter's rest band reaches below its hold, and how far outside hull contact its
+# back-off edge has to stay. The band is [max(hold - KITE_BACKOFF, contact + KITE_MARGIN), hold],
+# contact being own half + target half. With a ranged reach the 20-cell width is what matters: at 8
+# the Tower's momentum carried it through the band and it reversed at full speed, which tipped it
+# (README "Body tuning log"). With a melee reach (the Chainsaw's 14) hold - 20 lands inside contact,
+# so without the margin a kiter could never back off at all.
+const KITE_BACKOFF := 20.0
+const KITE_MARGIN := 4.0
 
 static func decide(self_x: float, target_x: float, preferred_range: float,
-		own_half_width: float = 0.0, target_half_width: float = 0.0) -> float:
+		own_half_width: float = 0.0, target_half_width: float = 0.0,
+		style: StringName = &"") -> float:
 	# Chassis-centre to chassis-centre, in cells: -1 drives left, 1 drives right, 0 holds.
 	# ChBattleContext.tick pays whichever of the three ChEnergy can afford, so an unaffordable drive
 	# is simply ignored.
@@ -53,6 +57,50 @@ static func decide(self_x: float, target_x: float, preferred_range: float,
 	# An unreachable target (preferred_range INF) stays INF under the sum, so it still holds.
 	var hold := preferred_range + own_half_width + target_half_width
 	var dx := target_x - self_x
+	# A body's drive style (ChBodyDef.drive_style) overrides the hold-off so shape can matter:
+	# hulls have to meet for a body's silhouette to count. Brawler never holds off: it keeps
+	# pushing on contact. Kiter holds the band KITE_BACKOFF describes: it backs off from inside
+	# it, closes from outside it, and rests between (so it does not jitter on the edge). An INF
+	# range gives INF for hold, so a kiter with no reach holds still.
+	if style == &"brawler":
+		return signf(dx)
+	if style == &"kiter":
+		if is_inf(hold):
+			return 0.0  # INF - KITE_BACKOFF is still INF, which would read as "too close" forever
+		if absf(dx) < maxf(hold - KITE_BACKOFF, own_half_width + target_half_width + KITE_MARGIN):
+			return -signf(dx)
+		return signf(dx) if absf(dx) > hold else 0.0
 	if absf(dx) <= hold:
 		return 0.0
 	return -1.0 if dx < 0.0 else 1.0
+
+# The enemy's finger. The share of the ready volley's cost the pool must hold before the enemy
+# spends it on a target in reach: below it a press would fire only the cheap part of the volley
+# (try_pay skips what it cannot afford), above it the wait costs more than the shots it saves.
+const PRESS_SHARE := 0.6
+
+static func should_press(chariot: ChChariotRuntime, target_x: float, target_half: float) -> bool:
+	# Press when a ready part has the target in reach and the pool holds PRESS_SHARE of the ready
+	# volley's cost, or when the pool is at cap (regen is wasted above it, so waiting buys nothing).
+	# A press with nothing ready is a dud, so no ready part never presses, whatever the pool holds.
+	# Distances are measured from the part's own position, so a rig needs no chassis to be asked
+	# (the same fake bodies test_part_runtime.gd uses). A part's reach is measured from its own edge,
+	# so measuring from the part already covers the attacker's half-width; only the target's half is
+	# added, since its hull edge is what the swing has to touch.
+	var cost := 0
+	var in_reach := false
+	for part in chariot.parts:
+		if not part.is_ready():
+			continue
+		cost += part.def.energy_cost
+		var range_cells := HARPOON_RANGE if part.def.id == HARPOON_ID else part.def.proximity_range
+		var dx := target_x - part.anchor_world().x
+		if range_cells > 0.0:
+			in_reach = in_reach or absf(dx) <= range_cells + target_half
+		else:
+			# A ranged part's shot flies where its slot faces, so facing the target is its reach.
+			in_reach = in_reach or signf(part.facing().x) == signf(dx)
+	if cost == 0:
+		return false
+	var pool := chariot.energy
+	return pool.value >= pool.cap or (in_reach and pool.value >= PRESS_SHARE * cost)

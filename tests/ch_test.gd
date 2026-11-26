@@ -64,6 +64,95 @@ func assert_near(a: float, b: float, eps := 0.001, msg := "") -> void:
 		_record("assert_near: %s and %s differ by more than %s" % [a, b, eps], msg)
 
 
+# --- Juice beat expectations -----------------------------------------------------------------------
+# A feedback beat's observable effect is the excursion it puts on ChJuice.scale_value() /
+# rotation_value(). Every test that asks "did a beat land" steps the beat that far and compares with
+# the excursion derived here from ChJuice's own formula, so retuning the omegas, BEAT_TIME or the
+# envelope moves every expectation with it instead of breaking a hand-computed literal in six files.
+# Each oscillator is read at its own largest excursion: the wiggle peaks at t ~ 0.0271 for scale and
+# t ~ 0.0312 for rotation (the slower omega 42), and near a peak the value barely moves for a small
+# change of age.
+const PEAK_STEP := 0.03
+const ROTATION_PEAK_STEP := 0.031
+
+
+func _wigged(amp: float) -> float:
+	# One beat's scale excursion at PEAK_STEP, in the same form ChJuice._wiggle writes it.
+	var left := 1.0 - PEAK_STEP / ChJuice.BEAT_TIME
+	return amp * sin(ChJuice.SCALE_OMEGA * PEAK_STEP) * left * left * left
+
+
+func _wigged_rotation(amp: float) -> float:
+	# The same at ROTATION_PEAK_STEP, with ROTATION_OMEGA.
+	var left := 1.0 - ROTATION_PEAK_STEP / ChJuice.BEAT_TIME
+	return amp * sin(ChJuice.ROTATION_OMEGA * ROTATION_PEAK_STEP) * left * left * left
+
+
+# --- Fight fixtures -------------------------------------------------------------------------------
+# test_battle.gd and test_battle_hud.gd both drive fights on the same two builds, so the builds live
+# here once. A second copy is not a style problem: _body_with_hp encodes how a Resource's duplicate()
+# behaves on this build, and a copy that got that wrong would fail as a mystery HP override in an
+# unrelated fight test rather than at the copy site.
+func _typed_path(path) -> Array[int]:
+	var steps: Array[int] = []
+	for index in path:
+		steps.append(index)
+	return steps
+
+
+func _player_layout() -> ChChariotLayout:
+	# The brief's "player Cutter + Rocket": two wheels in the Cutter's low slots (y = 4.5) and the
+	# Rocket in slot 3 (6, -3), unflipped so it fires +x, which is the way the player faces.
+	var layout := ChChariotLayout.new()
+	layout.body_id = &"cutter"
+	for mount in [[[0], &"wheel"], [[1], &"wheel"], [[3], &"cutter_rocket"]]:
+		assert_true(layout.place(_typed_path(mount[0]), mount[1]), "%s mounts" % [_typed_path(mount[0])])
+	return layout
+
+
+func _enemy_layout() -> ChChariotLayout:
+	# The fixed enemy of spec 5.9, as data: game/data/enemies/dozer_cook.tres. ChBattle mirrors it
+	# (mirrored() plus the builder's mirror_x) so its parts face the player.
+	var loaded: ChChariotLayout = ResourceLoader.load("res://game/data/enemies/dozer_cook.tres")
+	assert_true(loaded != null, "the dozer_cook layout loads")
+	# A copy with the layout's own max_hp cleared: fight tests size the enemy through the catalog's
+	# body HP (_fight_catalog), and a layout max_hp would win over it. Mirroring twice is a deep copy
+	# with every flip as it was, so the shared resource is never touched.
+	var layout := loaded.mirrored().mirrored()
+	layout.max_hp = 0
+	return layout
+
+
+func _body_with_hp(loaded: ChBodyDef, hp: int) -> ChBodyDef:
+	# A body def with its HP replaced; copy() writes every field across (see ChBodyDef.copy).
+	var out := loaded.copy()
+	out.hp = hp
+	return out
+
+
+func _fight_catalog(enemy_hp: int, player_hp: int = 0) -> ChCatalog:
+	# The slice's defs with the cook's body HP overridden (30 means one Rocket hit ends the enemy);
+	# pass player_hp to raise the player's Cutter too, which is how a fight nobody dies in is forced.
+	# The cook's body is read off dozer_cook.tres (a Corsair since the bodies spec), so moving the cook
+	# to another hull keeps sizing the enemy. A player on that same body gets enemy_hp as well.
+	# shortcut: the override travels as a catalog because a def on disk is shared by every test in
+	# the run; mutating it would make a later test's enemy body fragile.
+	var cook_body: StringName = ResourceLoader.load("res://game/data/enemies/dozer_cook.tres").body_id
+	var loaded := ChCatalog.load_default()
+	var parts: Array[ChPartDef] = []
+	for def in loaded.parts.values():
+		parts.append(def)
+	var bodies: Array[ChBodyDef] = []
+	for def in loaded.bodies.values():
+		if def.id == cook_body:
+			bodies.append(_body_with_hp(def, enemy_hp))
+		elif player_hp > 0 and def.id == &"cutter":
+			bodies.append(_body_with_hp(def, player_hp))
+		else:
+			bodies.append(def)
+	return ChCatalog.from_defs(parts, bodies)
+
+
 func make_world(arena := Rect2i(0, 0, 480, 180)) -> PixelWorld:
 	# Kept untyped: with a `: SceneTree` annotation the frame wait below never resumes (the
 	# coroutine stops at the await), so look these up dynamically.

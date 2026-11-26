@@ -6,6 +6,9 @@ class_name ChPartDef extends Resource
 var id: StringName = &""
 var display_name: String = ""
 var tags: PackedStringArray = []
+# Rarity is what the shop charges for this part (ChPrices.price); tags are what a shop theme's roll
+# picks from. Both are pinned per part in the spec's part-data table.
+var rarity: StringName = &"common"
 var energy_cost: int = 0
 var cooldown: float = 0.0  # seconds; 0 = passive
 var damage: int = 0
@@ -15,6 +18,9 @@ var charges: int = -1  # -1 = unlimited
 var extension_slots: PackedVector2Array = []  # relative to the part anchor, +x = facing
 var size: Vector2i = Vector2i(1, 1)  # cells
 var color: Color = Color(0.8, 0.8, 0.8)
+# The part's pixel art, facing +x; null draws the flat placeholder. Its opaque pixels must be the
+# placeholder's (the box, or the wheel's disc): the body's mass and shape come from them.
+var texture: Texture2D
 var material: StringName = &""
 var behaviour: Script
-var hook_text: String = ""
+var description: PackedStringArray = []  # one tagged bullet per entry ({key} / {key:shown}, see ChKeywords)

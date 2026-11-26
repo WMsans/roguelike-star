@@ -1,0 +1,437 @@
+{
+  "name": "standalone",
+  "scenarios": [
+    {
+      "name": "standalone-cutter_rocket",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "cutter_rocket"
+          }
+        ],
+        "plain_hull": true
+      },
+      "enemy": {
+        "body_id": "corsair",
+        "hp": 100000,
+        "plain_hull": true,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-cutter_chainsaw",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "cutter_chainsaw"
+          }
+        ],
+        "plain_hull": true
+      },
+      "enemy": {
+        "body_id": "corsair",
+        "hp": 100000,
+        "plain_hull": true,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-flamethrower",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "flamethrower"
+          }
+        ],
+        "plain_hull": true
+      },
+      "enemy": {
+        "body_id": "corsair",
+        "hp": 100000,
+        "plain_hull": true,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-firebolt_launcher",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "firebolt_launcher"
+          }
+        ],
+        "plain_hull": true
+      },
+      "enemy": {
+        "body_id": "corsair",
+        "hp": 100000,
+        "plain_hull": true,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-hearth",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "hearth"
+          }
+        ],
+        "plain_hull": true
+      },
+      "enemy": {
+        "body_id": "corsair",
+        "hp": 100000,
+        "plain_hull": true,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-ice_cream_mace",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "ice_cream_mace"
+          }
+        ],
+        "plain_hull": true
+      },
+      "enemy": {
+        "body_id": "corsair",
+        "hp": 100000,
+        "plain_hull": true,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-ring_of_fire",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "ring_of_fire"
+          }
+        ],
+        "plain_hull": true
+      },
+      "enemy": {
+        "body_id": "corsair",
+        "hp": 100000,
+        "plain_hull": true,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    },
+    {
+      "name": "standalone-corsair_harpoon",
+      "player": {
+        "body_id": "cutter",
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              3
+            ],
+            "part": "corsair_harpoon"
+          }
+        ],
+        "plain_hull": true
+      },
+      "enemy": {
+        "body_id": "corsair",
+        "hp": 100000,
+        "plain_hull": true,
+        "parts": [
+          {
+            "slot": [
+              0
+            ],
+            "part": "wheel"
+          },
+          {
+            "slot": [
+              1
+            ],
+            "part": "wheel"
+          }
+        ]
+      },
+      "seeds": {
+        "from": 1,
+        "count": 5
+      },
+      "drive": {
+        "player": "ai",
+        "enemy": "hold"
+      }
+    }
+  ]
+}

@@ -14,64 +14,7 @@ extends ChTest
 const FIGHT_SECONDS := 60.0  # the brief's ceiling: a headless fight has to finish inside this
 const TICK := 1.0 / 60.0
 const ENEMY_HP := 30  # the Dozer's HP overridden
-
-
-func _typed_path(path) -> Array[int]:
-	var steps: Array[int] = []
-	for index in path:
-		steps.append(index)
-	return steps
-
-
-func _player_layout() -> ChChariotLayout:
-	# The brief's "player Cutter + Rocket": two wheels in the Cutter's low slots (y = 3) and the
-	# Rocket in slot 3 (6, -3), unflipped so it fires +x, which is the way the player faces.
-	var layout := ChChariotLayout.new()
-	layout.body_id = &"cutter"
-	for mount in [[[0], &"wheel"], [[1], &"wheel"], [[3], &"cutter_rocket"]]:
-		assert_true(layout.place(_typed_path(mount[0]), mount[1]), "%s mounts" % [_typed_path(mount[0])])
-	return layout
-
-
-func _enemy_layout() -> ChChariotLayout:
-	# The fixed enemy of spec 5.9, as data: game/data/enemies/dozer_cook.tres. ChBattle mirrors it
-	# (mirrored() plus the builder's mirror_x) so its parts face the player.
-	var layout: ChChariotLayout = ResourceLoader.load("res://game/data/enemies/dozer_cook.tres")
-	assert_true(layout != null, "the dozer_cook layout loads")
-	return layout
-
-
-func _dozer(enemy_hp: int) -> ChBodyDef:
-	# The Dozer with the brief's HP override. ChBodyDef.duplicate() drops a script resource's own
-	# properties on this build (verified: the copy answers an empty id and 0 HP), so the fields the
-	# builder reads are written across one by one rather than guessed at.
-	var loaded: ChBodyDef = ChCatalog.load_default().body(&"dozer")
-	assert_true(loaded != null, "the dozer body def loads")
-	var copy := ChBodyDef.new()
-	copy.id = loaded.id
-	copy.display_name = loaded.display_name
-	copy.hp = enemy_hp
-	copy.energy_cap = loaded.energy_cap
-	copy.energy_regen = loaded.energy_regen
-	copy.size = loaded.size
-	copy.color = loaded.color
-	copy.slots = loaded.slots
-	copy.material = loaded.material
-	return copy
-
-
-func _catalog(enemy_hp: int) -> ChCatalog:
-	# The slice's defs with the Dozer's HP overridden to 30, so one Rocket hit ends the enemy.
-	# shortcut: the override travels as a catalog because a def on disk is shared by every test in
-	# the run; mutating it would make a later test's Dozer fragile.
-	var loaded := ChCatalog.load_default()
-	var parts: Array[ChPartDef] = []
-	for def in loaded.parts.values():
-		parts.append(def)
-	var bodies: Array[ChBodyDef] = []
-	for def in loaded.bodies.values():
-		bodies.append(_dozer(enemy_hp) if def.id == &"dozer" else def)
-	return ChCatalog.from_defs(parts, bodies)
+const TALL_HP := 100000  # a hull no fight ends: enough HP that only the time limit can decide
 
 
 # The seam every fight test uses: connect to finished, start the fight, then let frames run.
@@ -130,15 +73,15 @@ func test_ai_holds_off_the_hulls() -> void:
 	var catalog := ChCatalog.load_default()
 	var dozer := float(catalog.body(&"dozer").size.x) * 0.5
 	var cutter := float(catalog.body(&"cutter").size.x) * 0.5
-	assert_near(dozer + cutter, 30.0, 0.001, "the two hulls need 30 cells between their centres")
-	# 30 apart centre to centre is the two hulls touching: the old rule read it as "6 cells to go" and
+	assert_near(dozer + cutter, 28.0, 0.001, "the two hulls need 28 cells between their centres")
+	# 28 apart centre to centre is the two hulls touching: the old rule read it as "6 cells to go" and
 	# drove the enemy into the player, which is the stalemate the fight tests kept landing in.
-	assert_eq(ai.decide(420.0, 390.0, 6.0, dozer, cutter), 0.0, "30 apart is inside the hulls: hold")
-	assert_eq(ai.decide(420.0, 384.0, 6.0, dozer, cutter), 0.0,
+	assert_eq(ai.decide(420.0, 392.0, 6.0, dozer, cutter), 0.0, "28 apart is inside the hulls: hold")
+	assert_eq(ai.decide(420.0, 386.0, 6.0, dozer, cutter), 0.0,
 		"reach + both half-widths is the hold, and |dx| <= hold holds there")
-	assert_eq(ai.decide(420.0, 383.0, 6.0, dozer, cutter), -1.0, "one cell further out: close in")
-	assert_eq(ai.decide(384.0, 420.0, 6.0, dozer, cutter), 0.0, "the other way round holds too")
-	assert_eq(ai.decide(383.0, 420.0, 6.0, dozer, cutter), 1.0, "and drives right to reach it")
+	assert_eq(ai.decide(420.0, 385.0, 6.0, dozer, cutter), -1.0, "one cell further out: close in")
+	assert_eq(ai.decide(386.0, 420.0, 6.0, dozer, cutter), 0.0, "the other way round holds too")
+	assert_eq(ai.decide(385.0, 420.0, 6.0, dozer, cutter), 1.0, "and drives right to reach it")
 	# The brief's rule is still the rule: the hold is the shortest reach the chariot can bring to bear,
 	# so a weapon that reaches further than the hulls keeps the fight at its own range, and a driver
 	# with no weapon that reaches anything still stays put.
@@ -162,9 +105,152 @@ func test_simultaneous_death_is_loss() -> void:
 	_complete()
 
 
+# --- Task 4: the camera's frame, as a pure function ------------------------------------------------
+# Godot 4's zoom magnifies: what the camera shows is VIEW / zoom. The old _camera_at multiplied
+# box / VIEW (a Godot 3 zoom-out), which left both chariots off screen at 320x180. These three
+# call ChBattle.camera_frame directly, so the frame is checked without a world.
+const PAD := Vector2(48, 24)  # the brief's pad, the same one all three tests hand over
+
+
+func _view(frame: Dictionary) -> Rect2:
+	# The rect the camera shows: centred on `at`, sized VIEW / zoom.
+	var size := ChBattle.VIEW / float(frame["zoom"])
+	return Rect2((frame["at"] as Vector2) - size * 0.5, size)
+
+
+func _assert_framing(frame: Dictionary, zoom: float, zoom_msg: String) -> void:
+	# What every camera test expects of the number: inside the two bounds, and on a half step so
+	# the world's pixels keep one size between ticks (the design's zoom-snapping).
+	assert_true(zoom >= ChBattle.ZOOM_WIDEST and zoom <= ChBattle.ZOOM_CLOSEST, zoom_msg)
+	assert_near(fmod(zoom, 0.5), 0.0, 0.0001, "the zoom is a multiple of 0.5")
+
+
+func test_camera_frames_both() -> void:
+	# The spawns 140 cells apart: the view has to hold both chariots plus the pad.
+	var a := Vector2(170, 100)
+	var b := Vector2(310, 100)
+	var frame: Dictionary = ChBattle.camera_frame(a, b, PAD)
+	var view := _view(frame)
+	for hull in [a, b]:
+		assert_true(view.encloses(Rect2(hull - PAD, PAD * 2.0)),
+			"%s plus its pad sits inside the view %s" % [hull, view])
+	_assert_framing(frame, float(frame["zoom"]), "the zoom stays in [%s, %s]" % [
+		ChBattle.ZOOM_WIDEST, ChBattle.ZOOM_CLOSEST])
+	_complete()
+
+
+func test_camera_close_when_close() -> void:
+	# 20 cells apart: nothing caps the zoom, so it parks on the closest bound rather than
+	# magnifying the sand past the whole arena (measured: the unclamped number is 11.03).
+	var frame: Dictionary = ChBattle.camera_frame(Vector2(230, 100), Vector2(250, 100), PAD)
+	assert_near(float(frame["zoom"]), ChBattle.ZOOM_CLOSEST, 0.001, "20 cells apart frames at 8")
+	_assert_framing(frame, float(frame["zoom"]), "and that number is inside the bounds")
+	_complete()
+
+
+func test_camera_stays_in_arena() -> void:
+	# A pair in the pit's bottom-left corner: the view is clamped into the arena, so the camera
+	# never shows the world outside the pit.
+	var frame: Dictionary = ChBattle.camera_frame(Vector2(10, 170), Vector2(30, 170), PAD)
+	var pit := Rect2(Vector2(ChBattle.ARENA.position), Vector2(ChBattle.ARENA.size))
+	assert_true(pit.encloses(_view(frame)),
+		"the view %s lies inside the arena %s" % [_view(frame), ChBattle.ARENA])
+	_assert_framing(frame, float(frame["zoom"]), "and the zoom still obeys the bounds")
+	_complete()
+
+
+func test_camera_first_tick_is_the_shot() -> void:
+	# battle.tscn's camera starts at (0,0) zoom 1, so an eased tick 1 would show the whole 480x180 pit
+	# tiny for the ~15 ticks the glide takes to climb to its shot, and would show world outside ARENA
+	# while it did (measured before this pin: tick 1's live view was ~1113x626 cells near (36,16)).
+	# The fight opens on its shot instead; `primed: false` is what start() holds on its first tick.
+	var want: Dictionary = ChBattle.camera_frame(Vector2(170, 100), Vector2(310, 100), PAD)
+	var first: Dictionary = ChBattle.camera_eased(Vector2.ZERO, 1.0, want, false)
+	assert_eq(first["at"], want["at"], "an unprimed camera takes the shot's centre, not a step to it")
+	assert_eq(float(first["zoom"]), float(want["zoom"]), "and its zoom, not a glide up from 1")
+	_assert_framing(want, float(want["zoom"]), "the shot itself obeys the bounds")
+	# The ease survives the fix: one primed tick covers CAMERA_EASE of the gap, so a chase still
+	# glides between ticks and a camera already on its shot stays on it.
+	var next: Dictionary = ChBattle.camera_eased(Vector2.ZERO, 1.0, want, true)
+	assert_true(next["at"] != want["at"] and float(next["zoom"]) < float(want["zoom"]),
+		"a primed tick eases toward the shot instead of snapping to it")
+	var after: Dictionary = ChBattle.camera_eased(want["at"], float(want["zoom"]), want, true)
+	assert_eq(after["at"], want["at"], "a camera already on its shot stays there")
+	_complete()
+
+
+# The pin the helper test above cannot make: that _camera_at actually passes the unprimed flag on the
+# first tick. This is the shipped scene with a real arena, and _start_fight returns on the resume that
+# set ctx - the same resume start() runs its first _step on - so the live camera has taken exactly one
+# step: the shot. A regression that passes `true` unconditionally eases from the scene's (0,0) zoom 1
+# instead: 1.67 at tick 1, still short of the widest 4 for ~14 ticks, so the one bound tells them apart.
+# (start()'s `_camera_primed = false` reset stays defensive: a fresh scene starts false and ChBattle's
+# contract is one fight per scene, so no test can reach a second start() to see the reset work.)
+func test_camera_first_tick_is_the_shot_in_a_real_fight() -> void:
+	var battle := _battle_scene()
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP))
+	# Task 7: the shot lives on the pcam now - _camera_at writes it and the camera host copies it onto
+	# the Camera2D a process frame later - so the live shot is read off battle.pcam, not the camera.
+	assert_true(battle.pcam.zoom.x >= ChBattle.ZOOM_WIDEST,
+		"the live pcam's first frame is the shot (zoom %.2f, widest %s)"
+			% [battle.pcam.zoom.x, ChBattle.ZOOM_WIDEST])
+	# And the other half of the wiring: once primed, a tick must ease, not snap. Parked 1000 cells off
+	# the shot at zoom 1, the fight's own next tick covers CAMERA_EASE of the gap, so the zoom lands
+	# between 1 and the widest bound (measured 1.67 with the ease; a dropped `_camera_primed = true`
+	# would snap onto the shot's 5.5 instead, which the bound catches).
+	battle.pcam.global_position = Vector2(-1000, -1000)
+	battle.pcam.zoom = Vector2.ONE
+	await Engine.get_main_loop().process_frame
+	assert_true(battle.pcam.zoom.x > 1.0 and battle.pcam.zoom.x < ChBattle.ZOOM_WIDEST,
+		"the next live tick eased toward the shot (zoom %.2f, from 1 toward at least %s)"
+			% [battle.pcam.zoom.x, ChBattle.ZOOM_WIDEST])
+	# Spent to its result before the free: ChBattle.start's contract forbids freeing the scene while its
+	# coroutine is suspended (ch_battle.gd's CONTRACT note above the tick loop). The low-HP catalog
+	# keeps that cheap - this fight is over in 124 of its 3600 ticks.
+	var frames := 0
+	while battle.ticking and frames < CHAIN_FRAMES:
+		await Engine.get_main_loop().process_frame
+		frames += 1
+	assert_true(not battle.ticking, "the fight this test watched reached its own end")
+	battle.free()
+	_complete()
+
+
+# Task 7: the shake path end to end. A beat played at a real fight's body has to reach the battle's own
+# emitter through the manager's binding - a PhantomCameraNoiseEmitter2D on the layer the live pcam reads
+# - and the amplitude/duration are the profile's own numbers, so a retune of profiles/broken.tres keeps
+# this honest. A weaker beat landing while the shake runs must not cut the louder one short.
+func test_shake_plays_through_the_emitter() -> void:
+	var battle := _battle_scene()
+	var results: Array[StringName] = []
+	var sink := results
+	battle.finished.connect(func(result: StringName): sink.append(result))
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP))
+	var shake: PhantomCameraNoiseEmitter2D = battle.get_node("Shake")
+	var broken: ChFeedbackProfile = Feedback.profile(&"broken")
+	Feedback.play(&"broken", battle.player.chassis_visual)
+	assert_true(shake.is_emitting(), "the broken beat started the battle's emitter")
+	assert_near(shake.noise.amplitude, 12.0 * broken.shake, 0.001,
+		"at the profile's own amplitude")
+	assert_near(shake.duration, 0.08 + 0.25 * broken.shake, 0.001, "and its own duration")
+	Feedback.play(&"fired", battle.player.chassis_visual)
+	assert_near(shake.noise.amplitude, 12.0 * broken.shake, 0.001,
+		"a weaker beat did not replace the louder shake")
+	assert_true(shake.is_emitting(), "and the loud shake is still running")
+	# Then the fight has to end as any other: a shake is feedback on the fight, never a change to it.
+	var frames := 0
+	while battle.ticking and frames < CHAIN_FRAMES:
+		await Engine.get_main_loop().process_frame
+		frames += 1
+	assert_true(not battle.ticking, "the fight ran to its own end")
+	assert_eq(results, [&"win"], "and still ended on its own result")
+	battle.free()
+	_complete()
+
+
 func test_battle_finishes() -> void:
 	var battle := _battle_scene()
-	var results := await _fight(battle, _player_layout(), _enemy_layout(), _catalog(ENEMY_HP), 12345)
+	var results := await _fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP), 12345)
 	assert_eq(results.size(), 1, "the fight announced exactly one result")
 	assert_eq(results, [&"win"], "the fight ended with a win inside the 60 s ceiling")
 	# The markers have to sit on the parts at whatever zoom/pan the camera ends at, so they live under
@@ -183,6 +269,10 @@ func _battle_scene() -> Node2D:
 	var scene: PackedScene = ResourceLoader.load("res://game/battle/battle.tscn")
 	assert_true(scene != null, "battle.tscn loads")
 	var battle: Node2D = scene.instantiate()
+	# A headless run has no Space key, and since the volley is press-driven a fight nobody presses
+	# in is a draw. The fights below pin what the player's parts do, so the player presses by the
+	# enemy's own rule; the tests that pin the press itself replace this.
+	battle.pressers[0] = func(b, s): return b.ai_press(s)
 	Engine.get_main_loop().get_root().add_child(battle)
 	return battle
 
@@ -209,16 +299,49 @@ func test_aborted_battle_still_ends() -> void:
 	_complete()
 
 
-# The end of a fight does not stop its ticks: ChBattle runs the fight to its tick budget whatever
-# the result, so a second `finished` never arrives.
-func test_finished_emitted_once() -> void:
+# Task 3: a result ends the fight. The loop stops at it, the world stops simulating with it, and the
+# clock stays short of the budget, so the ticks past the end that used to run are gone.
+func test_fight_stops_at_result() -> void:
 	var battle := _battle_scene()
-	var results := await _fight(battle, _player_layout(), _enemy_layout(), _catalog(ENEMY_HP), 12345)
-	assert_eq(results.size(), 1, "one finished across a whole budget of ticks")
-	assert_eq(results, [&"win"], "and it is the win, not a second result")
-	# The ticks ran past the end: the fight's clock reached the budget it was given, so this is
-	# the second emit being refused rather than a loop that stopped at the result.
-	assert_true(battle.ctx.time >= FIGHT_SECONDS - TICK, "ticks ran on past the result to the budget")
+	var results := await _fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP), 12345)
+	assert_eq(results.size(), 1, "the fight announced exactly one result")
+	assert_eq(results, [&"win"], "the win, once, and no second result behind it")
+	assert_true(not battle.ticking, "the tick loop stopped at the result")
+	assert_true(not battle.world.simulating, "and the world stopped simulating with it")
+	assert_true(battle.ctx.time < FIGHT_SECONDS - 1.0,
+		"the fight stopped short of its 60 s budget (clock at %.2f s)" % battle.ctx.time)
+	battle.free()
+	_complete()
+
+
+# Review Focus 5, the fight's half: a fight that runs out its time with both hulls standing names a
+# draw rather than saying nothing. ChMain's half (the panel that shows it) is Task 6's.
+func test_timeout_is_draw() -> void:
+	var battle := _battle_scene()
+	var results := await _fight(battle, _player_layout(), _enemy_layout(),
+		_fight_catalog(TALL_HP, TALL_HP), 12345)
+	assert_eq(results.size(), 1, "the fight that ran out its time announced exactly one result")
+	assert_eq(results, [&"draw"], "the time limit reads as a draw, not a win or a loss")
+	assert_near(battle.ctx.time, FIGHT_SECONDS, TICK, "and it spent its whole tick budget first")
+	assert_true(not battle.ticking, "the loop ended on its own budget")
+	battle.free()
+	_complete()
+
+
+# The contract Tasks 6 and 7 build on: `finished` is the fight's end, not a mid-fight announcement.
+# Read from inside the handler, `ticking` and the world's sim are already down, so a listener may
+# free this node on any later frame without cutting a coroutine or leaving a simulating world.
+func test_finished_after_ticking_stops() -> void:
+	var battle := _battle_scene()
+	var at_emit: Array = []
+	var sink := at_emit
+	battle.finished.connect(func(result: StringName): sink.append(
+		{"result": result, "ticking": battle.ticking, "simulating": battle.world.simulating}))
+	await battle.start(_player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP), 12345)
+	assert_eq(at_emit.size(), 1, "one finished across the fight")
+	assert_eq(at_emit[0]["result"], &"win", "naming the win")
+	assert_true(not bool(at_emit[0]["ticking"]), "ticking was already false when the handler ran")
+	assert_true(not bool(at_emit[0]["simulating"]), "and the world had already stopped simulating")
 	battle.free()
 	_complete()
 
@@ -226,18 +349,24 @@ func test_finished_emitted_once() -> void:
 # --- Review item 3: the spec's chains, read off a real fight --------------------------------------
 # Everything above this line drives one seam in isolation. These two drive the shipped scene with a
 # build made through the garage's own drop path, hold the fight's own drive keys the way a player
-# holds D, and read what the fight's own event bus said. ChBattle has no stop and always spends its
-# 3600-frame budget (Task 15's contract), so each of these pays one whole fight: measured, ~11 s each
-# at the suite's headless frame rate.
+# holds D, and read what the fight's own event bus said. ChBattle has no stop, so each of these
+# pays its fight to the end - at its own result if one arrives, otherwise at its 3600-frame budget -
+# and both drive through the shipped scene's real tick loop.
 const CHAIN_FRAMES := 4000  # the 3600-frame budget, plus the frames the arena takes to stream
 const DRIVE_ON := 0.9  # seconds of held direction
-const DRIVE_OFF := 0.3  # seconds released, so the queued parts are paid (drive is paid first)
+const DRIVE_OFF := 0.3  # seconds released, so a press can pay the ready parts (drive is paid first)
+# 3 s of fight: the player has driven, the cook has not arrived. It was 2 s on the old box Corsair; the
+# Barge (2x its hull mass) is still sliding off its landing at 1 s, then holds the key 0.9 s at a time.
+# Read off the fight's clock (ctx.time), not a frame count, so the mark means "3 s of fight" however
+# frames and ticks line up. Today the fight ticks once per frame, so this alone moved nothing: the
+# flake was the drive pattern (see _drive_fight_out).
+const PLAYER_MARK_SECONDS := 3.0
 
 
 func _garage_built(body_id: StringName, mounts: Array) -> ChChariotLayout:
 	# The build the garage's pointer code makes: ChGarage.drop_part for each part, from an inventory
-	# that carries it, onto the body the player picked. request_fight hands the fight a copy of exactly
-	# this, so passing the layout on is what the Fight button does.
+	# that carries it, onto the body the player picked. ChMain hands the fight a copy of exactly this,
+	# so passing the layout on is what the garage's temporary Enter key does.
 	var inventory := ChInventory.new()
 	for mount in mounts:
 		assert_true(inventory.add(mount[1]), "the kit carries %s" % [mount[1]])
@@ -256,8 +385,11 @@ func _garage_built(body_id: StringName, mounts: Array) -> ChChariotLayout:
 # is deliberately not awaited here. The caller waits for ctx (which owns the fight's bus), subscribes,
 # then spends the frames the loop needs.
 func _start_fight(battle: Node2D, player_layout: ChChariotLayout,
-	enemy_layout: ChChariotLayout) -> void:
-	battle.start(player_layout, enemy_layout, ChCatalog.load_default(), 12345)
+	enemy_layout: ChChariotLayout, catalog: ChCatalog = null) -> void:
+	# A catalog is optional: the camera test hands over the low-HP one so its fight ends soon and it
+	# can free the scene after the loop instead of mid-await.
+	battle.start(player_layout, enemy_layout, catalog if catalog != null else ChCatalog.load_default(),
+		12345)
 	var frames := 0
 	while battle.ctx == null and frames < 600:
 		await Engine.get_main_loop().process_frame
@@ -266,12 +398,16 @@ func _start_fight(battle: Node2D, player_layout: ChChariotLayout,
 
 
 # The drive keys: ChBattle._player_drive reads Input, so action_press is what holding the key at the
-# keyboard is. Bursting it is what a player learns, because ChEnergy pays the drive before the queued
-# parts and a direction held for ever starves the weapons. Returns the narrowest the two hulls ever
-# got, centre to centre, which is the number the reach pins below read.
-func _drive_fight_out(battle: Node2D) -> float:
+# keyboard is. Bursting it is what a player learns, because ChEnergy pays the drive before the volley
+# and a direction held for ever starves the weapons. Returns `min_gap`, the narrowest the two
+# hulls ever got centre to centre (the number the reach pins below read), and `mark`, the player's
+# hull x at PLAYER_MARK_SECONDS of fight time: where its own driving had got it before the Dozer arrived, which is
+# the only stretch of the fight that is the player's driving alone.
+func _drive_fight_out(battle: Node2D) -> Dictionary:
 	var frames := 0
 	var min_gap := INF
+	var mark := 0.0
+	var marked := false
 	var held := false
 	var next_flip := DRIVE_ON
 	while battle.ticking and frames < CHAIN_FRAMES:
@@ -280,16 +416,24 @@ func _drive_fight_out(battle: Node2D) -> float:
 		var t: float = battle.ctx.time
 		if t >= next_flip:
 			held = not held
-			next_flip = t + (DRIVE_OFF if held else DRIVE_ON)
+			# Held for DRIVE_ON, released for DRIVE_OFF, as the two constants say. It was the other
+			# way round (0.3 s taps, 0.9 s rests), and on the Barge (mass 500 since Task 8's mass fix)
+			# a 0.3 s tap rolled back onto its spawn between taps in 3 of 4 runs, so whether it ever
+			# left turned on the landing (Task 9 fix round 2). The first DRIVE_ON stays a rest: the
+			# chariot is still landing.
+			next_flip = t + (DRIVE_ON if held else DRIVE_OFF)
 			if held:
 				Input.action_press(&"ui_right")
 			else:
 				Input.action_release(&"ui_right")
 		min_gap = minf(min_gap, absf(battle.enemy.chassis.global_position.x
 			- battle.player.chassis.global_position.x))
+		if not marked and t >= PLAYER_MARK_SECONDS:
+			marked = true
+			mark = battle.player.chassis.global_position.x
 	Input.action_release(&"ui_right")
 	assert_true(frames < CHAIN_FRAMES, "the fight spent its own tick loop rather than the frame cap")
-	return min_gap
+	return {"min_gap": min_gap, "mark": mark}
 
 
 # Every event the fight names, in the order it said them, with the two fields the chains read. The
@@ -314,10 +458,18 @@ func _hear_all(battle: Node2D, heard: Array) -> void:
 # fight the cut lands on the Chainsaw's own 0.5 s cooldown, its sparks set something alight, and the
 # battery pays for that catch. The chainsaw sits on the Corsair's front slot, so its 14-cell reach
 # clears the hull's own edge and the sparks land outside it; the asserts below are the chain in order -
-# a cut with sparks, a catch after it, the battery paying after that catch.
-# The catch measured here is on the ENEMY's side, which is what the spec's "the target keeps burning"
-# asks for. The fires the enemy's own Hearth rings into place also catch its parts, so the order is the
-# evidence, not the count: an enemy catch lands between a cut and the battery's next payment.
+# a cut with sparks, a catch after it, the battery paying after that catch, and the enemy's parts
+# catching too.
+# WHICH side catches first is not pinned: at the Task 4 spawns both hulls sit in the burning sand the
+# saw cuts, so the first catch after the cut was the player's own saw in most runs (measured: event 30
+# on side 0, eight runs) and the enemy's wheel in one run of fifteen - which of the two catches first
+# turns on frame timing (the world steps on real time), not on the rule. What is stable, and what the
+# count below pins, is that the enemy's parts catch many times after the saw's cut (measured 8-40 in
+# 16 runs, counted from the cut onward), so the spec's "the target keeps burning" shows *because of
+# this chain*: the enemy's own Hearth burns the same sand, so a count over the whole fight would pass
+# with a saw that never cut. The order is the evidence, not the count: CAUGHT_FIRE carries no
+# igniter (ChPartRuntime._emit), so a catch after the saw's cut in the same fight is the causal link
+# this fight can show.
 func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 	var battle := _battle_scene()
 	var heard: Array = []
@@ -325,10 +477,12 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 		[[6], &"cutter_chainsaw"], [[3], &"ember_battery"]])
 	_start_fight(battle, layout, _enemy_layout())
 	_hear_all(battle, heard)
-	var min_gap := await _drive_fight_out(battle)
+	var driven := await _drive_fight_out(battle)
+	var min_gap: float = driven["min_gap"]
 	var cut := -1
 	var caught := -1
 	var paid := -1
+	var enemy_catches := 0
 	for at in heard.size():
 		var entry: Dictionary = heard[at]
 		if cut < 0 and entry["type"] == ChEvent.CELLS_CUT \
@@ -339,17 +493,25 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 		elif caught >= 0 and paid < 0 and entry["type"] == ChEvent.ENERGY_GAINED \
 				and entry["source"] == &"ember_battery":
 			paid = at
+		# Only catches *after* the cut: the enemy's Hearth burns the same sand the saw cuts, so a count
+		# over the whole fight would pass with a saw that never cut (cut stays -1 here, and then no
+		# entry is after it).
+		if cut >= 0 and at > cut and entry["type"] == ChEvent.CAUGHT_FIRE \
+				and int(entry["side"]) == 1:
+			enemy_catches += 1
 	assert_true(cut >= 0, "the Chainsaw cut cells and threw sparks (heard %d events)" % heard.size())
 	assert_true(caught > cut, "something caught fire after that cut")
 	assert_true(paid > caught, "and the Ember Battery paid energy for the catch")
-	# Where the chain landed, as measured: the enemy side. The two hulls are not asserted to touch
-	# here - this build's four parts make it the lightest one, and how close it gets varies with the
-	# sand it ploughs (measured between 130 and 183 cells). The chain does not need contact: the sparks
-	# fly, the sand burns, and the battery pays.
-	assert_eq(int(heard[caught]["side"]) if caught >= 0 else -1, 1,
-		"the catch this chain made was on the enemy's side")
-	assert_true(min_gap < 260.0,
-		"and the two chariots were in the same half of the arena (narrowest %.0f)" % min_gap)
+	# The chain does not need contact: the sparks fly, the sand burns, and the battery pays. The count
+	# below is the spec's "the target keeps burning", and it is the stable form of the claim the first
+	# catch's side cannot carry (see the note above).
+	assert_true(enemy_catches >= 4,
+		"the enemy's parts kept catching fire after the saw's cut (measured 8-40, got %d)"
+			% enemy_catches)
+	# The spawn gap is 140 cells now, so this only holds if the fight closes it: measured 39. The old
+	# spawns were 360 apart, and this build's narrowest measured 130-183 cells there.
+	assert_true(min_gap < 140.0,
+		"and the two chariots closed the spawn gap (narrowest %.0f)" % min_gap)
 	battle.free()
 	_complete()
 
@@ -358,22 +520,19 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 # part. This is the harness the final review asked for - the plan's own build (a Mace and a Harpoon on
 # the Corsair's front slots) fought for real through ChBattle, built by the garage's own drop path. It
 # pins the two things that are stable run to run:
-#   - the player's chariot drives out of its corner. That is what the wheel mounts buy (see
+#   - the player's chariot drives off its spawn. That is what the wheel mounts buy (see
 #     ChBodyDef): a loaded chariot used to sit with its motors on and the hulls could never meet,
 #     which is the state this test used to pin as "min_gap > 100".
 #   - the Mace swings on its own cooldown, so the fight pays it through ChBattleContext's loop.
 # What it does NOT pin: how close the two hulls get. With the wheel mounts fixed they met (38 cells,
 # the two hulls touching) in three runs of this build and stayed 186 apart in a fourth, because
 # whether the sand and the two pools let the player across varies run to run; the fight resolves
-# either way (ChBattle always spends its frame budget).
-# Nothing freezes, and that is chain 2's remaining gap. A weapon's reach box is at the part's own
-# height (one cell for these defs), and the Dozer's wheels hang 14 cells below a Corsair's top slots,
-# so a Mace hits the Dozer's chassis almost every swing and a wheel only when the Dozer has rolled
-# over - measured: one wheel hit in a whole fight, and its 0.5 of freeze decays at 0.25/s
-# (ChPartRuntime) long before the next swing. tests/battle/test_behaviours_melee.gd pins the freeze
-# build-up, the x3 and the thaw at the same height, where the chain's rules are reachable. Closing the
-# last link needs a design call - a taller reach band, a chariot-wide freeze, or a weapon that reaches
-# down - not a tuning pass, so it is named here rather than faked.
+# either way, at its own result or at its frame budget. Measured again at the Task 4 spawns: the two
+# hulls got to 39 cells apart and the fight resolved as a win.
+# The freeze lands. A Mace hits the Dozer's chassis almost every swing (its wheels hang below a
+# Corsair's top slots), and the design call in the demo balance pass was that a hull hit puts its
+# freeze on the target's part nearest the attacker (ChBattleContext.deal_hit), which then holds frozen
+# while the meter decays (ChPartRuntime.is_frozen). Before that call this test pinned "nothing froze".
 func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 	var battle := _battle_scene()
 	var heard: Array = []
@@ -381,7 +540,8 @@ func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 		[[6], &"ice_cream_mace"], [[5], &"freeze_charge"], [[4], &"corsair_harpoon"]])
 	_start_fight(battle, layout, _enemy_layout())
 	_hear_all(battle, heard)
-	var min_gap := await _drive_fight_out(battle)
+	var driven := await _drive_fight_out(battle)
+	var min_gap: float = driven["min_gap"]
 	var swung := 0
 	var frozen := 0
 	for entry in heard:
@@ -390,11 +550,131 @@ func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 		elif entry["type"] == ChEvent.FROZEN:
 			frozen += 1
 	assert_true(swung > 0, "the fight paid the Mace, so it swung on its own cooldown")
-	# Measured 180-220 cells of travel for this build; the loaded chariots that could not drive at all
-	# managed 0-31 (a hull resting on the sand with its wheels buried).
-	assert_true(absf(battle.player.chassis.global_position.x - 60.0) > 60.0,
-		"the player's chariot drove out of its corner (ended at x %.0f, hulls %.0f apart)" % [
-			battle.player.chassis.global_position.x, min_gap])
-	assert_eq(frozen, 0, "nothing froze: the melee band misses the Dozer's wheels (see above)")
+	# Measured on the Barge 3 s in, with the cook still 90 cells away: the player's hull sat at x 186,
+	# 16 cells off its 170 spawn (2 s in on the old box Corsair it was x 184-191, i.e. 14-21 cells off), under nothing but its own wheels. That is the pin - not where the
+	# fight leaves it: the Dozer comes to meet it at x ~206 and the pair shove each other from there, so
+	# the ends measured 206-296 over 14 runs (36-126 cells of travel). A loaded chariot whose wheels
+	# were buried moved 0 with these same keys; at the old x = 60 spawn the player crossed the pit
+	# alone (180-220 cells) because the Dozer started 360 away.
+	assert_true(float(driven["mark"]) - float(ChArenaBuilder.SPAWN_LEFT_X) > 10.0,
+		"the player's chariot drove off its spawn (at x %.0f three seconds in, hulls %.0f apart at the end)"
+			% [driven["mark"], min_gap])
+	assert_true(frozen > 0, "the Mace's hull hits froze the Dozer's parts (see above)")
+	battle.free()
+	_complete()
+
+
+func test_stepped_fires_every_tick_and_drivers_override() -> void:
+	var battle := _battle_scene()
+	var ticks := [0]
+	battle.stepped.connect(func(_ctx): ticks[0] += 1)
+	# Player charges, enemy holds: the player must close distance.
+	battle.drivers = [func(b, s): return 1.0, func(b, s): return 0.0]
+	var start_gap := [-1.0]
+	battle.stepped.connect(func(ctx):
+		if start_gap[0] < 0.0:
+			start_gap[0] = absf(ctx.chariots[1].chassis.global_position.x - ctx.chariots[0].chassis.global_position.x))
+	var results := await _fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP), 12345)
+	assert_eq(results.size(), 1)
+	assert_eq(ticks[0], int(round(battle.ctx.time / ChBattle.TICK)), "one stepped per tick, last tick included")
+	var end_gap := absf(battle.enemy.chassis.global_position.x - battle.player.chassis.global_position.x)
+	assert_true(end_gap < start_gap[0], "the charging player closed the gap")
+	battle.free()
+	_complete()
+
+
+func test_ai_drive_is_symmetric() -> void:
+	# ai_drive on side 0 decides toward side 1 with the same rule the enemy uses.
+	var battle := _battle_scene()
+	battle.drivers = [func(b, s): return b.ai_drive(s), Callable()]
+	var results := await _fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(ENEMY_HP), 12345)
+	assert_eq(results.size(), 1, "an AI-driven player still finishes the fight")
+	battle.free()
+	_complete()
+
+
+# --- The button (Task 2) ----------------------------------------------------------------------------
+func _count_fired(battle: Node2D, side_counts: Array) -> void:
+	var key := RefCounted.new()
+	battle.ctx.bus.subscribe(key, ChEvent.PART_FIRED, func(event: ChEvent): side_counts[event.side] += 1)
+	battle.set_meta("fire_key", key)  # the bus holds the key weakly: keep it alive with the battle
+
+
+func test_never_press_fires_nothing() -> void:
+	var battle := _battle_scene()
+	battle.pressers = [func(_b, _s): return false, func(_b, _s): return false]
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
+	await _frames_ready(battle)
+	var counts := [0, 0]
+	_count_fired(battle, counts)
+	for _i in 120:
+		await Engine.get_main_loop().process_frame
+	assert_eq(counts, [0, 0], "ready parts sit unfired for 2 s when nobody presses")
+	battle.free()
+	_complete()
+
+
+func _frames_ready(battle: Node2D) -> void:
+	await Engine.get_main_loop().process_frame
+
+
+func test_held_key_fires_once() -> void:
+	var battle := _battle_scene()
+	battle.pressers[0] = Callable()  # the real key
+	battle.pressers[1] = func(_b, _s): return false
+	var layout := _garage_built(&"corsair", [[[6], &"cutter_chainsaw"]])
+	_start_fight(battle, layout, _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
+	await _frames_ready(battle)
+	var counts := [0, 0]
+	_count_fired(battle, counts)
+	# Parts start on a full cooldown; ready the saw so the press has something to fire (a press
+	# at tick 1 would be a dud, and a held key never presses again).
+	for part in battle.player.parts:
+		part.cooldown_left = 0.0
+	Input.action_press(&"fire")
+	for _i in 120:
+		await Engine.get_main_loop().process_frame
+	Input.action_release(&"fire")
+	assert_eq(counts[0], 1, "Space held for 120 ticks is one press: one volley, the Chainsaw once")
+	battle.free()
+	_complete()
+
+
+func test_dud_press_nudges_hull() -> void:
+	var battle := _battle_scene()
+	battle.pressers = [func(_b, _s): return true, func(_b, _s): return false]
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
+	# Every part cooling down: nothing is ready, so each press is a dud.
+	for part in battle.player.parts:
+		part.cooldown_left = 100.0
+	var juice := ChJuice.of(battle.player.chassis_visual)
+	await Engine.get_main_loop().process_frame
+	# Every tick presses and fires nothing, so a nudge beat lands on the hull each tick: read one
+	# frame after a tick, nudge's 0.06 is still bent into the scale.
+	assert_true(absf(juice.scale_value() - 1.0) > 0.01, "a dud press beats the hull")
+	battle.free()
+	_complete()
+
+
+func test_outline_shows_while_ready() -> void:
+	var battle := _battle_scene()
+	battle.pressers = [func(_b, _s): return false, func(_b, _s): return false]
+	_start_fight(battle, _player_layout(), _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
+	await _frames_ready(battle)
+	var rocket: ChPartRuntime = null
+	for part in battle.player.parts:
+		if part.def.id == &"cutter_rocket":
+			rocket = part
+	assert_true(rocket != null and rocket.outline != null, "the player has a Rocket with an outline")
+	rocket.cooldown_left = 0.0
+	await Engine.get_main_loop().process_frame
+	assert_true(rocket.outline.visible, "a ready Rocket glows")
+	var presses := [true]
+	battle.pressers[0] = func(_b, _s):
+		var now: bool = presses[0]
+		presses[0] = false
+		return now
+	await Engine.get_main_loop().process_frame
+	assert_true(not rocket.outline.visible, "the press spent it, so the glow is off")
 	battle.free()
 	_complete()

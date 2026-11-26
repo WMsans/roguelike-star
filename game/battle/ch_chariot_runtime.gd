@@ -9,11 +9,20 @@ class_name ChChariotRuntime extends RefCounted
 
 var side: int = 0  # 0 = the player's chariot, 1 = the enemy's (the ChariotLayout index)
 var body_def: ChBodyDef = null  # the def this chassis was built from
-var hp: int = 0  # body HP left; the builder seeds it from body_def.hp
+var hp: int = 0  # body HP left; the builder seeds it from max_hp
+# Starting HP: the layout's max_hp, set by the builder. Unset (0) reads as the body's own hp, so a
+# runtime made by hand (the HUD tests) still has a max to measure against.
+var max_hp: int = 0:
+	get:
+		if max_hp > 0 or body_def == null:
+			return max_hp
+		return body_def.hp
 var energy: ChEnergy = null  # the body's pool, capped and regenerating from body_def
 var chassis: PixelRigidBody = null  # the one body that carries the whole chariot's HP
+var chassis_visual: Node2D = null  # the chassis body's "Visual" child (the builder's, Task 6)
 var parts: Array[ChPartRuntime] = []  # every part, in the order the builder mounted them
 
+var _mass_settled := false  # settle_mass has applied the def mass
 var burn_damage_left: float = 0.0  # burn damage held back until it adds up to a whole HP point
 
 const MOTOR_SPEED := 12.0  # rad/s at full drive, as the demo car's export
@@ -43,6 +52,17 @@ func drive(direction: float) -> void:
 		joint.enable_motor = not disabled and direction != 0.0
 		joint.motor_speed = 0.0 if disabled else direction * MOTOR_SPEED
 
+func settle_mass() -> void:
+	# A pixel body joins with its pixels' mass (the engine reads props.mass at join only for a
+	# texture-less box), so the def's mass is set once, on the first call after the chassis has
+	# joined (set_mass on a joined body rescales its mass data, inertia with it). One-shot: anything
+	# that changes the chassis mass later (a part loss, a payoff) is never put back.
+	if _mass_settled or body_def == null or body_def.mass <= 0.0 or not is_instance_valid(chassis):
+		return
+	if chassis.get_mass() > 0.0:
+		chassis.mass = body_def.mass
+		_mass_settled = true
+
 func is_dead() -> bool:
 	return hp <= 0
 
@@ -56,16 +76,15 @@ func break_part(part: ChPartRuntime, ctx: ChBattleContext) -> void:
 		# second path through the tree cannot double the event a listener counts.
 		return
 	part.broken = true
-	# The part leaves the energy queue before it can be asked again: a waiting entry for a part that
-	# is no longer in the fight would fire it later. The requester is the part itself, per
-	# ChBattleContext.tick's request, which is what lets cancel find the entry by identity.
-	energy.cancel(part)
 	var behaviour = part.behaviour
 	if behaviour != null:
 		# The behaviour is the listener it subscribed as, per ChBehaviour.setup's contract, and the
 		# bus never drops a listener by itself, so this is the whole seam that takes it out. It runs
 		# before the emit below, so a broken part hears nothing, even its own PART_BROKEN.
 		ctx.bus.unsubscribe_all(behaviour)
+		# The look goes with the part: a looping fx the behaviour spawned rides the world, so with no
+		# process left to stop it, teardown is what keeps it from playing on the wreck forever.
+		behaviour.teardown()
 	if part.joint != null and is_instance_valid(part.joint):
 		# The joint goes, so the body has nothing holding it and falls. queue_free rather than free,
 		# since a joint is a node in the tree and Godot frees a queued node at the frame's end.
@@ -83,7 +102,7 @@ func break_part(part: ChPartRuntime, ctx: ChBattleContext) -> void:
 	event.data = {"part": part}
 	ctx.bus.emit(event)
 	# Everything bolted onto a broken part breaks with it: the layout is a tree, and a child falls
-	# with its parent, so each one leaves the queue, loses its behaviour's listener and loses its
+	# with its parent, so each one stops being ready, loses its behaviour's listener and loses its
 	# joint through this same step list, one level down.
 	for child in part.children:
 		# The guard above is what keeps a part reached twice from announcing itself twice, so the

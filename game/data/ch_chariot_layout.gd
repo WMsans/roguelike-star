@@ -5,6 +5,9 @@ class_name ChChariotLayout extends Resource
 # in body slot 2. Positions live in the catalog defs, so anything that measures takes a catalog.
 
 var body_id: StringName = &""
+# The chariot's starting HP when it isn't the body's: 0 means the body's own hp. Enemies grow over a
+# run through rarer parts and more max HP (core-mechanics.md §8), and this is that lever.
+var max_hp: int = 0
 var slots: Dictionary[int, ChSlotNode] = {}  # body slot index -> node
 
 
@@ -110,30 +113,31 @@ func all_paths() -> Array:
 	return out
 
 
-func anchor_of(path: Array[int], catalog: ChCatalog) -> Vector2:
-	# Body-local cell position of the part at the path: positions live in the defs, which is why
-	# the catalog is a parameter and the layout itself stores only ids.
-	# shortcut: ZERO answers every failure (no node, no def, index out of range); the brief fixes
-	# the return type to Vector2, so a reason cannot travel with an anchor and a caller re-checks.
+func cells_of(path: Array[int], catalog: ChCatalog) -> Vector2:
+	# Body-local cell position of any path: the body slot's own position, then one extension offset per
+	# step, whose x negates on a flipped parent. The walk anchor_of reads, and the one place it lives.
+	# Unlike anchor_of it answers for a path whose last slot is empty - a free slot's marker, or the slot
+	# a part is being dropped onto - so a hole in the middle refuses (there is no def to step from) while
+	# an empty tip is a real position.
+	# shortcut: ZERO answers every failure (no def, index out of range, no node to read the next def
+	# from); the brief fixes the return type to Vector2, so a reason cannot travel with the position.
 	if path.is_empty():
 		return Vector2.ZERO
-	# A path that addresses no mounted part has no anchor, so no def is read for it.
-	if get_node(path) == null:
-		return Vector2.ZERO
 	var body: ChBodyDef = catalog.body(body_id)
-	if body == null or path[0] < 0 or path[0] >= body.slots.size():
-		return Vector2.ZERO
 	# An index outside the def's range is checked here rather than at place, which has no def to
 	# check against: a PackedVector2Array index wraps, so the bound belongs on this side.
+	if body == null or path[0] < 0 or path[0] >= body.slots.size():
+		return Vector2.ZERO
 	var at := Vector2(body.slots[path[0]])
-	var node: ChSlotNode = slots[path[0]]
+	var node: ChSlotNode = slots.get(path[0])
 	for i in range(1, path.size()):
+		# A path with a hole in its middle names no slot: the part that would own it is not mounted.
+		if node == null:
+			return Vector2.ZERO
 		# One step per path index: the offset comes from the part one level up, looked up by its id.
 		# shortcut: only the direct parent's flag is read, so an ancestor does not rotate a whole branch.
 		var def: ChPartDef = catalog.part(node.part_id)
-		if def == null:
-			return Vector2.ZERO
-		if path[i] < 0 or path[i] >= def.extension_slots.size():
+		if def == null or path[i] < 0 or path[i] >= def.extension_slots.size():
 			return Vector2.ZERO
 		# A flip negates the extension offset's x only: a flip turns the mount left/right, not upside
 		# down, so y stays. A part's own flag never enters its own anchor, only its parent's.
@@ -142,16 +146,29 @@ func anchor_of(path: Array[int], catalog: ChCatalog) -> Vector2:
 			off.x = -off.x
 		# shortcut: at accumulates, so depth costs the loop rather than a case per level.
 		at += off
-		node = node.children[path[i]]
+		node = node.children.get(path[i])
 	return at
+
+
+func anchor_of(path: Array[int], catalog: ChCatalog) -> Vector2:
+	# Body-local cell position of the part at the path: positions live in the defs, which is why
+	# the catalog is a parameter and the layout itself stores only ids.
+	# shortcut: ZERO answers every failure (no node, no def, index out of range); the brief fixes
+	# the return type to Vector2, so a reason cannot travel with an anchor and a caller re-checks.
+	# A path that addresses no mounted part has no anchor: cells_of would answer the free slot's
+	# position for it, so the mount is what this check adds on top of the one walk.
+	if path.is_empty() or get_node(path) == null:
+		return Vector2.ZERO
+	return cells_of(path, catalog)
 
 
 func swap_body(new_body: ChBodyDef, catalog: ChCatalog) -> Array[ChSlotNode]:
 	# Reseats top-level subtrees onto the nearest of the new body's slots, greedily by distance,
 	# and hands back whatever found no slot. Children move with their parent, so their extension
 	# indices stay unchanged.
-	# shortcut: distances compare body-local cells between the two defs, which is nearest in the
-	# body's own frame; a body needing an off-centre swap would want an offset field in ChBodyDef.
+	# shortcut: distances compare slots as a share of each body's size, so a slot keeps its place on
+	# the hull (a Wedge's bottom-edge wheel lands on a Tower's bottom edge, not 15 cells up its side,
+	# which in raw cells is nearer); a body needing an off-centre swap would want an offset field.
 	# shortcut: an equal distance keeps the lower old index (pairs are built old-major and sort is
 	# stable); the design doc states no tie-break, and the test bodies avoid ties.
 	# Every body this method reads goes through the catalog, because every later read of the layout
@@ -179,9 +196,10 @@ func swap_body(new_body: ChBodyDef, catalog: ChCatalog) -> Array[ChSlotNode]:
 	for index in slots.keys():
 		if index < 0 or index >= old_body.slots.size():
 			continue
-		var old_at := Vector2(old_body.slots[index])
+		var old_at := Vector2(old_body.slots[index]) / Vector2(old_body.size)
 		for new_index in new_body_def.slots.size():
-			pairs.append([old_at.distance_to(Vector2(new_body_def.slots[new_index])), index, new_index])
+			var new_at := Vector2(new_body_def.slots[new_index]) / Vector2(new_body_def.size)
+			pairs.append([old_at.distance_to(new_at), index, new_index])
 	# sort() compares element by element, so a distance carries its two indices with it.
 	pairs.sort()
 	var seat_of: Dictionary[int, int] = {}
@@ -219,6 +237,7 @@ func mirrored() -> ChChariotLayout:
 	# no extra method, and a build is a few dozen nodes, so a stack is cheap here.
 	var copy := ChChariotLayout.new()
 	copy.body_id = body_id
+	copy.max_hp = max_hp
 	var stack: Array = []
 	for index in slots.keys():
 		# A copy keeps its keys, so a mirrored build answers the same paths as the original.

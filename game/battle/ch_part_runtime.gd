@@ -27,11 +27,14 @@ var lava_wear_left: float = 0.0  # lava wear held back until it adds up to a who
 var cooldown_left: float = 0.0  # seconds until ready; 0 means ready
 var charges_left: int = -1  # fires before the part runs out; -1 = unlimited (def.charges)
 var burning: bool = false
-var freeze: float = 0.0  # 0..1; is_frozen at 1.0
+var freeze: float = 0.0  # 0..1; freezes at 1.0, stays frozen until it decays back to 0
+var frozen_held: bool = false  # the meter filled since it last stood at 0 (apply_sample keeps it)
 var broken: bool = false  # set by ChChariotRuntime.break_part (Task 10)
 # shortcut: body stays loose-typed on purpose; Task 9 is the only caller that hands a real
 # PixelRigidBody, and a : PixelRigidBody annotation rejects the fake bodies the tests use.
 var body: Object = null  # the PixelRigidBody this part hangs on (Task 9 attaches it)
+var visual: Node2D = null  # the "Visual" child of `body` (the builder's, Task 6), what juice moves
+var outline: Sprite2D = null  # the hidden ring ChBattle._show_ready lights while this part is ready; null for a passive part
 var joint: Node = null  # null for a part that hangs straight off the chassis
 var parent: ChPartRuntime = null  # the part this one is mounted on, null for a body slot
 var children: Array[ChPartRuntime] = []  # the parts mounted on this one
@@ -67,8 +70,10 @@ func facing() -> Vector2:
 
 
 func is_frozen() -> bool:
-	# The freeze meter is a build-up: only a full one freezes.
-	return freeze >= 1.0
+	# The freeze meter is a build-up: a full one freezes, and the part stays frozen while the meter
+	# decays (spec §5.7 "Freeze decays over time"), so a hit's one full meter holds for
+	# 1 / FREEZE_DECAY seconds rather than one tick. Setting freeze to 0 thaws at once.
+	return freeze >= 1.0 or (frozen_held and freeze > 0.0)
 
 
 func sample_rect() -> Rect2i:
@@ -128,7 +133,13 @@ func apply_sample(counts: Dictionary, delta: float, bus: ChEventBus) -> void:
 	# Burning is a state, not per-tick damage: the chariot-wide damage over time is ChDamage.burn_tick
 	# (Task 10), applied once while any of its parts burns.
 	var was_burning := burning
-	var was_frozen := is_frozen()
+	# was_frozen is the held state from the last sample, so a meter a hit filled since then still
+	# announces FROZEN here, and a meter a hit emptied (the Shatter's thaw) releases the hold.
+	var was_frozen := frozen_held
+	if freeze >= 1.0:
+		frozen_held = true
+	elif freeze <= 0.0:
+		frozen_held = false
 	# fire + lava + burning cells at the threshold sets the part alight. The "burning" key is a cheap
 	# extra the addon never writes (no FLAG_BURNING writer, Task 2's ruling), so burning comes from
 	# fire and lava cells today.
@@ -166,6 +177,7 @@ func apply_sample(counts: Dictionary, delta: float, bus: ChEventBus) -> void:
 		integrity = maxi(0, integrity - points)
 	# The transitions, not the states: an already burning or already frozen part stays quiet. These
 	# are the chain events spec §5.5 asks for.
+	frozen_held = is_frozen()
 	if not was_burning and burning:
 		_emit(bus, ChEvent.CAUGHT_FIRE)
 	if not was_frozen and is_frozen():
@@ -174,19 +186,26 @@ func apply_sample(counts: Dictionary, delta: float, bus: ChEventBus) -> void:
 		_emit(bus, ChEvent.THAWED)
 
 
+func is_ready() -> bool:
+	# A triggered part (cooldown > 0) that a press may fire: counted down, intact, not frozen and
+	# with a charge left. charges_left -1 is unlimited, so only 0 means spent.
+	return def != null and def.cooldown > 0.0 and not broken and cooldown_left <= 0.0 \
+		and charges_left != 0 and not is_frozen()
+
+
 func tick_cooldown(delta: float) -> bool:
-	# Count the cooldown down by one tick and report whether the part is ready to fire. ChBattleContext
-	# (Task 10) asks for energy only for a ready part and resets cooldown_left to def.cooldown when
-	# the part fires.
+	# Count the cooldown down by one tick and report whether the part is ready to fire. It no
+	# longer implies a fire: ChBattleContext fires only on a press, and resets cooldown_left to
+	# def.cooldown when the part fires.
 	# A passive part has no cooldown to gate (cooldown 0 in the def), so it never becomes ready and
-	# never asks for energy. A part with no def has nothing to gate either.
+	# a press never fires it. A part with no def has nothing to gate either.
 	if def == null or def.cooldown <= 0.0:
 		return false
 	# A frozen part's countdown pauses (spec §5.7: a weapon's cooldown pauses; the wheel motor is
 	# Task 9's drive). cooldown_left keeps what a frozen part's countdown would have spent, so a thaw
 	# resumes from where it stopped rather than restarting.
-	# shortcut: a frozen part reports not ready whatever cooldown_left is, so Task 10 never requests
-	# energy for it; a caller that thaws it has to call tick_cooldown again.
+	# shortcut: a frozen part reports not ready whatever cooldown_left is, so a press never
+	# fires it; a caller that thaws it has to call tick_cooldown again.
 	if is_frozen():
 		return false
 	# clamp at 0 rather than negative, so an over-tick reports ready once and stays ready.

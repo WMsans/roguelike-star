@@ -8,6 +8,9 @@ extends ChBehaviour
 func fire(ctx: ChBattleContext) -> void:
 	var target := _nearest_enemy_body(ctx, _reach_box())
 	if target != null:
+		# The thud lands at the far edge of the reach box, where the swing meets the target.
+		var box := _reach_box()
+		ChFx.spawn(ctx.world, &"blunt_hit", box.get_center() + box.size * 0.5 * part.facing(), part.facing())
 		# deal_hit is the fight's one damage entry point: it asks the passives near the source, then this
 		# behaviour's modify_hit, then applies ChDamage.
 		ctx.deal_hit(part, target, part.def.damage)
@@ -17,13 +20,14 @@ func modify_hit(ctx: ChBattleContext, hit: Dictionary) -> void:
 	# near another weapon hears that weapon's hit as well as its own: the Shatter is the swinger's own.
 	if hit["source"] != part:
 		return
-	var target: ChPartRuntime = hit["target_part"]
+	# freeze_part is the part hit, or for a hull hit the part nearest the swing (ChBattleContext).
+	var target: ChPartRuntime = hit["freeze_part"]
 	if target == null or not target.is_frozen():
 		return
 	hit["multiplier"] = hit["multiplier"] * ChDamage.shatter_multiplier(true)
 	# ChBattleContext adds a pass's hit["freeze"] after the modifiers ran, so the Shatter asks for its
 	# freeze reset through the hit rather than writing the meter here: a Freeze Charge landing on the
-	# same hit still leaves the target thawed, at 0 rather than 0.5 (spec §5.6's "ends its freeze").
+	# same hit still leaves the target thawed, at 0 rather than its build-up (spec §5.6's "ends its freeze").
 	# shortcut: thaw is all-freeze, so it drops whatever build-up the passives added as well as the part's
 	# own; a hit that should keep part of that build-up wants a different key.
 	hit["thaw"] = true
@@ -34,4 +38,6 @@ func modify_hit(ctx: ChBattleContext, hit: Dictionary) -> void:
 	event.side = target.side
 	event.source = target
 	event.position = target.anchor_world()
+	# Marks this thaw as a Shatter, so feedback can break the ice rather than let it melt.
+	event.data = {"shatter": true}
 	ctx.bus.emit(event)

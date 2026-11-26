@@ -53,6 +53,8 @@ private:
 	int lifetime = 0;
 	StringName decays_into;
 	bool indestructible = false;
+	int explode_radius = 0;  // 0 = doesn't explode
+	float explode_power = 0.0f;
 
 protected:
 	static void _bind_methods();
@@ -137,6 +139,12 @@ public:
 
 	void set_indestructible(bool p_indestructible) { indestructible = p_indestructible; }
 	bool get_indestructible() const { return indestructible; }
+
+	void set_explode_radius(int p_explode_radius) { explode_radius = p_explode_radius; }
+	int get_explode_radius() const { return explode_radius; }
+
+	void set_explode_power(float p_explode_power) { explode_power = p_explode_power; }
+	float get_explode_power() const { return explode_power; }
 };
 
 } // namespace godot

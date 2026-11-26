@@ -39,6 +39,7 @@ func fire(ctx: ChBattleContext) -> void:
 	if ctx.world != null:
 		# The brief's spark shot: 4 fire particles out along facing() at 40 cells/s over a 0.6 rad cone.
 		sparks = ctx.world.spawn_particles(&"fire", tip, dir * SPARK_SPEED, SPARK_COUNT, SPARK_SPREAD)
+	ChFx.spawn(ctx.world, &"spark_hit", tip, dir)
 	if target != null:
 		# A cut through a part is a hit, so it pays through the fight's one damage entry point.
 		ctx.deal_hit(part, target, part.def.damage)
