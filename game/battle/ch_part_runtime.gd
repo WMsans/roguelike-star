@@ -14,6 +14,8 @@ var path: Array[int] = []  # the slot/extension indices this part sits at
 var flipped: bool = false  # the slot's left/right flip (ChariotLayout.toggle_flip)
 var integrity: int = 0  # wear left; the builder (Task 9) seeds it from def.integrity
 var cooldown_left: float = 0.0  # seconds until ready; 0 means ready
+var tick_left: float = 0.0  # seconds until a continuous part's next tick; 0 swings at once
+var running: bool = false  # whether a continuous part ran on the last tick
 var charges_left: int = -1  # fires before the part runs out; -1 = unlimited (def.charges)
 var statuses := ChStatuses.new()  # the nine stacking statuses
 var broken: bool = false  # set by ChChariotRuntime.break_part (Task 10)
@@ -100,6 +102,12 @@ func sample_rect() -> Rect2i:
 	var box := Rect2i(min_cell, max_cell - min_cell)
 	return Rect2i(box.position - Vector2i(SAMPLE_MARGIN, SAMPLE_MARGIN),
 		box.size + Vector2i(2 * SAMPLE_MARGIN, 2 * SAMPLE_MARGIN))
+
+
+# A part the held button runs: continuous by mode, with a def, intact and not frozen. This is the
+# continuous step's own gate, as is_ready is the volley's.
+func can_run() -> bool:
+	return def != null and def.is_continuous() and not broken and not is_frozen()
 
 
 func is_ready() -> bool:

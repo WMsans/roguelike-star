@@ -349,8 +349,10 @@ func _step(delta: float) -> void:
 
 
 func _show_ready() -> void:
-	# Lights the outline of every part a press would fire right now (is_ready), and hides it again
-	# once the press spends the part. Outline only, no fill tint and no count: the rim is the whole cue.
+	# Lights the outline of every part a press would fire right now (is_ready), and of every
+	# continuous part the held button could run (can_run, with the pool holding one frame of it);
+	# hides it again once the press spends the part or the pool cannot afford the hold. Outline only,
+	# no fill tint and no count: the rim is the whole cue.
 	# Run after ctx.tick so it shows the state the player is about to act on.
 	# The builder does not flip a Visual for a flipped slot (the art is mirrored by its anchor
 	# only), so the outline, which is the same shape, needs no flip either.
@@ -359,7 +361,8 @@ func _show_ready() -> void:
 		for part in chariot.parts:
 			if part.outline == null or not is_instance_valid(part.outline):
 				continue
-			var ready: bool = part.is_ready()
+			var ready: bool = part.is_ready() \
+				or (part.can_run() and chariot.energy.value >= part.def.energy_per_second * (1.0 / 60.0))
 			part.outline.visible = ready
 			if ready:
 				part.outline.modulate = Color(READY_GLOW.r * pulse, READY_GLOW.g * pulse, READY_GLOW.b * pulse, 1.0)

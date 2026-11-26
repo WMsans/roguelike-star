@@ -13,6 +13,7 @@ var position: Vector2 = Vector2.ZERO  # world cells
 var data: Dictionary = {}  # event-specific payload, e.g. {"part": ..., "amount": ...}
 
 const PART_FIRED: StringName = &"part_fired"
+const PART_SKIPPED: StringName = &"part_skipped"  # a ready part the volley's pool refused; data: cost
 const HIT: StringName = &"hit"
 const PART_BROKEN: StringName = &"part_broken"
 const CELLS_CUT: StringName = &"cells_cut"

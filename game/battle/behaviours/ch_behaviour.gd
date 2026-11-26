@@ -1,6 +1,6 @@
 class_name ChBehaviour extends RefCounted
 
-# The base a part's behaviour script extends (Tasks 12-14 file one per part): `part` plus five
+# The base a part's behaviour script extends (Tasks 12-14 file one per part): `part` plus six
 # hooks, all no-ops here, so a behaviour overrides only the ones it needs. A part with no behaviour
 # (ChPartDef.behaviour left null until Tasks 12-14 set it) is never asked any of them.
 # A behaviour is also the listener its subscriptions are keyed on: ChBattleContext calls setup so
@@ -27,6 +27,13 @@ func teardown() -> void:
 # shortcut: the base does nothing, and a part with no behaviour is never asked in the first place.
 func fire(ctx: ChBattleContext) -> void:
 	pass
+
+# Called by the continuous step once a held part's tick_left reaches 0, after the loop paid that
+# frame's energy_per_second * delta. Answers whether the tick landed: true resets the timer to 1 s
+# (and, for melee, announces PART_FIRED), false leaves it at 0 so the next frame tries again.
+# shortcut: the base is no weapon, so it never lands.
+func continuous_tick(ctx: ChBattleContext) -> bool:
+	return false
 
 
 # The melee geometry Tasks 12-14 share: a weapon's reach box and the enemy body its swing hits.
@@ -97,6 +104,16 @@ func _nearest_enemy_body(ctx: ChBattleContext, box: Rect2) -> Object:
 			best_at = near
 			best = entry[1]
 	return best
+
+# One continuous tick of a melee or beam weapon: the nearest enemy body in the reach box takes
+# def.damage through deal_hit, the one damage path. Answers whether there was a body to strike,
+# which is what lands the tick and resets the timer.
+func _strike(ctx: ChBattleContext) -> bool:
+	var target := _nearest_enemy_body(ctx, _reach_box())
+	if target == null:
+		return false
+	ctx.deal_hit(part, target, part.def.damage)
+	return true
 
 # The box a body occupies: def.size cells about its position. PixelRigidBody binds no bounds getter,
 # so this is the footprint ChPartRuntime.sample_rect takes for a body, without that method's sample

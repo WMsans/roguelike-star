@@ -10,9 +10,11 @@ class_name ChBattleContext extends RefCounted
 # - tick runs one frame: hazards -> battery leaks -> the status clock (one _status_second per whole STATUS_SECOND)
 #   -> per chariot: cooldowns -> energy.tick (regen, then the drive) -> on a press, the volley
 #   (ready triggered parts paid dearest energy_cost first; each paid part fires, resets its
-#   cooldown, spends a charge, emits PART_FIRED) -> behaviour.process -> drive. The drive cost is
-#   paid inside energy.tick, before the volley, so drive() only ever runs for a drive that was
-#   paid, which is the global "driving is paid first" rule and why drive() comes last.
+#   cooldown, spends a charge, emits PART_FIRED; a part the pool refuses emits PART_SKIPPED)
+#   -> the held button's continuous step (every part that can run, paid energy_per_second * delta
+#   dearest first, ticks one a second of running) -> behaviour.process -> drive. The drive cost is
+#   paid inside energy.tick, before the volley and the hold, so drive() only ever runs for a drive
+#   that was paid, which is the global "driving is paid first" rule and why drive() comes last.
 
 const STATUS_SECOND := 1.0  # seconds between status seconds
 const ACID_EATS: Array[StringName] = [&"sand", &"dirt", &"wood", &"coal", &"gunpowder", &"tnt", &"battery", &"steel"]  # what Acid dissolves
@@ -283,6 +285,19 @@ func _emit_fired(part: ChPartRuntime) -> void:
 	event.position = part.anchor_world()
 	bus.emit(event)
 
+
+func _emit_skipped(part: ChPartRuntime, cost: int) -> void:
+	# PART_SKIPPED announces a ready part the volley's pool refused: the spec's "a part is skipped in
+	# a volley" trigger. The source names the part and the payload carries what it would have cost.
+	var event := ChEvent.new()
+	event.type = ChEvent.PART_SKIPPED
+	event.side = part.side
+	event.source = part
+	event.position = part.anchor_world()
+	event.data = {"cost": cost}
+	bus.emit(event)
+
+
 func volley_cost(chariot: ChChariotRuntime) -> int:
 	# What a press would cost if every ready part could pay: the HUD's and the enemy's read.
 	var total := 0
@@ -291,9 +306,20 @@ func volley_cost(chariot: ChChariotRuntime) -> int:
 			total += part.def.energy_cost
 	return total
 
-func tick(delta: float, drive_input: Array[float], press_input: Array = []) -> Array[int]:
+func continuous_cost(chariot: ChChariotRuntime) -> float:
+	# What holding the button costs a second: the summed energy_per_second of the parts that can run,
+	# which is the HUD's and the enemy AI's read.
+	var total := 0.0
+	for part in chariot.parts:
+		if part.can_run():
+			total += part.def.energy_per_second
+	return total
+
+
+func tick(delta: float, drive_input: Array[float], press_input: Array = [], hold_input: Array = []) -> Array[int]:
 	# One frame of the fight for every chariot, in the order this file's header states. Answers the
-	# number of parts each side fired this frame, indexed by side.
+	# number of parts each side fired this frame, indexed by side. hold_input is the held button per
+	# side, which only the continuous step reads: a side with no entry reads not held.
 	time += delta
 	if world != null:
 		hazards.apply(self, world.take_blasts())
@@ -312,14 +338,17 @@ func tick(delta: float, drive_input: Array[float], press_input: Array = []) -> A
 			continue
 		var direction: float = drive_input[at] if at < drive_input.size() else 0.0
 		var pressed: bool = bool(press_input[at]) if at < press_input.size() else false
-		fired.append(_tick_chariot(chariot, delta, direction, pressed))
+		var held: bool = bool(hold_input[at]) if at < hold_input.size() else false
+		fired.append(_tick_chariot(chariot, delta, direction, pressed, held))
 	return fired
 
-func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pressed: bool) -> int:
-	# One frame of one side: cooldowns, the pool's tick, the volley if pressed, process, then the
-	# drive. A broken part is skipped for the whole pass: it is off the bus and out of the joints,
-	# so this pass must not fire it or re-process it. One flag, part.broken, closes both, and the
-	# dead joint is never read here at all, which is what Review Focus 3 asks for.
+func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pressed: bool,
+		held: bool) -> int:
+	# One frame of one side: cooldowns, the pool's tick, the volley if pressed, the continuous step
+	# the held button drives, process, then the drive. A broken part is skipped for the whole pass: it
+	# is off the bus and out of the joints, so this pass must not fire it or re-process it. One flag,
+	# part.broken, closes both, and the dead joint is never read here at all, which is what Review
+	# Focus 3 asks for.
 	chariot.settle_mass()
 	for part in chariot.parts:
 		if part.broken:
@@ -353,6 +382,8 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 			if not part.is_ready():
 				continue
 			if not chariot.energy.try_pay(part.def.energy_cost):
+				# The pool refused it: the part stays ready, and the refusal is announced.
+				_emit_skipped(part, part.def.energy_cost)
 				continue
 			var behaviour = part.behaviour
 			if behaviour != null:
@@ -367,6 +398,7 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 				part.charges_left -= 1
 			_emit_fired(part)
 			fired_count += 1
+	_continuous(chariot, delta, held)
 	for part in chariot.parts:
 		if part.broken:
 			continue
@@ -392,6 +424,51 @@ func _regen_mult(chariot: ChChariotRuntime) -> float:
 	if s.count(ChStatuses.SPEEDUP) > 0:
 		return 2.0
 	return 0.5 if s.count(ChStatuses.SLOW) > 0 else 1.0
+
+
+func _continuous(chariot: ChChariotRuntime, delta: float, held: bool) -> void:
+	# The held button's step: every continuous part, dearest energy_per_second first so the big
+	# weapons get their energy, ties broken by mount order (the volley's rule). Each one pays
+	# energy_per_second * delta; a part that cannot pay, or a button that is up, is not running and
+	# keeps its timer, so a release never becomes a free tick. A running part's timer counts down at
+	# the status rate, and at 0 its behaviour gets the tick: a landed tick restarts the timer at one
+	# second and a melee announces PART_FIRED; a miss leaves the timer at 0 to try again next frame.
+	var order: Dictionary = {}
+	var parts: Array[ChPartRuntime] = []
+	for at in chariot.parts.size():
+		var part: ChPartRuntime = chariot.parts[at]
+		if part.def != null and part.def.is_continuous():
+			order[part] = at
+			parts.append(part)
+	parts.sort_custom(func(a: ChPartRuntime, b: ChPartRuntime) -> bool:
+		if a.def.energy_per_second != b.def.energy_per_second:
+			return a.def.energy_per_second > b.def.energy_per_second
+		return order[a] < order[b])
+	for part in parts:
+		if not held or not part.can_run() \
+				or not chariot.energy.try_pay(part.def.energy_per_second * delta):
+			# Not held, not runnable or not affordable: the part did not run, and its timer stays as it was.
+			part.running = false
+			continue
+		if not part.running and part.def.mode == ChPartDef.MODE_BEAM:
+			# A beam announces the moment it switches on, then hits each second without repeating.
+			_emit_fired(part)
+		part.running = true
+		part.tick_left -= delta * _tick_rate(part)
+		if part.tick_left > 0.0:
+			continue
+		var behaviour = part.behaviour
+		var landed: bool = behaviour != null and behaviour.continuous_tick(self)
+		if landed:
+			part.tick_left = 1.0
+			if part.def.mode == ChPartDef.MODE_MELEE:
+				_emit_fired(part)
+
+
+func _tick_rate(part: ChPartRuntime) -> float:
+	# The statuses scale continuous ticks the way they scale a cooldown: Speedup doubles, Slow halves.
+	return 2.0 if part.statuses.count(ChStatuses.SPEEDUP) > 0 \
+		else (0.5 if part.statuses.count(ChStatuses.SLOW) > 0 else 1.0)
 
 
 func _status_second() -> void:
