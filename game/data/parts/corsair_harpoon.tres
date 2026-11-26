@@ -14,6 +14,7 @@ rarity = &"common"
 description = PackedStringArray("{press} Fires a line up to 120 cells ahead.", "{press} Hooks the enemy hull and reels both chariots together for 1.5 s.", "{press} 5 damage.")
 energy_cost = 1
 cooldown = 5.0
+mode = &"cooldown"
 damage = 5
 reach = 120.0
 size = Vector2i(10, 3)

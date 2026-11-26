@@ -14,6 +14,7 @@ rarity = &"uncommon"
 description = PackedStringArray("{press} Lobs a bolt that bursts into a pool of {flame:fire}.", "{press} 40 damage.", "{press} 5 {charges}.")
 energy_cost = 1
 cooldown = 2.0
+mode = &"cooldown"
 damage = 40
 proximity_range = 70.0
 reach = 70.0

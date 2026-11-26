@@ -14,6 +14,7 @@ rarity = &"uncommon"
 description = PackedStringArray("{press} Charges for 1 s, then rings your chariot with {flame:fire} for 2.25 s.", "{press} 36 damage to enemies inside.", "{passive} Can set your own parts {flame:alight}.")
 energy_cost = 3
 cooldown = 4.0
+mode = &"cooldown"
 damage = 36
 proximity_range = 2.0
 reach = 2.0

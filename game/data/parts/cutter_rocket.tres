@@ -14,6 +14,7 @@ rarity = &"rare"
 description = PackedStringArray("{press} Fires straight ahead: 75 damage, digs the ground it hits.", "{press} A quarter of that on a hit within 20 cells.", "{passive} When anything {flame:catches fire}, its next shot charges twice as fast.")
 energy_cost = 3
 cooldown = 1.5
+mode = &"cooldown"
 damage = 75
 size = Vector2i(8, 3)
 color = Color(0.85, 0.35, 0.3, 1)

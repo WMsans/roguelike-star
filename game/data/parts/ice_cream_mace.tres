@@ -14,6 +14,7 @@ rarity = &"common"
 description = PackedStringArray("{press} Swings at anything within 6 cells: 20 damage.", "{passive} Hits on a {freeze:frozen} part deal ×3 and thaw it.")
 energy_cost = 1
 cooldown = 1.0
+mode = &"cooldown"
 damage = 20
 proximity_range = 6.0
 reach = 6.0

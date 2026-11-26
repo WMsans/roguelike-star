@@ -14,6 +14,7 @@ rarity = &"uncommon"
 description = PackedStringArray("{press} Sprays a 1 s burst of {flame:fire} ahead.", "{press} 63 damage over the burst.")
 energy_cost = 2
 cooldown = 3.0
+mode = &"cooldown"
 damage = 63
 proximity_range = 40.0
 reach = 40.0

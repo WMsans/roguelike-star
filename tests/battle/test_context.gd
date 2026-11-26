@@ -114,10 +114,11 @@ func _part(id: StringName, cost: int, cooldown: float, integrity: int, extension
 	return def
 
 # A wheel: the tag is what makes it one (ChPartDef.is_wheel), and its energy_per_second is the
-# drive's price per second.
+# drive's price per second. The id is deliberately not "wheel", so a reader that matches on the
+# old id instead of the tag finds no wheels at all.
 func _wheel_def() -> ChPartDef:
 	var def := ChPartDef.new()
-	def.id = &"wheel"
+	def.id = &"test_wheel"
 	def.tags = PackedStringArray(["passive", "wheel"])
 	def.mode = ChPartDef.MODE_WHEEL
 	def.energy_per_second = 1.0
@@ -427,7 +428,7 @@ func test_hit_names_the_side_it_landed_on() -> void:
 # body slot 1 gives the rig a drive cost to pay.
 func _volley_rig(world: PixelWorld, costs: Array, pool: int) -> Array:
 	var defs: Array[ChPartDef] = [_part(&"strut", 0, 0.0, 100, costs.size()), _wheel_def()]
-	var mounts := [[[0], &"strut"], [[1], &"wheel"]]
+	var mounts := [[[0], &"strut"], [[1], &"test_wheel"]]
 	for at in costs.size():
 		var id := StringName("p%d" % at)
 		defs.append(_part(id, costs[at], 1.0, 100, 0))
@@ -542,7 +543,7 @@ func test_drive_cost_is_the_wheels_sum() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var catalog := _catalog(20)
-	var layout := _mount([[[0], &"wheel"], [[1], &"wheel"]])
+	var layout := _mount([[[0], &"test_wheel"], [[1], &"test_wheel"]])
 	var rig: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), layout, catalog, 0, ORIGIN, false)
 	var wheels := rig.wheels()
 	assert_eq(wheels.size(), 2, "both wheels are wheels by tag")
@@ -563,6 +564,9 @@ func test_drive_cost_is_the_wheels_sum() -> void:
 	var spent := rig.energy.spent
 	var fired := ctx.tick(TICK, [1.0])
 	assert_eq(fired, [0], "nothing fired")
+	# The ruling on "drove": ChEnergy.tick reports whether the drive was paid, and a zero-cost
+	# drive is paid, so drove stays true here. What matters is that the broken wheels charge nothing.
+	assert_near(rig.energy.drive_cost, 0.0, 0.0001, "the drive costs nothing to pay")
 	assert_near(rig.energy.value, 20.0, 0.0001, "a held drive with no wheels pays nothing")
 	assert_near(rig.energy.spent, spent, 0.0001, "and spends nothing")
 	_complete()

@@ -14,6 +14,7 @@ rarity = &"rare"
 description = PackedStringArray("{press} A ring of {flame:fire} grows 36 cells out over 1 s.", "{press} 14 damage to every enemy part it crosses.", "{passive} Can set your own parts {flame:alight}.")
 energy_cost = 3
 cooldown = 4.0
+mode = &"cooldown"
 damage = 14
 proximity_range = 36.0
 reach = 36.0
