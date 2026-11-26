@@ -432,7 +432,7 @@ func _continuous(chariot: ChChariotRuntime, delta: float, held: bool) -> void:
 	# energy_per_second * delta; a part that cannot pay, or a button that is up, is not running and
 	# keeps its timer, so a release never becomes a free tick. A running part's timer counts down at
 	# the status rate, and at 0 its behaviour gets the tick: a landed tick restarts the timer at one
-	# second and a melee announces PART_FIRED; a miss leaves the timer at 0 to try again next frame.
+	# second and a melee announces PART_FIRED; a miss clamps the timer at 0 to try again next frame.
 	var order: Dictionary = {}
 	var parts: Array[ChPartRuntime] = []
 	for at in chariot.parts.size():
@@ -454,7 +454,7 @@ func _continuous(chariot: ChChariotRuntime, delta: float, held: bool) -> void:
 			# A beam announces the moment it switches on, then hits each second without repeating.
 			_emit_fired(part)
 		part.running = true
-		part.tick_left -= delta * _tick_rate(part)
+		part.tick_left -= delta * part.tick_rate()
 		if part.tick_left > 0.0:
 			continue
 		var behaviour = part.behaviour
@@ -463,12 +463,9 @@ func _continuous(chariot: ChChariotRuntime, delta: float, held: bool) -> void:
 			part.tick_left = 1.0
 			if part.def.mode == ChPartDef.MODE_MELEE:
 				_emit_fired(part)
-
-
-func _tick_rate(part: ChPartRuntime) -> float:
-	# The statuses scale continuous ticks the way they scale a cooldown: Speedup doubles, Slow halves.
-	return 2.0 if part.statuses.count(ChStatuses.SPEEDUP) > 0 \
-		else (0.5 if part.statuses.count(ChStatuses.SLOW) > 0 else 1.0)
+		else:
+			# A missed tick retries next frame from 0 rather than counting down past it.
+			part.tick_left = 0.0
 
 
 func _status_second() -> void:

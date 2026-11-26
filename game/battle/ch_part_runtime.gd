@@ -68,6 +68,13 @@ func is_frozen() -> bool:
 	return statuses.count(ChStatuses.FREEZE) > 0
 
 
+func tick_rate() -> float:
+	# How the statuses scale this part's ticks: Speedup doubles, Slow halves. Both a cooldown and a
+	# continuous part read this, so a status change cannot make one run at a different rate.
+	return 2.0 if statuses.count(ChStatuses.SPEEDUP) > 0 \
+		else (0.5 if statuses.count(ChStatuses.SLOW) > 0 else 1.0)
+
+
 func is_burning() -> bool:
 	return statuses.count(ChStatuses.FLAME) > 0
 
@@ -128,10 +135,8 @@ func tick_cooldown(delta: float) -> bool:
 	# Freeze pauses the countdown; Speedup runs it at double speed, Slow at half.
 	if is_frozen():
 		return false
-	var rate := 2.0 if statuses.count(ChStatuses.SPEEDUP) > 0 \
-		else (0.5 if statuses.count(ChStatuses.SLOW) > 0 else 1.0)
 	# clamp at 0 rather than negative, so an over-tick reports ready once and stays ready.
-	cooldown_left = maxf(0.0, cooldown_left - delta * rate)
+	cooldown_left = maxf(0.0, cooldown_left - delta * tick_rate())
 	# The brief's rule: true when the countdown reaches 0. Past 0 it stays ready, so the caller owns
 	# the reset.
 	return cooldown_left <= 0.0
