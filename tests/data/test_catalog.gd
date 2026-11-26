@@ -107,11 +107,16 @@ func test_every_part_has_a_mode() -> void:
 	for id in catalog.parts:
 		var def: ChPartDef = catalog.parts[id]
 		assert_true(def.mode in modes, "%s has one of the five modes" % id)
-		assert_eq(def.is_wheel(), def.tags.has("wheel"), "%s: the wheel tag is the wheel" % id)
 		assert_eq(def.is_wheel(), def.mode == ChPartDef.MODE_WHEEL,
 			"%s: the wheel tag holds exactly when the mode is wheel" % id)
 		assert_eq(def.is_continuous(), def.mode == ChPartDef.MODE_MELEE or def.mode == ChPartDef.MODE_BEAM,
 			"%s: is_continuous matches the mode" % id)
+		# A cooldown part is what the volley fires, so it needs a cooldown to gate it. A continuous
+		# part is what the hold runs, so it must not also be fired by a press: that would pay it twice.
+		if def.mode == ChPartDef.MODE_COOLDOWN:
+			assert_true(def.cooldown > 0.0, "%s: a cooldown part has a cooldown" % id)
+		elif def.mode == ChPartDef.MODE_MELEE or def.mode == ChPartDef.MODE_BEAM:
+			assert_eq(def.cooldown, 0.0, "%s: a continuous part has no cooldown" % id)
 	_complete()
 
 

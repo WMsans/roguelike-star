@@ -213,6 +213,36 @@ func test_continuous_pays_per_second() -> void:
 	assert_near(rig.energy.value, 50.0 - PER_SECOND + 1.0, 0.01, "one second of 2/s, plus 1/s regen")
 	_complete()
 
+# The continuous step runs the dearest energy_per_second first, as the volley does for cost. A pool
+# that buys only the dearest part's frame must pay that part and leave the cheap one dark; an ascending
+# sort would buy the cheap one first.
+func test_continuous_pays_the_dearest_first() -> void:
+	var world: PixelWorld = await make_world()
+	_ground(world)
+	var cheap := _melee_def()
+	cheap.id = &"test_cheap"
+	cheap.energy_per_second = 1.0
+	var dear := _melee_def()
+	dear.id = &"test_dear"
+	dear.energy_per_second = 3.0
+	# The cheap part is mounted first, so an ascending sort would pay it before the dear one.
+	var set := _arena(world, [cheap, dear], [[[0], &"test_cheap"], [[1], &"test_dear"]])
+	var rig: ChChariotRuntime = set[0]
+	var cheap_part := _part_of(rig, [0])
+	var dear_part := _part_of(rig, [1])
+	assert_true(cheap_part != null and dear_part != null, "both continuous parts mounted")
+	# Exactly one frame of the dearest part, and nothing for the cheap one behind it.
+	rig.energy.value = dear.energy_per_second * TICK
+	var ctx: ChBattleContext = set[2]
+	var counts := _counters(ctx)
+	ctx.tick(TICK, [0.0, 0.0], [], HELD)
+	assert_true(dear_part.running, "the pool bought the dearest part's frame")
+	assert_true(not cheap_part.running, "and the cheap part went unpaid")
+	assert_eq(counts["hit"], 1, "the dearest part landed the frame's tick")
+	assert_near(rig.energy.spent, dear.energy_per_second * TICK, 0.0001, "the pool paid only the dearest")
+	_complete()
+
+
 # Review Focus 2: a held part the pool cannot pay simply does not run that frame. Nothing goes
 # negative, and the beam announces PART_FIRED again when it next runs.
 func test_unpaid_part_does_not_run() -> void:

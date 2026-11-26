@@ -306,15 +306,6 @@ func volley_cost(chariot: ChChariotRuntime) -> int:
 			total += part.def.energy_cost
 	return total
 
-func continuous_cost(chariot: ChChariotRuntime) -> float:
-	# What holding the button costs a second: the summed energy_per_second of the parts that can run,
-	# which is the HUD's and the enemy AI's read.
-	var total := 0.0
-	for part in chariot.parts:
-		if part.can_run():
-			total += part.def.energy_per_second
-	return total
-
 
 func tick(delta: float, drive_input: Array[float], press_input: Array = [], hold_input: Array = []) -> Array[int]:
 	# One frame of the fight for every chariot, in the order this file's header states. Answers the

@@ -19,7 +19,7 @@ var tags: PackedStringArray = []
 # picks from. Both are pinned per part in the spec's part-data table.
 var rarity: StringName = &"common"
 var energy_cost: int = 0
-var cooldown: float = 0.0  # seconds; 0 = passive
+var cooldown: float = 0.0  # seconds; 0 = no cooldown
 var mode: StringName = MODE_COOLDOWN  # one of the MODE_* constants above
 var energy_per_second: float = 0.0  # energy a second while a melee/beam part runs or a wheel drives
 var damage: int = 0

@@ -752,6 +752,26 @@ func test_holders_reach_the_tick() -> void:
 	_complete()
 
 
+func test_continuous_outline_follows_the_pool() -> void:
+	var battle := _battle_scene()
+	battle.pressers = [func(_b, _s): return false, func(_b, _s): return false]
+	battle.holders = [func(_b, _s): return false, func(_b, _s): return false]
+	_start_fight(battle, _runner_layout(), _enemy_layout(), _runner_catalog())
+	await _frames_ready(battle)
+	var part := _part_by_id(battle.player, &"test_melee")
+	assert_true(part != null and part.outline != null, "the fixture melee has an outline")
+	# No regen, so the pool stays exactly where the test puts it between frames.
+	battle.player.energy.regen = 0.0
+	battle.player.energy.value = 0.0
+	await Engine.get_main_loop().process_frame
+	assert_true(not part.outline.visible, "an empty pool leaves the continuous rim dark")
+	battle.player.energy.value = part.def.energy_per_second * TICK
+	await Engine.get_main_loop().process_frame
+	assert_true(part.outline.visible, "one frame's share in the pool lights the continuous rim")
+	battle.free()
+	_complete()
+
+
 func test_fire_key_held_holds() -> void:
 	var battle := _battle_scene()
 	_start_fight(battle, _runner_layout(), _enemy_layout(), _runner_catalog())
