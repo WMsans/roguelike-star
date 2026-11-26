@@ -126,6 +126,7 @@ func test_hardness_values() -> void:
 	var seen := {}
 	for m in set.materials:
 		seen[m.name] = true
+		assert_eq(m.indestructible, m.name == &"concrete", "indestructible only for concrete (%s)" % m.name)
 		assert_eq(m.hardness, want.get(m.name, 0), "hardness of %s" % m.name)
 	for n in want:
 		assert_true(seen.has(n), "%s is in the game set" % n)
@@ -208,13 +209,15 @@ func test_coal_outburns_wood() -> void:
 	_complete()
 
 
-func test_tnt_blast_spares_steel() -> void:
+# A lit 12x12 TNT crate in a 3-thick box with a 4-cell gap, so the inner wall faces are ~10 cells from the
+# crate centre, inside TNT's radius 12. Returns the wall material's cell count after the blast.
+func _tnt_box_wall_after(wall: StringName) -> Array[int]:
 	var world := await make_world()
 	var arena := Rect2i(0, 0, 480, 180)
-	world.fill_rect(Rect2i(200, 130, 40, 40), &"steel")
-	world.fill_rect(Rect2i(204, 134, 32, 32), &"air")
+	world.fill_rect(Rect2i(207, 137, 26, 26), wall)
+	world.fill_rect(Rect2i(210, 140, 20, 20), &"air")
 	world.fill_rect(Rect2i(214, 144, 12, 12), &"tnt")
-	var steel_before: int = world.count_materials(arena).get(&"steel", 0)
+	var before: int = world.count_materials(arena).get(wall, 0)
 	var blasted := false
 	var ticks := 0
 	while not blasted and ticks < 300:
@@ -226,6 +229,18 @@ func test_tnt_blast_spares_steel() -> void:
 			if b["material"] == &"tnt":
 				blasted = true
 	assert_true(blasted, "tnt blast within 300 ticks")
-	assert_eq(world.count_materials(arena).get(&"steel", 0), steel_before, "steel untouched")
+	var after: int = world.count_materials(arena).get(wall, 0)
 	world.free()
+	return [before, after]
+
+
+func test_tnt_blast_spares_steel() -> void:
+	var c: Array[int] = await _tnt_box_wall_after(&"steel")
+	assert_eq(c[1], c[0], "steel (hardness 7 > dig 6) untouched")
+	_complete()
+
+
+func test_tnt_blast_digs_rock_control() -> void:
+	var c: Array[int] = await _tnt_box_wall_after(&"rock")
+	assert_true(c[1] < c[0], "same box in rock (hardness 5 <= dig 6) loses cells")
 	_complete()
