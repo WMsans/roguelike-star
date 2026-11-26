@@ -143,3 +143,18 @@ func test_give_status_ignores_broken_null_and_zero() -> void:
 	assert_eq(made[0].give_status(p, ChStatuses.FLAME, 0), 0, "zero")
 	assert_eq(made[1].size(), 0, "no events")
 	_complete()
+
+
+func test_shock_on_chariot_with_freed_chassis() -> void:
+	var a := _part(0, Vector2(0, 0))
+	var b := _part(0, Vector2(4, 0))
+	var c := _chariot(0, Vector2(1000, 1000), [a, b])
+	c.anchor_world()  # cache the last reading
+	c.chassis.free()
+	var made := _ctx([c])
+	assert_eq(made[0].give_status(a, ChStatuses.SHOCK, 6), 6, "no crash on a freed chassis")
+	assert_eq(a.statuses.count(ChStatuses.SHOCK), 6, "A holds 6")
+	assert_eq(b.statuses.count(ChStatuses.SHOCK), 3, "B still gets half")
+	c.chassis = null
+	assert_eq(c.anchor_world(), Vector2(1000, 1000), "null chassis keeps the cached anchor")
+	_complete()

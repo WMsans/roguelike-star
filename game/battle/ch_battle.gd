@@ -476,7 +476,7 @@ func _half_width(chariot: ChChariotRuntime) -> float:
 static func hull_box(chariot: ChChariotRuntime) -> Rect2:
 	# The chassis box in arena cells, the same reading ChBehaviour's _hull_box takes.
 	var size := Vector2(maxi(1, chariot.body_def.size.x), maxi(1, chariot.body_def.size.y))
-	return Rect2(chariot.chassis.global_position - size * 0.5, size)
+	return Rect2(chariot.anchor_world() - size * 0.5, size)
 
 
 func _draw_markers() -> void:
