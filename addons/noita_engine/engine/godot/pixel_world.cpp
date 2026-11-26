@@ -59,6 +59,7 @@ constexpr int EXPLODE_FLASH_PER_RADIUS = 6;
 // centre merge into its blast or wait (see detonate_lit), so a chain costs about the same
 // however big the pile is.
 constexpr int MAX_DETONATIONS_PER_TICK = 16;
+constexpr int MAX_BLOW_SPEED = 64;  // cells per axis per blow() call
 
 // The batched grid queries' shared input check: one size per box, rounded to whole cells, each
 // one inside 1..MAX_QUERY_BOX. Reports why and returns false on anything else.
@@ -104,7 +105,8 @@ void PixelWorld::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_stats"), &PixelWorld::get_stats);
 	ClassDB::bind_method(D_METHOD("spawn_particles", "material", "position", "velocity", "count", "spread"), &PixelWorld::spawn_particles);
 	ClassDB::bind_method(D_METHOD("spawn_visual_particles", "color", "position", "velocity", "count", "spread", "lifetime", "gravity_scale", "collides"), &PixelWorld::spawn_visual_particles, DEFVAL(1.0f), DEFVAL(true));
-	ClassDB::bind_method(D_METHOD("explode", "position", "radius", "power"), &PixelWorld::explode);
+	ClassDB::bind_method(D_METHOD("explode", "position", "radius", "power", "dig"), &PixelWorld::explode, DEFVAL(-1));
+	ClassDB::bind_method(D_METHOD("blow", "rect", "velocity"), &PixelWorld::blow);
 	ClassDB::bind_method(D_METHOD("take_blasts"), &PixelWorld::take_blasts);
 	ClassDB::bind_method(D_METHOD("raycast", "from", "to", "mask"), &PixelWorld::raycast, DEFVAL(RAY_SOLID | RAY_POWDER | RAY_BODIES));
 	ClassDB::bind_method(D_METHOD("sweep_boxes", "from", "to", "sizes", "mask"), &PixelWorld::sweep_boxes);
@@ -1254,13 +1256,13 @@ int PixelWorld::spawn_visual_particles(const Color &p_color, const Vector2 &p_po
 	return pooled;
 }
 
-int PixelWorld::explode(const Vector2i &p_position, int p_radius, float p_power) {
+int PixelWorld::explode(const Vector2i &p_position, int p_radius, float p_power, int p_dig) {
 	if (!particles) return 0;
 	if (p_radius > MAX_EXPLODE_RADIUS) {
 		UtilityFunctions::push_error(vformat("PixelWorld.explode: radius %d is over the limit of %d", p_radius, MAX_EXPLODE_RADIUS));
 		return 0;
 	}
-	return blast(p_position, p_radius, p_power, StringName());
+	return blast(p_position, p_radius, p_power, StringName(), p_dig);
 }
 
 Array PixelWorld::take_blasts() {
@@ -1270,12 +1272,13 @@ Array PixelWorld::take_blasts() {
 }
 
 // The styled crater, queued for take_blasts(). Main thread only: it writes the grid directly.
-int PixelWorld::blast(const Vector2i &p_position, int p_radius, float p_power, const StringName &p_material) {
+int PixelWorld::blast(const Vector2i &p_position, int p_radius, float p_power, const StringName &p_material, int p_dig) {
 	Dictionary entry;
 	entry["position"] = p_position;
 	entry["radius"] = p_radius;
 	entry["power"] = p_power;
 	entry["material"] = p_material;
+	entry["dig"] = p_dig;
 	blasts.push_back(entry);
 	ExplodeStyle style;
 	style.spark_color = [this](const Cell &p_cell) { return cell_color(p_cell).to_rgba32(); };
@@ -1286,7 +1289,7 @@ int PixelWorld::blast(const Vector2i &p_position, int p_radius, float p_power, c
 	style.smoke_chance = EXPLODE_SMOKE_CHANCE;
 	style.flash_rgba = EXPLODE_FLASH_COLOR;
 	style.flash_sparks = std::max(0, p_radius) * EXPLODE_FLASH_PER_RADIUS;
-	return ::explode(*grid, *particles, p_position.x, p_position.y, p_radius, p_power / TICKS_PER_SECOND,
+	return ::explode(*grid, *particles, p_position.x, p_position.y, p_radius, p_power / TICKS_PER_SECOND, p_dig,
 	                 sim->tick_count(), style)
 	    .removed;
 }
@@ -1338,8 +1341,43 @@ void PixelWorld::detonate_lit() {
 		const CompiledMaterial &def = table.get(c.mat);
 		grid->set(c.x, c.y, MAT_AIR);
 		blast(Vector2i(c.x, c.y), std::min(def.explode_radius, MAX_EXPLODE_RADIUS), def.explode_power,
-		      StringName(def.name.c_str()));
+		      StringName(def.name.c_str()), def.explode_dig);
 	}
+}
+
+// ponytail: one grid lookup per rect cell, O(rect) even over unloaded space; walk chunk runs
+// like detonate_lit if a big wind rect ever shows in a profile.
+int PixelWorld::blow(const Rect2i &p_rect, const Vector2i &p_velocity) {
+	if (!grid || p_rect.size.x <= 0 || p_rect.size.y <= 0) return 0;
+	const int vx = std::clamp(p_velocity.x, -MAX_BLOW_SPEED, MAX_BLOW_SPEED);
+	const int vy = std::clamp(p_velocity.y, -MAX_BLOW_SPEED, MAX_BLOW_SPEED);
+	if (vx == 0 && vy == 0) return 0;
+	const int sx = vx > 0 ? 1 : -1, sy = vy > 0 ? 1 : -1;
+	const int x0 = p_rect.position.x, x1 = x0 + p_rect.size.x - 1;
+	const int y0 = p_rect.position.y, y1 = y0 + p_rect.size.y - 1;
+	auto is_air = [&](int x, int y) {
+		Cell c{};
+		return grid->get(x, y, c) && table.get(c.mat).cls == MatClass::Empty;
+	};
+	int moved = 0;
+	// Against the travel direction on both axes: a cell only ever lands on a cell visited before
+	// it, so none moves twice, and a column of gas follows its leader into the cells it frees.
+	for (int j = 0; j < p_rect.size.y; ++j) {
+		const int y = sy > 0 ? y1 - j : y0 + j;
+		for (int i = 0; i < p_rect.size.x; ++i) {
+			const int x = sx > 0 ? x1 - i : x0 + i;
+			Cell c{};
+			if (!grid->get(x, y, c) || table.get(c.mat).cls != MatClass::Gas) continue;
+			int nx = x, ny = y;
+			for (int s = 0; s < std::abs(vx) && is_air(nx + sx, ny); ++s) nx += sx;
+			for (int s = 0; s < std::abs(vy) && is_air(nx, ny + sy); ++s) ny += sy;
+			if (nx == x && ny == y) continue;
+			grid->set(x, y, MAT_AIR);
+			grid->put(nx, ny, c);
+			++moved;
+		}
+	}
+	return moved;
 }
 
 Dictionary PixelWorld::raycast(const Vector2 &p_from, const Vector2 &p_to, int p_mask) const {

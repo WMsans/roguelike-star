@@ -179,7 +179,7 @@ class PixelWorld : public Node2D {
 	MatId material_id(const StringName &p_material) const;
 	Color cell_color(const Cell &p_cell) const;
 	void tick_world();
-	int blast(const Vector2i &p_position, int p_radius, float p_power, const StringName &p_material);
+	int blast(const Vector2i &p_position, int p_radius, float p_power, const StringName &p_material, int p_dig);
 	void detonate_lit();
 	void sync_bodies();
 	void create_particle_view();
@@ -367,11 +367,17 @@ public:
 	int spawn_visual_particles(const Color &p_color, const Vector2 &p_position, const Vector2 &p_velocity,
 	                           int p_count, float p_spread, float p_lifetime, float p_gravity_scale = 1.0f,
 	                           bool p_collides = true);
-	int explode(const Vector2i &p_position, int p_radius, float p_power);
+	// dig >= 0 leaves cells of hardness > dig alone (explosives are still lit); -1 digs everything.
+	int explode(const Vector2i &p_position, int p_radius, float p_power, int p_dig = -1);
 	// Every blast since the last call, oldest first, then clears the queue: explode() calls and
 	// detonated explosive cells alike. Each is {"position": Vector2i, "radius": int,
-	// "power": float, "material": StringName}; material is &"" for explode().
+	// "power": float, "material": StringName, "dig": int}; material is &"" for explode().
 	Array take_blasts();
+	// Wind: every gas cell in rect moves up to |velocity.x| cells along x, then up to |velocity.y|
+	// along y, a step at a time into air only, keeping its flags, temperature and life. Velocity
+	// is clamped to +-64 per axis; unloaded cells are skipped. Answers the cells moved. Main
+	// thread only, like explode.
+	int blow(const Rect2i &p_rect, const Vector2i &p_velocity);
 	// Hits on terrain carry "position", "material", "normal" (cells) and a null "collider";
 	// hits on a body carry the body as "collider" and the exact "point".
 	Dictionary raycast(const Vector2 &p_from, const Vector2 &p_to, int p_mask = RAY_SOLID | RAY_POWDER | RAY_BODIES) const;

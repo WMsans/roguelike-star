@@ -55,6 +55,8 @@ private:
 	bool indestructible = false;
 	int explode_radius = 0;  // 0 = doesn't explode
 	float explode_power = 0.0f;
+	int hardness = 0;
+	int explode_dig = -1;  // -1 digs everything
 
 protected:
 	static void _bind_methods();
@@ -145,6 +147,12 @@ public:
 
 	void set_explode_power(float p_explode_power) { explode_power = p_explode_power; }
 	float get_explode_power() const { return explode_power; }
+
+	void set_hardness(int p_hardness) { hardness = p_hardness; }
+	int get_hardness() const { return hardness; }
+
+	void set_explode_dig(int p_explode_dig) { explode_dig = p_explode_dig; }
+	int get_explode_dig() const { return explode_dig; }
 };
 
 } // namespace godot

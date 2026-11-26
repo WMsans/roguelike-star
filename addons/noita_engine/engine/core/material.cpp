@@ -37,6 +37,8 @@ CompiledMaterial compiled_from(const MaterialDef& d, MatId burns_into, MatId hig
 	c.indestructible = d.indestructible;
 	c.explode_radius = d.explode_radius;
 	c.explode_power = d.explode_power;
+	c.hardness = d.hardness;
+	c.explode_dig = d.explode_dig;
 	c.has_reactions = false;
 	return c;
 }

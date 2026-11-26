@@ -107,6 +107,10 @@ void PixelMaterial::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_explode_radius"), &PixelMaterial::get_explode_radius);
 	ClassDB::bind_method(D_METHOD("set_explode_power", "value"), &PixelMaterial::set_explode_power);
 	ClassDB::bind_method(D_METHOD("get_explode_power"), &PixelMaterial::get_explode_power);
+	ClassDB::bind_method(D_METHOD("set_hardness", "value"), &PixelMaterial::set_hardness);
+	ClassDB::bind_method(D_METHOD("get_hardness"), &PixelMaterial::get_hardness);
+	ClassDB::bind_method(D_METHOD("set_explode_dig", "value"), &PixelMaterial::set_explode_dig);
+	ClassDB::bind_method(D_METHOD("get_explode_dig"), &PixelMaterial::get_explode_dig);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "name"), "set_material_name", "get_material_name");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "material_class", PROPERTY_HINT_ENUM, "Solid:1,Powder:2,Liquid:3,Gas:4"), "set_material_class", "get_material_class");
@@ -136,6 +140,8 @@ void PixelMaterial::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "indestructible"), "set_indestructible", "get_indestructible");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "explode_radius"), "set_explode_radius", "get_explode_radius");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "explode_power"), "set_explode_power", "get_explode_power");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "hardness"), "set_hardness", "get_hardness");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "explode_dig"), "set_explode_dig", "get_explode_dig");
 }
 
 MaterialDef PixelMaterial::to_def() const {
@@ -170,6 +176,8 @@ MaterialDef PixelMaterial::to_def() const {
 	d.indestructible = indestructible;
 	d.explode_radius = std::max(0, explode_radius);
 	d.explode_power = explode_power;
+	d.hardness = hardness;
+	d.explode_dig = explode_dig;
 	return d;
 }
 

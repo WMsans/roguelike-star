@@ -95,7 +95,8 @@ struct ExplodeStyle {
 };
 
 // Explosive cells (explode_radius > 0) in the blast are lit instead: FLAG_BURNING, and heated to
-// at least their ignite_temp. Otherwise removes every loaded, non-air, non-body, non-indestructible cell in the blast around (cx, cy): in_blast, minus
+// at least their ignite_temp. With dig >= 0, cells of hardness > dig are then left alone; -1 digs
+// everything. Otherwise removes every loaded, non-air, non-body, non-indestructible cell in the blast around (cx, cy): in_blast, minus
 // the lobes and ragged edge of `rim_noise`. Solids and gases vanish; powders and liquids are
 // thrown with EXPLODE_THROW_CHANCE, outward at up to `power` cells/tick (full at the centre,
 // none at the rim) plus a lift, else vanish. A vanished cell sprays a spark of spark_color with
@@ -103,4 +104,4 @@ struct ExplodeStyle {
 // terrain; sparks pool after the thrown cells, so they never crowd out material. Pixels only:
 // nothing else is pushed. `salt` varies the dice and the shape per call. radius <= 0 does nothing.
 ExplodeResult explode(WorldGrid& grid, ParticlePool& pool, int cx, int cy, int radius,
-                      float power, uint32_t salt, const ExplodeStyle& style = {});
+                      float power, int dig, uint32_t salt, const ExplodeStyle& style = {});

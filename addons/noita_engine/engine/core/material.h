@@ -43,6 +43,10 @@ struct MaterialDef {
 	// instead of removing it. Power is in cells per second, as PixelWorld.explode takes it.
 	int explode_radius = 0;
 	float explode_power = 0;
+	// A blast with dig >= 0 leaves cells harder than dig alone. explode_dig is the dig a lit cell
+	// of this material blasts with; -1 digs everything.
+	int hardness = 0;
+	int explode_dig = -1;
 };
 
 struct ReactionDef {
@@ -79,6 +83,8 @@ struct CompiledMaterial {
 	bool indestructible;
 	int explode_radius;
 	float explode_power;
+	int hardness;
+	int explode_dig;
 	bool has_reactions;
 };
 

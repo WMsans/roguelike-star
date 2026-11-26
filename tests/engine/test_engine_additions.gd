@@ -11,6 +11,13 @@ func _make_world(arena := Rect2i(0, 0, 64, 64), border := &"rock") -> PixelWorld
 	rock.material_class = PixelMaterial.CLASS_SOLID
 	rock.color = Color(0.5, 0.5, 0.55)
 	rock.collision_solid = true
+	rock.hardness = 5
+	var steel := PixelMaterial.new()
+	steel.name = &"steel"
+	steel.material_class = PixelMaterial.CLASS_SOLID
+	steel.color = Color(0.6, 0.62, 0.68)
+	steel.collision_solid = true
+	steel.hardness = 7
 	var concrete := PixelMaterial.new()
 	concrete.name = &"concrete"
 	concrete.material_class = PixelMaterial.CLASS_SOLID
@@ -21,6 +28,7 @@ func _make_world(arena := Rect2i(0, 0, 64, 64), border := &"rock") -> PixelWorld
 	sand.name = &"sand"
 	sand.material_class = PixelMaterial.CLASS_POWDER
 	sand.color = Color(0.85, 0.72, 0.4)
+	sand.hardness = 1
 	var gunpowder := PixelMaterial.new()
 	gunpowder.name = &"gunpowder"
 	gunpowder.material_class = PixelMaterial.CLASS_POWDER
@@ -36,9 +44,14 @@ func _make_world(arena := Rect2i(0, 0, 64, 64), border := &"rock") -> PixelWorld
 	tnt.ignite_temperature = 250
 	tnt.explode_radius = 10
 	tnt.explode_power = 400
+	tnt.hardness = 3
+	# A charge that digs only up to hardness 4 when it goes off.
+	var tnt_dig: PixelMaterial = tnt.duplicate()
+	tnt_dig.name = &"tnt_dig"
+	tnt_dig.explode_dig = 4
 	var material_set := PixelMaterialSet.new()
 	# fire and smoke: the blast style's leftovers, and what a lit cell spreads, as in the game set.
-	material_set.materials = [rock, concrete, sand, gunpowder, tnt,
+	material_set.materials = [rock, steel, concrete, sand, gunpowder, tnt, tnt_dig,
 		load("res://game/materials/fire.tres"), load("res://game/materials/smoke.tres")]
 	var world := PixelWorld.new()
 	world.material_set = material_set
@@ -245,4 +258,106 @@ func test_count_materials_without_grid() -> void:
 	world.free()
 	assert_true(&"burning" in counts, "the burning key is present")
 	assert_eq(counts[&"burning"], 0, "no grid means nothing is burning")
+	_complete()
+
+
+# --- materials Task 1: hardness, dig-limited blasts, and blow (wind) ---
+const DIG_CENTRE := Vector2i(32, 32)
+
+
+func _half_rock_half_steel(world: PixelWorld) -> void:
+	world.fill_rect(Rect2i(22, 22, 10, 21), &"rock")   # left of the centre
+	world.fill_rect(Rect2i(32, 22, 10, 21), &"steel")  # the centre and right of it
+
+
+func test_explode_dig_spares_harder_cells() -> void:
+	var world := await _make_world()
+	_half_rock_half_steel(world)
+	var removed := world.explode(DIG_CENTRE, 8, 300, 6)
+	var counts: Dictionary = world.count_materials(Rect2i(22, 22, 20, 21))
+	assert_eq(counts.get(&"steel", 0), 210, "every steel cell (hardness 7 > dig 6) stays")
+	assert_true(removed > 0, "the blast removed cells")
+	assert_eq(210 - counts.get(&"rock", 0), removed, "only rock (hardness 5) was removed")
+	assert_eq(world.get_material_at(DIG_CENTRE - Vector2i(1, 0)), &"air", "rock beside the centre is gone")
+	assert_eq(world.take_blasts().back()["dig"], 6, "the queued blast carries its dig")
+	_complete()
+
+
+func test_explode_dig_default_digs_all() -> void:
+	var world := await _make_world()
+	_half_rock_half_steel(world)
+	world.explode(DIG_CENTRE, 8, 300)
+	var counts: Dictionary = world.count_materials(Rect2i(22, 22, 20, 21))
+	assert_true(counts.get(&"steel", 0) < 210, "steel was removed")
+	assert_true(counts.get(&"rock", 0) < 210, "rock was removed")
+	assert_eq(world.get_material_at(DIG_CENTRE), &"air", "the centre (steel) is gone")
+	assert_eq(world.take_blasts().back()["dig"], -1, "explode() without dig reports -1")
+	_complete()
+
+
+func test_explode_dig_still_lights_explosives() -> void:
+	var world := await _make_world()
+	world.fill_rect(Rect2i(30, 30, 4, 4), &"tnt")   # hardness 3
+	world.take_blasts()
+	world.explode(Vector2i(31, 31), 8, 300, 0)
+	assert_eq(world.count_materials(Rect2i(30, 30, 4, 4)).get(&"burning", 0), 16, "every TNT cell is lit")
+	world.step(1)
+	assert_true(world.take_blasts().any(func(b): return b["material"] == &"tnt"), "a tnt blast is queued")
+	_complete()
+
+
+func test_lit_blast_uses_explode_dig() -> void:
+	var world := await _make_world()
+	world.fill_rect(Rect2i(30, 30, 2, 2), &"tnt_dig")
+	world.fill_rect(Rect2i(32, 26, 4, 10), &"steel")
+	world.fill_rect(Rect2i(26, 26, 4, 10), &"rock")
+	world.take_blasts()
+	world.explode(Vector2i(30, 30), 1, 50, 0)   # lights the charge, digs nothing harder than 0
+	world.step(3)
+	var charge := world.take_blasts().filter(func(b): return b["material"] == &"tnt_dig")
+	assert_true(charge.size() > 0, "the charge went off")
+	assert_eq(charge[0]["dig"], 4, "a lit blast digs with its material's explode_dig")
+	assert_eq(world.count_materials(Rect2i(32, 26, 4, 10)).get(&"steel", 0), 40, "the steel remains")
+	_complete()
+
+
+func test_blow_moves_gas_only() -> void:
+	var world := await _make_world()
+	world.fill_rect(Rect2i(10, 10, 3, 3), &"smoke")
+	world.fill_rect(Rect2i(10, 20, 3, 3), &"sand")
+	world.fill_rect(Rect2i(10, 30, 3, 3), &"rock")
+	var moved := world.blow(Rect2i(5, 5, 30, 30), Vector2i(5, 0))
+	assert_eq(moved, 9, "the answer is the smoke count")
+	assert_eq(world.count_materials(Rect2i(15, 10, 3, 3)).get(&"smoke", 0), 9, "the smoke moved +5 in x")
+	assert_eq(world.count_materials(Rect2i(10, 10, 5, 3)).get(&"smoke", 0), 0, "no smoke stayed behind")
+	assert_eq(world.count_materials(Rect2i(10, 20, 3, 3)).get(&"sand", 0), 9, "the sand stayed")
+	assert_eq(world.count_materials(Rect2i(10, 30, 3, 3)).get(&"rock", 0), 9, "the rock stayed")
+	_complete()
+
+
+func test_blow_stops_at_walls() -> void:
+	var world := await _make_world()
+	world.fill_rect(Rect2i(20, 5, 2, 20), &"rock")
+	world.fill_rect(Rect2i(17, 10, 1, 3), &"smoke")   # x 18 and 19 are free, then the wall
+	world.blow(Rect2i(0, 0, 40, 40), Vector2i(5, 0))
+	assert_eq(world.count_materials(Rect2i(19, 10, 1, 3)).get(&"smoke", 0), 3, "the smoke ends next to the wall")
+	assert_eq(world.count_materials(Rect2i(20, 5, 2, 20)).get(&"rock", 0), 40, "no rock cell changed")
+	_complete()
+
+
+func test_blow_across_the_border() -> void:
+	var world := await _make_world()
+	world.fill_rect(Rect2i(60, 0, 4, 4), &"smoke")
+	world.fill_rect(Rect2i(0, 60, 4, 4), &"smoke")
+	var rect := Rect2i(-300, -300, 700, 700)   # past the border and into unloaded space
+	var moved := 0
+	for v in [Vector2i(5, 3), Vector2i(-1000, 1000), Vector2i(64, -64)]:
+		moved += world.blow(rect, v)
+	assert_true(moved >= 0, "blow answers a count")
+	for i in 64:
+		for cell in [Vector2i(-1, i), Vector2i(64, i), Vector2i(i, -1), Vector2i(i, 64)]:
+			if world.get_material_at(cell) != &"rock":
+				assert_eq(world.get_material_at(cell), &"rock", "border cell %s" % cell)
+				_complete()
+				return
 	_complete()

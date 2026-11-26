@@ -142,7 +142,7 @@ void ParticlePool::step() {
 }
 
 ExplodeResult explode(WorldGrid& grid, ParticlePool& pool, int cx, int cy, int radius,
-                      float power, uint32_t salt, const ExplodeStyle& style) {
+                      float power, int dig, uint32_t salt, const ExplodeStyle& style) {
 	ExplodeResult result;
 	if (radius <= 0) return result;
 	const MaterialTable& mt = grid.materials();
@@ -186,6 +186,7 @@ ExplodeResult explode(WorldGrid& grid, ParticlePool& pool, int cx, int cy, int r
 				grid.put(x, y, c);
 				continue;
 			}
+			if (dig >= 0 && def.hardness > dig) continue;
 			++result.removed;
 			grid.set(x, y, MAT_AIR);
 			cleared.push_back({dx, dy});
