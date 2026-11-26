@@ -488,17 +488,22 @@ func _draw_markers() -> void:
 	for rig in [player, enemy]:
 		if rig == null or not _alive(rig):
 			continue
+		if rig.statuses.any():
+			var hull := hull_box(rig)
+			ChStatusBadge.draw(marks, rig.statuses, Rect2(onto * hull.position, hull.size))
 		for part in rig.parts:
 			if part.def == null:
 				continue
 			if part.body == null or not is_instance_valid(part.body):
 				# A part whose body left the world has no place to mark.
 				continue
-			if not part.broken:
-				continue
 			var size := Vector2(maxi(1, part.def.size.x), maxi(1, part.def.size.y))
 			var at: Vector2 = onto * part.anchor_world()
 			var box := Rect2(at - size * 0.5, size)
+			if not part.broken:
+				if part.statuses.any():
+					ChStatusBadge.draw(marks, part.statuses, box)
+				continue
 			# An X: the wreck is out of the fight, and its body is still lying in the sand.
 			marks.draw_line(box.position, box.end, Color(1.0, 1.0, 1.0))
 			marks.draw_line(Vector2(box.position.x, box.end.y), Vector2(box.end.x, box.position.y),

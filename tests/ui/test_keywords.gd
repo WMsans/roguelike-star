@@ -11,9 +11,9 @@ func test_parse_plain_text_unchanged() -> void:
 	_complete()
 
 func test_parse_tag_with_shown_text() -> void:
-	var out := ChKeywords.parse("Sprays {burn:fire} ahead.")
-	assert_eq(out.bbcode, "Sprays %s ahead." % _tag(&"burn", "fire"))
-	assert_eq(out.keys, [&"burn"])
+	var out := ChKeywords.parse("Sprays {flame:fire} ahead.")
+	assert_eq(out.bbcode, "Sprays %s ahead." % _tag(&"flame", "fire"))
+	assert_eq(out.keys, [&"flame"])
 	_complete()
 
 func test_parse_bare_tag_uses_entry_name() -> void:
@@ -28,8 +28,8 @@ func test_parse_unknown_key_renders_plain() -> void:
 	_complete()
 
 func test_keys_of_dedupes_in_first_order() -> void:
-	var lines := PackedStringArray(["{burn:a} then {freeze}", "{burn:b} {nope}", "{energy}"])
-	assert_eq(ChKeywords.keys_of(lines), [&"burn", &"freeze", &"energy"])
+	var lines := PackedStringArray(["{flame:a} then {freeze}", "{flame:b} {nope}", "{energy}"])
+	assert_eq(ChKeywords.keys_of(lines), [&"flame", &"freeze", &"energy"])
 	_complete()
 
 func test_every_entry_complete() -> void:
@@ -44,4 +44,9 @@ func test_keyword_colours_read_on_the_panel() -> void:
 		var c := ChKeywords.color_of(key)
 		assert_true(c.get_luminance() - ChUi.PANEL.get_luminance() >= 0.35,
 			"%s reads as text on the dark panel" % key)
+	_complete()
+
+func test_every_status_has_a_keyword() -> void:
+	for s in ChStatuses.ALL:
+		assert_true(ChKeywords.has(s), "%s has a keyword" % s)
 	_complete()
