@@ -7,7 +7,7 @@ class_name ChBattleContext extends RefCounted
 #   whose def's proximity_range covers the source to change it, then the source's own behaviour,
 #   then applies ChDamage (after the target's Block), gives hit["freeze"] stacks of Freeze to the
 #   target part, emits HIT, and breaks the target part if its integrity reached 0.
-# - tick runs one frame: hazards -> the status clock (one _status_second per whole STATUS_SECOND)
+# - tick runs one frame: hazards -> battery leaks -> the status clock (one _status_second per whole STATUS_SECOND)
 #   -> per chariot: cooldowns -> energy.tick (regen, then the drive) -> on a press, the volley
 #   (ready triggered parts paid dearest energy_cost first; each paid part fires, resets its
 #   cooldown, spends a charge, emits PART_FIRED) -> behaviour.process -> drive. The drive cost is
@@ -297,6 +297,7 @@ func tick(delta: float, drive_input: Array[float], press_input: Array = []) -> A
 	time += delta
 	if world != null:
 		hazards.apply(self, world.take_blasts())
+		sparks.tick(self)
 	status_clock += delta
 	while status_clock >= STATUS_SECOND:
 		status_clock -= STATUS_SECOND

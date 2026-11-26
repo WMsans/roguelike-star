@@ -3,7 +3,7 @@ class_name ChSparks extends RefCounted
 # Sparks: a discharge floods through touching water and steel, lights the explosives it reaches
 # (world.ignite, as a blast lights them), draws an arc of spark cells, and shocks every holder
 # whose sample rect it reached. Batteries are blocks of battery cells that discharge once a status
-# second and leak acid where a cell broke.
+# second and leak acid where a cell broke, checked every tick.
 # An instance at ctx.sparks, because the recorded batteries are per fight.
 
 const CONDUCTORS: Array[StringName] = [&"water", &"steel"]
@@ -14,6 +14,7 @@ const ARC_CELLS := 24  # air cells turned to spark per discharge
 const DIRS: Array[Vector2i] = [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
 
 var _batteries: Array = []  # each an Array[Vector2i] of the battery cells still standing
+var _gases := {}  # the world's gas-class material names, read on the first tick with a battery
 
 
 static func discharge(ctx: ChBattleContext, seeds: Array[Vector2i], shock := true) -> Array:
@@ -76,18 +77,30 @@ func add_battery(ctx: ChBattleContext, rect: Rect2i) -> void:
 		_batteries.append(cells)
 
 
-func second(ctx: ChBattleContext) -> void:
-	# Once a status second, before the holders are snapshotted: broken cells leak, then each block
-	# with cells left discharges from them.
+func tick(ctx: ChBattleContext) -> void:
+	# Every frame, so a blast's crater is read before sand refills it: a recorded cell that is now air
+	# or any gas (fire, smoke, steam...) broke and leaks acid; one that is now anything else (sand
+	# fell in) is forgotten dry. A block with no cells left is dropped.
+	if _batteries.is_empty():
+		return
+	if _gases.is_empty():
+		for m in ctx.world.material_set.materials:
+			if m.material_class == PixelMaterial.CLASS_GAS:
+				_gases[m.name] = true
 	for block in _batteries:
 		var left: Array[Vector2i] = []
 		for at in block:
 			var m := ctx.world.get_material_at(at)
 			if m == &"battery":
 				left.append(at)
-			elif m == &"air":
+			elif m == &"air" or _gases.has(m):
 				ctx.world.set_cell(at, &"acid")
 		block.assign(left)
 	_batteries = _batteries.filter(func(block: Array) -> bool: return not block.is_empty())
+
+
+func second(ctx: ChBattleContext) -> void:
+	# Once a status second, before the holders are snapshotted: each block with cells left discharges
+	# from them.
 	for block in _batteries:
 		discharge(ctx, block)

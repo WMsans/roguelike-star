@@ -152,7 +152,7 @@ func test_broken_battery_leaks_acid() -> void:
 	ctx.sparks.add_battery(ctx, Rect2i(200, 150, 4, 4))
 	world.set_cell(Vector2i(200, 150), &"air")
 	world.set_cell(Vector2i(203, 153), &"air")
-	ctx._status_second()
+	ctx.sparks.tick(ctx)
 	assert_eq(world.get_material_at(Vector2i(200, 150)), &"acid", "the first broken cell leaks acid")
 	assert_eq(world.get_material_at(Vector2i(203, 153)), &"acid", "the second too")
 	assert_eq(world.get_material_at(Vector2i(201, 151)), &"battery", "the rest is still battery")
@@ -186,4 +186,56 @@ func test_spark_arc_is_visible() -> void:
 	assert_true(world.count_materials(around).get(&"spark", 0) > 0, "spark cells over the water")
 	world.step(30)
 	assert_eq(world.count_materials(around).get(&"spark", 0), 0, "gone after 30 ticks")
+	_complete()
+
+
+func _tick(ctx: ChBattleContext, frames: int) -> void:
+	# Real fight frames: the world steps, then the context ticks, as ChBattle runs them.
+	for i in frames:
+		ctx.world.step(1)
+		ctx.tick(1.0 / 60.0, [] as Array[float])
+
+
+func test_blasted_battery_leaks_acid_in_a_fight() -> void:
+	var world: PixelWorld = await make_world()
+	world.fill_rect(Rect2i(0, 160, 480, 20), &"rock")
+	world.fill_rect(Rect2i(200, 152, 8, 8), &"battery")
+	world.fill_rect(Rect2i(194, 140, 20, 8), &"sand")  # falls into the crater within the second
+	var ctx := _ctx(world, [])
+	ctx.sparks.add_battery(ctx, Rect2i(200, 152, 8, 8))
+	world.explode(Vector2i(203, 152), 3, 150.0, 4)  # battery hardness 4: dug
+	# Acid eats the sand and battery it meets into acid gas, which thins away, so the leak is read
+	# on every frame of the second rather than at its end.
+	var seen := 0
+	for i in 60:
+		_tick(ctx, 1)
+		seen = maxi(seen, world.count_materials(Rect2i(200, 152, 8, 8)).get(&"acid", 0))
+	assert_true(seen > 0, "acid where the battery broke")
+	_complete()
+
+
+func test_battery_cell_filled_by_sand_is_forgotten() -> void:
+	var world: PixelWorld = await make_world()
+	world.fill_rect(Rect2i(0, 160, 480, 20), &"rock")
+	world.fill_rect(Rect2i(200, 158, 4, 2), &"battery")
+	var ctx := _ctx(world, [])
+	ctx.sparks.add_battery(ctx, Rect2i(200, 158, 4, 2))
+	world.set_cell(Vector2i(200, 158), &"sand")
+	ctx.sparks.tick(ctx)
+	world.set_cell(Vector2i(200, 158), &"air")
+	ctx.sparks.tick(ctx)
+	assert_eq(world.get_material_at(Vector2i(200, 158)), &"air", "a cell sand filled is forgotten")
+	assert_eq(ctx.sparks._batteries[0].size(), 7, "seven cells still recorded")
+	_complete()
+
+
+func test_fully_broken_battery_is_dropped() -> void:
+	var world: PixelWorld = await make_world()
+	world.fill_rect(Rect2i(200, 150, 2, 2), &"battery")
+	var ctx := _ctx(world, [])
+	ctx.sparks.add_battery(ctx, Rect2i(200, 150, 2, 2))
+	world.fill_rect(Rect2i(200, 150, 2, 2), &"smoke")
+	ctx.sparks.tick(ctx)
+	assert_eq(world.count_materials(Rect2i(200, 150, 2, 2)).get(&"acid", 0), 4, "smoke counts as broken")
+	assert_eq(ctx.sparks._batteries.size(), 0, "the empty block is dropped")
 	_complete()
