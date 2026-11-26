@@ -238,3 +238,13 @@ func test_terrain_tnt_beside_a_spent_charge_does_not_keep_it() -> void:
 	ctx._status_second()
 	assert_eq(_owner_of(ctx, f.booms, A + Vector2i(2, 2)), -1, "the spent charge claims nothing")
 	_complete()
+
+
+func test_sizes_match_the_material_files() -> void:
+	for material in ChHazards.MATERIAL_SIZE:
+		var m: PixelMaterial = load("res://game/materials/%s.tres" % material)
+		var s: Dictionary = ChHazards.SIZES[ChHazards.MATERIAL_SIZE[material]]
+		assert_eq(m.explode_radius, s.radius, "%s explode_radius" % material)
+		assert_eq(m.explode_power, s.power, "%s explode_power" % material)
+		assert_eq(m.explode_dig, s.dig, "%s explode_dig" % material)
+	_complete()
