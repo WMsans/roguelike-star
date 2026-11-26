@@ -205,12 +205,14 @@ func test_holds_with_a_melee_part_in_reach() -> void:
 	var dx := part.def.reach + HALF  # measured from the part: reach + target half
 	assert_true(ChEnemyAI.should_hold(rig, dx, HALF),
 		"a melee part with the target in reach and half its cost in the pool holds")
-	# A second runner out of reach must not raise the bar: only the in-reach parts' cost counts.
+	# A second runner out of reach is still priced: the continuous step pays every part that can run.
 	var far := _part_with(_runner(2.0))
 	far.body.global_position = Vector2(500.0, 0.0)
 	rig.parts = [part, far] as Array[ChPartRuntime]
-	assert_true(ChEnemyAI.should_hold(rig, dx, HALF),
-		"a runner that cannot reach the target is not part of the hold's cost")
+	assert_true(not ChEnemyAI.should_hold(rig, dx, HALF),
+		"a runner that cannot reach the target is part of the hold's cost, so the same pool no longer holds")
+	rig.energy.value = 2.0 * PER_SECOND * ChEnemyAI.HOLD_SHARE
+	assert_true(ChEnemyAI.should_hold(rig, dx, HALF), "and the whole drain in the pool holds")
 	_complete()
 
 
@@ -228,6 +230,19 @@ func test_no_hold_below_the_share() -> void:
 	assert_true(not ChEnemyAI.should_hold(rig, dx, HALF), "a hair under half the per-second cost waits")
 	rig.energy.value = PER_SECOND * ChEnemyAI.HOLD_SHARE
 	assert_true(ChEnemyAI.should_hold(rig, dx, HALF), "and exactly half holds: the rule is at least")
+	_complete()
+
+
+func test_no_hold_when_the_whole_drain_is_unaffordable() -> void:
+	# One runner in reach and one out of it, both of which the continuous step would pay. The pool
+	# covers half the in-reach runner's rate but not half the total, so the hold would start and starve.
+	var near := _part_with(_runner(10.0))
+	var far := _part_with(_runner(10.0))
+	far.body.global_position = Vector2(500.0, 0.0)
+	var rig := _rig([near, far], 20.0, 1.5 * PER_SECOND * ChEnemyAI.HOLD_SHARE)
+	var dx := near.def.reach + HALF
+	assert_true(not ChEnemyAI.should_hold(rig, dx, HALF),
+		"the bar is the whole can_run() drain, not just the in-reach part's")
 	_complete()
 
 

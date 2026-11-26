@@ -105,15 +105,16 @@ const HOLD_SHARE := 0.5
 
 static func should_hold(chariot: ChChariotRuntime, target_x: float, target_half: float) -> bool:
 	# Hold when a part the button would run has the target in reach and the pool holds HOLD_SHARE of
-	# the summed energy_per_second of exactly those parts. Reach is measured from the part's own
-	# position, as should_press measures it, so the attacker's half-width is already covered.
+	# the drain the hold commits to. Reach is measured from the part's own position, as should_press
+	# measures it, so the attacker's half-width is already covered. The drain is every can_run() part,
+	# reach or no reach, because the continuous step pays them all, dearest first: pricing only the
+	# in-reach ones would commit the pool to a hold it cannot afford and starve the in-reach runner.
 	var per_second := 0.0
 	var in_reach := false
 	for part in chariot.parts:
 		if not part.can_run():
 			continue
-		if absf(target_x - part.anchor_world().x) > part.def.reach + target_half:
-			continue
-		in_reach = true
+		if absf(target_x - part.anchor_world().x) <= part.def.reach + target_half:
+			in_reach = true
 		per_second += part.def.energy_per_second
 	return in_reach and chariot.energy.value >= HOLD_SHARE * per_second
