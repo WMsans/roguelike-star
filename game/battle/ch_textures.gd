@@ -9,7 +9,10 @@ const INK := Color("1a1c2c")  # the sprites' navy outline
 static func art(source: Texture2D, flip_x: bool) -> ImageTexture:
 	# A def's sprite as a body's own texture: RGBA8 like the placeholders, mirrored when the part
 	# (or the whole build) faces -x.
-	var image := source.get_image()
+	# The copy is not laziness: get_image() hands back the texture resource's own cached Image on this
+	# build, so converting or flipping it in place rewrote the def's sprite for the rest of the run —
+	# a mirrored build toggled an asymmetric body's art every time it ran.
+	var image := source.get_image().duplicate() as Image
 	image.convert(Image.FORMAT_RGBA8)
 	if flip_x:
 		image.flip_x()
