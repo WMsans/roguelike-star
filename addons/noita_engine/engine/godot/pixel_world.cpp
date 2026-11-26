@@ -107,6 +107,7 @@ void PixelWorld::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("spawn_visual_particles", "color", "position", "velocity", "count", "spread", "lifetime", "gravity_scale", "collides"), &PixelWorld::spawn_visual_particles, DEFVAL(1.0f), DEFVAL(true));
 	ClassDB::bind_method(D_METHOD("explode", "position", "radius", "power", "dig"), &PixelWorld::explode, DEFVAL(-1));
 	ClassDB::bind_method(D_METHOD("blow", "rect", "velocity"), &PixelWorld::blow);
+	ClassDB::bind_method(D_METHOD("ignite", "position"), &PixelWorld::ignite);
 	ClassDB::bind_method(D_METHOD("take_blasts"), &PixelWorld::take_blasts);
 	ClassDB::bind_method(D_METHOD("raycast", "from", "to", "mask"), &PixelWorld::raycast, DEFVAL(RAY_SOLID | RAY_POWDER | RAY_BODIES));
 	ClassDB::bind_method(D_METHOD("sweep_boxes", "from", "to", "sizes", "mask"), &PixelWorld::sweep_boxes);
@@ -1378,6 +1379,17 @@ int PixelWorld::blow(const Rect2i &p_rect, const Vector2i &p_velocity) {
 		}
 	}
 	return moved;
+}
+
+bool PixelWorld::ignite(const Vector2i &p_position) {
+	Cell c{};
+	if (!grid || !grid->get(p_position.x, p_position.y, c) || (c.flags & FLAG_BODY)) return false;
+	const CompiledMaterial &def = table.get(c.mat);
+	if (def.ignite_temp == NO_TEMP) return false;
+	c.flags |= FLAG_BURNING;
+	if (c.temp < def.ignite_temp) c.temp = def.ignite_temp;
+	grid->put(p_position.x, p_position.y, c);
+	return true;
 }
 
 Dictionary PixelWorld::raycast(const Vector2 &p_from, const Vector2 &p_to, int p_mask) const {

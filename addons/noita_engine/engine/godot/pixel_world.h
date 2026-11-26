@@ -378,6 +378,11 @@ public:
 	// is clamped to +-64 per axis; unloaded cells are skipped. Answers the cells moved. Main
 	// thread only, like explode.
 	int blow(const Rect2i &p_rect, const Vector2i &p_velocity);
+	// Lights one cell as a blast lights an explosive: FLAG_BURNING, and its temperature raised to at
+	// least its ignite_temp. False (nothing changed) for an unloaded cell, a body pixel (as
+	// explode skips them) or one that cannot ignite.
+	// Main thread only, like explode.
+	bool ignite(const Vector2i &p_position);
 	// Hits on terrain carry "position", "material", "normal" (cells) and a null "collider";
 	// hits on a body carry the body as "collider" and the exact "point".
 	Dictionary raycast(const Vector2 &p_from, const Vector2 &p_to, int p_mask = RAY_SOLID | RAY_POWDER | RAY_BODIES) const;

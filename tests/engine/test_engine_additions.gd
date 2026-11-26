@@ -361,3 +361,20 @@ func test_blow_across_the_border() -> void:
 				_complete()
 				return
 	_complete()
+
+
+func test_ignite_lights_explosives_only() -> void:
+	var world := await _make_world()
+	world.fill_rect(Rect2i(30, 30, 4, 4), &"tnt")
+	world.fill_rect(Rect2i(10, 50, 4, 4), &"rock")
+	assert_true(world.ignite(Vector2i(31, 31)), "a tnt cell lights")
+	assert_true(not world.ignite(Vector2i(11, 51)), "rock cannot")
+	assert_true(not world.ignite(Vector2i(20, 20)), "nor air")
+	var lit := false
+	for i in 60:
+		world.step(1)
+		for b in world.take_blasts():
+			lit = lit or b["material"] == &"tnt"
+	assert_true(lit, "the lit tnt went off")
+	assert_eq(world.count_materials(Rect2i(10, 50, 4, 4)).get(&"rock", 0), 16, "the rock is unchanged")
+	_complete()
