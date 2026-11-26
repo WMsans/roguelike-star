@@ -30,6 +30,8 @@ const LAVA_TOP := 6  # cells under the surface; a wheel samples about 4 down (Ch
 const POOL_X := 56  # the steel-lidded water pool's left edge (left half): 20 wide, 3 deep
 const POOL_W := 20
 const POOL_DEPTH := 6  # sand over the steel lid, out of a wheel's sample like the lava
+const RAIL_X := 210  # the driving-line steel rail's left edge (left half), over the lava's outer end
+const RAIL_W := 14
 
 
 static func _surface(rng_seed: int) -> Array[int]:
@@ -108,9 +110,9 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 	# The water pool between the cistern and the flank crate, off the driving line: a 1-cell steel
 	# lid (POOL_W + 4, the run Stage 4's spark parts can feed) over a 3-deep water pool in a rock
 	# bed, and a 4x3 battery block touching the lid's inner end, all under 6 sand so no wheel
-	# samples them (ChSparks shocks a holder whose rect a discharge reaches). The battery discharges
-	# every status second into the lid and the water and reaches nobody until a blast or dig opens
-	# it; the nearest explosive is the flank crate 36 cells on. The lid is solid, so the sand over
+	# samples them: ChSparks.second discharges each battery with shock on, which gives Shock to any
+	# holder whose sample rect reaches a flooded cell. So the battery sparks every status second into
+	# the lid and the water and reaches nobody until a blast or dig opens it; the nearest explosive is the flank crate 36 cells on. The lid is solid, so the sand over
 	# the water stays in the collider (the seam's reason above).
 	var lid: int = surface.slice(POOL_X - 2, POOL_X + POOL_W + 6).max() + POOL_DEPTH
 	_both(world, Rect2i(POOL_X - 2, lid + 1, POOL_W + 4, 4), &"rock")
@@ -153,6 +155,14 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 			surface[x] = crust_y
 		_both(world, Rect2i(x, surface[x] + LAVA_TOP - 1, 1, 1), &"rock")
 		_both(world, Rect2i(x, surface[x] + LAVA_TOP, 1, 6), &"lava")
+	# A steel rail where the chariots meet, for a part's spark (Stage 4's Zap Gun, Grounding Spike,
+	# Ball Lightning): one flat row at crust_y + 1, so 1-2 cells under the middle's ground and inside
+	# a wheel's sample, over the lava's outer end (x 210-223, mirrored 256-269). Flat because the
+	# flood is 4-connected and a rail that stepped with the surface would break on the diagonals.
+	# Steel is hardness 7, past every blast's dig, so the rail shields the lava under it; the 32
+	# columns between the rails (x 224-255) stay open to a dig. It touches no battery and no
+	# explosive (the middle crate ends at x 203), so nothing sparks it but a part.
+	_both(world, Rect2i(RAIL_X, crust_y + 1, RAIL_W, 1), &"steel")
 	# The dig room is the sand under the spawns (x 151-197): nothing placed.
 	return {
 		"spawn_left": Vector2(SPAWN_LEFT_X, surface[SPAWN_LEFT_X] - SPAWN_ABOVE),

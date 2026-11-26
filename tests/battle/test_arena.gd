@@ -219,6 +219,10 @@ func test_arena_has_batteries_steel_and_water() -> void:
 		assert_true(counts.get(&"battery", 0) >= 12, "a battery block in %s (%d cells)" % [half, counts.get(&"battery", 0)])
 		assert_true(counts.get(&"water", 0) > 0, "a water pool in %s" % half)
 		assert_true(_longest_steel_run(world, half) >= 12, "a steel run of 12+ in %s" % half)
+	# A conductor in the fighting area (the driving line, x 140-340) for a part's spark to use: a
+	# steel run of 12+ in each half of it.
+	for half in [Rect2i(140, 0, 100, 180), Rect2i(240, 0, 101, 180)]:
+		assert_true(_longest_steel_run(world, half) >= 12, "a steel run of 12+ on the driving line in %s" % half)
 	# "batteries" lists the battery rects, whole, and every battery cell sits in one.
 	assert_true("batteries" in built, "the build answers batteries")
 	var rects: Array = built.get("batteries", [])
@@ -234,6 +238,15 @@ func test_arena_has_batteries_steel_and_water() -> void:
 	_complete()
 
 
+class CountingSparks extends ChSparks:
+	# Counts the blocks each status second discharges (second() discharges every block left).
+	var discharges := 0
+
+	func second(ctx: ChBattleContext) -> void:
+		super(ctx)
+		discharges += _batteries.size()
+
+
 func test_idle_arena_never_blows() -> void:
 	# The batteries spark every status second; 60 s of that with nobody near sets off nothing.
 	var world: PixelWorld = await make_world()
@@ -241,6 +254,8 @@ func test_idle_arena_never_blows() -> void:
 	var ctx := ChBattleContext.new()
 	ctx.world = world
 	ctx.bus = ChEventBus.new()
+	var sparks := CountingSparks.new()
+	ctx.sparks = sparks
 	for rect: Rect2i in built.get("batteries", []):
 		ctx.sparks.add_battery(ctx, rect)
 	world.take_blasts()
@@ -253,7 +268,8 @@ func test_idle_arena_never_blows() -> void:
 				went_off.append(blast)
 		ctx.tick(1.0 / 60.0, [], [])
 	assert_eq(went_off, [], "material blasts in an idle minute")
-	assert_true(built.get("batteries", []).size() >= 2, "batteries were registered")
+	# Not vacuous: both batteries discharged every status second (buried, so no arc cells show).
+	assert_true(sparks.discharges >= 2 * 59, "battery discharges in the minute (%d)" % sparks.discharges)
 	world.free()
 	_complete()
 

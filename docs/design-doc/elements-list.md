@@ -106,8 +106,9 @@ So 1 Speedup gives exactly 1 extra second of cooldown, and 1 Slow takes away hal
   (`core-mechanics.md` §3.5), and Block soaks blast damage.
 - Wind: a rect of the world can blow its gases (smoke, steam, the gases above, fire and sparks)
   along. Nothing else moves.
-- The arena has, on each side, a 4x3 battery wired to a steel-lidded water pool under the sand,
-  well clear of the explosives.
+- The arena has, on each side, a 4x3 battery wired to a steel-lidded water pool deep under the
+  sand, well clear of the explosives, and a 14-cell steel rail just under the ground where the
+  chariots meet, for a part's spark. No battery reaches the rails.
 
 **Proposed**
 
