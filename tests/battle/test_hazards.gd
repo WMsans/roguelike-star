@@ -1,11 +1,11 @@
 extends ChTest
 
-# Material blasts hurt and push chariots. The blasts are hand-made dicts fed to ChHazards.apply, so
+# Material blasts hurt and push chariots. The blasts are hand-made dicts fed to ctx.hazards.apply, so
 # nothing here needs TNT in the world. Rigs come out of the real builder, as test_context.gd does.
 
 const GROUND_TOP := 160
 const HP := 1000  # more than a TNT centre hit, so the arithmetic is never clamped
-const TNT := 300  # ChHazards.BLAST_DAMAGE[&"tnt"], the HP a TNT blast takes at its centre
+const TNT: int = ChHazards.SIZES[&"large"]["damage"]  # the HP a TNT (large) blast takes at its centre
 const NEAR := Vector2(120, 140)
 const FAR := Vector2(320, 140)
 
@@ -44,7 +44,7 @@ func _fight() -> Dictionary:
 	return {"world": world, "ctx": ctx, "heard": heard}
 
 func _blast(at: Vector2, radius: int, material := &"tnt") -> Dictionary:
-	return {"position": Vector2i(at), "radius": radius, "power": 1.0, "material": material}
+	return {"position": Vector2i(at), "radius": radius, "power": 1.0, "material": material, "dig": 6}
 
 func test_material_blast_costs_hp_once() -> void:
 	var f := await _fight()
@@ -54,7 +54,7 @@ func test_material_blast_costs_hp_once() -> void:
 	for part in c.parts:
 		before.append(part.integrity)
 	var centre := c.chassis.global_position
-	ChHazards.apply(ctx, [_blast(centre, 12)])
+	ctx.hazards.apply(ctx, [_blast(centre, 12)])
 	assert_eq(c.hp, HP - TNT)
 	for at in c.parts.size():
 		var part: ChPartRuntime = c.parts[at]
@@ -77,7 +77,7 @@ func test_falloff_halves_at_half_radius() -> void:
 	var ctx: ChBattleContext = f.ctx
 	var c: ChChariotRuntime = ctx.chariots[0]
 	var box := ChBattle.hull_box(c)
-	ChHazards.apply(ctx, [_blast(Vector2(box.position.x - 6.0, box.get_center().y), 12)])
+	ctx.hazards.apply(ctx, [_blast(Vector2(box.position.x - 6.0, box.get_center().y), 12)])
 	assert_eq(c.hp, HP - roundi(TNT * 0.5))
 	_complete()
 
@@ -85,7 +85,7 @@ func test_script_blast_deals_nothing() -> void:
 	var f := await _fight()
 	var ctx: ChBattleContext = f.ctx
 	var c: ChChariotRuntime = ctx.chariots[0]
-	ChHazards.apply(ctx, [_blast(c.chassis.global_position, 12, &"")])
+	ctx.hazards.apply(ctx, [_blast(c.chassis.global_position, 12, &"")])
 	assert_eq(c.hp, HP)
 	assert_eq(f.heard.size(), 0)
 	_complete()
@@ -96,7 +96,7 @@ func test_one_blast_both_chariots_each_once() -> void:
 	var a: ChChariotRuntime = ctx.chariots[0]
 	var b: ChChariotRuntime = ctx.chariots[1]
 	var centre := Vector2(220, 140)
-	ChHazards.apply(ctx, [_blast(centre, 150)])
+	ctx.hazards.apply(ctx, [_blast(centre, 150)])
 	for c in [a, b]:
 		var box := ChBattle.hull_box(c)
 		var d := centre.distance_to(centre.clamp(box.position, box.end))
@@ -112,7 +112,7 @@ func test_broken_part_and_freed_chassis_skipped() -> void:
 	a.break_part(a.parts[0], ctx)
 	var kept: int = a.parts[0].integrity
 	b.chassis.free()
-	ChHazards.apply(ctx, [_blast(a.chassis.global_position, 12)])
+	ctx.hazards.apply(ctx, [_blast(a.chassis.global_position, 12)])
 	assert_eq(a.parts[0].integrity, kept, "a broken part is not worn again")
 	assert_eq(f.heard.size(), 1, "only the intact chariot is hit")
 	_complete()
@@ -124,7 +124,7 @@ func test_blast_pushes_away() -> void:
 	await Engine.get_main_loop().process_frame
 	f.world.step(1)
 	var at := c.chassis.global_position - Vector2(6, 0)
-	ChHazards.apply(ctx, [{"position": Vector2i(at), "radius": 12, "power": 4.0, "material": &"tnt"}])
+	ctx.hazards.apply(ctx, [{"position": Vector2i(at), "radius": 12, "power": 4.0, "material": &"tnt", "dig": 6}])
 	# The body joins the physics world on a frame, so one passes before the step.
 	await Engine.get_main_loop().process_frame
 	f.world.step(1)
@@ -147,10 +147,35 @@ func test_zero_damage_rim_pushes_but_costs_nothing() -> void:
 	var box := ChBattle.hull_box(c)
 	var before := c.chassis.linear_velocity
 	# gunpowder (6 HP), 47-48 cells out of a radius 50: roundi(6 * 0.05) is 0
-	ChHazards.apply(ctx, [_blast(Vector2(ceilf(box.end.x) + 47, box.get_center().y), 50, &"gunpowder")])
+	ctx.hazards.apply(ctx, [_blast(Vector2(ceilf(box.end.x) + 47, box.get_center().y), 50, &"gunpowder")])
 	await Engine.get_main_loop().process_frame
 	f.world.step(1)
 	assert_eq(c.hp, HP)
 	assert_eq(f.heard.size(), 0, "no HAZARD_HIT")
 	assert_true(c.chassis.linear_velocity.x < before.x, "still pushed away from the blast")
+	_complete()
+
+
+func test_blast_damage_spends_body_block() -> void:
+	var f := await _fight()
+	var ctx: ChBattleContext = f.ctx
+	var c: ChChariotRuntime = ctx.chariots[0]
+	c.statuses.stacks[ChStatuses.BLOCK] = 100
+	var lost: Array[ChEvent] = []
+	ctx.bus.subscribe(self, ChEvent.STATUS_LOST, func(e: ChEvent): lost.append(e))
+	ctx.hazards.apply(ctx, [_blast(c.chassis.global_position, 12)])
+	assert_eq(c.statuses.count(ChStatuses.BLOCK), 0, "the Block is spent")
+	assert_eq(c.hp, HP - (TNT - 100), "the rest goes to HP")
+	assert_eq(lost.size(), 1)
+	assert_eq(lost[0].data.status, ChStatuses.BLOCK)
+	assert_eq(lost[0].source, c)
+	_complete()
+
+
+func test_medium_blast_for_flammable_gas() -> void:
+	var f := await _fight()
+	var ctx: ChBattleContext = f.ctx
+	var c: ChChariotRuntime = ctx.chariots[0]
+	ctx.hazards.apply(ctx, [_blast(c.chassis.global_position, 8, &"flammable_gas")])
+	assert_eq(c.hp, HP - ChHazards.SIZES[&"medium"].damage)
 	_complete()

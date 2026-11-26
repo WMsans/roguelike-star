@@ -27,6 +27,7 @@ var time: float = 0.0  # the fight's clock, which a timed behaviour counts again
 # This fight's modifier (ChFightRules). The default is the do-nothing rule, so a context that was never
 # given one — every test and caller that predates modifiers — fights exactly as it did without one.
 var rules: ChFightRules = ChFightRules.new()
+var hazards := ChHazards.new()  # blast ownership lives here, so it is per fight
 var status_clock: float = 0.0  # time since the last status second
 var _status_seconds := 0  # status seconds run so far; Oil drips on the even ones
 
@@ -86,6 +87,14 @@ func give_status(target: Object, status: StringName, amount: int, hops := 1, fro
 			_status_event(ChEvent.SHOCK_JUMPED, other, {"from": target, "amount": half})
 			give_status(other, ChStatuses.SHOCK, half, hops - 1, target)
 	return added
+
+func explode(source: ChPartRuntime, at: Vector2i, size: StringName, damage: int, dig := -1) -> void:
+	# A part-made blast of a ChHazards size: digs, emits EXPLOSION, and hits the other side only.
+	hazards.explode(self, source, at, size, damage, dig)
+
+func own_charge(rect: Rect2i, side: int) -> void:
+	# Explosive cells a part spawned: a blast that starts in them is that side's.
+	hazards.own_charge(rect, side)
 
 func _block_used(holder: Object, had: int) -> void:
 	# Block only ever runs out by being used: a hit or Acid. Either way the holder loses it.
@@ -286,7 +295,7 @@ func tick(delta: float, drive_input: Array[float], press_input: Array = []) -> A
 	# number of parts each side fired this frame, indexed by side.
 	time += delta
 	if world != null:
-		ChHazards.apply(self, world.take_blasts())
+		hazards.apply(self, world.take_blasts())
 	status_clock += delta
 	while status_clock >= STATUS_SECOND:
 		status_clock -= STATUS_SECOND
@@ -388,6 +397,8 @@ func _status_second() -> void:
 	# a 1-stack-a-second material (ice, smoke) holds its status at 1 on every frame instead of
 	# gaining and decaying it inside the same second.
 	_status_seconds += 1
+	if world != null:
+		hazards.prune_charges(world)
 	var holders: Array = []  # [chariot, holder] pairs
 	for chariot in chariots:
 		if chariot == null or chariot.hp <= 0:

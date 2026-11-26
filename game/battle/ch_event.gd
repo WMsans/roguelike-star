@@ -23,6 +23,7 @@ const STATUS_CANCELLED: StringName = &"status_cancelled"  # data: status, agains
 const STATUS_DOUBLED: StringName = &"status_doubled"  # data: status, amount
 const SHOCK_JUMPED: StringName = &"shock_jumped"  # data: from, amount
 const HAZARD_HIT: StringName = &"hazard_hit"  # a material blast hurt a chariot; no source part
+const EXPLOSION: StringName = &"explosion"  # side = owner (-1 unowned); data: size, radius, dig, owner, material, source
 
 
 # The holder's first stack of `status`: "caught fire" for Flame, "frozen" for Freeze.
