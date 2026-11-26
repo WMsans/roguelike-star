@@ -17,6 +17,8 @@ class_name ChBattleContext extends RefCounted
 
 const BURN_DPS := 5.0  # shortcut: ChDamage.burn_tick's own default, named here so a modifier can scale it; upgrade if burn_tick ever moves that number off its signature
 
+const STEAM_PUFF := 4  # steam particles when Flame and Wet cancel
+
 var world: PixelWorld = null
 var bus: ChEventBus = null
 var chariots: Array[ChChariotRuntime] = []  # index = side
@@ -25,6 +27,59 @@ var time: float = 0.0  # the fight's clock, which a timed behaviour counts again
 # This fight's modifier (ChFightRules). The default is the do-nothing rule, so a context that was never
 # given one — every test and caller that predates modifiers — fights exactly as it did without one.
 var rules: ChFightRules = ChFightRules.new()
+
+func touching(holder: Object) -> Array:
+	# The holder's own chariot's body and unbroken parts whose box, grown by 1 cell, meets the holder's.
+	var out: Array = []
+	var chariot: ChChariotRuntime = holder if holder is ChChariotRuntime else own(holder)
+	if chariot == null:
+		return out
+	var box: Rect2 = holder.status_box()
+	var all: Array = [chariot]
+	all.append_array(chariot.parts)
+	for other in all:
+		if other == holder or (other is ChPartRuntime and other.broken):
+			continue
+		if other.status_box().grow(1.0).intersects(box):
+			out.append(other)
+	return out
+
+func _status_event(type: StringName, holder: Object, data: Dictionary) -> void:
+	var event := ChEvent.new()
+	event.type = type
+	event.side = holder.side
+	event.source = holder
+	event.position = holder.anchor_world()
+	event.data = data
+	bus.emit(event)
+
+func give_status(target: Object, status: StringName, amount: int, hops := 1, from: Object = null) -> int:
+	# Put stacks on a part or a chariot body; answers the stacks added. Shock then jumps half to what touches.
+	if target == null or amount <= 0 or (target is ChPartRuntime and target.broken):
+		return 0
+	var before: int = target.statuses.count(status)
+	var result: Dictionary = target.statuses.gain(status, amount)
+	var added: int = result["added"]
+	var puff := false
+	for pair in result["cancelled"]:
+		_status_event(ChEvent.STATUS_CANCELLED, target, {"status": status, "against": pair[0], "amount": pair[1]})
+		puff = puff or (status == ChStatuses.FLAME and pair[0] == ChStatuses.WET) \
+			or (status == ChStatuses.WET and pair[0] == ChStatuses.FLAME)
+	if result["doubled"] > 0:
+		_status_event(ChEvent.STATUS_DOUBLED, target, {"status": status, "amount": result["doubled"]})
+	if added > 0:
+		_status_event(ChEvent.STATUS_GAINED, target, {"status": status, "amount": added, "before": before})
+	if puff and world != null:
+		world.spawn_particles(&"steam", target.anchor_world(), Vector2.ZERO, STEAM_PUFF, 0.0)
+	var half := added / 2
+	if status == ChStatuses.SHOCK and half > 0 \
+			and (hops > 0 or (hops == 0 and target.statuses.count(ChStatuses.WET) > 0)):
+		for other in touching(target):
+			if other == from:
+				continue
+			give_status(other, ChStatuses.SHOCK, half, hops - 1, target)
+			_status_event(ChEvent.SHOCK_JUMPED, other, {"from": target, "amount": half})
+	return added
 
 func own(part: ChPartRuntime) -> ChChariotRuntime:
 	# index = side is this array's own contract, so a part knows its chariot by its own side.

@@ -22,11 +22,29 @@ var chassis: PixelRigidBody = null  # the one body that carries the whole chario
 var chassis_visual: Node2D = null  # the chassis body's "Visual" child (the builder's, Task 6)
 var parts: Array[ChPartRuntime] = []  # every part, in the order the builder mounted them
 
+var statuses := ChStatuses.new()  # the body's statuses
+var last_anchor: Vector2 = Vector2.ZERO  # the last chassis reading, for a freed chassis
 var _mass_settled := false  # settle_mass has applied the def mass
 var burn_damage_left: float = 0.0  # burn damage held back until it adds up to a whole HP point
 
 const MOTOR_SPEED := 12.0  # rad/s at full drive, as the demo car's export
 const WHEEL_ID := &"wheel"  # shortcut: one wheel type in the slice; a wheel set wants a flag on ChPartDef
+
+func anchor_world() -> Vector2:
+	if chassis != null and is_instance_valid(chassis):
+		last_anchor = Vector2(chassis.global_position.x, chassis.global_position.y)
+	return last_anchor
+
+func status_box() -> Rect2:
+	return ChBattle.hull_box(self)
+
+func sample_rect() -> Rect2i:
+	# The hull box in whole cells, grown by the part margin.
+	var box := status_box()
+	var lo := Vector2i(floori(box.position.x), floori(box.position.y))
+	var hi := Vector2i(ceili(box.end.x), ceili(box.end.y))
+	var m := Vector2i(ChPartRuntime.SAMPLE_MARGIN, ChPartRuntime.SAMPLE_MARGIN)
+	return Rect2i(lo - m, hi - lo + m * 2)
 
 func wheels() -> Array[ChPartRuntime]:
 	# The parts the builder motorised. A wheel is recognised by its def id, the same rule the

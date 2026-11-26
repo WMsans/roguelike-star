@@ -29,6 +29,7 @@ var charges_left: int = -1  # fires before the part runs out; -1 = unlimited (de
 var burning: bool = false
 var freeze: float = 0.0  # 0..1; freezes at 1.0, stays frozen until it decays back to 0
 var frozen_held: bool = false  # the meter filled since it last stood at 0 (apply_sample keeps it)
+var statuses := ChStatuses.new()  # the nine stacking statuses
 var broken: bool = false  # set by ChChariotRuntime.break_part (Task 10)
 # shortcut: body stays loose-typed on purpose; Task 9 is the only caller that hands a real
 # PixelRigidBody, and a : PixelRigidBody annotation rejects the fake bodies the tests use.
@@ -67,6 +68,12 @@ func facing() -> Vector2:
 		last_facing = body.global_rotation
 	var dir := Vector2.RIGHT.rotated(last_facing)
 	return -dir if flipped else dir
+
+
+func status_box() -> Rect2:
+	# def.size cells centred on the anchor: the same box as ChBehaviour._part_box.
+	var size := Vector2(maxi(1, def.size.x), maxi(1, def.size.y)) if def != null else Vector2.ONE
+	return Rect2(anchor_world() - size * 0.5, size)
 
 
 func is_frozen() -> bool:
