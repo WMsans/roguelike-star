@@ -51,7 +51,9 @@ func test_show_builds_main_and_keyword_boxes() -> void:
 	assert_eq(tip.keyword_keys(), [&"press", &"burn"])
 	assert_eq(tip.boxes().size(), 3, "main + Press + Burning")
 	var style := tip.boxes()[2].get_theme_stylebox("panel") as StyleBoxFlat
-	assert_eq(style.bg_color, ChKeywords.color_of(&"burn"), "the keyword box wears its colour")
+	assert_eq(style.border_color, ChKeywords.color_of(&"burn"), "the keyword box rim wears its colour")
+	var title := tip.boxes()[2].get_child(0).get_child(0) as Label
+	assert_eq(title.get_theme_color("font_color"), ChKeywords.color_of(&"burn"), "and so does its title")
 	_complete()
 
 func test_passive_hides_cost_line() -> void:

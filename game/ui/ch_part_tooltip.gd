@@ -31,10 +31,11 @@ func _init() -> void:
 	mouse_filter = MOUSE_FILTER_IGNORE
 	z_index = 10
 	visible = false
-	var rows := _box(ChUi.PANEL)
+	theme = ChUi.theme()  # BODY_FONT as the default font for every label and the bullets
+	var rows := _box(ChUi.RIM)
 	_main = rows.get_parent() as PanelContainer
-	_name = _label(rows, 20, ChUi.TEXT)
-	_line = _label(rows, 14, ChUi.TEXT.darkened(0.25))
+	_name = _label(rows, ChUi.BIG, ChUi.TEXT, ChUi.BODY_FONT)
+	_line = _label(rows, ChUi.BODY, ChUi.LABEL)
 	_bullets = RicherTextLabel.new()
 	rows.add_child(_bullets)
 	# After add_child, the order ChPopups uses: the addon's setters queue a parse.
@@ -46,7 +47,7 @@ func _init() -> void:
 	_bullets.autostyle_numbers_pad_decimals = false
 	_bullets.fit_content = true
 	_bullets.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_bullets.font_size = 16
+	_bullets.font_size = ChUi.BODY
 	_bullets.alignment = HORIZONTAL_ALIGNMENT_LEFT  # the addon centres by default
 	_bullets.color = ChUi.TEXT
 	_bullets.mouse_filter = MOUSE_FILTER_IGNORE
@@ -154,27 +155,26 @@ static func place(anchor: Rect2, box_size: Vector2, bounds: Rect2, side: ChPartT
 
 
 func _fill_keyword(i: int, key: StringName) -> void:
+	var color := ChKeywords.color_of(key)
 	if i == _pool.size():
-		var rows := _box(ChKeywords.color_of(key))
-		_label(rows, 16, ChUi.TEXT)
-		_label(rows, 14, ChUi.TEXT).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var rows := _box(color)
+		_label(rows, ChUi.BODY, color, ChUi.HEAD_FONT)
+		_label(rows, ChUi.BODY, ChUi.TEXT).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_pool.append(rows.get_parent() as PanelContainer)
 	var box := _pool[i]
-	var color := ChKeywords.color_of(key)
-	box.add_theme_stylebox_override("panel", ChUi.flat(color))
+	box.add_theme_stylebox_override("panel", ChUi.panel_solid(color))
 	var labels := box.get_child(0).get_children()
 	labels[0].text = ChKeywords.name_of(key)
 	labels[1].text = ChKeywords.text_of(key)
-	for label in labels:
-		label.add_theme_color_override("font_color", ChKeywords.text_color_on(color))
+	labels[0].add_theme_color_override("font_color", color)
 	box.visible = true
 
 
 # A box: a PanelContainer straight under the root with its own Juice, and a VBox for its labels.
-func _box(fill: Color) -> VBoxContainer:
+func _box(rim: Color) -> VBoxContainer:
 	var box := PanelContainer.new()
 	box.custom_minimum_size.x = WIDTH
-	box.add_theme_stylebox_override("panel", ChUi.flat(fill))
+	box.add_theme_stylebox_override("panel", ChUi.panel_solid(rim))
 	box.mouse_filter = MOUSE_FILTER_IGNORE
 	add_child(box)
 	var rows := VBoxContainer.new()
@@ -185,8 +185,10 @@ func _box(fill: Color) -> VBoxContainer:
 	return rows
 
 
-func _label(parent: Control, font_size: int, color: Color) -> Label:
+func _label(parent: Control, font_size: int, color: Color, font: Font = null) -> Label:
 	var label := Label.new()
+	if font:
+		label.add_theme_font_override("font", font)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
 	label.mouse_filter = MOUSE_FILTER_IGNORE

@@ -32,14 +32,17 @@ var ends_run := false
 
 func _init() -> void:
 	theme = ChUi.theme()
+	add_theme_stylebox_override(&"panel", StyleBoxEmpty.new())
 	var rows := VBoxContainer.new()
 	rows.add_theme_constant_override("separation", ROW_GAP)
 	add_child(rows)
 	title = Label.new()
 	# The panel is as wide as its widest line, so a centred title is centred on the button under it.
+	title.theme_type_variation = &"Plaque"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	rows.add_child(title)
 	back = Button.new()
+	back.theme_type_variation = &"GoButton"
 	# No text here: show_result names the button, and the only caller (ChMain) always calls it before
 	# the panel reaches the tree.
 	back.pressed.connect(func() -> void: back_pressed.emit())

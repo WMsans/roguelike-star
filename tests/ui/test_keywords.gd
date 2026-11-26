@@ -38,3 +38,10 @@ func test_every_entry_complete() -> void:
 	assert_eq(ChKeywords.text_color_on(Color.WHITE), Color(0.08, 0.08, 0.1), "dark text on light")
 	assert_eq(ChKeywords.text_color_on(Color.BLACK), ChUi.TEXT, "light text on dark")
 	_complete()
+
+func test_keyword_colours_read_on_the_panel() -> void:
+	for key in ChKeywords.ENTRIES:
+		var c := ChKeywords.color_of(key)
+		assert_true(c.get_luminance() - ChUi.PANEL.get_luminance() >= 0.35,
+			"%s reads as text on the dark panel" % key)
+	_complete()

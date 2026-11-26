@@ -36,3 +36,12 @@ func test_titles() -> void:
 	assert_eq(aborted.back.text, "Retry")
 	assert_true(not aborted.ends_run, "a fight that could not start is not a lost run")
 	_complete()
+
+
+func test_longest_title_fits_the_screen() -> void:
+	var panel := _panel(&"aborted")
+	assert_eq(panel.title.theme_type_variation, &"Plaque")
+	var width := ChUi.PLAQUE_FONT.get_string_size(panel.title.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+		ChUi.BIG).x + 12.0
+	assert_true(width <= 1280.0 - 2.0 * 20.0, "the aborted title fits inside the canvas margins")
+	_complete()

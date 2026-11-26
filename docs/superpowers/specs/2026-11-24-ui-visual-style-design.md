@@ -42,6 +42,8 @@ battle's world art still reads as the brightest, busiest thing on screen. Every 
   battle HUD, the elite/boss banner and countdown, and the result panel.
 - **The font is a free pixel font with smoothing off.** The candidates are m5x7 for body text and m6x11 for
   headers (Daniel Linssen). See "Left to the builder" for the licence check.
+  - Used: Tiny5 for body text (`BODY_FONT`), Silkscreen Regular for headers, buttons and labels (`HEAD_FONT`)
+    and Silkscreen Bold for plaques (`PLAQUE_FONT`), all OFL, in `game/ui/fonts/`.
 - **Motion stays as it is.** Card hover, tilt, sway, drag, juice beats and popups don't change.
 - **Foreground:** Claude proposed bringing only the colour wash over, on both the battle (above the world, under
   the HUD) and the shop/garage backdrop, with the two mist layers left off (they are `visible = false` in the
@@ -146,8 +148,8 @@ Calls Claude made after the builder check (the user can overrule any of them):
   - Capitals: group labels, plaques, buttons (GARAGE, NEXT, CONTINUE, SELL, Reroll), the HUD names, the banner
     and the result title.
   - Mixed case: card part names, tooltip names, tooltip and keyword prose.
-  - Capitals are applied at display time (`uppercase` on the Label or Button, or `.to_upper()` in
-    `draw_string`), never in the data, so tests that check "You win", "Cutter" and so on still hold.
+  - Capitals are applied at display time through `HEAD_FONT` (Silkscreen draws lowercase as capitals),
+    never in the data, so tests that check "You win", "Cutter" and so on still hold.
 - **The HP readout stays "78 / 100".** The mockup's "✚ 84" was shorthand. The non-goals rule out changed
   readouts.
 

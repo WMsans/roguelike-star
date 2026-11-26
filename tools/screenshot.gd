@@ -2,8 +2,8 @@ extends SceneTree
 
 # The design session's shot script, kept in the repo: it drives the real game (main.tscn: ChMain's
 # run loop) in a real window and saves what the player actually sees, screen by screen: the run's
-# shop with its embedded garage showing (the garage and its part tooltip), then a fight, then the
-# result panel. The headless suite can only assert numbers; a frame being *readable* is a thing to
+# shop, then its embedded garage (the garage and its part tooltip), then a fight with the elite
+# banner, then the result panel. The headless suite can only assert numbers; a frame being *readable* is a thing to
 # look at. Not a test: it asserts nothing, it only prints what it saw.
 #   godot --path . --resolution 1280x720 -s res://tools/screenshot.gd -- <outdir>
 # <outdir> is made if missing and should live OUTSIDE the repo, so no PNG ever lands in git.
@@ -21,6 +21,7 @@ const RESULT_WAIT := 600  # frames the forced win is given to reach the result p
 # starts with its kit already mounted (two wheels and the chainsaw), so [3] is the free slot, and it
 # is the part tooltip_hull.png points at.
 const MOUNTS := [[[3], &"ice_cream_mace"]]
+const SHELF := [&"dozer", &"flamethrower", &"ice_cream_mace"]  # what shop.png's shelf offers, in row order
 
 var outdir := ""
 var started := false
@@ -47,6 +48,23 @@ func _run() -> void:
 	# The game opens in fight 1, so the shot walks the run's own screens: the shop comes up and its
 	# toggle shows the garage inside it, which is the screen the player edits a build on.
 	main._show_shop()
+	# The shop view first, with a shelf up: the only shot that shows card faces and price pills. The
+	# stage's own roll may offer no shop, so the shelf is set on the phase as a shop pick would leave it,
+	# then drawn by the screen's own render. The long name and the body card are the two that crowd
+	# their faces, and the hover is what puts the gold glow and the shelf tooltip up.
+	var phase = main.shop.phase
+	phase.picked = {&"kind": &"shop", &"theme": &"fire"}
+	phase.items.clear()
+	for id in SHELF:
+		var def = main.shop.catalog.part(id) if main.shop.catalog.part(id) != null else main.shop.catalog.body(id)
+		phase.items.append({&"id": id, &"is_body": not def is ChPartDef, &"rarity": def.rarity,
+			&"price": ChPrices.price(def.rarity), &"taken": false})
+	main.shop._render_stage()
+	main.shop._card_for(1).hover(true)
+	for _frame in GARAGE_FRAMES:
+		await process_frame
+	_shot("shop.png")
+	main.shop._card_for(1).hover(false)
 	main.shop._on_toggle()
 	# The garage's own drop path builds the kit on the run's layout, from the run's inventory: a shop
 	# buy is the same add, and the drop is the bar's route onto a free slot.
@@ -96,6 +114,12 @@ func _run() -> void:
 		var size := Vector2(rig.body_def.size.x, rig.body_def.size.y)
 		print("side %s hull %s size %s" % [rig.side, hull, size])
 	_shot("battle.png")
+	# The elite/boss banner, which only an elite fight puts up on its own: called here on this fight's
+	# HUD so the plaque can be checked for clipping. A few frames for the label's layout; it is up for 2 s.
+	battle.hud.show_banner("Chains weakened")
+	for _frame in 10:
+		await process_frame
+	_shot("banner.png")
 	# Task 6: the result panel. The win is forced by emptying the enemy's hull (ChBattle._step reads
 	# is_dead each tick), so the shot does not wait on the melee build landing a hit; ChMain then puts
 	# its panel up over the stopped fight.

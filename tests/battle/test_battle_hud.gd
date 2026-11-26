@@ -144,3 +144,14 @@ func test_battle_has_no_ticker() -> void:
 				"no Label on the HUD names a battle event (found %s)" % [label.text])
 	battle.free()
 	_complete()
+
+
+func test_hud_has_no_slabs() -> void:
+	var hud := _hud()
+	hud.show_state(_chariot(_body("Cutter", 100), 78, 20.0, 20.0), _chariot(_body("Dozer", 200), 30))
+	for block in [hud.player_name.get_parent().get_parent(), hud.enemy_name.get_parent().get_parent()]:
+		assert_true((block as PanelContainer).get_theme_stylebox(&"panel") is StyleBoxEmpty,
+			"the world shows behind the HUD")
+	assert_eq(hud.player_hp.text, "78 / 100", "the readout is unchanged")
+	assert_true(hud.player_name.get_theme_constant(&"outline_size") >= 2, "names read over the sky")
+	_complete()

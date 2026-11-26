@@ -19,6 +19,7 @@ const OPTION_H := 104.0
 const BODY_H := 170.0  # room for a name, a price and a hull at the pit's zoom
 const BUTTON_TOP := 470.0  # Next sits under the stage content
 const BUTTON_H := 44.0
+const STAGE_PAD := 24.0
 const GOLD_POP_TIME := 0.6  # how long "+N" holds before the readout comes back
 
 var run: ChRun = null
@@ -28,6 +29,8 @@ var gold_label: Label = null
 var toggle: Button = null
 var middle: Control = null
 var stage_view: Control = null
+var stage_panel: Control = null  # the wine panel and SHOP plaque behind the row; first child of stage_view
+var stage_rect := Rect2()  # the row's span plus STAGE_PAD, in screen pixels
 var next_button: Button = null
 var bar: ChInventoryBar = null
 var garage: ChGarage = null
@@ -48,9 +51,16 @@ func _init() -> void:
 	theme = ChUi.theme()
 	anchor_right = 1.0
 	anchor_bottom = 1.0
+	# The screen is opaque: _show_shop keeps the ended battle in the tree, and without the backdrop the
+	# arena and its chariots show through behind the stage row and the gold readout. A parent draws
+	# under its children, so the garage and the cards stay on top.
+	add_child(ChBackdrop.new())
+	add_child(ChWash.new(ChWash.SHOP_ALPHA))
 	gold_label = Label.new()
 	gold_label.name = "GoldLabel"
 	gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	gold_label.add_theme_font_override(&"font", ChUi.HEAD_FONT)
+	gold_label.add_theme_color_override(&"font_color", ChUi.ACCENT)
 	gold_label.anchor_left = 1.0
 	gold_label.anchor_right = 1.0
 	gold_label.offset_left = -200.0
@@ -85,6 +95,12 @@ func _init() -> void:
 	stage_view.anchor_bottom = 1.0
 	stage_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	middle.add_child(stage_view)
+	stage_panel = Control.new()
+	stage_panel.name = "StagePanel"
+	stage_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	stage_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stage_panel.draw.connect(_draw_stage_panel)
+	stage_view.add_child(stage_panel)
 	# Inside the stage view, so the toggle that hides the shop hides Next with it.
 	next_button = Button.new()
 	next_button.text = "Next →"
@@ -94,6 +110,7 @@ func _init() -> void:
 	next_button.offset_right = 70.0
 	next_button.offset_top = BUTTON_TOP
 	next_button.offset_bottom = BUTTON_TOP + BUTTON_H
+	next_button.theme_type_variation = &"GoButton"
 	next_button.pressed.connect(_on_next)
 	Feedback.attach_button(next_button)
 	stage_view.add_child(next_button)
@@ -108,8 +125,6 @@ func _init() -> void:
 	tooltip = ChPartTooltip.new()
 	tooltip.name = "Tooltip"
 	add_child(tooltip)
-	# The backdrop is a full-rect _draw; a resize has to repaint it.
-	resized.connect(queue_redraw)
 
 
 func setup(run_in: ChRun, catalog_in: ChCatalog) -> void:
@@ -213,6 +228,7 @@ func _clear_shelf() -> void:
 		stage_view.remove_child(card)
 		card.queue_free()
 	_shelf.clear()
+	_reset_stage_rect()
 	tooltip.hide_tooltip()
 
 
@@ -422,6 +438,7 @@ func _place_row(cards: Array[Control], centre_y: float) -> void:
 	# One row centred on the screen: each card keeps its own width (a body is wider than a part) and
 	# the row never runs off either side at three cards.
 	if cards.is_empty():
+		_reset_stage_rect()
 		return
 	var total := 0.0
 	for card in cards:
@@ -433,27 +450,38 @@ func _place_row(cards: Array[Control], centre_y: float) -> void:
 	for card in cards:
 		card.position = Vector2(x, centre_y - card.size.y * 0.5)
 		x += card.size.x + ROW_GAP
+	var span := Rect2(cards[0].position, cards[0].size)
+	for card in cards:
+		span = span.merge(Rect2(card.position, card.size))
+	stage_rect = span.grow(STAGE_PAD)
+	stage_panel.queue_redraw()
+
+
+func _reset_stage_rect() -> void:
+	stage_rect = Rect2()
+	stage_panel.queue_redraw()
+
+
+func _draw_stage_panel() -> void:
+	if stage_rect.size.x <= 0.0:
+		return
+	stage_panel.draw_style_box(ChUi.panel(), stage_rect)
+	ChUi.draw_plaque(stage_panel, Vector2(stage_rect.get_center().x, stage_rect.position.y), "SHOP")
 
 
 func _clear_stage() -> void:
+	_reset_stage_rect()
 	_option_cards.clear()
 	_shelf.clear()
 	_reroll_button = null
 	tooltip.hide_tooltip()
 	for child in stage_view.get_children():
-		if child == next_button:
+		if child == next_button or child == stage_panel:
 			continue
 		if child is ChCard:
 			(child as ChCard).hover(false)
 		stage_view.remove_child(child)
 		child.queue_free()
-
-
-func _draw() -> void:
-	# The screen is opaque: _show_shop keeps the ended battle in the tree, and without this the arena
-	# and its chariots show through behind the stage row and the gold readout. A parent draws under
-	# its children, so the garage and the cards stay on top.
-	draw_rect(Rect2(Vector2.ZERO, size), ChUi.PANEL)
 
 
 func _option_text(option: Dictionary) -> String:
@@ -519,13 +547,12 @@ class OptionCard extends ChCard:
 		super()
 
 	func _paint_face() -> void:
-		var rim := ChUi.ACCENT if hovered else Color(0, 0, 0, 0)
-		draw_style_box(ChUi.flat(ChUi.BUTTON, rim), Rect2(Vector2.ZERO, size))
-		var font := get_theme_default_font()
-		var line_h := font.get_height(ChUi.FONT_SIZE)
-		var baseline := (size.y - line_h) * 0.5 + font.get_ascent(ChUi.FONT_SIZE)
+		super()
+		var font := ChUi.HEAD_FONT
+		var line_h := font.get_height(ChUi.BODY)
+		var baseline := (size.y - line_h) * 0.5 + font.get_ascent(ChUi.BODY)
 		draw_string(font, Vector2(8.0, baseline), card_text, HORIZONTAL_ALIGNMENT_CENTER,
-			size.x - 16.0, ChUi.FONT_SIZE, ChUi.TEXT)
+			size.x - 16.0, ChUi.BODY, ChUi.TEXT)
 
 
 # A body on the shelf: its name, its price and the hull at the pit's zoom. The hull is drawn the way
@@ -542,14 +569,11 @@ class BodyItemCard extends ChCard:
 		super()
 		if body_def == null:
 			return
-		var font := get_theme_default_font()
 		var inner := size.x - 16.0
-		draw_string(font, Vector2(8.0, 24.0), body_def.display_name,
-			HORIZONTAL_ALIGNMENT_LEFT, inner, 16, ChUi.TEXT)
-		if price >= 0:
-			draw_string(font, Vector2(8.0, 42.0), "$%d" % price,
-				HORIZONTAL_ALIGNMENT_LEFT, inner, 14, ChUi.TEXT)
-		var centre := Vector2(size.x * 0.5, 56.0 + (size.y - 56.0) * 0.5)
+		draw_string(ChUi.BODY_FONT, Vector2(8.0, 24.0), body_def.display_name,
+			HORIZONTAL_ALIGNMENT_LEFT, inner, ChUi.BODY, ChUi.TEXT)
+		ChUi.draw_socket(self, Rect2(4.0, 32.0, size.x - 8.0, size.y - 36.0))
+		var centre := Vector2(size.x * 0.5, 32.0 + (size.y - 36.0) * 0.5)
 		var hull := Vector2(maxi(1, body_def.size.x), maxi(1, body_def.size.y)) * ChGarage.ZOOM
 		if body_def.texture != null:
 			draw_texture_rect(body_def.texture, Rect2(centre - hull * 0.5, hull), false)
@@ -562,6 +586,10 @@ class BodyItemCard extends ChCard:
 				body_def.color.darkened(0.3), 1.0)
 		else:
 			draw_rect(Rect2(centre - hull * 0.5, hull), body_def.color)
+		# After the hull: a tall hull (the dozer's 30 cells) overhangs the card's foot, and the price
+		# is what the player reads off it.
+		if price >= 0:
+			ChUi.draw_pill(self, Vector2(size.x * 0.5, size.y), "$%d" % price)
 
 
 # A part in a pack: the part at the pit's zoom and its name, with no price row because the pack was
@@ -569,21 +597,5 @@ class BodyItemCard extends ChCard:
 class PackItemCard extends ChPartCard:
 	func _init(def_in: ChPartDef, on_click: Callable) -> void:
 		super(def_in, on_click)
+		show_cost = false
 
-	func _paint_face() -> void:
-		if def == null:
-			return
-		var rim := ChUi.ACCENT if hovered else Color(0, 0, 0, 0)
-		draw_style_box(ChUi.flat(ChUi.BUTTON, rim), Rect2(Vector2.ZERO, size))
-		var font := get_theme_default_font()
-		var inner := size.x - ChPartCard.PAD * 2.0
-		var at := ChPartCard.PAD
-		for line in _wrap(font, def.display_name, inner):
-			at += ChPartCard.LINE
-			draw_string(font, Vector2(ChPartCard.PAD, at), line,
-				HORIZONTAL_ALIGNMENT_LEFT, inner, ChPartCard.FONT, ChUi.TEXT)
-		var top := at + 8.0
-		draw_rect(Rect2(Vector2(4.0, top - 6.0),
-			Vector2(size.x - 8.0, size.y - top + 2.0)), ChUi.PANEL)
-		ChPartCard.paint(self, Vector2(size.x * 0.5, (top + size.y) * 0.5), def,
-			ChPartCard.ZOOM)
