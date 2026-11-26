@@ -60,6 +60,7 @@ func give_status(target: Object, status: StringName, amount: int, hops := 1, fro
 	if target == null or amount <= 0 or (target is ChPartRuntime and target.broken):
 		return 0
 	var before: int = target.statuses.count(status)
+	var had: Dictionary = target.statuses.stacks.duplicate()
 	var result: Dictionary = target.statuses.gain(status, amount)
 	var added: int = result["added"]
 	var puff := false
@@ -71,6 +72,9 @@ func give_status(target: Object, status: StringName, amount: int, hops := 1, fro
 		_status_event(ChEvent.STATUS_DOUBLED, target, {"status": status, "amount": result["doubled"]})
 	if added > 0:
 		_status_event(ChEvent.STATUS_GAINED, target, {"status": status, "amount": added, "before": before})
+	for s in ChStatuses.ALL:
+		if had[s] > 0 and target.statuses.count(s) == 0:
+			_status_event(ChEvent.STATUS_LOST, target, {"status": s})
 	if puff and world != null:
 		world.spawn_particles(&"steam", target.anchor_world(), Vector2.ZERO, STEAM_PUFF, 0.0)
 	var half := added / 2
@@ -79,9 +83,14 @@ func give_status(target: Object, status: StringName, amount: int, hops := 1, fro
 		for other in touching(target):
 			if other == from:
 				continue
-			give_status(other, ChStatuses.SHOCK, half, hops - 1, target)
 			_status_event(ChEvent.SHOCK_JUMPED, other, {"from": target, "amount": half})
+			give_status(other, ChStatuses.SHOCK, half, hops - 1, target)
 	return added
+
+func _block_used(holder: Object, had: int) -> void:
+	# Block only ever runs out by being used: a hit or Acid. Either way the holder loses it.
+	if had > 0 and holder.statuses.count(ChStatuses.BLOCK) == 0:
+		_status_event(ChEvent.STATUS_LOST, holder, {"status": ChStatuses.BLOCK})
 
 func own(part: ChPartRuntime) -> ChChariotRuntime:
 	# index = side is this array's own contract, so a part knows its chariot by its own side.
@@ -209,6 +218,7 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	var damage_out: int = target_chariot.hp - result["hp"]
 	target_chariot.hp = result["hp"]
 	holder.statuses.stacks[ChStatuses.BLOCK] = result["block"]
+	_block_used(holder, block)
 	# A modifier that asked for a thaw wins over the freeze: the Mace's Shatter ends the freeze it read
 	# "after the hit" (spec §5.6), so a Freeze Charge landing on the same shatter leaves the target at 0.
 	var freeze_part: ChPartRuntime = hit["freeze_part"]
@@ -371,34 +381,45 @@ func _regen_mult(chariot: ChChariotRuntime) -> float:
 
 
 func _status_second() -> void:
-	# One status second for every living chariot, over a snapshot of its body and unbroken parts:
-	# gain from touching cells, then per holder damage, cell effects and decay.
+	# One status second over a snapshot of every living chariot's body and unbroken parts, in two
+	# passes. A: damage, then cell effects, for every holder. B: gain from the cells touched, then
+	# decay, for every holder, so both sides gain from cells both sides just changed. A material's
+	# status never decays while it is being gained, and a holder that already held it gains 1 less:
+	# a 1-stack-a-second material (ice, smoke) holds its status at 1 on every frame instead of
+	# gaining and decaying it inside the same second.
 	_status_seconds += 1
+	var holders: Array = []  # [chariot, holder] pairs
 	for chariot in chariots:
 		if chariot == null or chariot.hp <= 0:
 			continue
-		var holders: Array = [chariot]
+		holders.append([chariot, chariot])
 		for part in chariot.parts:
 			if not part.broken:
-				holders.append(part)
+				holders.append([chariot, part])
+	for pair in holders:
+		var holder: Object = pair[1]
+		# A part that broke earlier in this second, or in its own damage below, is out of it.
+		if holder is ChPartRuntime and holder.broken:
+			continue
+		_status_damage(pair[0], holder)
+		if holder is ChPartRuntime and holder.broken:
+			continue
 		if world != null:
-			for holder in holders:
-				var rect: Rect2i = holder.sample_rect()
-				var gains := ChStatuses.material_gains(world.count_materials(rect), rect.size.x * rect.size.y)
-				for status in ChStatuses.ALL:
-					if gains.has(status):
-						give_status(holder, status, gains[status])
-		for holder in holders:
-			# A part that broke earlier in this pass, or in its own damage below, is out of it.
-			if holder is ChPartRuntime and holder.broken:
-				continue
-			_status_damage(chariot, holder)
-			if holder is ChPartRuntime and holder.broken:
-				continue
-			if world != null:
-				_status_cells(holder)
-			for status in holder.statuses.decay():
-				_status_event(ChEvent.STATUS_LOST, holder, {"status": status})
+			_status_cells(holder)
+	for pair in holders:
+		var holder: Object = pair[1]
+		if holder is ChPartRuntime and holder.broken:
+			continue
+		var gains := {}
+		if world != null:
+			var rect: Rect2i = holder.sample_rect()
+			gains = ChStatuses.material_gains(world.count_materials(rect), rect.size.x * rect.size.y)
+		var held: Array = ChStatuses.ALL.filter(func(st: StringName): return holder.statuses.count(st) > 0)
+		for status in ChStatuses.ALL:
+			if gains.has(status):
+				give_status(holder, status, gains[status] - (1 if status in held else 0))
+		for status in holder.statuses.decay(gains.keys()):
+			_status_event(ChEvent.STATUS_LOST, holder, {"status": status})
 
 
 func _status_damage(chariot: ChChariotRuntime, holder: Object) -> void:
@@ -407,8 +428,10 @@ func _status_damage(chariot: ChChariotRuntime, holder: Object) -> void:
 	var s: ChStatuses = holder.statuses
 	var acid := s.count(ChStatuses.ACID)
 	var flame_mult := rules.fire_mult if holder.side == 1 else 1.0
+	var block := s.count(ChStatuses.BLOCK)
 	var damage := roundi(s.count(ChStatuses.FLAME) * flame_mult) + acid - s.absorb(acid) \
 		+ s.count(ChStatuses.SHOCK)
+	_block_used(holder, block)
 	if damage <= 0:
 		return
 	if holder is ChPartRuntime:

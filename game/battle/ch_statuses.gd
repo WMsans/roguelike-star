@@ -73,11 +73,11 @@ func clear(status: StringName) -> int:
 	return removed
 
 
-# One status second: -1 on each decaying status. Returns the ones that just ran out.
-func decay() -> Array[StringName]:
+# One status second: -1 on each decaying status not in `skip`. Returns the ones that just ran out.
+func decay(skip: Array = []) -> Array[StringName]:
 	var ended: Array[StringName] = []
 	for s in DECAYS:
-		if stacks[s] > 0:
+		if stacks[s] > 0 and s not in skip:
 			stacks[s] -= 1
 			if stacks[s] == 0:
 				ended.append(s)

@@ -1,7 +1,7 @@
 extends ChTest
 
-# The status second: gain from cells, damage, cell effects, decay. Fake part bodies; a real world
-# only where cells matter.
+# The status second: pass A (damage, cell effects) for every holder, then pass B (gain from cells,
+# decay) for every holder. Fake part bodies; a real world only where cells matter.
 
 const TICK_SECOND := 1.0
 
@@ -45,6 +45,13 @@ func _ctx(chariots: Array, world: PixelWorld = null) -> ChBattleContext:
 	return ctx
 
 
+func _heard(ctx: ChBattleContext, type: StringName) -> Array:
+	# The events of one type the bus carries from here on, in order.
+	var heard: Array = []
+	ctx.bus.subscribe(self, type, func(e: ChEvent): heard.append(e))
+	return heard
+
+
 func _tick(ctx: ChBattleContext, delta := TICK_SECOND) -> void:
 	var drive: Array[float] = []
 	for _c in ctx.chariots:
@@ -59,8 +66,55 @@ func test_fire_cells_give_flame_each_second() -> void:
 	assert_eq(p.sample_rect(), Rect2i(97, 97, 6, 6), "a 36-cell rect")
 	assert_eq(world.fill_rect(Rect2i(97, 97, 4, 1), &"fire"), 4, "4 fire cells, under half the rect")
 	_tick(ctx)
-	assert_eq(p.integrity, 48, "gained 2 Flame and took 2")
-	assert_eq(p.statuses.count(ChStatuses.FLAME), 1, "then decayed to 1")
+	assert_eq(p.integrity, 50, "the first second gains, it does not burn yet")
+	assert_eq(p.statuses.count(ChStatuses.FLAME), 2, "gained 2, no decay while in the fire")
+	_tick(ctx)
+	assert_eq(p.integrity, 48, "the next second burns the 2")
+	assert_eq(p.statuses.count(ChStatuses.FLAME), 3, "and grows 1 net while in the fire")
+	_complete()
+
+
+func _holds_while_touching(material: StringName, status: StringName) -> void:
+	# A 1-stack-a-second material keeps its status at 1 on every frame, with one GAINED and no LOST.
+	var world: PixelWorld = await make_world()
+	var p := _part(0, Vector2(100, 100))
+	var ctx := _ctx([_chariot(0, Vector2(300, 100), [p])], world)
+	var gained := _heard(ctx, ChEvent.STATUS_GAINED)
+	var lost := _heard(ctx, ChEvent.STATUS_LOST)
+	assert_eq(world.fill_rect(Rect2i(97, 97, 4, 1), material), 4, "4 %s cells, under half the rect" % material)
+	for second in 3:
+		_tick(ctx, 0.5)
+		if second > 0:
+			assert_eq(p.statuses.count(status), 1, "%s held between seconds (second %d)" % [status, second])
+			if status == ChStatuses.FREEZE:
+				assert_true(p.is_frozen(), "frozen on the frame between seconds")
+		_tick(ctx, 0.5)
+		assert_eq(p.statuses.count(status), 1, "%s is 1 after second %d" % [status, second + 1])
+	assert_eq(gained.size(), 1, "one STATUS_GAINED")
+	assert_eq(gained[0].data["status"] if gained.size() > 0 else &"", status, "for %s" % status)
+	assert_eq(lost.size(), 0, "no STATUS_LOST")
+
+
+func test_ice_holds_freeze_while_touching() -> void:
+	await _holds_while_touching(&"ice", ChStatuses.FREEZE)
+	_complete()
+
+
+func test_smoke_holds_slow_while_touching() -> void:
+	await _holds_while_touching(&"smoke", ChStatuses.SLOW)
+	_complete()
+
+
+func test_both_sides_gain_after_both_sides_cells() -> void:
+	# Pass B for side 0 reads cells side 1's Freeze turned to ice in pass A of the same second.
+	var world: PixelWorld = await make_world()
+	var mine := _part(0, Vector2(100, 100))
+	var theirs := _part(1, Vector2(100, 100))
+	theirs.statuses.stacks[ChStatuses.FREEZE] = 3
+	var ctx := _ctx([_chariot(0, Vector2(300, 100), [mine]), _chariot(1, Vector2(400, 100), [theirs])], world)
+	assert_eq(world.fill_rect(Rect2i(97, 97, 6, 1), &"water"), 6, "6 water cells under both")
+	_tick(ctx)
+	assert_eq(mine.statuses.count(ChStatuses.FREEZE), 1, "side 0 gained from side 1's new ice")
 	_complete()
 
 
@@ -88,8 +142,12 @@ func test_acid_eats_block_first() -> void:
 	var p := _part(0, Vector2.ZERO)
 	p.statuses.stacks[ChStatuses.ACID] = 4
 	p.statuses.stacks[ChStatuses.BLOCK] = 3
-	_tick(_ctx([_chariot(0, Vector2(1000, 1000), [p])]))
+	var ctx := _ctx([_chariot(0, Vector2(1000, 1000), [p])])
+	var lost := _heard(ctx, ChEvent.STATUS_LOST)
+	_tick(ctx)
 	assert_eq(p.statuses.count(ChStatuses.BLOCK), 0, "Block spent")
+	var block_lost := lost.filter(func(e: ChEvent): return e.data["status"] == ChStatuses.BLOCK)
+	assert_eq(block_lost.size(), 1, "Acid eating the last Block loses it")
 	assert_eq(p.integrity, 49, "integrity down 1")
 	_complete()
 
@@ -169,9 +227,14 @@ func test_block_absorbs_weapon_hit_in_deal_hit() -> void:
 	target.statuses.stacks[ChStatuses.BLOCK] = 40
 	var foe := _chariot(1, Vector2(500, 500), [target], 200)
 	var ctx := _ctx([_chariot(0, Vector2(0, 500), [gun]), foe])
+	var lost := _heard(ctx, ChEvent.STATUS_LOST)
 	ctx.deal_hit(gun, target.body, 100)
 	assert_eq(foe.hp, 140, "HP down 60")
 	assert_eq(target.statuses.count(ChStatuses.BLOCK), 0, "Block spent")
+	assert_eq(lost.size(), 1, "the last Block used up is lost")
+	if lost.size() == 1:
+		assert_eq(lost[0].data, {"status": ChStatuses.BLOCK}, "lost Block")
+		assert_eq(lost[0].source, target, "on the part hit")
 	_complete()
 
 
