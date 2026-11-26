@@ -532,6 +532,42 @@ func test_outline_texture_rings_the_shape() -> void:
 	_complete()
 
 
+func _pixels_differing(a: Image, b: Image) -> int:
+	# How many pixels two images disagree on. A count, not the data: a failed raw-data compare would
+	# print thousands of bytes.
+	var off := 0
+	for y in mini(a.get_height(), b.get_height()):
+		for x in mini(a.get_width(), b.get_width()):
+			if a.get_pixel(x, y) != b.get_pixel(x, y):
+				off += 1
+	return off
+
+
+func test_art_leaves_the_def_sprite_alone() -> void:
+	# A mirrored build hands ChTextures.art the def's own texture, and on this build get_image() is that
+	# texture's cached Image, so an in-place convert/flip rewrote the def's sprite for the rest of the
+	# run. Both calls are checked: the straight one still converts to RGBA8.
+	var def: ChBodyDef = ChCatalog.load_default().body(&"cutter")
+	assert_true(def != null and def.texture != null, "the Cutter's body def carries its sprite")
+	if def == null or def.texture == null:
+		_complete()
+		return
+	# A copy, not the image itself: the image is what the call below is accused of changing.
+	var before: Image = def.texture.get_image().duplicate() as Image
+	for flip in [true, false]:
+		ChTextures.art(def.texture, flip)
+		var after: Image = def.texture.get_image()
+		assert_eq(after.get_size(), before.get_size(), "art(%s) left the sprite's size alone" % flip)
+		assert_eq(after.get_format(), before.get_format(), "and its format")
+		assert_eq(_pixels_differing(after, before), 0, "and every pixel of it")
+	# The Wedge is asymmetric, so a flip that really happened shows. Without this the checks above
+	# would also pass on an art() that never mirrored anything.
+	var straight := ChTextures.art(def.texture, false).get_image()
+	var mirrored := ChTextures.art(def.texture, true).get_image()
+	assert_true(_pixels_differing(mirrored, straight) > 0, "and differs from the straight copy")
+	_complete()
+
+
 func _wedge_catalog(extra: Callable = Callable()) -> ChCatalog:
 	# A one-body catalog: a right triangle on a 10x10 box, its nose at the top left.
 	var def := ChBodyDef.new()
