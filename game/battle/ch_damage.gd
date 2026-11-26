@@ -14,20 +14,27 @@ class_name ChDamage extends RefCounted
 # hp_damage is the damage dealt, not the HP actually lost: on a finishing hit HP clamps to 0 while
 # hp_damage still reports the full amount, which is what the HIT event payload wants.
 static func hit_part(target_hp: int, part_integrity: int, damage: int, multiplier: float = 1.0,
-	wear_ratio: float = 0.5) -> Dictionary:
-	var hp_damage := int(round(damage * multiplier))
-	var wear := int(round(damage * wear_ratio))
+	wear_ratio: float = 0.5, block: int = 0) -> Dictionary:
+	# Block absorbs first; wear scales with the share of the hit that got past it.
+	var effective := int(round(damage * multiplier))
+	var absorbed := mini(block, effective)
+	var hp_damage := effective - absorbed
+	var wear := int(round(damage * wear_ratio * hp_damage / effective)) if effective > 0 \
+		else int(round(damage * wear_ratio))
 	return {
 		"hp": maxi(0, target_hp - hp_damage),
 		"integrity": maxi(0, part_integrity - wear),
 		"hp_damage": hp_damage,
+		"block": block - absorbed,
 	}
 
 
-static func hit_body(target_hp, damage, multiplier := 1.0) -> int:
-	# Untyped on purpose: chariot HP is a float once burning runs (burn_tick returns float), so a
-	# hit has to accept it and hand back an int.
-	return maxi(0, target_hp - int(round(damage * multiplier)))
+static func hit_body(target_hp, damage, multiplier := 1.0, block := 0) -> Dictionary:
+	# Untyped hp on purpose: chariot HP is a float once burning runs, so a hit accepts it.
+	var effective := int(round(damage * multiplier))
+	var hp_damage := effective - mini(block, effective)
+	return {"hp": maxi(0, target_hp - hp_damage), "hp_damage": hp_damage,
+		"block": block - (effective - hp_damage)}
 
 
 # Burning is chariot-wide: a burning chariot loses dps * delta once per tick while ANY of its

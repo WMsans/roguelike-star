@@ -144,7 +144,7 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 		# No part to wear, so HP takes the hit on its own. ChDamage's return is an int, which is
 		# what hp is, so it feeds the field directly. The burn rule below is the only damage that
 		# arrives as a float, and it does not go through here.
-		var body_hp := ChDamage.hit_body(target_chariot.hp, hit["damage"], hit["multiplier"])
+		var body_hp: int = ChDamage.hit_body(target_chariot.hp, hit["damage"], hit["multiplier"])["hp"]
 		damage_out = target_chariot.hp - body_hp
 		target_chariot.hp = body_hp
 	else:
