@@ -28,9 +28,10 @@ func own_charge(rect: Rect2i, side: int) -> void:
 
 
 func prune_charges(world: PixelWorld) -> void:
-	# A charge with nothing explosive left near it has gone off or been eaten: it owns nothing more.
+	# A charge with nothing explosive left in its own rect has gone off or been eaten: it owns nothing
+	# more. Terrain explosives in the margin don't keep it alive; the margin only matches blasts.
 	_charges = _charges.filter(func(charge: Dictionary) -> bool:
-		var counts: Dictionary = world.count_materials(charge.rect.grow(CHARGE_MARGIN))
+		var counts: Dictionary = world.count_materials(charge.rect)
 		return EXPLOSIVES.any(func(m: StringName) -> bool: return counts.get(m, 0) > 0))
 
 

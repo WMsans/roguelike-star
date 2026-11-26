@@ -218,3 +218,23 @@ func test_part_blast_hit_names_the_explosion() -> void:
 	assert_eq(recorder.hits.size(), 1, "the source is asked about its one hit")
 	assert_eq(recorder.hits[0].get("explosion"), &"large", "the hit carries the blast's size")
 	_complete()
+
+
+func test_charge_with_explosive_left_is_kept() -> void:
+	var f := await _fight()
+	var ctx: ChBattleContext = f.ctx
+	f.world.fill_rect(Rect2i(A, Vector2i(4, 4)), &"tnt")
+	ctx.own_charge(Rect2i(A, Vector2i(4, 4)), 1)
+	ctx._status_second()
+	assert_eq(_owner_of(ctx, f.booms, A + Vector2i(2, 2)), 1, "the charge still holds its TNT")
+	_complete()
+
+
+func test_terrain_tnt_beside_a_spent_charge_does_not_keep_it() -> void:
+	var f := await _fight()
+	var ctx: ChBattleContext = f.ctx
+	f.world.fill_rect(Rect2i(A + Vector2i(5, 0), Vector2i(2, 4)), &"tnt")  # inside the margin, outside the rect
+	ctx.own_charge(Rect2i(A, Vector2i(4, 4)), 1)  # air
+	ctx._status_second()
+	assert_eq(_owner_of(ctx, f.booms, A + Vector2i(2, 2)), -1, "the spent charge claims nothing")
+	_complete()
