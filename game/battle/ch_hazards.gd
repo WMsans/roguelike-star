@@ -36,7 +36,8 @@ func prune_charges(world: PixelWorld) -> void:
 
 func explode(ctx: ChBattleContext, source: ChPartRuntime, at: Vector2i, size: StringName, damage: int,
 		dig := -1) -> void:
-	# A part-made blast: dig the world, announce it, own it, then hurt the other side through deal_hit.
+	# A part-made blast: dig the world, announce it, own it, then hurt the other side through deal_hit
+	# (the hit dict's "explosion" names the size) and wear its parts in the radius by what was dealt.
 	var s: Dictionary = SIZES[size]
 	var digs: int = dig if dig >= 0 else s.dig
 	if ctx.world != null:
@@ -49,7 +50,8 @@ func explode(ctx: ChBattleContext, source: ChPartRuntime, at: Vector2i, size: St
 		var falloff := _push(chariot, Vector2(at), s.radius, s.power)
 		var dealt := roundi(damage * falloff)
 		if dealt > 0:
-			ctx.deal_hit(source, chariot.chassis, dealt)
+			ctx.deal_hit(source, chariot.chassis, dealt, {"explosion": size})
+			_wear(ctx, chariot, Vector2(at), s.radius, dealt)
 
 
 func apply(ctx: ChBattleContext, blasts: Array) -> void:
@@ -79,13 +81,7 @@ func apply(ctx: ChBattleContext, blasts: Array) -> void:
 			chariot.statuses.stacks[ChStatuses.BLOCK] = result.block
 			ctx._block_used(chariot, block)
 			# The body's Block shields the hull, not the parts, so they wear by the blast's damage.
-			var wear := roundi(damage * BLAST_WEAR)
-			for part in chariot.parts:
-				if part.broken or part.anchor_world().distance_to(centre) > radius:
-					continue
-				part.integrity = maxi(0, part.integrity - wear)
-				if part.integrity <= 0:
-					chariot.break_part(part, ctx)
+			_wear(ctx, chariot, centre, radius, damage)
 			var event := ChEvent.new()
 			event.type = ChEvent.HAZARD_HIT
 			event.side = chariot.side
@@ -93,6 +89,18 @@ func apply(ctx: ChBattleContext, blasts: Array) -> void:
 			event.data = {"target_side": chariot.side, "hp_damage": result.hp_damage,
 				"material": blast.material, "hp_after": chariot.hp}
 			ctx.bus.emit(event)
+
+
+static func _wear(ctx: ChBattleContext, chariot: ChChariotRuntime, centre: Vector2, radius: int,
+		damage: int) -> void:
+	# Every unbroken part whose anchor is inside the radius loses BLAST_WEAR of the damage as integrity.
+	var wear := roundi(damage * BLAST_WEAR)
+	for part in chariot.parts:
+		if part.broken or part.anchor_world().distance_to(centre) > radius:
+			continue
+		part.integrity = maxi(0, part.integrity - wear)
+		if part.integrity <= 0:
+			chariot.break_part(part, ctx)
 
 
 static func _push(chariot: ChChariotRuntime, centre: Vector2, radius: int, power: float) -> float:

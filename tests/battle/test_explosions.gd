@@ -169,3 +169,52 @@ func test_spent_charge_is_dropped() -> void:
 	ctx._status_second()
 	assert_eq(_owner_of(ctx, f.booms, A + Vector2i(2, 2)), -1, "the spent charge claims nothing")
 	_complete()
+
+
+func test_part_blast_wears_enemy_parts_in_radius() -> void:
+	var f := await _fight(Vector2(120, 140), Vector2(150, 140))
+	var ctx: ChBattleContext = f.ctx
+	var theirs: ChChariotRuntime = ctx.chariots[1]
+	var mine: ChChariotRuntime = ctx.chariots[0]
+	var near_part: ChPartRuntime = theirs.parts[0]
+	var far_part: ChPartRuntime = theirs.parts[1]
+	if far_part.anchor_world().x < near_part.anchor_world().x:
+		var swap := near_part
+		near_part = far_part
+		far_part = swap
+	var centre := Vector2i(near_part.anchor_world() - Vector2(8, 0))
+	assert_true(Vector2(centre).distance_to(near_part.anchor_world()) <= 12.0, "one enemy part inside")
+	assert_true(Vector2(centre).distance_to(far_part.anchor_world()) > 12.0, "the other outside")
+	var box := ChBattle.hull_box(theirs)
+	var at := Vector2(centre)
+	var dealt := roundi(80 * (1.0 - at.distance_to(at.clamp(box.position, box.end)) / 12.0))
+	assert_true(dealt > 0, "the hull is inside too")
+	var mine_before: Array[int] = []
+	for part in mine.parts:
+		mine_before.append(part.integrity)
+	ctx.explode(mine.parts[0], centre, &"large", 80)
+	assert_eq(near_part.integrity, 200 - roundi(dealt * ChHazards.BLAST_WEAR), "worn by the damage dealt")
+	assert_eq(far_part.integrity, 200, "outside the radius: untouched")
+	for i in mine.parts.size():
+		assert_eq(mine.parts[i].integrity, mine_before[i], "own part %d untouched" % i)
+	_complete()
+
+
+class HitRecorder:
+	var hits: Array = []
+
+	func modify_hit(_ctx: ChBattleContext, hit: Dictionary) -> void:
+		hits.append(hit.duplicate())
+
+
+func test_part_blast_hit_names_the_explosion() -> void:
+	var f := await _fight(Vector2(120, 140), Vector2(136, 140))
+	var ctx: ChBattleContext = f.ctx
+	var part: ChPartRuntime = ctx.chariots[0].parts[0]
+	var recorder := HitRecorder.new()
+	part.behaviour = recorder
+	ctx.explode(part, Vector2i(128, 140), &"large", 80)
+	part.behaviour = null
+	assert_eq(recorder.hits.size(), 1, "the source is asked about its one hit")
+	assert_eq(recorder.hits[0].get("explosion"), &"large", "the hit carries the blast's size")
+	_complete()
