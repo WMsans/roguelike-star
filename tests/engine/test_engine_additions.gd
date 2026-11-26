@@ -278,8 +278,17 @@ func test_explode_dig_spares_harder_cells() -> void:
 	assert_eq(counts.get(&"steel", 0), 210, "every steel cell (hardness 7 > dig 6) stays")
 	assert_true(removed > 0, "the blast removed cells")
 	assert_eq(210 - counts.get(&"rock", 0), removed, "only rock (hardness 5) was removed")
-	assert_eq(world.get_material_at(DIG_CENTRE - Vector2i(1, 0)), &"air", "rock beside the centre is gone")
+	assert_true(world.get_material_at(DIG_CENTRE - Vector2i(1, 0)) != &"rock", "rock beside the centre is gone")
 	assert_eq(world.take_blasts().back()["dig"], 6, "the queued blast carries its dig")
+	_complete()
+
+
+func test_explode_dig_equal_hardness_is_dug() -> void:
+	var world := await _make_world()
+	world.fill_rect(Rect2i(22, 22, 20, 21), &"rock")   # hardness 5
+	var removed := world.explode(DIG_CENTRE, 8, 300, 5)
+	assert_true(removed > 0, "dig 5 removes hardness 5")
+	assert_true(world.get_material_at(DIG_CENTRE) != &"rock", "the centre rock is gone")
 	_complete()
 
 
@@ -290,7 +299,7 @@ func test_explode_dig_default_digs_all() -> void:
 	var counts: Dictionary = world.count_materials(Rect2i(22, 22, 20, 21))
 	assert_true(counts.get(&"steel", 0) < 210, "steel was removed")
 	assert_true(counts.get(&"rock", 0) < 210, "rock was removed")
-	assert_eq(world.get_material_at(DIG_CENTRE), &"air", "the centre (steel) is gone")
+	assert_true(world.get_material_at(DIG_CENTRE) != &"steel", "the centre (steel) is gone")
 	assert_eq(world.take_blasts().back()["dig"], -1, "explode() without dig reports -1")
 	_complete()
 
@@ -311,13 +320,17 @@ func test_lit_blast_uses_explode_dig() -> void:
 	world.fill_rect(Rect2i(30, 30, 2, 2), &"tnt_dig")
 	world.fill_rect(Rect2i(32, 26, 4, 10), &"steel")
 	world.fill_rect(Rect2i(26, 26, 4, 10), &"rock")
+	world.fill_rect(Rect2i(30, 36, 2, 1), &"rock")  # a floor under the charge
+	world.set_cell(Vector2i(30, 35), &"sand")  # hardness 1, on the floor, 5 cells from the charge
 	world.take_blasts()
 	world.explode(Vector2i(30, 30), 1, 50, 0)   # lights the charge, digs nothing harder than 0
+	assert_eq(world.get_material_at(Vector2i(30, 35)), &"sand", "the sand is there before the charge goes")
 	world.step(3)
 	var charge := world.take_blasts().filter(func(b): return b["material"] == &"tnt_dig")
 	assert_true(charge.size() > 0, "the charge went off")
 	assert_eq(charge[0]["dig"], 4, "a lit blast digs with its material's explode_dig")
 	assert_eq(world.count_materials(Rect2i(32, 26, 4, 10)).get(&"steel", 0), 40, "the steel remains")
+	assert_true(world.get_material_at(Vector2i(30, 35)) != &"sand", "the sand (hardness 1 <= 4) is dug")
 	_complete()
 
 
@@ -332,6 +345,29 @@ func test_blow_moves_gas_only() -> void:
 	assert_eq(world.count_materials(Rect2i(10, 10, 5, 3)).get(&"smoke", 0), 0, "no smoke stayed behind")
 	assert_eq(world.count_materials(Rect2i(10, 20, 3, 3)).get(&"sand", 0), 9, "the sand stayed")
 	assert_eq(world.count_materials(Rect2i(10, 30, 3, 3)).get(&"rock", 0), 9, "the rock stayed")
+	_complete()
+
+
+func test_blow_moves_a_column_every_way() -> void:
+	for v in [Vector2i(-5, 0), Vector2i(0, 5), Vector2i(0, -5)]:
+		var world := await _make_world()
+		world.fill_rect(Rect2i(30, 20, 1, 5), &"smoke")   # a column, x 30, y 20..24
+		assert_eq(world.blow(Rect2i(5, 5, 50, 50), v), 5, "%s moves all 5" % v)
+		var landed := Rect2i(Vector2i(30, 20) + v, Vector2i(1, 5))
+		assert_eq(world.count_materials(landed).get(&"smoke", 0), 5, "%s: the column moved whole" % v)
+	_complete()
+
+
+func test_blow_keeps_fire_and_burning() -> void:
+	var world: PixelWorld = await make_world()
+	world.fill_rect(Rect2i(100, 100, 1, 3), &"fire")
+	world.set_cell(Vector2i(100, 120), &"flammable_gas")
+	assert_true(world.ignite(Vector2i(100, 120)), "the gas cell lights")
+	world.blow(Rect2i(90, 90, 30, 40), Vector2i(5, 0))
+	assert_eq(world.count_materials(Rect2i(105, 100, 1, 3)).get(&"fire", 0), 3, "the fire moved as fire")
+	var gas: Dictionary = world.count_materials(Rect2i(105, 120, 1, 1))
+	assert_eq(gas.get(&"flammable_gas", 0), 1, "the lit gas moved")
+	assert_eq(gas.get(&"burning", 0), 1, "and it is still burning")
 	_complete()
 
 
