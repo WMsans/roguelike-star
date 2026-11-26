@@ -136,7 +136,13 @@ func test_zero_damage_rim_pushes_but_costs_nothing() -> void:
 	var f := await _fight()
 	var ctx: ChBattleContext = f.ctx
 	var c: ChChariotRuntime = ctx.chariots[0]
-	await Engine.get_main_loop().process_frame
+	# The chassis joins the physics world on a physics frame; until then it has no mass and an
+	# impulse moves nothing, which is how this test failed on its own.
+	var frames := 0
+	while c.chassis.get_mass() <= 0.0 and frames < 60:
+		await Engine.get_main_loop().process_frame
+		frames += 1
+	assert_true(c.chassis.get_mass() > 0.0, "the chassis joined")
 	f.world.step(1)
 	var box := ChBattle.hull_box(c)
 	var before := c.chassis.linear_velocity

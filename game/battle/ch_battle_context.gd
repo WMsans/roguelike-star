@@ -213,8 +213,9 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	# "after the hit" (spec §5.6), so a Freeze Charge landing on the same shatter leaves the target at 0.
 	var freeze_part: ChPartRuntime = hit["freeze_part"]
 	if freeze_part != null and hit.get("thaw", false):
+		# Only the Shatter asks for a thaw, so feedback can break the ice rather than let it melt.
 		if freeze_part.statuses.clear(ChStatuses.FREEZE) > 0:
-			_status_event(ChEvent.STATUS_LOST, freeze_part, {"status": ChStatuses.FREEZE})
+			_status_event(ChEvent.STATUS_LOST, freeze_part, {"status": ChStatuses.FREEZE, "shatter": true})
 	elif freeze_part != null and hit["freeze"] > 0:
 		give_status(freeze_part, ChStatuses.FREEZE, hit["freeze"])
 	# HIT announces the hit after it landed, so a listener reads the HP already paid. The source is

@@ -49,6 +49,9 @@ func on_event(event: ChEvent) -> void:
 		ChEvent.STATUS_LOST:
 			if ChEvent.thawed(event):
 				_play(&"thawed", source)
+				# A Shatter breaks the ice; a freeze that ran out just melts, with no burst.
+				if event.data.get("shatter", false):
+					_fx(&"shatter", source)
 		ChEvent.PART_BROKEN:
 			_fx(&"fire_blast", source)
 			# The part's own def colour, so a broken wheel's burst matches its art.

@@ -175,6 +175,7 @@ func test_mace_shatters_frozen() -> void:
 	assert_eq(foe_part.statuses.count(ChStatuses.FREEZE), 0, "and ends the target's freeze")
 	assert_true(foe_part.is_frozen() == false, "so the target is thawed")
 	assert_eq(thawed.size(), 1, "and deal_hit announced one thaw")
+	assert_true(thawed.size() == 1 and thawed[0].data.get("shatter", false), "marked as a Shatter")
 	assert_eq(foe_part.integrity, foe_part.def.integrity - 10, "while the part wore the unmultiplied half")
 	_complete()
 

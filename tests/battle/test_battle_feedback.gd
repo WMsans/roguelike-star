@@ -219,6 +219,27 @@ func test_caught_fire_still_plays_feedback() -> void:
 	_complete()
 
 
+func _shatters(world: Node) -> int:
+	# The shatter bursts ChFx.spawn hung under the world.
+	var n := 0
+	for child in world.get_children():
+		if child is ChFx and child.texture != null and child.texture.resource_path.ends_with("shatter.png"):
+			n += 1
+	return n
+
+
+func test_shatter_thaw_plays_the_shatter_fx() -> void:
+	var arena = await _arena()
+	var rocket := _part(arena["player"], _typed_path(ROCKET_PATH))
+	var world: Node = arena["world"]
+	arena["feedback"].on_event(_event(ChEvent.STATUS_LOST, 0, rocket, {"status": ChStatuses.FREEZE}))
+	assert_eq(_shatters(world), 0, "Freeze running out just melts")
+	arena["feedback"].on_event(_event(ChEvent.STATUS_LOST, 0, rocket,
+		{"status": ChStatuses.FREEZE, "shatter": true}))
+	assert_eq(_shatters(world), 1, "a Shatter's thaw breaks the ice")
+	_complete()
+
+
 func _fight_state(arena: Dictionary) -> Dictionary:
 	# Everything feedback is forbidden to write, read off the live objects: each part's own numbers,
 	# each chariot's HP and energy pool, and every body's transform, velocity and mass (the collision
