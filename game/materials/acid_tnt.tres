@@ -3,6 +3,6 @@
 [resource]
 a = &"acid"
 b = &"tnt"
-a_into = &"smoke"
+a_into = &"acid_gas"
 b_into = &""
 probability = 0.15

@@ -117,3 +117,115 @@ func test_fire_sets_off_tnt() -> void:
 	assert_true(hit, "tnt blast within 120 ticks")
 	world.free()
 	_complete()
+
+
+func test_hardness_values() -> void:
+	var want := {&"sand": 1, &"gunpowder": 1, &"wood": 3, &"tnt": 3, &"ice": 4, &"rock": 5,
+		&"dirt": 2, &"coal": 3, &"battery": 4, &"steel": 7, &"obsidian": 8}
+	var set: PixelMaterialSet = load("res://game/materials/game_set.tres")
+	var seen := {}
+	for m in set.materials:
+		seen[m.name] = true
+		assert_eq(m.hardness, want.get(m.name, 0), "hardness of %s" % m.name)
+	for n in want:
+		assert_true(seen.has(n), "%s is in the game set" % n)
+	_complete()
+
+
+func test_lava_and_frost_make_obsidian() -> void:
+	var world := await make_world()
+	var arena := Rect2i(0, 0, 480, 180)
+	world.fill_rect(Rect2i(100, 150, 10, 10), &"lava")
+	world.fill_rect(Rect2i(110, 150, 4, 10), &"frost")
+	var made := false
+	var ticks := 0
+	while not made and ticks < 300:
+		world.step(1)
+		ticks += 1
+		made = world.count_materials(arena).get(&"obsidian", 0) > 0
+	assert_true(made, "no obsidian within 300 ticks")
+	world.free()
+	_complete()
+
+
+func test_acid_dissolving_releases_acid_gas() -> void:
+	var world := await make_world()
+	var arena := Rect2i(0, 0, 480, 180)
+	world.fill_rect(Rect2i(100, 170, 20, 5), &"sand")
+	world.fill_rect(Rect2i(105, 160, 6, 10), &"acid")
+	var seen := false
+	var ticks := 0
+	while not seen and ticks < 300:
+		world.step(1)
+		ticks += 1
+		seen = world.count_materials(arena).get(&"acid_gas", 0) > 0
+	assert_true(seen, "no acid_gas within 300 ticks")
+	world.free()
+	_complete()
+
+
+func test_lit_flammable_gas_is_a_medium_blast() -> void:
+	var world := await make_world()
+	# sealed rock pocket 20x20 inside, walls 3 thick
+	world.fill_rect(Rect2i(100, 100, 26, 26), &"rock")
+	world.fill_rect(Rect2i(103, 103, 20, 20), &"air")
+	world.fill_rect(Rect2i(105, 105, 16, 16), &"flammable_gas")
+	world.fill_rect(Rect2i(112, 112, 2, 2), &"fire")
+	var found := {}
+	var ticks := 0
+	while found.is_empty() and ticks < 300:
+		world.step(1)
+		ticks += 1
+		for b in world.take_blasts():
+			if b["material"] == &"flammable_gas":
+				found = b
+	assert_true(not found.is_empty(), "no flammable_gas blast within 300 ticks")
+	assert_eq(found.get("radius"), 8, "radius 8")
+	assert_eq(found.get("dig"), 4, "dig 4")
+	world.free()
+	_complete()
+
+
+func test_coal_outburns_wood() -> void:
+	var world := await make_world()
+	var arena := Rect2i(0, 0, 480, 180)
+	# Two blocks on the floor, a fire strip touching both, fed every tick (fire lives 24 ticks).
+	world.fill_rect(Rect2i(100, 160, 6, 6), &"coal")
+	world.fill_rect(Rect2i(110, 160, 6, 6), &"wood")
+	var wood_gone := false
+	var coal_left := 0
+	for i in 600:
+		world.fill_rect(Rect2i(106, 160, 4, 6), &"fire")
+		world.step(1)
+		var counts: Dictionary = world.count_materials(arena)
+		if counts.get(&"wood", 0) == 0:
+			wood_gone = true
+			coal_left = counts.get(&"coal", 0)
+			break
+	assert_true(wood_gone, "wood never burned away")
+	assert_true(coal_left > 0, "coal still there when the wood is gone")
+	world.free()
+	_complete()
+
+
+func test_tnt_blast_spares_steel() -> void:
+	var world := await make_world()
+	var arena := Rect2i(0, 0, 480, 180)
+	world.fill_rect(Rect2i(200, 130, 40, 40), &"steel")
+	world.fill_rect(Rect2i(204, 134, 32, 32), &"air")
+	world.fill_rect(Rect2i(214, 144, 12, 12), &"tnt")
+	var steel_before: int = world.count_materials(arena).get(&"steel", 0)
+	var blasted := false
+	var ticks := 0
+	while not blasted and ticks < 300:
+		# fire lives 24 ticks and heats slowly, so keep a flame beside the crate (as test_fire_sets_off_tnt)
+		world.fill_rect(Rect2i(212, 148, 2, 6), &"fire")
+		world.step(1)
+		ticks += 1
+		for b in world.take_blasts():
+			if b["material"] == &"tnt":
+				blasted = true
+	assert_true(blasted, "tnt blast within 300 ticks")
+	assert_eq(world.count_materials(arena).get(&"steel", 0), steel_before, "steel untouched")
+	world.free()
+	_complete()

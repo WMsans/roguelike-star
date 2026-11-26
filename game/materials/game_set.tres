@@ -1,4 +1,4 @@
-[gd_resource type="PixelMaterialSet" load_steps=23 format=3]
+[gd_resource type="PixelMaterialSet" load_steps=36 format=3]
 
 [ext_resource type="PixelMaterial" path="res://game/materials/rock.tres" id="1_rock"]
 [ext_resource type="PixelMaterial" path="res://game/materials/wood.tres" id="1_wood"]
@@ -22,7 +22,20 @@
 [ext_resource type="PixelReaction" path="res://game/materials/acid_wood.tres" id="2_acid_wood"]
 [ext_resource type="PixelReaction" path="res://game/materials/acid_gunpowder.tres" id="2_acid_gunpowder"]
 [ext_resource type="PixelReaction" path="res://game/materials/acid_tnt.tres" id="2_acid_tnt"]
+[ext_resource type="PixelMaterial" path="res://game/materials/spark.tres" id="1_spark"]
+[ext_resource type="PixelMaterial" path="res://game/materials/battery.tres" id="1_battery"]
+[ext_resource type="PixelMaterial" path="res://game/materials/steel.tres" id="1_steel"]
+[ext_resource type="PixelMaterial" path="res://game/materials/acid_gas.tres" id="1_acid_gas"]
+[ext_resource type="PixelMaterial" path="res://game/materials/coal.tres" id="1_coal"]
+[ext_resource type="PixelMaterial" path="res://game/materials/flammable_gas.tres" id="1_flammable_gas"]
+[ext_resource type="PixelMaterial" path="res://game/materials/dirt.tres" id="1_dirt"]
+[ext_resource type="PixelMaterial" path="res://game/materials/obsidian.tres" id="1_obsidian"]
+[ext_resource type="PixelReaction" path="res://game/materials/lava_frost.tres" id="2_lava_frost"]
+[ext_resource type="PixelReaction" path="res://game/materials/acid_dirt.tres" id="2_acid_dirt"]
+[ext_resource type="PixelReaction" path="res://game/materials/acid_coal.tres" id="2_acid_coal"]
+[ext_resource type="PixelReaction" path="res://game/materials/acid_steel.tres" id="2_acid_steel"]
+[ext_resource type="PixelReaction" path="res://game/materials/acid_battery.tres" id="2_acid_battery"]
 
 [resource]
-materials = Array[PixelMaterial]([ExtResource("1_rock"), ExtResource("1_wood"), ExtResource("1_sand"), ExtResource("1_water"), ExtResource("1_oil"), ExtResource("1_lava"), ExtResource("1_fire"), ExtResource("1_steam"), ExtResource("1_smoke"), ExtResource("1_concrete"), ExtResource("1_frost"), ExtResource("1_ice"), ExtResource("1_gunpowder"), ExtResource("1_tnt"), ExtResource("1_acid")])
-reactions = Array[PixelReaction]([ExtResource("2_water_lava"), ExtResource("2_water_fire"), ExtResource("2_fire_oil"), ExtResource("2_acid_sand"), ExtResource("2_acid_wood"), ExtResource("2_acid_gunpowder"), ExtResource("2_acid_tnt")])
+materials = Array[PixelMaterial]([ExtResource("1_rock"), ExtResource("1_wood"), ExtResource("1_sand"), ExtResource("1_water"), ExtResource("1_oil"), ExtResource("1_lava"), ExtResource("1_fire"), ExtResource("1_steam"), ExtResource("1_smoke"), ExtResource("1_concrete"), ExtResource("1_frost"), ExtResource("1_ice"), ExtResource("1_gunpowder"), ExtResource("1_tnt"), ExtResource("1_acid"), ExtResource("1_spark"), ExtResource("1_battery"), ExtResource("1_steel"), ExtResource("1_acid_gas"), ExtResource("1_coal"), ExtResource("1_flammable_gas"), ExtResource("1_dirt"), ExtResource("1_obsidian")])
+reactions = Array[PixelReaction]([ExtResource("2_water_lava"), ExtResource("2_water_fire"), ExtResource("2_fire_oil"), ExtResource("2_acid_sand"), ExtResource("2_acid_wood"), ExtResource("2_acid_gunpowder"), ExtResource("2_acid_tnt"), ExtResource("2_lava_frost"), ExtResource("2_acid_dirt"), ExtResource("2_acid_coal"), ExtResource("2_acid_steel"), ExtResource("2_acid_battery")])

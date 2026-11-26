@@ -12,3 +12,4 @@ collision_solid = true
 light_opacity = 1.0
 texture = ExtResource("1_tex")
 crust_texture = ExtResource("2_crust")
+hardness = 5

@@ -9,3 +9,4 @@ collision_solid = true
 conductivity = 0.4
 high_temperature = 1
 high_into = &"water"
+hardness = 4

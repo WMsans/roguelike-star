@@ -295,3 +295,13 @@ func test_oil_drips_every_second_status_second() -> void:
 	_tick(ctx)
 	assert_eq(world.get_material_at(under), &"oil", "one drip on the second")
 	_complete()
+
+
+func test_acid_gas_gives_one_acid() -> void:
+	var world: PixelWorld = await make_world()
+	var p := _part(0, Vector2(100, 100))
+	var ctx := _ctx([_chariot(0, Vector2(300, 100), [p])], world)
+	assert_eq(world.fill_rect(Rect2i(97, 97, 4, 1), &"acid_gas"), 4, "4 acid_gas cells, under half the rect")
+	_tick(ctx)
+	assert_eq(p.statuses.count(ChStatuses.ACID), 1, "one Acid")
+	_complete()

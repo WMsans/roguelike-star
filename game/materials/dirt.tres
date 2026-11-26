@@ -1,0 +1,10 @@
+[gd_resource type="PixelMaterial" format=3]
+
+[resource]
+name = &"dirt"
+material_class = 2
+density = 1.5
+color = Color(0.42, 0.3, 0.18, 1)
+collision_solid = true
+light_opacity = 0.9
+hardness = 2

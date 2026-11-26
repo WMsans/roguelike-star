@@ -11,3 +11,5 @@ ignite_temperature = 250
 burn_heat = 600
 explode_radius = 12
 explode_power = 400.0
+hardness = 3
+explode_dig = 6

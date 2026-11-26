@@ -24,7 +24,7 @@ const CANCELS := {
 # Material touching the holder -> [status, stacks per second].
 const GAIN_RATES := {
 	&"fire": [FLAME, 2], &"lava": [FLAME, 6], &"frost": [FREEZE, 3], &"ice": [FREEZE, 1],
-	&"water": [WET, 3], &"steam": [WET, 1], &"oil": [OIL, 3], &"acid": [ACID, 3], &"smoke": [SLOW, 1],
+	&"water": [WET, 3], &"steam": [WET, 1], &"oil": [OIL, 3], &"acid": [ACID, 3], &"acid_gas": [ACID, 1], &"smoke": [SLOW, 1],
 }
 
 var stacks: Dictionary[StringName, int] = {}

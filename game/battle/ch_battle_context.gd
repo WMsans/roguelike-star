@@ -15,7 +15,7 @@ class_name ChBattleContext extends RefCounted
 #   paid, which is the global "driving is paid first" rule and why drive() comes last.
 
 const STATUS_SECOND := 1.0  # seconds between status seconds
-const ACID_EATS: Array[StringName] = [&"sand", &"wood", &"gunpowder", &"tnt"]  # what Acid dissolves
+const ACID_EATS: Array[StringName] = [&"sand", &"dirt", &"wood", &"coal", &"gunpowder", &"tnt", &"battery", &"steel"]  # what Acid dissolves
 
 const STEAM_PUFF := 4  # steam particles when Flame and Wet cancel
 

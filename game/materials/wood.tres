@@ -13,3 +13,4 @@ ignite_temperature = 300
 burn_life = 90
 burn_heat = 600
 texture = ExtResource("1_tex")
+hardness = 3

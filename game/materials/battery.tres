@@ -1,0 +1,11 @@
+[gd_resource type="PixelMaterial" format=3]
+
+[resource]
+name = &"battery"
+material_class = 1
+density = 2.2
+color = Color(0.25, 0.45, 0.3, 1)
+emission = Color(0.4, 0.9, 0.5, 1)
+emission_energy = 0.3
+collision_solid = true
+hardness = 4
