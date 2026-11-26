@@ -28,6 +28,7 @@ var time: float = 0.0  # the fight's clock, which a timed behaviour counts again
 # given one — every test and caller that predates modifiers — fights exactly as it did without one.
 var rules: ChFightRules = ChFightRules.new()
 var hazards := ChHazards.new()  # blast ownership lives here, so it is per fight
+var sparks := ChSparks.new()  # the fight's batteries
 var status_clock: float = 0.0  # time since the last status second
 var _status_seconds := 0  # status seconds run so far; Oil drips on the even ones
 
@@ -399,6 +400,7 @@ func _status_second() -> void:
 	_status_seconds += 1
 	if world != null:
 		hazards.prune_charges(world)
+		sparks.second(self)
 	var holders: Array = []  # [chariot, holder] pairs
 	for chariot in chariots:
 		if chariot == null or chariot.hp <= 0:
@@ -455,9 +457,19 @@ func _status_damage(chariot: ChChariotRuntime, holder: Object) -> void:
 
 func _status_cells(holder: Object) -> void:
 	# What a holder's statuses do to the cells it touches, once a status second.
-	# ponytail: Shock's sparks wait for Stage 2's spark material.
 	var s: ChStatuses = holder.statuses
 	var rect: Rect2i = holder.sample_rect()
+	if s.count(ChStatuses.SHOCK) > 0:
+		# A spark that lights explosives through water and steel but shocks nobody, so two shocked
+		# chariots in one puddle can't feed each other forever.
+		var seeds: Array[Vector2i] = []
+		for y in range(rect.position.y, rect.end.y):
+			for x in range(rect.position.x, rect.end.x):
+				var m := world.get_material_at(Vector2i(x, y))
+				if m in ChSparks.CONDUCTORS or m in ChSparks.EXPLOSIVES:
+					seeds.append(Vector2i(x, y))
+		if not seeds.is_empty():
+			ChSparks.discharge(self, seeds, false)
 	if s.count(ChStatuses.FLAME) > 0:
 		# One fire particle; the sim's own fire rules do the igniting.
 		world.spawn_particles(&"fire", holder.anchor_world(), Vector2.ZERO, 1, 0.0)
