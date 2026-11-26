@@ -452,9 +452,9 @@ These came out of the Stage 1 reviews. Each later plan picks up the ones in its 
 - Unify `ChPartRuntime.status_box` with `ChBehaviour._part_box`, and `ChBattle.hull_box` with `_hull_box`.
 - Feedback ignores body-holder events, so the hull gets no caught-fire, frozen or thawed beat.
 
-**Design checks for the user:**
+**Design checks, answered by the user (2026-11-26): all intended.**
 - A Frozen part over water turns the water to ice and then holds its Freeze for good, because the ice's +1 cancels the decay's −1.
-- The Acid status dissolves arena sand and wood every second, so a chariot in the acid cistern reshapes the ground. It dissolves by a list, not by hardness: sand, dirt, wood, coal, gunpowder, TNT, battery and steel, never rock, so the cistern still holds. Whether acid should reshape the arena sand is still open.
+- The Acid status dissolves arena sand and wood every second, so a chariot in the acid cistern reshapes the ground. It dissolves by a list, not by hardness: sand, dirt, wood, coal, gunpowder, TNT, battery and steel, never rock, so the cistern still holds.
 - Wet never decays and has no cap.
 
 **Polish:**
@@ -474,6 +474,7 @@ These came out of the Stage 2 final review. Stage 4 picks them up.
 - `discharge` will need an owner side (Wet Wire, R07), hops (U15), a stop-at-first-holder mode (U19) and a redirect hook (C24); TNT Launcher calls `own_charge` where the crate lands.
 - Wind moves grid cells only; decide before the Fan whether in-flight fire particles should be pushed too.
 
-**Design checks for the user:**
-- The steel rails (hardness 7) shield the lava under x 210–223 / 256–269 from digs of 6 or less.
-- "A part's own blast never hurts its own chariot" makes half of R22 Blast Amplifier redundant for part-made blasts.
+**Design checks, answered by the user (2026-11-26):**
+- Intended: the steel rails (hardness 7) shield the lava under x 210–223 / 256–269 from digs of 6 or less.
+- Intended: acid eats battery, so a breached battery dissolves within a second or two and stops sparking.
+- **R22 Blast Amplifier changes:** besides "explosions you cause are one size bigger", your parts and body take no damage from your own explosions **and none from environmental blasts** (unowned terrain TNT, gunpowder and flammable gas). Blasts the enemy owns still hurt. Stage 4 updates parts-list row R22 to match.
