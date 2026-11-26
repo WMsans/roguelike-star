@@ -272,8 +272,9 @@ something to use. Amounts and placement are the builder's call.
   cells for weapons. `ChEnemyAI.reach` reads it, and its Harpoon special case goes away.
 - **Melee reach is generous** (user: today's Cutter Chainsaw, at 14 cells, barely hits even from the
   front slot).
-  - Melee weapons start at about 24 cells of reach from the part's edge. C05 Stinger's "twice as far"
-    is about 48.
+  - Melee weapons start at 24 cells of reach from the part's edge, and the contact test below proves
+    it: every body pair lands a tick inside 10 seconds, most on the hull and three on the defender's
+    leading wheel, which reaches 3–4 cells further out. C05 Stinger's "twice as far" is about 48.
   - The real requirement is a test, not the number: for every pair of bodies, a melee weapon on the
     attacker's front slot lands ticks once the two chariots have driven into contact.
   - Reach is raised until that test passes. The test lives with the Stage 3 work and re-runs whenever

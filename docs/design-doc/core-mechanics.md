@@ -41,7 +41,8 @@ References:
 ### 3.2 Control
 
 - The player drives left and right and presses one button. A press fires every ready part's
-  triggered ability; passive abilities run on their own. The enemy follows the same rules.
+  triggered ability; passive abilities run on their own. Holding the button runs continuous parts
+  (melee and beam) while their energy lasts. The enemy follows the same rules.
 
 ### 3.3 Energy
 

@@ -38,6 +38,8 @@ starting point. All numbers are Proposed.
   - **Beam** continuous weapons deal damage each second the target is in the beam. Each second
     counts as a hit, but only switching on counts as firing.
   - Freeze stops a continuous part, Slow halves its tick rate, Speedup doubles it.
+- A press fires every ready cooldown part. Holding the button runs continuous parts, paying their
+  energy per second.
 - **Wheels** pay their energy cost per second while the chariot is driving, so driving costs
   more the more wheels it has. Driving is still paid before the volley.
 - **Passive parts** have no cooldown and usually cost no energy. Some react to triggers.
@@ -66,7 +68,7 @@ starting point. All numbers are Proposed.
 | Group | Triggers |
 |---|---|
 | Clock | Own cooldown (the default). Every N seconds. Start of battle. N seconds into the battle. The first or Nth time this fires. |
-| Own parts | This fires. A neighbour, a tagged part, the part in front or behind, or a part mounted on this fires. A part breaks. A part starts waiting in the energy queue. |
+| Own parts | This fires. A neighbour, a tagged part, the part in front or behind, or a part mounted on this fires. A part breaks. A part is skipped in a volley. |
 | Combat | You hit the enemy, or hit a particular enemy part (the body, a wheel). You take damage. Block absorbs a hit. Block reaches 0. HP falls below a threshold. You would die. An enemy part breaks. The enemy fires. |
 | Statuses | For each of the 9, on your parts or the enemy's: a part gains it, reaches N stacks or loses its last stack. Two statuses cancel ("Flame is put out", "thawed"). An Oil or Wet doubling happens. Shock jumps. |
 | Energy and driving | Energy is full or empty. Energy is spent or gained. You start or stop driving. |
@@ -346,7 +348,7 @@ More powerful and leaning towards a build. Price 6 gold.
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
 | U59 | Overflow Valve | Stats, Defence | 0 | — | 50 | — | — | While energy is full, your body gains 3 Block each second. | M: Noita Mana To Damage (to Block) |
-| U60 | Priority Relay | Tricky | 0 | — | 40 | S | — | Neighbours skip to the front of the energy queue. | R: energy queue order |
+| U60 | Priority Relay | Tricky | 0 | — | 40 | S | — | Neighbours are paid first in a volley, ahead of the dearest-first order. | R: energy queue order |
 | U61 | Dynamo Wheel | Wheel, Stats | 1/s | — | 60 | — | — | A wheel. While driving, gain 2 energy per second. | R: driving cost |
 | U62 | Power Siphon | Electric, Tricky | 4 | 6 | 40 | — | — | 20 damage. If the part hit has Shock, gain 3 energy. | C: Zap Gun (C22) + energy |
 | U63 | Surge Cannon | Weapon | all | 8 | 50 | — | — | Spend all your energy: deal 15 damage per energy spent. | A: Noita Mana To Damage |
@@ -491,7 +493,7 @@ Very strong, usually a build's core. Price 12 gold.
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
 | R27 | Fusion Core | Stats, Tricky | 0 | — | 80 | — | — | While energy is full, the next part to fire fires twice. | discussion example |
-| R28 | Blood Cell | Tricky | 0 | — | 60 | — | — | A part that would wait for energy fires anyway. You lose 10 HP for each energy you were short. | S: HP for energy |
+| R28 | Blood Cell | Tricky | 0 | — | 60 | — | — | A part a volley can't afford fires anyway, and you lose 10 HP for each energy you were short. | S: HP for energy |
 
 ### 5.12 Merchant
 
