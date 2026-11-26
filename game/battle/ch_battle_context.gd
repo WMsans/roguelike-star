@@ -410,6 +410,7 @@ func _status_second() -> void:
 		for part in chariot.parts:
 			if not part.broken:
 				holders.append([chariot, part])
+	var shock_seeds: Array[Vector2i] = []  # every shocked holder's, for one discharge after pass A
 	for pair in holders:
 		var holder: Object = pair[1]
 		# A part that broke earlier in this second, or in its own damage below, is out of it.
@@ -419,7 +420,11 @@ func _status_second() -> void:
 		if holder is ChPartRuntime and holder.broken:
 			continue
 		if world != null:
-			_status_cells(holder)
+			_status_cells(holder, shock_seeds)
+	if not shock_seeds.is_empty():
+		# A spark that lights explosives through water and steel but shocks nobody, so two shocked
+		# chariots in one puddle can't feed each other forever. One flood for all: lighting is idempotent.
+		ChSparks.discharge(self, shock_seeds, false)
 	for pair in holders:
 		var holder: Object = pair[1]
 		if holder is ChPartRuntime and holder.broken:
@@ -456,21 +461,17 @@ func _status_damage(chariot: ChChariotRuntime, holder: Object) -> void:
 		chariot.hp = maxi(0, chariot.hp - damage)
 
 
-func _status_cells(holder: Object) -> void:
-	# What a holder's statuses do to the cells it touches, once a status second.
+func _status_cells(holder: Object, shock_seeds: Array[Vector2i]) -> void:
+	# What a holder's statuses do to the cells it touches, once a status second. Shock only adds the
+	# conductors and explosives it touches to shock_seeds; _status_second discharges them once.
 	var s: ChStatuses = holder.statuses
 	var rect: Rect2i = holder.sample_rect()
 	if s.count(ChStatuses.SHOCK) > 0:
-		# A spark that lights explosives through water and steel but shocks nobody, so two shocked
-		# chariots in one puddle can't feed each other forever.
-		var seeds: Array[Vector2i] = []
 		for y in range(rect.position.y, rect.end.y):
 			for x in range(rect.position.x, rect.end.x):
 				var m := world.get_material_at(Vector2i(x, y))
 				if m in ChSparks.CONDUCTORS or m in ChSparks.EXPLOSIVES:
-					seeds.append(Vector2i(x, y))
-		if not seeds.is_empty():
-			ChSparks.discharge(self, seeds, false)
+					shock_seeds.append(Vector2i(x, y))
 	if s.count(ChStatuses.FLAME) > 0:
 		# One fire particle; the sim's own fire rules do the igniting.
 		world.spawn_particles(&"fire", holder.anchor_world(), Vector2.ZERO, 1, 0.0)
