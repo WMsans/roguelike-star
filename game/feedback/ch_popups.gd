@@ -3,8 +3,8 @@ class_name ChPopups extends CanvasLayer
 # Screen-space pop-up text: a fixed pool of labels that the manager fills on a feedback beat.
 # Motion is stepped by advance() (driven by _process), never by Tween, so a test walks a pop-up's
 # life exactly. The layer is screen-space on purpose: the manager hands over the target's canvas
-# point, so the battle camera's zoom never scales the text — font 28 and a 6 px black outline are
-# screen pixels whatever the camera does.
+# point, so the battle camera's zoom never scales the text: it is ChUi's one font, size and pixel
+# whatever the camera does.
 
 const POOL := 32
 const LIFE := 0.8
@@ -14,8 +14,7 @@ const DRIFT := 20.0
 # Scale pop 0.4 -> 1.25 -> 1.0 over this many seconds, and the fade over the last FADE_TIME.
 const POP_TIME := 0.15
 const FADE_TIME := 0.25
-const FONT_SIZE := 28
-const OUTLINE := 6
+const OUTLINE := ChUi.PX
 
 # Parallel arrays, one entry per pooled label: its age (LIFE or more = free), the point it was
 # born at, its x drift for this life, and the pop order that decides which life is oldest.
@@ -36,7 +35,8 @@ func _ready() -> void:
 		# In the tree before the addon's properties are set: their setters queue a parse that
 		# waits for tree_entered when the label is outside it.
 		add_child(label)
-		label.font_size = FONT_SIZE
+		label.theme = ChUi.theme()  # no Control above a CanvasLayer to inherit it from
+		label.font_size = ChUi.FONT_SIZE
 		label.outline_mode = RicherTextLabel.OutlineMode.CUSTOM
 		label.outline_color = Color.BLACK
 		label.outline_size = OUTLINE

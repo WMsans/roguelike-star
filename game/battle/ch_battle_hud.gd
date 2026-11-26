@@ -68,7 +68,7 @@ func _player_block() -> PanelContainer:
 	# Name, then the HP bar, then the pips.
 	var rows := VBoxContainer.new()
 	rows.add_theme_constant_override("separation", ROW_GAP)
-	player_name = _text(HORIZONTAL_ALIGNMENT_LEFT, true)
+	player_name = _text(HORIZONTAL_ALIGNMENT_LEFT)
 	player_hp = _text()
 	player_bar = _bar(ChUi.HP_PLAYER)
 	_pips_row = HBoxContainer.new()
@@ -84,7 +84,7 @@ func _enemy_block() -> PanelContainer:
 	# The enemy's block is the short one: the brief gives it a name and its HP, nothing else.
 	var rows := VBoxContainer.new()
 	rows.add_theme_constant_override("separation", ROW_GAP)
-	enemy_name = _text(HORIZONTAL_ALIGNMENT_RIGHT, true)
+	enemy_name = _text(HORIZONTAL_ALIGNMENT_RIGHT)
 	enemy_hp = _text(HORIZONTAL_ALIGNMENT_RIGHT)
 	enemy_bar = _bar(ChUi.HP_ENEMY)
 	rows.add_child(enemy_name)
@@ -101,21 +101,18 @@ func _block(rows: Control) -> PanelContainer:
 	return panel
 
 
-func _text(align := HORIZONTAL_ALIGNMENT_LEFT, head := false) -> Label:
-	# An inked outline lets the text read over the bright sky. Names use the head font.
+func _text(align := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
+	# An inked outline lets the text read over the bright sky.
 	var label := Label.new()
 	label.horizontal_alignment = align
-	if head:
-		label.add_theme_font_override("font", ChUi.HEAD_FONT)
-	label.add_theme_font_size_override("font_size", ChUi.BODY)
-	label.add_theme_constant_override("outline_size", 2)
+	label.add_theme_constant_override("outline_size", ChUi.PX)
 	label.add_theme_color_override("font_outline_color", ChUi.INK)
 	return label
 
 
 func _hp_row(hp: Label, colour: Color) -> HBoxContainer:
-	# The head font has no cross glyph, so a "+" in the side's HP colour stands in front of the readout.
-	var plus := _text(HORIZONTAL_ALIGNMENT_LEFT, true)
+	# The font has no cross glyph, so a "+" in the side's HP colour stands in front of the readout.
+	var plus := _text(HORIZONTAL_ALIGNMENT_LEFT)
 	plus.text = "+"
 	plus.add_theme_color_override("font_color", colour)
 	var row := HBoxContainer.new()
@@ -151,9 +148,7 @@ func show_countdown(seconds_left: int) -> void:
 	# fight's HUD. The label is made on the first call and written in place after that.
 	if countdown == null:
 		countdown = _top_label(MARGIN + COUNTDOWN_OFF)
-		countdown.add_theme_font_override("font", ChUi.HEAD_FONT)
-		countdown.add_theme_font_size_override("font_size", ChUi.BIG)
-		countdown.add_theme_constant_override("outline_size", 2)
+		countdown.add_theme_constant_override("outline_size", ChUi.PX)
 		countdown.add_theme_color_override("font_outline_color", ChUi.INK)
 		add_child(countdown)
 	countdown.text = "%d s" % seconds_left

@@ -31,11 +31,11 @@ func _init() -> void:
 	mouse_filter = MOUSE_FILTER_IGNORE
 	z_index = 10
 	visible = false
-	theme = ChUi.theme()  # BODY_FONT as the default font for every label and the bullets
+	theme = ChUi.theme()  # the one font and size for every label and the bullets
 	var rows := _box(ChUi.RIM)
 	_main = rows.get_parent() as PanelContainer
-	_name = _label(rows, ChUi.BIG, ChUi.TEXT, ChUi.BODY_FONT)
-	_line = _label(rows, ChUi.BODY, ChUi.LABEL)
+	_name = _label(rows, ChUi.TEXT)
+	_line = _label(rows, ChUi.LABEL)
 	_bullets = RicherTextLabel.new()
 	rows.add_child(_bullets)
 	# After add_child, the order ChPopups uses: the addon's setters queue a parse.
@@ -47,7 +47,7 @@ func _init() -> void:
 	_bullets.autostyle_numbers_pad_decimals = false
 	_bullets.fit_content = true
 	_bullets.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_bullets.font_size = ChUi.BODY
+	_bullets.font_size = ChUi.FONT_SIZE
 	_bullets.alignment = HORIZONTAL_ALIGNMENT_LEFT  # the addon centres by default
 	_bullets.color = ChUi.TEXT
 	_bullets.mouse_filter = MOUSE_FILTER_IGNORE
@@ -158,8 +158,8 @@ func _fill_keyword(i: int, key: StringName) -> void:
 	var color := ChKeywords.color_of(key)
 	if i == _pool.size():
 		var rows := _box(color)
-		_label(rows, ChUi.BODY, color, ChUi.HEAD_FONT)
-		_label(rows, ChUi.BODY, ChUi.TEXT).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_label(rows, color)
+		_label(rows, ChUi.TEXT).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_pool.append(rows.get_parent() as PanelContainer)
 	var box := _pool[i]
 	box.add_theme_stylebox_override("panel", ChUi.panel_solid(color))
@@ -185,11 +185,8 @@ func _box(rim: Color) -> VBoxContainer:
 	return rows
 
 
-func _label(parent: Control, font_size: int, color: Color, font: Font = null) -> Label:
+func _label(parent: Control, color: Color) -> Label:
 	var label := Label.new()
-	if font:
-		label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
 	label.mouse_filter = MOUSE_FILTER_IGNORE
 	parent.add_child(label)

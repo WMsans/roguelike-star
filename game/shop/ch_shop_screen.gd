@@ -59,7 +59,6 @@ func _init() -> void:
 	gold_label = Label.new()
 	gold_label.name = "GoldLabel"
 	gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	gold_label.add_theme_font_override(&"font", ChUi.HEAD_FONT)
 	gold_label.add_theme_color_override(&"font_color", ChUi.ACCENT)
 	gold_label.anchor_left = 1.0
 	gold_label.anchor_right = 1.0
@@ -548,11 +547,11 @@ class OptionCard extends ChCard:
 
 	func _paint_face() -> void:
 		super()
-		var font := ChUi.HEAD_FONT
-		var line_h := font.get_height(ChUi.BODY)
-		var baseline := (size.y - line_h) * 0.5 + font.get_ascent(ChUi.BODY)
+		var font := ChUi.FONT
+		var line_h := font.get_height(ChUi.FONT_SIZE)
+		var baseline := (size.y - line_h) * 0.5 + font.get_ascent(ChUi.FONT_SIZE)
 		draw_string(font, Vector2(8.0, baseline), card_text, HORIZONTAL_ALIGNMENT_CENTER,
-			size.x - 16.0, ChUi.BODY, ChUi.TEXT)
+			size.x - 16.0, ChUi.FONT_SIZE, ChUi.TEXT)
 
 
 # A body on the shelf: its name, its price and the hull at the pit's zoom. The hull is drawn the way
@@ -570,22 +569,22 @@ class BodyItemCard extends ChCard:
 		if body_def == null:
 			return
 		var inner := size.x - 16.0
-		draw_string(ChUi.BODY_FONT, Vector2(8.0, 24.0), body_def.display_name,
-			HORIZONTAL_ALIGNMENT_LEFT, inner, ChUi.BODY, ChUi.TEXT)
+		draw_string(ChUi.FONT, Vector2(8.0, 24.0), body_def.display_name,
+			HORIZONTAL_ALIGNMENT_LEFT, inner, ChUi.FONT_SIZE, ChUi.TEXT)
 		ChUi.draw_socket(self, Rect2(4.0, 32.0, size.x - 8.0, size.y - 36.0))
 		var centre := Vector2(size.x * 0.5, 32.0 + (size.y - 36.0) * 0.5)
 		var hull := Vector2(maxi(1, body_def.size.x), maxi(1, body_def.size.y)) * ChGarage.ZOOM
 		if body_def.texture != null:
-			draw_texture_rect(body_def.texture, Rect2(centre - hull * 0.5, hull), false)
+			draw_texture_rect(body_def.texture, Rect2(ChUi.snap(centre - hull * 0.5), hull), false)
 		elif body_def.outline.size() >= 3:
 			var shape := PackedVector2Array()
 			for point in body_def.outline:
-				shape.append(centre + point * ChGarage.ZOOM)
+				shape.append(ChUi.snap(centre) + point * ChGarage.ZOOM)
 			draw_colored_polygon(shape, body_def.color)
 			draw_polyline(shape + PackedVector2Array([shape[0]]),
-				body_def.color.darkened(0.3), 1.0)
+				body_def.color.darkened(0.3), ChUi.PX)
 		else:
-			draw_rect(Rect2(centre - hull * 0.5, hull), body_def.color)
+			draw_rect(Rect2(ChUi.snap(centre - hull * 0.5), hull), body_def.color)
 		# After the hull: a tall hull (the dozer's 30 cells) overhangs the card's foot, and the price
 		# is what the player reads off it.
 		if price >= 0:

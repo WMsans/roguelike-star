@@ -11,11 +11,11 @@ class_name ChPartCard extends ChCard
 # plays its own beats on its own Juice, so there is no Feedback.attach_button here.
 
 const ZOOM := ChGarage.ZOOM  # the pit's zoom, so a card and the hull show a part at one scale
-const MIN_WIDTH := 88.0
+const MIN_WIDTH := 112.0  # "Flamethrower", the longest word a name has, is 96 px in the one font
 const HEIGHT := 132.0
 const PAD := 8.0
-const FONT := ChUi.SMALL  # 16 overflows "Flamethrower" in 88 px
-static var LINE: float = ChUi.BODY_FONT.get_height(FONT)  # one text row, from the font
+const FONT := ChUi.FONT_SIZE
+static var LINE: float = ChUi.FONT.get_height(FONT)  # one text row, from the font
 const NAME_LINES := 2  # a name wraps to two rows before it would run into the cost
 static var _looks := {}  # def.texture -> its ringed look, built once per sprite
 
@@ -38,7 +38,7 @@ func _init(def_in: ChPartDef, on_click: Callable) -> void:
 	part_id = def_in.id
 	# The box is the part's own width at ZOOM plus the padding, so a wheel's card is as wide as the
 	# wheel it shows at the pit's scale.
-	custom_minimum_size = Vector2(maxf(MIN_WIDTH, def.size.x * ZOOM + 16.0), HEIGHT)
+	custom_minimum_size = Vector2(maxf(MIN_WIDTH, def.size.x * ZOOM + PAD * 2.0), HEIGHT)
 	# Mouse only, as the garage's buttons are: these are not in a focus chain.
 	focus_mode = Control.FOCUS_NONE
 	# The card's own click is the pick: ChCard emits clicked only after a press that was not ignored,
@@ -60,9 +60,9 @@ func _paint_face() -> void:
 	if def == null:
 		return
 	super()
-	var font: Font = ChUi.BODY_FONT
+	var font: Font = ChUi.FONT
 	var inner := size.x - PAD * 2.0
-	# The name, wrapped over the rows an 88 pixel card has room for, then the cost under it with the
+	# The name, wrapped over the rows a MIN_WIDTH card has room for, then the cost under it with the
 	# count at its right end. The count shares the cost's row rather than the name's because a wrapped
 	# name can reach the right edge, and the two would be drawn over each other (measured in the shot).
 	var at := PAD
@@ -119,9 +119,9 @@ static func paint(canvas: CanvasItem, centre: Vector2, def: ChPartDef, zoom: flo
 			box += Vector2(2, 2) * zoom
 		# A negative width mirrors the art, which faces +x, for a flipped part.
 		var w := -box.x if flipped else box.x
-		canvas.draw_texture_rect(look, Rect2(centre + Vector2(-w * 0.5, -box.y * 0.5), Vector2(w, box.y)), false)
+		canvas.draw_texture_rect(look, Rect2(ChUi.snap(centre + Vector2(-w * 0.5, -box.y * 0.5)), Vector2(w, box.y)), false)
 		return
 	if def.id == &"wheel":
 		canvas.draw_circle(centre, box.x * 0.5, def.color)
 		return
-	canvas.draw_rect(Rect2(centre - box * 0.5, box), def.color)
+	canvas.draw_rect(Rect2(ChUi.snap(centre - box * 0.5), box), def.color)

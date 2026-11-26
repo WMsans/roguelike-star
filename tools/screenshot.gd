@@ -9,9 +9,9 @@ extends SceneTree
 # <outdir> is made if missing and should live OUTSIDE the repo, so no PNG ever lands in git.
 # It needs a window server, so it runs WITHOUT --headless on purpose: a headless window has no
 # rendered frame to grab.
-# project.godot's window/size/mode=2 (maximized) makes --resolution only what the window starts at, so
-# the PNG is the letterboxed 1280x720 canvas scaled into the screen (measured here: 2449x1378), not
-# 1280x720. That is what the player sees, which is the point.
+# project.godot pins the window at the canvas's own 1280x720 and turns resizing off, so the canvas is
+# never stretched by a fraction and ChUi.PX stays a whole number of screen pixels. The PNG is what the
+# player sees (2x on a HiDPI screen), which is the point.
 
 const GARAGE_FRAMES := 60  # frames the garage gets before garage.png
 const BATTLE_FRAMES := 400  # frames of fighting before battle.png, the brief's 400

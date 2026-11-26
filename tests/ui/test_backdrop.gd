@@ -2,7 +2,7 @@ extends ChTest
 
 func test_wash_drifts_in_whole_texels() -> void:
 	assert_eq(ChWash.drift_at(0.0), Vector2.ZERO)
-	assert_eq(ChWash.drift_at(0.6), Vector2(2, 2), "4 px/s for 0.6 s is 2.4, floored")
+	assert_eq(ChWash.drift_at(1.6), Vector2(3, 3), "2 px/s for 1.6 s is 3.2, floored")
 	_complete()
 
 func test_decoration_ignores_the_mouse() -> void:
@@ -29,5 +29,6 @@ func test_battle_wash_sits_under_the_hud() -> void:
 	var wash: ChWash = kids[0]
 	wash._process(0.0)
 	var view: Vector2 = wash.get_viewport_rect().size
-	assert_true(wash.size.x > view.x and wash.size.y > view.y, "the wash is grown past the viewport under a CanvasLayer")
+	var drawn: Vector2 = wash.size * wash.scale
+	assert_true(drawn.x > view.x and drawn.y > view.y, "the wash is grown past the viewport under a CanvasLayer")
 	_complete()

@@ -19,7 +19,7 @@ signal card_dropped(index: int, at: Vector2)
 # The strip's height. The screen reserves the bottom 180 px and the pit's last pixel is y 540, so 172
 # leaves the garage an 8 px seam above the bar.
 const HEIGHT := 172.0
-const SLOT_W := 112.0  # a ChPartCard is 88 wide, so a slot has 12 px either side of it
+const SLOT_W := 136.0  # a ChPartCard is 112 wide, so a slot has 12 px either side of it
 const SLOT_H := 148.0
 const SLOT_GAP := 12.0
 const SLOT_X := 16.0  # the left inset, and the sell zone's right one

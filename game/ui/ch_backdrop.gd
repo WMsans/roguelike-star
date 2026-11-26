@@ -34,13 +34,14 @@ func _draw() -> void:
 		if _glow == null:
 			_glow = _radial(ChUi.DUSK_CENTRE, ChUi.DUSK_EDGE)
 		draw_texture_rect(_glow, rect, false)
+		# One UI pixel wide, not a hairline: draw_line's default is one window pixel, finer than the grid.
 		var x := 0.0
 		while x <= size.x:
-			draw_line(Vector2(x, 0), Vector2(x, size.y), ChUi.GRID)
+			draw_rect(Rect2(x, 0, ChUi.PX, size.y), ChUi.GRID)
 			x += CELL
 		var y := 0.0
 		while y <= size.y:
-			draw_line(Vector2(0, y), Vector2(size.x, y), ChUi.GRID)
+			draw_rect(Rect2(0, y, size.x, ChUi.PX), ChUi.GRID)
 			y += CELL
 	if _vignette == null:
 		var clear := Color(ChUi.INK, 0.0)

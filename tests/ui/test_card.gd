@@ -267,9 +267,9 @@ func test_every_part_name_fits_its_card() -> void:
 		var card := ChPartCard.new(def, func() -> void: pass)
 		_track(card)
 		var inner := card.custom_minimum_size.x - ChPartCard.PAD * 2.0
-		var lines := card._wrap(ChUi.BODY_FONT, def.display_name, inner)
+		var lines := card._wrap(ChUi.FONT, def.display_name, inner)
 		assert_true(lines.size() <= ChPartCard.NAME_LINES, "%s wraps into the card" % def.id)
 		for line in lines:
-			assert_true(ChUi.BODY_FONT.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			assert_true(ChUi.FONT.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1,
 				ChPartCard.FONT).x <= inner, "%s: '%s' fits the width" % [def.id, line])
 	_complete()

@@ -1,11 +1,14 @@
 extends ChTest
 
 func test_fonts_are_crisp() -> void:
-	for f in [ChUi.BODY_FONT, ChUi.HEAD_FONT, ChUi.PLAQUE_FONT]:
-		assert_eq(f.antialiasing, TextServer.FONT_ANTIALIASING_NONE, "pixel fonts draw unsmoothed")
-		assert_eq(f.hinting, TextServer.HINTING_NONE)
-	assert_eq(ChUi.theme().default_font, ChUi.BODY_FONT, "body text is Tiny5")
-	assert_eq(ChUi.theme().get_font(&"font", &"Button"), ChUi.HEAD_FONT, "buttons read in capitals")
+	assert_eq(ChUi.FONT.antialiasing, TextServer.FONT_ANTIALIASING_NONE, "the pixel font draws unsmoothed")
+	assert_eq(ChUi.FONT.hinting, TextServer.HINTING_NONE)
+	assert_eq(ChUi.theme().default_font, ChUi.FONT, "every Control reads in the one font")
+	assert_eq(ChUi.theme().get_font(&"font", &"Button"), ChUi.FONT, "buttons too")
+	assert_eq(ChUi.theme().get_font(&"font", &"Plaque"), ChUi.FONT, "and the plaque")
+	assert_eq(ChUi.FONT_SIZE % 8, 0, "Tiny5's 8-pixel em at a whole number of screen pixels")
+	assert_eq(ChUi.FONT_SIZE / 8, ChUi.PX, "one font pixel is one UI pixel")
+	assert_true(not ChUi.panel().anti_aliasing, "a smoothed rim edge is a half pixel")
 	assert_eq(ChUi.theme().get_color(&"font_focus_color", &"GoButton"), ChUi.ACCENT, "a focused GoButton stays gold")
 	assert_eq(ChUi.theme().get_color(&"font_focus_color", &"Button"), ChUi.TEXT, "a focused Button stays parchment")
 	_complete()
@@ -20,7 +23,7 @@ func test_socket_states() -> void:
 
 func test_plaque_has_hard_drop_shadow() -> void:
 	assert_true(ChUi.plaque().shadow_size > 0, "size 0 would draw no shadow")
-	assert_eq(ChUi.plaque().shadow_offset, Vector2(3, 3))
+	assert_eq(ChUi.plaque().shadow_offset, Vector2(ChUi.PX, ChUi.PX))
 	_complete()
 
 func test_tooltip_panel_is_opaque() -> void:

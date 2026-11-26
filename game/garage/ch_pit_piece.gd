@@ -38,7 +38,7 @@ func _draw() -> void:
 			# A Transform2D scales the whole polygon; PackedVector2Array has no * float.
 			var shape: PackedVector2Array = Transform2D().scaled(Vector2.ONE * ChGarage.ZOOM) * body_def.outline
 			draw_colored_polygon(shape, body_def.color)
-			draw_polyline(shape + PackedVector2Array([shape[0]]), body_def.color.darkened(0.3), 1.0)
+			draw_polyline(shape + PackedVector2Array([shape[0]]), body_def.color.darkened(0.3), ChUi.PX)
 		else:
 			draw_rect(Rect2(-hull * 0.5, hull), body_def.color)
 		return
