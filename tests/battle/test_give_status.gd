@@ -62,12 +62,39 @@ func test_give_status_emits_gained_and_cancelled() -> void:
 	var made := _ctx([_chariot(0, Vector2(1000, 1000), [p])])
 	var heard: Array = made[1]
 	assert_eq(made[0].give_status(p, ChStatuses.FLAME, 5), 2, "2 left after Wet")
-	assert_eq(heard.size(), 2, "cancelled then gained")
+	assert_eq(heard.size(), 3, "cancelled, gained, then the Wet that ran out")
 	assert_eq(heard[0].type, ChEvent.STATUS_CANCELLED, "cancel first")
 	assert_eq(heard[0].data, {"status": ChStatuses.FLAME, "against": ChStatuses.WET, "amount": 3}, "cancel data")
 	assert_eq(heard[1].type, ChEvent.STATUS_GAINED, "gained second")
 	assert_eq(heard[1].data, {"status": ChStatuses.FLAME, "amount": 2, "before": 0}, "gained data")
 	assert_eq(heard[1].source, p, "source is the holder")
+	assert_eq(heard[2].type, ChEvent.STATUS_LOST, "lost third")
+	assert_eq(heard[2].data, {"status": ChStatuses.WET}, "the Wet is gone")
+	_complete()
+
+
+func test_flame_cancelling_the_last_freeze_thaws() -> void:
+	var p := _part(0, Vector2.ZERO)
+	p.statuses.stacks[ChStatuses.FREEZE] = 2
+	var made := _ctx([_chariot(0, Vector2(1000, 1000), [p])])
+	made[0].give_status(p, ChStatuses.FLAME, 5)
+	var heard: Array = made[1]
+	assert_eq(heard.size(), 3, "cancelled, gained, lost")
+	assert_eq(heard[-1].type, ChEvent.STATUS_LOST, "lost last")
+	assert_eq(heard[-1].data, {"status": ChStatuses.FREEZE}, "the Freeze")
+	assert_true(ChEvent.thawed(heard[-1]), "reads as a thaw")
+	_complete()
+
+
+func test_doubling_the_last_oil_loses_it() -> void:
+	var p := _part(0, Vector2.ZERO)
+	p.statuses.stacks[ChStatuses.OIL] = 2
+	var made := _ctx([_chariot(0, Vector2(1000, 1000), [p])])
+	made[0].give_status(p, ChStatuses.FLAME, 5)
+	var heard: Array = made[1]
+	assert_eq(heard.size(), 3, "doubled, gained, lost")
+	assert_eq(heard[-1].type, ChEvent.STATUS_LOST, "lost last")
+	assert_eq(heard[-1].data, {"status": ChStatuses.OIL}, "the Oil")
 	_complete()
 
 
@@ -100,6 +127,12 @@ func test_wet_part_passes_shock_one_more_hop() -> void:
 	assert_eq(p[0].statuses.count(ChStatuses.SHOCK), 8, "A gains nothing back")
 	assert_eq(p[1].statuses.count(ChStatuses.SHOCK), 4, "B gets 4")
 	assert_eq(p[2].statuses.count(ChStatuses.SHOCK), 2, "C gets 2")
+	var heard: Array = r[1]
+	var jumped := heard.find_custom(func(e: ChEvent): return e.type == ChEvent.SHOCK_JUMPED and e.source == p[1])
+	var gained := heard.find_custom(func(e: ChEvent): return e.type == ChEvent.STATUS_GAINED and e.source == p[1])
+	assert_true(jumped >= 0 and jumped < gained, "JUMPED(A->B) comes before B's own GAINED")
+	if jumped >= 0:
+		assert_eq(heard[jumped].data, {"from": p[0], "amount": 4}, "jumped data")
 	_complete()
 
 

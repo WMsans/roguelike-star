@@ -8,7 +8,7 @@ class_name ChEvent extends RefCounted
 
 var type: StringName = &""
 var side: int = 0
-var source: Object = null  # the ChPartRuntime that acted, or null for a chariot-wide event
+var source: Object = null  # the ChPartRuntime that acted, the ChChariotRuntime for a status on the body, or null for a chariot-wide event
 var position: Vector2 = Vector2.ZERO  # world cells
 var data: Dictionary = {}  # event-specific payload, e.g. {"part": ..., "amount": ...}
 
@@ -18,7 +18,7 @@ const PART_BROKEN: StringName = &"part_broken"
 const CELLS_CUT: StringName = &"cells_cut"
 const ENERGY_GAINED: StringName = &"energy_gained"
 const STATUS_GAINED: StringName = &"status_gained"  # data: status, amount, before
-const STATUS_LOST: StringName = &"status_lost"  # data: status
+const STATUS_LOST: StringName = &"status_lost"  # data: status, and shatter: true on a Shatter's thaw
 const STATUS_CANCELLED: StringName = &"status_cancelled"  # data: status, against, amount
 const STATUS_DOUBLED: StringName = &"status_doubled"  # data: status, amount
 const SHOCK_JUMPED: StringName = &"shock_jumped"  # data: from, amount

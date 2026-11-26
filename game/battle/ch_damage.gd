@@ -3,9 +3,9 @@ class_name ChDamage extends RefCounted
 # The damage rules (spec §5.7), as static functions over plain values: no state, no world, so
 # deal_hit (Task 10), the part behaviours (Tasks 12–14) and the battle loop (Task 15) can call
 # them from anywhere.
-# A hit on a part is the user's decision: chariot HP loses the FULL damage and the part hit also
-# loses integrity, so parts wear down and can break but never shield HP. Multipliers such as the
-# Mace's ×3 apply to the HP damage only, never to the part's wear.
+# A hit on a part is the user's decision: chariot HP loses the full damage past the holder's Block
+# and the part hit also loses integrity, so parts wear down and can break; only Block shields HP.
+# Multipliers such as the Mace's ×3 apply to the HP damage only, never to the part's wear.
 # Rounding is Godot's round(), which rounds half away from zero.
 # shortcut: HP is clamped at 0 here and never goes negative; nothing revives at 0, so a caller
 # that wants an overkill amount has to read hp_damage rather than the HP delta.

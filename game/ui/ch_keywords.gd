@@ -12,7 +12,7 @@ const ENTRIES := {
 	&"freeze": {"name": "Frozen", "color": Color("#6fb6e8"),
 		"text": "While above 0, a part's cooldown is paused and a wheel locks. Loses 1 stack a second, and Flame cancels it."},
 	&"block": {"name": "Block", "color": Color("#c9ccd4"),
-		"text": "Absorbs damage before integrity (or HP, on the body) takes it. Never fades: damage and Acid use it up."},
+		"text": "Absorbs weapon hits and Acid before they reach the part (or HP, on the body). Flame and Shock go straight past it. Doesn't wear off."},
 	&"acid": {"name": "Acid", "color": Color("#9be04a"),
 		"text": "Each second, deals damage equal to its stacks, hitting Block first. Loses 1 stack a second, and Wet cancels it."},
 	&"wet": {"name": "Wet", "color": Color("#3f7fe0"),
