@@ -270,6 +270,14 @@ something to use. Amounts and placement are the builder's call.
 - **Weapon reach becomes its own field.** Today melee reach reuses `def.proximity_range`, but on the
   list the Rng column is the proximity-chain range (S 12, M 20, L 32). `ChPartDef` gains a `reach` in
   cells for weapons. `ChEnemyAI.reach` reads it, and its Harpoon special case goes away.
+- **Melee reach is generous** (user: today's Cutter Chainsaw, at 14 cells, barely hits even from the
+  front slot).
+  - Melee weapons start at about 24 cells of reach from the part's edge. C05 Stinger's "twice as far"
+    is about 48.
+  - The real requirement is a test, not the number: for every pair of bodies, a melee weapon on the
+    attacker's front slot lands ticks once the two chariots have driven into contact.
+  - Reach is raised until that test passes. The test lives with the Stage 3 work and re-runs whenever
+    a body or a melee part changes.
 
 ### Stage 4: The parts
 
