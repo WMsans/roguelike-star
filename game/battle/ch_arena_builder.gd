@@ -3,11 +3,12 @@ class_name ChArenaBuilder extends RefCounted
 # The closed pit one fight runs in: one hand-designed arena, mirrored about x 239.5 so neither side
 # starts on better ground. Air down to a noise-scarred surface line, sand packed down to the rock
 # band, and per half, from the wall in: an oil tank sunk against the arena wall, a sealed acid
-# cistern beside it, a TNT crate buried by the spawn with a gunpowder seam running from it toward
-# the spawn, the sand dig room under the spawn, and a lava pocket under a sand-and-rock crust in
-# the middle. Nothing goes off on its own: the level only acts when a shot, flame, blast or dig
-# reaches it. The spawns hang 30 cells of air above the surface: a chariot dropped through rock
-# tunnels onto the arena border (measured in Task 9).
+# cistern beside it, a steel-lidded water pool wired to a battery block, a TNT crate buried by the
+# spawn with a gunpowder seam running from it toward the spawn, the sand dig room under the spawn,
+# and a lava pocket under a sand-and-rock crust in the middle. Nothing goes off on its own: the
+# level only acts when a shot, flame, blast or dig reaches it. The spawns hang 30 cells of air
+# above the surface: a chariot dropped through rock tunnels onto the arena border (measured in
+# Task 9).
 # It lays into ChTest.make_world's arena: Rect2i(0, 0, 480, 180) with arena_border_material &"concrete".
 
 const ARENA := Rect2i(0, 0, 480, 180)
@@ -26,6 +27,9 @@ const FUSE_END := 150  # the seam's far end, at the spawn hull's tail (144)
 const MID_CRATE_X := 198  # the middle crate's left edge (left half)
 const MID_CRATE_DEPTH := 3  # sand over the middle crate. 5 (out of a Rocket hull hit's reach) cost artillery and selfburn 2-4 wins of 16
 const LAVA_TOP := 6  # cells under the surface; a wheel samples about 4 down (ChPartRuntime.sample_rect)
+const POOL_X := 56  # the steel-lidded water pool's left edge (left half): 20 wide, 3 deep
+const POOL_W := 20
+const POOL_DEPTH := 6  # sand over the steel lid, out of a wheel's sample like the lava
 
 
 static func _surface(rng_seed: int) -> Array[int]:
@@ -101,6 +105,19 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 	for x in range(ACID_X, ACID_X + 16):
 		_both(world, Rect2i(x, cistern_top, 1, maxi(surface[x] - cistern_top, 0) + 7), &"rock")
 	_both(world, Rect2i(ACID_X + 2, cistern_top + 1, 12, 5), &"acid")
+	# The water pool between the cistern and the flank crate, off the driving line: a 1-cell steel
+	# lid (POOL_W + 4, the run Stage 4's spark parts can feed) over a 3-deep water pool in a rock
+	# bed, and a 4x3 battery block touching the lid's inner end, all under 6 sand so no wheel
+	# samples them (ChSparks shocks a holder whose rect a discharge reaches). The battery discharges
+	# every status second into the lid and the water and reaches nobody until a blast or dig opens
+	# it; the nearest explosive is the flank crate 36 cells on. The lid is solid, so the sand over
+	# the water stays in the collider (the seam's reason above).
+	var lid: int = surface.slice(POOL_X - 2, POOL_X + POOL_W + 6).max() + POOL_DEPTH
+	_both(world, Rect2i(POOL_X - 2, lid + 1, POOL_W + 4, 4), &"rock")
+	_both(world, Rect2i(POOL_X, lid + 1, POOL_W, 3), &"water")
+	_both(world, Rect2i(POOL_X - 2, lid, POOL_W + 4, 1), &"steel")
+	var battery := Rect2i(POOL_X + POOL_W + 2, lid, 4, 3)
+	_both(world, battery, &"battery")
 	# TNT crate buried 3 under the lowest surface cell over it, clear of the spawn hull (144-196).
 	# Tried under the hull's tail (crate x 138, fuse to 176) to punish a chariot that never leaves
 	# its spawn: nothing lit it in most fights (cook-and-arena Task 6, tuning log row 9).
@@ -140,4 +157,5 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 	return {
 		"spawn_left": Vector2(SPAWN_LEFT_X, surface[SPAWN_LEFT_X] - SPAWN_ABOVE),
 		"spawn_right": Vector2(SPAWN_RIGHT_X, surface[SPAWN_RIGHT_X] - SPAWN_ABOVE),
+		"batteries": [battery, Rect2i(_mirror(battery.end.x - 1), battery.position.y, battery.size.x, battery.size.y)] as Array[Rect2i],
 	}

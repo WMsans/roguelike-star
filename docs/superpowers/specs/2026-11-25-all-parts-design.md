@@ -454,7 +454,7 @@ These came out of the Stage 1 reviews. Each later plan picks up the ones in its 
 
 **Design checks for the user:**
 - A Frozen part over water turns the water to ice and then holds its Freeze for good, because the ice's +1 cancels the decay's −1.
-- The Acid status dissolves arena sand and wood every second, so a chariot in the acid cistern reshapes the ground. Stage 2's hardness will govern this.
+- The Acid status dissolves arena sand and wood every second, so a chariot in the acid cistern reshapes the ground. It dissolves by a list, not by hardness: sand, dirt, wood, coal, gunpowder, TNT, battery and steel, never rock, so the cistern still holds. Whether acid should reshape the arena sand is still open.
 - Wet never decays and has no cap.
 
 **Polish:**

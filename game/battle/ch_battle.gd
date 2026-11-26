@@ -189,6 +189,8 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	ctx.bus.rng.seed = seed
 	var rigs: Array[ChChariotRuntime] = [player, enemy]
 	ctx.chariots = rigs
+	for rect: Rect2i in spawn["batteries"]:
+		ctx.sparks.add_battery(ctx, rect)
 	ai = ChEnemyAI.new()
 	for rig in rigs:
 		for part in rig.parts:

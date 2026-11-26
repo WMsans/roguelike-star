@@ -9,7 +9,8 @@ const SPAWN_LEFT_X := 170
 const SPAWN_RIGHT_X := 309
 const ABOVE_SURFACE := 30
 # Everything the builder puts in the ground: a column is solid from its first one down.
-const TERRAIN := [&"concrete", &"rock", &"sand", &"wood", &"water", &"lava", &"tnt", &"gunpowder", &"acid", &"oil"]
+const TERRAIN := [&"concrete", &"rock", &"sand", &"wood", &"water", &"lava", &"tnt", &"gunpowder", &"acid", &"oil",
+	&"steel", &"battery"]
 const LIQUIDS := [&"water", &"oil", &"acid", &"lava"]
 
 
@@ -152,6 +153,12 @@ func test_no_deep_liquid_on_driving_line() -> void:
 		if run >= 2:
 			deep.append(x)
 	assert_eq(deep, [], "driving-line columns with liquid 2+ deep at the surface")
+	# The water pools are lidded wherever they lie: no column anywhere opens onto water.
+	var open_water := []
+	for x in range(ARENA.position.x, ARENA.end.x):
+		if world.get_material_at(Vector2i(x, _surface_y(world, x))) == &"water":
+			open_water.append(x)
+	assert_eq(open_water, [], "columns whose surface is water")
 	world.free()
 	_complete()
 
@@ -189,5 +196,97 @@ func test_lit_seam_sets_off_its_crate() -> void:
 			tnt = true
 			break
 	assert_true(tnt, "the lit seam set off its crate within 600 ticks")
+	world.free()
+	_complete()
+
+
+func _longest_steel_run(world: PixelWorld, half: Rect2i) -> int:
+	var best := 0
+	for y in range(half.position.y, half.end.y):
+		var run := 0
+		for x in range(half.position.x, half.end.x):
+			run = run + 1 if world.get_material_at(Vector2i(x, y)) == &"steel" else 0
+			best = maxi(best, run)
+	return best
+
+
+func test_arena_has_batteries_steel_and_water() -> void:
+	var world: PixelWorld = await make_world()
+	var built: Dictionary = ChArenaBuilder.build(world, 12345)
+	var halves := [Rect2i(0, 0, 240, 180), Rect2i(240, 0, 240, 180)]
+	for half in halves:
+		var counts: Dictionary = world.count_materials(half)
+		assert_true(counts.get(&"battery", 0) >= 12, "a battery block in %s (%d cells)" % [half, counts.get(&"battery", 0)])
+		assert_true(counts.get(&"water", 0) > 0, "a water pool in %s" % half)
+		assert_true(_longest_steel_run(world, half) >= 12, "a steel run of 12+ in %s" % half)
+	# "batteries" lists the battery rects, whole, and every battery cell sits in one.
+	assert_true("batteries" in built, "the build answers batteries")
+	var rects: Array = built.get("batteries", [])
+	var listed := 0
+	for half in halves:
+		assert_true(rects.any(func(r: Rect2i) -> bool: return half.encloses(r)), "a battery rect in %s" % half)
+	for rect: Rect2i in rects:
+		var cells: Dictionary = world.count_materials(rect)
+		assert_eq(cells.get(&"battery", 0), rect.size.x * rect.size.y, "%s is all battery" % rect)
+		listed += rect.size.x * rect.size.y
+	assert_eq(listed, world.count_materials(ARENA).get(&"battery", 0), "every battery cell is in a listed rect")
+	world.free()
+	_complete()
+
+
+func test_idle_arena_never_blows() -> void:
+	# The batteries spark every status second; 60 s of that with nobody near sets off nothing.
+	var world: PixelWorld = await make_world()
+	var built: Dictionary = ChArenaBuilder.build(world, 12345)
+	var ctx := ChBattleContext.new()
+	ctx.world = world
+	ctx.bus = ChEventBus.new()
+	for rect: Rect2i in built.get("batteries", []):
+		ctx.sparks.add_battery(ctx, rect)
+	world.take_blasts()
+	var went_off := []
+	for i in range(3600):
+		world.step(1)
+		# Taken here, before tick's hazards.apply eats them.
+		for blast in world.take_blasts():
+			if blast["material"] != &"":
+				went_off.append(blast)
+		ctx.tick(1.0 / 60.0, [], [])
+	assert_eq(went_off, [], "material blasts in an idle minute")
+	assert_true(built.get("batteries", []).size() >= 2, "batteries were registered")
+	world.free()
+	_complete()
+
+
+func test_battery_spark_stays_off_explosives() -> void:
+	# ChSparks.discharge's flood from each battery's cells (shock = false): through touching water
+	# and steel, at most MAX_CELLS. No reached cell is next to an explosive.
+	var world: PixelWorld = await make_world()
+	var built: Dictionary = ChArenaBuilder.build(world, 12345)
+	var rects: Array = built.get("batteries", [])
+	assert_true(rects.size() >= 2, "batteries to flood from")
+	var touching := []
+	for rect: Rect2i in rects:
+		var reached := {}
+		var queue: Array[Vector2i] = []
+		for y in range(rect.position.y, rect.end.y):
+			for x in range(rect.position.x, rect.end.x):
+				reached[Vector2i(x, y)] = true
+				queue.append(Vector2i(x, y))
+		var head := 0
+		while head < queue.size() and reached.size() < ChSparks.MAX_CELLS:
+			var at := queue[head]
+			head += 1
+			for d in ChSparks.DIRS:
+				var next := at + d
+				if not reached.has(next) and world.get_material_at(next) in ChSparks.CONDUCTORS:
+					reached[next] = true
+					queue.append(next)
+		for at in queue:
+			for d in [Vector2i.ZERO] + ChSparks.DIRS:
+				if world.get_material_at(at + d) in ChSparks.EXPLOSIVES:
+					touching.append(at)
+		assert_true(queue.size() > rect.size.x * rect.size.y, "%s feeds a conductor" % rect)
+	assert_eq(touching, [], "battery-reached cells next to an explosive")
 	world.free()
 	_complete()

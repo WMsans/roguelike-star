@@ -88,11 +88,26 @@ So 1 Speedup gives exactly 1 extra second of cooldown, and 1 Slow takes away hal
 **In the sim today** (the demo arena; the rest of this table is still proposed)
 - Gunpowder: a powder that lights at low heat and explodes in a small blast that chains through
   the pile.
-- TNT: a solid that explodes in a large blast when fire or another blast reaches it.
-- Acid: a liquid that dissolves sand, wood, gunpowder and TNT into air and a little smoke. Terrain
-  only: it doesn't dissolve rock (rock holds it in the arena's cistern), it gives off no acid gas,
-  and it does nothing to a chariot (the Acid status isn't built yet).
-- TNT and gunpowder blasts damage and push chariots (`core-mechanics.md` §3.5).
+- TNT: a solid that explodes in a large blast when fire, a blast or a spark reaches it.
+- Flammable gas: a gas that lights at low heat and explodes in a medium blast.
+- Coal: a solid that burns. Dirt: a powder. Obsidian: a hard solid made where lava meets frost.
+- Steel: a solid that conducts sparks.
+- Battery: a solid block that sparks once a second into the water and steel touching it. A broken
+  battery cell leaks acid.
+- Electric spark: a short-lived particle. A spark floods through touching water and steel (up to
+  600 cells), sets off the explosives it reaches or touches, and gives 2 Shock to every part or hull
+  it reaches.
+- Acid: a liquid that dissolves sand, dirt, wood, coal, gunpowder, TNT, battery and steel, and
+  turns to acid gas (a short-lived gas) as it does. It doesn't dissolve rock, so rock holds it in
+  the arena's cistern.
+- Hardness, as in the table below. A blast digs what its size allows.
+- Blasts come in three sizes: small (gunpowder: radius 5, digs hardness 2), medium (flammable gas:
+  radius 8, digs 4) and large (TNT: radius 12, digs 6). They damage and push chariots
+  (`core-mechanics.md` §3.5), and Block soaks blast damage.
+- Wind: a rect of the world can blow its gases (smoke, steam, the gases above, fire and sparks)
+  along. Nothing else moves.
+- The arena has, on each side, a 4x3 battery wired to a steel-lidded water pool under the sand,
+  well clear of the explosives.
 
 **Proposed**
 
@@ -183,7 +198,7 @@ While a part has any stacks of the status, each second it affects the cells next
 | Flame | Ignites wood, coal, oil and flammable gas. Sets off gunpowder and TNT. Boils water into steam. Melts ice. |
 | Freeze | Turns water into ice, which can trap wheels. |
 | Acid | Dissolves one dissolvable cell. |
-| Shock | Sends a spark into touching water or steel, which travels through it. Sets off gunpowder and TNT. |
+| Shock | Sends a spark into touching water or steel, which travels through it. Sets off gunpowder and TNT. The spark from a Shock status sets off explosives but shocks nobody. |
 | Oil | Drips one oil cell every 2 seconds, leaving a trail that can be lit. Doesn't use up stacks. |
 | Wet, Block, Speedup, Slow | Nothing. |
 
