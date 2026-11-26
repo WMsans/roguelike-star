@@ -464,3 +464,16 @@ These came out of the Stage 1 reviews. Each later plan picks up the ones in its 
 - `sample_rect` ignores chassis rotation, and `touching` ignores part rotation.
 - Wet and Freeze badges are both blue; revisit before the Deep Freeze batch.
 - Badge rows of adjacent narrow parts can overlap.
+
+## Carried from Stage 2 (materials, landed on `all-parts-materials`)
+
+These came out of the Stage 2 final review. Stage 4 picks them up.
+
+- Parts make blasts through `ctx.explode`, or pass an explicit dig to `world.explode`; never rely on the `-1` default (the old Rocket, Firebolt and Chainsaw still do, until they retire in batch 1).
+- Material-blast EXPLOSION events have no source, so "explosion nearby" triggers subscribe chariot-wide and measure `event.position`.
+- `discharge` will need an owner side (Wet Wire, R07), hops (U15), a stop-at-first-holder mode (U19) and a redirect hook (C24); TNT Launcher calls `own_charge` where the crate lands.
+- Wind moves grid cells only; decide before the Fan whether in-flight fire particles should be pushed too.
+
+**Design checks for the user:**
+- The steel rails (hardness 7) shield the lava under x 210–223 / 256–269 from digs of 6 or less.
+- "A part's own blast never hurts its own chariot" makes half of R22 Blast Amplifier redundant for part-made blasts.

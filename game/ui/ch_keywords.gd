@@ -20,7 +20,7 @@ const ENTRIES := {
 	&"oil": {"name": "Oil", "color": Color("#b08a3c"),
 		"text": "Keeps the part from getting Wet and doubles Flame gained. Never fades: reactions use it up."},
 	&"shock": {"name": "Shock", "color": Color("#f2e04a"),
-		"text": "Each second, deals damage equal to its stacks, and part of it jumps to touching parts. Loses 1 stack a second. A shocked part sets off gunpowder and TNT through touching water or steel."},
+		"text": "Each second, deals damage equal to its stacks, and part of it jumps to touching parts. Loses 1 stack a second. A shocked part sets off gunpowder, TNT and flammable gas it touches, or that touch the water or steel it touches."},
 	&"speedup": {"name": "Speedup", "color": Color("#4fd6c4"),
 		"text": "While above 0, cooldowns run at double speed. Loses 1 stack a second, and Slow cancels it."},
 	&"slow": {"name": "Slow", "color": Color("#c070a0"),

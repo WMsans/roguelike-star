@@ -94,9 +94,9 @@ So 1 Speedup gives exactly 1 extra second of cooldown, and 1 Slow takes away hal
 - Steel: a solid that conducts sparks.
 - Battery: a solid block that sparks once a second into the water and steel touching it. A broken
   battery cell leaks acid.
-- Electric spark: a short-lived particle. A spark floods through touching water and steel (up to
-  600 cells), sets off the explosives it reaches or touches, and gives 2 Shock to every part or hull
-  it reaches.
+- Electric spark: the `spark` material is only the visible arc, a short-lived gas. The work is done
+  by a `ChSparks` discharge: it floods through touching water and steel (up to 600 cells), sets off
+  the explosives it reaches or touches, and gives 2 Shock to every part or hull it reaches.
 - Acid: a liquid that dissolves sand, dirt, wood, coal, gunpowder, TNT, battery and steel, and
   turns to acid gas (a short-lived gas) as it does. It doesn't dissolve rock, so rock holds it in
   the arena's cistern.
@@ -104,8 +104,8 @@ So 1 Speedup gives exactly 1 extra second of cooldown, and 1 Slow takes away hal
 - Blasts come in three sizes: small (gunpowder: radius 5, digs hardness 2), medium (flammable gas:
   radius 8, digs 4) and large (TNT: radius 12, digs 6). They damage and push chariots
   (`core-mechanics.md` §3.5), and Block soaks blast damage.
-- Wind: a rect of the world can blow its gases (smoke, steam, the gases above, fire and sparks)
-  along. Nothing else moves.
+- Wind: a rect of the world can blow (`blow`) its gas-class grid cells (smoke, steam, the gases
+  above, fire cells and sparks) along. Nothing else moves, including in-flight particles.
 - The arena has, on each side, a 4x3 battery wired to a steel-lidded water pool deep under the
   sand, well clear of the explosives, and a 14-cell steel rail just under the ground where the
   chariots meet, for a part's spark. No battery reaches the rails.

@@ -201,7 +201,7 @@ GDScript tables:
   - `test_spent_charge_is_dropped`: `own_charge` over an empty rect. After one status second it no longer claims a blast there.
 - [ ] **Step 2: Run them to see them fail.** Run with the `-- hazards` and `-- explosions` filters.
 - [ ] **Step 3: Implement** per the Interfaces above. Move the shared push and falloff into one helper both paths use. Update `tools/balance/ch_fight_stats.gd` and `ch_battle_feedback.gd` only if they break; both read `HAZARD_HIT`, which is unchanged.
-- [ ] **Step 4: Run the whole suite.** Expected: `N passed, 0 failed`. Also run `tools/balance/run.sh tools/balance/suites/smoke.json` and expect it to finish without errors.
+- [ ] **Step 4: Run the whole suite.** Expected: `N passed, 0 failed`. Also run `bash tools/balance/run.sh --suite smoke` and expect it to finish without errors.
 - [ ] **Step 5: Commit** with `feat(battle): one explosion event with sizes and ownership; blasts spend Block`.
 
 ---
@@ -278,7 +278,7 @@ Placement is the builder's, mirrored like everything else. It must meet these, w
   - Extend the existing shallow-liquid test, or add one, to cover the new water.
 - [ ] **Step 2: Run them to see them fail.** Run with `-- arena`.
 - [ ] **Step 3: Place the pieces and register the batteries.**
-- [ ] **Step 4: Run the whole suite and the smoke run.** Run the whole suite and `tools/balance/run.sh tools/balance/suites/smoke.json`. Expected: `N passed, 0 failed`, and the smoke run finishes.
+- [ ] **Step 4: Run the whole suite and the smoke run.** Run the whole suite and `bash tools/balance/run.sh --suite smoke`. Expected: `N passed, 0 failed`, and the smoke run finishes.
 - [ ] **Step 5: Update the docs.**
   - In `elements-list.md` §3, rewrite "In the sim today" to list what now exists: the eight new materials, hardness, wind (`blow`), sparks through water and steel, batteries, and the blast sizes and their dig.
   - In §6, add the Shock ruling: a Shock status's spark lights explosives and shocks nobody.
