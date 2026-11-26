@@ -33,10 +33,11 @@ func try_pay(cost: float) -> bool:
 	return true
 
 
-func tick(delta: float, driving: bool) -> Dictionary:
+func tick(delta: float, driving: bool, regen_mult := 1.0) -> Dictionary:
 	# Regen first, so a tick that both refills and pays can fire a part that was one point short.
 	# minf clamps the pool rather than letting it overflow, so regen buys nothing above cap.
-	value = minf(value + regen * delta, cap)
+	# regen_mult is the body's statuses: 0 frozen, 2 Speedup, 0.5 Slow.
+	value = minf(value + regen * regen_mult * delta, cap)
 	var drove: bool = false
 	# A drive that does not fit is not taken: driving spends nothing, so a
 	# chariot with no energy stays put rather than going into debt.

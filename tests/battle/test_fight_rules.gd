@@ -1,8 +1,8 @@
 extends ChTest
 
 # Task 8: the elite and boss modifiers, hooked into the live fight — ChFightRules' numbers, the fire
-# multiplier on the hit path and on the enemy's burn tick, the bus's chain filter, the tick limit, and
-# ChRun.rules() over the modifier that fight drew.
+# multiplier on the hit path (its Flame side is tests/battle/test_status_second.gd's), the bus's chain
+# filter, the tick limit, and ChRun.rules() over the modifier that fight drew.
 # The rig fixtures follow tests/battle/test_context.gd (hand-built defs on a hand-built body, so each
 # test reads its own arithmetic) and tests/battle/test_behaviours_fire.gd (the real fire part defs from
 # res://game/data/parts, so the "fire" tag the rule reads is the one that ships).
@@ -13,7 +13,6 @@ const FAR_ORIGIN := Vector2(320, 140)  # side 1's rig, clear of the first
 const TICK := 1.0 / 60.0  # one fight tick, ChBattle's own clock step
 const BODY_HP := 100  # every rig's HP here, so a hit's arithmetic reads
 const DAMAGE := 40  # the brief's deal_hit number: half of it is all a halved fire hit may cost
-const BURN_TICKS := 60  # one second of ticks, the window ChDamage's 5 dps pays in full
 const TALL_HP := 100000  # a hull no 30-tick fight can end
 const TICK_LIMIT := 30  # the tick-limit fight's rule: half a second, not the 3600-tick budget
 
@@ -28,20 +27,6 @@ func _rig() -> ChBodyDef:
 	def.energy_regen = 0.0
 	def.size = Vector2i(10, 6)
 	def.slots = PackedVector2Array([Vector2(-5, -3), Vector2(5, -3), Vector2(0, -3), Vector2(-30, -3)])
-	return def
-
-
-# A part def of the burn test's own numbers: cost 0 and cooldown 0 is a passive part, which never asks
-# for energy, so nothing but the burn can move its chariot's HP. 2x2 keeps its sample_rect inside the
-# fire blob the test fills.
-func _passive(id: StringName) -> ChPartDef:
-	var def := ChPartDef.new()
-	def.id = id
-	def.energy_cost = 0
-	def.cooldown = 0.0
-	def.integrity = 100
-	def.size = Vector2i(2, 2)
-	def.charges = -1
 	return def
 
 
@@ -161,48 +146,6 @@ func test_fire_mult_on_player_fire_hit() -> void:
 	assert_eq(foe.hp, BODY_HP - DAMAGE / 2 - DAMAGE, "the Chainsaw still costs its full damage")
 	ctx.deal_hit(foe_flame, mine.chassis, DAMAGE)
 	assert_eq(mine.hp, BODY_HP - DAMAGE, "and the enemy's fire hit costs the player its full damage")
-	_complete()
-
-
-# One second of burning on a side-1 chariot at the given fire_mult, answered as the HP it costs.
-func _burn_cost(fire_mult: float) -> int:
-	var world: PixelWorld = await make_world()
-	_ground(world)
-	var catalog := ChCatalog.from_defs([_passive(&"strut")], [_rig()])
-	# Two rigs, index = side: the side-0 one stands in no fire and must pay nothing.
-	var mine := ChChariotBuilder.build(world, _parent(), _mount([[[0], &"strut"]]), catalog, 0, ORIGIN,
-		false)
-	var foe := ChChariotBuilder.build(world, _parent(), _mount([[[0], &"strut"]]), catalog, 1, FAR_ORIGIN,
-		false)
-	var strut := _part_of(foe, [0])
-	var ctx: ChBattleContext = _battle(world, catalog, [mine, foe])
-	var rules := ChFightRules.new()
-	rules.fire_mult = fire_mult
-	ctx.rules = rules
-	# Settle first, so the sample_rect the ticks read is the one the part holds once it is standing.
-	for _tick in 30:
-		await Engine.get_main_loop().process_frame
-		world.step(1)
-	var hp_before := foe.hp
-	# The fire is re-filled every tick because the sim decides what becomes of a fire cell on its own,
-	# which is what test_context.gd's burn test does for the same reason.
-	for _tick in BURN_TICKS:
-		world.fill_circle(Vector2i(strut.anchor_world()), 3, &"fire")
-		await Engine.get_main_loop().process_frame
-		world.step(1)
-		ctx.tick(TICK, [0.0, 0.0], [false, false])
-	assert_true(strut.burning, "the enemy's part read the fire and went burning")
-	assert_eq(mine.hp, BODY_HP, "the rig standing in no fire paid nothing")
-	return hp_before - foe.hp
-
-
-func test_burn_mult_on_enemy() -> void:
-	var full := await _burn_cost(1.0)
-	var halved := await _burn_cost(0.5)
-	assert_true(full >= 4 and full <= 6,
-		"one second of burning costs the ~5 dps ChDamage pays (got %d)" % full)
-	assert_true(halved < full, "and the halved rule costs less (%d of %d)" % [halved, full])
-	assert_near(halved, full * 0.5, 1.0, "half as much, to the whole point the accumulator holds back")
 	_complete()
 
 

@@ -21,6 +21,9 @@ func _run(body_id: StringName, drive: float, ticks: int, later_mass: float = 0.0
 	Engine.get_main_loop().get_root().add_child(battle)
 	var seen := {"start": NAN, "moved": 0.0, "max_rot": 0.0, "end_rot": 0.0, "ticks": 0, "mass": 0.0}
 	battle.stepped.connect(func(ctx: ChBattleContext):
+		# No status seconds: this is the drive over the arena, and an enemy soaking in the far acid
+		# cistern eats the sand the player then drives onto, which tips the Dozer at random.
+		ctx.status_clock = 0.0
 		var hull: Node2D = ctx.chariots[0].chassis
 		if is_nan(seen.start):
 			seen.start = hull.global_position.x

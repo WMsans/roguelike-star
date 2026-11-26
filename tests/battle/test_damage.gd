@@ -36,17 +36,6 @@ func test_clamps_zero() -> void:
 	_complete()
 
 
-func test_burn_once_not_per_part() -> void:
-	# Burning is a chariot-wide DoT: it ticks once while any part burns, so 3 burning parts burn
-	# no harder than 1.
-	assert_near(ChDamage.burn_tick(100, 3, 1.0), 95.0, 0.001, "3 burning parts still cost one 5/s tick")
-	assert_near(ChDamage.burn_tick(100, 1, 1.0), 95.0, 0.001, "one burning part costs the same tick")
-	assert_near(ChDamage.burn_tick(100, 0, 1.0), 100.0, 0.001, "nothing burning does nothing")
-	assert_near(ChDamage.burn_tick(100, 3, 0.5), 97.5, 0.001, "the burn scales with the tick length")
-	assert_near(ChDamage.burn_tick(2, 3, 1.0), 0.0, 0.001, "2 HP cannot burn under 0")
-	_complete()
-
-
 func test_shatter() -> void:
 	# The Mace's Shatter: x3 against a frozen part, x1 against anything else.
 	assert_near(ChDamage.shatter_multiplier(true), 3.0, 0.001, "a frozen part shatters at x3")

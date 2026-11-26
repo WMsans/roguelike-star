@@ -181,7 +181,8 @@ func test_caught_fire_and_fired_differ() -> void:
 	var arena = await _arena()
 	var player: ChChariotRuntime = arena["player"]
 	var rocket := _part(player, _typed_path(ROCKET_PATH))
-	arena["feedback"].on_event(_event(ChEvent.CAUGHT_FIRE, 0, rocket))
+	arena["feedback"].on_event(_event(ChEvent.STATUS_GAINED, 0, rocket,
+		{"status": ChStatuses.FLAME, "amount": 2, "before": 0}))
 	var main_loop = Engine.get_main_loop()
 	for _frame in 2:
 		await main_loop.process_frame
@@ -196,6 +197,25 @@ func test_caught_fire_and_fired_differ() -> void:
 		await main_loop.process_frame
 	assert_eq(Feedback.popups.active().size(), 0,
 		"a fire pops no text: the fired profile carries none")
+	_complete()
+
+
+func test_caught_fire_still_plays_feedback() -> void:
+	_clear_popups()
+	var arena = await _arena()
+	var rocket := _part(arena["player"], _typed_path(ROCKET_PATH))
+	var main_loop = Engine.get_main_loop()
+	arena["feedback"].on_event(_event(ChEvent.STATUS_GAINED, 0, rocket,
+		{"status": ChStatuses.FLAME, "amount": 2, "before": 0}))
+	for _frame in 2:
+		await main_loop.process_frame
+	assert_eq(Feedback.popups.active().size(), 1, "the first Flame plays caught_fire")
+	_clear_popups()
+	arena["feedback"].on_event(_event(ChEvent.STATUS_GAINED, 0, rocket,
+		{"status": ChStatuses.FLAME, "amount": 2, "before": 2}))
+	for _frame in 2:
+		await main_loop.process_frame
+	assert_eq(Feedback.popups.active().size(), 0, "more Flame on a burning part plays nothing")
 	_complete()
 
 
@@ -214,7 +234,7 @@ func _fight_state(arena: Dictionary) -> Dictionary:
 			var part: ChPartRuntime = rig.parts[at]
 			bodies.append(part.body)
 			state["part %d %d" % [side, at]] = [part.integrity, part.cooldown_left,
-				part.charges_left, part.burning, part.freeze, part.broken]
+				part.charges_left, part.statuses.stacks.duplicate(), part.broken]
 		for at in bodies.size():
 			var body = bodies[at]
 			state["body %d %d" % [side, at]] = [body.global_transform, body.linear_velocity,
@@ -236,9 +256,11 @@ func test_feedback_writes_no_fight_state() -> void:
 	var feedback: ChBattleFeedback = arena["feedback"]
 	feedback.on_event(_event(ChEvent.PART_FIRED, 0, rocket))
 	feedback.on_event(_event(ChEvent.HIT, 0, rocket, {"target_part": target, "hp_damage": 7}))
-	feedback.on_event(_event(ChEvent.CAUGHT_FIRE, 0, rocket))
-	feedback.on_event(_event(ChEvent.FROZEN, 0, rocket))
-	feedback.on_event(_event(ChEvent.THAWED, 0, rocket))
+	feedback.on_event(_event(ChEvent.STATUS_GAINED, 0, rocket,
+		{"status": ChStatuses.FLAME, "amount": 2, "before": 0}))
+	feedback.on_event(_event(ChEvent.STATUS_GAINED, 0, rocket,
+		{"status": ChStatuses.FREEZE, "amount": 3, "before": 0}))
+	feedback.on_event(_event(ChEvent.STATUS_LOST, 0, rocket, {"status": ChStatuses.FREEZE}))
 	feedback.on_event(_event(ChEvent.PART_BROKEN, 0, rocket))
 	feedback.on_event(_event(ChEvent.ENERGY_GAINED, 0, rocket))
 	# No frame runs between the snapshots: the world is not stepped, so any difference is the

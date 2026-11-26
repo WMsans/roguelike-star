@@ -97,7 +97,7 @@ func test_hud_shows_the_volley_shortfall() -> void:
 
 # --- The pin on the removed ticker ---------------------------------------------------------------
 # The brief forbids hint and instruction lines, and the ticker was a feed of event type names
-# (part_fired, hit, caught_fire, ...) scrolling in the corner. This starts the shipped scene for real
+# (part_fired, hit, status_gained, ...) scrolling in the corner. This starts the shipped scene for real
 # and spends the fight, then reads every Label the HUD holds: none may name an event. The fight's own
 # bus is counted as well, so the test cannot pass by the fight never having had an event to show.
 # The fixtures it starts with are ChTest's, shared with test_battle.gd: the brief's kit, the cook (a Corsair)
@@ -133,9 +133,8 @@ func test_battle_has_no_ticker() -> void:
 	# deleting _hud_tick's call would leave them all green with a permanently blank HUD.
 	assert_eq(battle.hud.enemy_name.text, "Corsair", "the fight's own tick filled the enemy's name (the cook drives a Corsair)")
 	assert_eq(battle.hud.enemy_hp.text, "0 / 30", "and the HP it reads off the enemy it just killed")
-	var names: Array[StringName] = [ChEvent.PART_FIRED, ChEvent.HIT, ChEvent.CAUGHT_FIRE,
-		ChEvent.FROZEN, ChEvent.THAWED, ChEvent.PART_BROKEN, ChEvent.CELLS_CUT,
-		ChEvent.ENERGY_GAINED]
+	var names: Array[StringName] = [ChEvent.PART_FIRED, ChEvent.HIT, ChEvent.STATUS_GAINED,
+		ChEvent.STATUS_LOST, ChEvent.PART_BROKEN, ChEvent.CELLS_CUT, ChEvent.ENERGY_GAINED]
 	for label in battle.hud.find_children("*", "Label", true, false):
 		# Contained rather than equal, so a feed that printed "part_fired x2" or "hit: 12" is caught
 		# by the same pin.

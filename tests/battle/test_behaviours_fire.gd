@@ -126,7 +126,7 @@ const FLAME_TICKS := 272  # 3.03 s to the first fire (def.cooldown 3.0) plus 1.5
 # behaviour's, measured together: at the behaviour's PARTICLE_SPEED the 1 s burst writes fire cells
 # past 30 cells out, which is what the peak and the catch below read back.
 # What this test pins about the jet is the peak fire-cell count inside the target's own sample_rect, 30
-# cells down the barrel: it has to reach the 3 cells ChPartRuntime samples into `burning`. Measured in the
+# cells down the barrel: any fire cell there gives the target Flame on the status second. Measured in the
 # fix round: put the behaviour's NOZZLE back at 2.0, which sits inside this part's own 8-cell body, and
 # that same assert reads peak 0 and the burst never leaves the chariot. So the nozzle clearing the body it
 # is mounted on is pinned by an assert, not by prose.
@@ -154,7 +154,9 @@ func _flamethrower_case(scale: int) -> void:
 	# A lambda reads an Array by reference, so the sinks are arrays rather than scalars.
 	# shortcut: same capture shape as tests/battle/test_behaviours_melee.gd's sinks.
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.HIT, func(event: ChEvent): hits.append(event))
-	ctx.bus.subscribe(RefCounted.new(), ChEvent.CAUGHT_FIRE, func(event: ChEvent): caught.append(event))
+	ctx.bus.subscribe(RefCounted.new(), ChEvent.STATUS_GAINED, func(event: ChEvent):
+		if ChEvent.caught_fire(event):
+			caught.append(event))
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.PART_FIRED,
 		func(event: ChEvent): fired_at.append(ctx.time))
 	# The fight's clock at the fire, which the burn window is measured against.
@@ -171,15 +173,15 @@ func _flamethrower_case(scale: int) -> void:
 		world.step(1)
 		ctx.tick(TICK, [0.0, 0.0], PRESS)
 		var counts: Dictionary = world.count_materials(foe_part.sample_rect())
-		# The peak is what ChPartRuntime's 3-cell threshold gets to see, so the assert below names it.
-		peak = maxi(peak, counts.get(&"fire", 0) + counts.get(&"lava", 0) + counts.get(&"burning", 0))
-		if burn_at < 0.0 and foe_part.burning:
+		# The peak is what the status second gets to see: any fire cell there gives Flame.
+		peak = maxi(peak, counts.get(&"fire", 0) + counts.get(&"lava", 0))
+		if burn_at < 0.0 and foe_part.is_burning():
 			burn_at = ctx.time
 	var paid := 0
 	for hit in hits:
 		paid += hit.data["hp_damage"]
-	assert_true(peak >= 3, "the burst landed at least 3 fire cells in the target's sample_rect (peak %d)" % peak)
-	assert_true(caught.size() >= 1, "the catch announced CAUGHT_FIRE")
+	assert_true(peak >= 1, "the burst landed fire cells in the target's sample_rect (peak %d)" % peak)
+	assert_true(caught.size() >= 1, "the catch announced a first Flame stack")
 	assert_true(burn_at >= 0.0, "the target read as burning during the window")
 	assert_true(fired_at.size() == 1 and burn_at >= 0.0 and burn_at - fired_at[0] <= 1.5,
 		"the target caught within 1.5 s of the burst")
@@ -189,9 +191,10 @@ func _flamethrower_case(scale: int) -> void:
 	assert_eq(hits.size(), 9, "the burst spends 9 damage pulses")
 	assert_eq(paid, 9 * pulse, "the def's %d direct damage lands as 9 x %d" % [flame.def.damage, pulse])
 	assert_true(hits[0].data["target_part"] == foe_part, "the pulses went to the enemy's part")
+	# The part wears ChDamage's half of each pulse, and its Flame wears it further.
 	var wear := 9 * roundi(pulse * 0.5)
-	assert_true(foe_part.def != null and foe_part.integrity == foe_part.def.integrity - wear,
-		"the part wore ChDamage's half of each pulse (9 x round(%d x 0.5))" % pulse)
+	assert_true(foe_part.def != null and foe_part.integrity <= foe_part.def.integrity - wear,
+		"the part wore at least ChDamage's half of each pulse (9 x round(%d x 0.5))" % pulse)
 	assert_true(foe.chassis.global_position.distance_to(flame.anchor_world()) <= 40.0,
 		"the enemy stayed inside the flamethrower's 40-cell reach")
 	_complete()
@@ -437,7 +440,8 @@ func _hearth_case(scale: int) -> void:
 	assert_true(peak >= 1, "the ring left fire cells in the band (peak %d)" % peak)
 	assert_eq(hits.size(), 9, "9 pulses paid the touching hull")
 	assert_eq(paid, 36 * scale, "the hearth's %d lands as 9 x %d" % [36 * scale, 4 * scale])
-	assert_eq(near.hp, near_hp - 36 * scale, "all of it on the near hull")
+	# The band's fire cells give the near hull Flame too, which burns its HP past the pulses.
+	assert_true(near.hp <= near_hp - 36 * scale, "all of it on the near hull (%d -> %d)" % [near_hp, near.hp])
 	assert_eq(far.hp, far_hp, "and the control hull paid nothing")
 	_complete()
 
@@ -445,13 +449,12 @@ func _hearth_case(scale: int) -> void:
 # on the circumference every 0.1 s, and deal_hit once per enemy body the first time the ring crosses
 # it. Its own chariot takes no hit (the balance pass's call: the ring killed its own chariot). The own
 # hull's centre sits 6 cells out and the enemy's 15, so both are inside; the far hull's 55 never is.
-# The water pool is not part of the rule: it keeps the ring's own part out of ChPartRuntime's burning
-# transition (6 water cells douse), so an unchanged own HP below shows the ring paid it nothing rather
-# than hiding a chariot-wide burn, which the ember test reads separately. The ring still fills fire in air cells,
+# The water pool is not part of the rule: its Wet cancels the Flame the ring's fire gives the own
+# chariot, so an unchanged own HP below shows the ring paid it nothing rather than hiding a burn,
+# which the ember test reads separately. The ring still fills fire in air cells,
 # which is why the pool sits inside the ring's reach and the ring's fill never replaces it.
 # The ring's two hits are a pinned window total, and the walk each step takes (ChBehaviour._bodies)
 # runs before the fill, so no part can break mid-window and drop a later crossing (see that helper's note).
-# shortcut: DOUSE_CELLS is ChPartRuntime's own 6-cell rule, pinned by tests/battle/test_part_runtime.gd.
 # A doused part stays unburning whatever the ring writes next to it.
 const RING_NEAR := 20  # origins apart, so the enemy hull's centre is 15 cells from the ring anchor
 const RING_FAR := 60  # the control hull, 55 cells out, which the 36-cell ring never crosses
@@ -500,15 +503,16 @@ func test_ring_of_fire_hits_enemy_once_not_self() -> void:
 	assert_true(peak >= 1, "the ring left fire cells on its circumference (peak %d)" % peak)
 	assert_eq(hits.size(), 1, "the ring crossed the enemy hull and no more")
 	assert_eq(paid, ring.def.damage, "which paid once, at the def's damage")
-	assert_eq(foe.hp, foe_hp - ring.def.damage, "on the enemy hull")
+	# The ring's fire cells give the enemy hull Flame too, which burns its HP past the hit.
+	assert_true(foe.hp <= foe_hp - ring.def.damage, "on the enemy hull (%d -> %d)" % [foe_hp, foe.hp])
 	assert_eq(at.hp, at_hp, "own chariot took nothing, though its hull is inside the ring")
 	assert_eq(ctl.hp, ctl_hp, "the control hull paid nothing")
-	assert_true(ring.burning == false, "the pool kept the mount unburning, so the own HP read is the ring's alone")
+	assert_true(not ring.is_burning(), "the pool kept the mount unburning, so the own HP read is the ring's alone")
 	_complete()
 
 # Chain 3 (spec §5.6): a Hearth that heats its own chariot pays an Ember Battery on the same chariot.
 # The hearth sits on the hull's top row, so its ring writes fire cells in the air 2 cells out, which
-# is inside ChPartRuntime's 5-cell sample_rect: the part catches, CAUGHT_FIRE fires, the battery hears
+# is inside the sample rects: a holder catches (its first Flame), the battery hears
 # it (its subscription carries no proximity) and the own pool gains 3.
 # The pool is preset to 5 so the gain is visible below the cap rather than clamped away.
 const EMBER_GAP := 40  # the enemy is only there to keep the fight two-sided
@@ -536,7 +540,9 @@ func test_ember_battery_pays_for_own_hearth() -> void:
 		func(event: ChEvent):
 			gained_at.append(ctx.time)
 			gained_amount.append(float(event.data.get("amount", -1.0))))
-	ctx.bus.subscribe(RefCounted.new(), ChEvent.CAUGHT_FIRE, func(event: ChEvent): caught.append(event))
+	ctx.bus.subscribe(RefCounted.new(), ChEvent.STATUS_GAINED, func(event: ChEvent):
+		if ChEvent.caught_fire(event):
+			caught.append(event))
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.PART_FIRED, func(event: ChEvent): fired_at.append(ctx.time))
 	ctx.bus.subscribe(RefCounted.new(), ChEvent.HIT, func(event: ChEvent): hits.append(event))
 	# The pool starts below the cap so a gain lands visibly rather than clamped away.
@@ -550,12 +556,11 @@ func test_ember_battery_pays_for_own_hearth() -> void:
 		# The ring's fill read where the own parts sample it.
 		peak = maxi(peak, world.count_materials(band).get(&"fire", 0))
 	# Chain 3 read: the hearth's own ring lights the chariot, and the battery pays for that risk.
-	assert_true(peak >= 3, "the ring left fire where the own parts sample it (peak %d)" % peak)
-	assert_true(caught.size() >= 1, "the catch announced CAUGHT_FIRE")
-	# The catch names the part that went up, so the risk below is this chariot's own part going alight
+	assert_true(peak >= 1, "the ring left fire where the own parts sample it (peak %d)" % peak)
+	assert_true(caught.size() >= 1, "the catch announced a first Flame stack")
+	# The catch names the holder that went up, so the risk below is this chariot's own going alight
 	# rather than a catch somewhere else in the fight.
-	assert_true(caught[0].source == hearth or caught[0].source == battery,
-		"and the part that caught sits on the hearth's own chariot")
+	assert_true(caught[0].side == at.side, "and what caught sits on the hearth's own chariot")
 	assert_true(gained_at.size() >= 1, "so the battery announced ENERGY_GAINED")
 	assert_true(fired_at.size() >= 1 and gained_at[0] - fired_at[0] <= EMBER_WINDOW,
 		"the gain fell within 3 s of the hearth's fire")
@@ -566,7 +571,7 @@ func test_ember_battery_pays_for_own_hearth() -> void:
 	# shortcut: a catch from the other side is that suite's subject, not this chain's.
 	# The risk being paid for, pinned rather than claimed: the hearth spends energy (def.energy_cost 2),
 	# never HP, and no body was deal_hit here (the foe hull sits 40 cells out, clear of the 2-cell ring),
-	# so the only way this chariot loses HP is ChDamage.burn_tick, which the loop runs once a part burns.
+	# so the only way this chariot loses HP is its body's Flame from the ring's own fire.
 	assert_true(hits.size() == 0, "nothing was hit, so only the burn could move the HP (%d hits)" % hits.size())
 	assert_true(at.hp < at_hp, "and the burn the catch started took HP off that chariot (%d -> %d)"
 		% [at_hp, at.hp])

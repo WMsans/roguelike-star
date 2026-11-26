@@ -2,10 +2,6 @@ class_name ChChariotRuntime extends RefCounted
 
 # One live chariot: the chassis body ChChariotBuilder joined from ChBodyDef, plus the parts hanging
 # off it. `parts` is depth-first, so a part comes before what is bolted onto it.
-# hp is an int per the brief, so fractional damage reaches it in whole points, and the fraction that
-# does not add up yet is held back in burn_damage_left: the convention ChEnergy keeps its regen in and
-# ChPartRuntime keeps its lava wear in. ChDamage.burn_tick returns a float, so that is where the
-# fraction has to wait, and ChBattleContext.tick is the one that pays it into hp.
 
 var side: int = 0  # 0 = the player's chariot, 1 = the enemy's (the ChariotLayout index)
 var body_def: ChBodyDef = null  # the def this chassis was built from
@@ -25,7 +21,6 @@ var parts: Array[ChPartRuntime] = []  # every part, in the order the builder mou
 var statuses := ChStatuses.new()  # the body's statuses
 var last_anchor: Vector2 = Vector2.ZERO  # the last chassis reading, for a freed chassis
 var _mass_settled := false  # settle_mass has applied the def mass
-var burn_damage_left: float = 0.0  # burn damage held back until it adds up to a whole HP point
 
 const MOTOR_SPEED := 12.0  # rad/s at full drive, as the demo car's export
 const WHEEL_ID := &"wheel"  # shortcut: one wheel type in the slice; a wheel set wants a flag on ChPartDef

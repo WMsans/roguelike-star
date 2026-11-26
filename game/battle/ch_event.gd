@@ -14,9 +14,6 @@ var data: Dictionary = {}  # event-specific payload, e.g. {"part": ..., "amount"
 
 const PART_FIRED: StringName = &"part_fired"
 const HIT: StringName = &"hit"
-const CAUGHT_FIRE: StringName = &"caught_fire"
-const FROZEN: StringName = &"frozen"
-const THAWED: StringName = &"thawed"
 const PART_BROKEN: StringName = &"part_broken"
 const CELLS_CUT: StringName = &"cells_cut"
 const ENERGY_GAINED: StringName = &"energy_gained"
@@ -26,3 +23,17 @@ const STATUS_CANCELLED: StringName = &"status_cancelled"  # data: status, agains
 const STATUS_DOUBLED: StringName = &"status_doubled"  # data: status, amount
 const SHOCK_JUMPED: StringName = &"shock_jumped"  # data: from, amount
 const HAZARD_HIT: StringName = &"hazard_hit"  # a material blast hurt a chariot; no source part
+
+
+# The holder's first stack of `status`: "caught fire" for Flame, "frozen" for Freeze.
+static func first_stack(event: ChEvent, status: StringName) -> bool:
+	return event.type == STATUS_GAINED and event.data.get("status") == status \
+		and event.data.get("before", -1) == 0
+
+
+static func caught_fire(event: ChEvent) -> bool:
+	return first_stack(event, ChStatuses.FLAME)
+
+
+static func thawed(event: ChEvent) -> bool:
+	return event.type == STATUS_LOST and event.data.get("status") == ChStatuses.FREEZE

@@ -101,7 +101,7 @@ func _part(id: StringName, cost: int, cooldown: float, integrity: int, extension
 	def.cooldown = cooldown
 	def.damage = DAMAGE
 	def.integrity = integrity
-	# A 2x2 footprint keeps sample_rect at 6 cells, which the burn test's fire blob covers.
+	# A 2x2 footprint keeps sample_rect at 6 cells.
 	def.size = Vector2i(2, 2)
 	# proximity_range is a passive's reach in cells; 0 means it modifies nothing.
 	def.proximity_range = reach
@@ -327,53 +327,6 @@ func test_deal_hit_applies_modifiers_in_range() -> void:
 	assert_eq(near.hp, chassis_before - 2 * DAMAGE, "the multiplier reaches a chassis hit the same way")
 	_complete()
 
-# Burning is chariot-wide, not per part: while any of a chariot's parts burns, its HP loses one
-# dps * delta tick, so two burning parts burn no harder than one. Both parts here stand in fire, so
-# one second of ticks costs about 5 HP rather than about 10.
-# shortcut: the window is a range because a partial point pays nothing, which is what the runtime's
-# float accumulator keeps and the assert below reads back: hp is an int per the plan, so the
-# fraction cannot live in it.
-func test_burning_damages_hp_once() -> void:
-	var world: PixelWorld = await make_world()
-	_ground(world)
-	var catalog := _catalog(20)
-	# Two passive parts, cost 0 and cooldown 0, so neither ever asks for energy: nothing but the
-	# burn can move this rig's HP.
-	var layout := _mount([[[0], &"strut"], [[1], &"modifier"]])
-	var rig: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), layout, catalog, 0, ORIGIN, false)
-	# Settle first, so the sample rects asserted below are the rects apply_sample then reads.
-	# shortcut: no ctx.tick while settling, so no status is sampled before the fire exists.
-	for _tick in 30:
-		await Engine.get_main_loop().process_frame
-		world.step(1)
-	var strut := _part_of(rig, [0])
-	var modifier := _part_of(rig, [1])
-	assert_true(strut != null and modifier != null, "both parts mounted")
-	assert_true(strut.sample_rect().has_point(Vector2i(strut.anchor_world())), "the strut's rect covers itself")
-	assert_true(modifier.sample_rect().has_point(Vector2i(modifier.anchor_world())), "and so does the modifier's")
-	# Two burning parts, so a per-part burn would pay a double window: the assert below reads one.
-	var rigs: Array[ChChariotRuntime] = [rig]
-	var ctx: ChBattleContext = _battle(world, catalog, rigs)
-	var hp_before := rig.hp
-	# The fire is re-filled every tick because the sim decides what becomes of a fire cell on its
-	# own, and what this test reads is what the parts saw, not what the sand kept.
-	# shortcut: fill_circle writes into air cells only, so the blob cannot bury a standing part.
-	for _tick in 60:
-		world.fill_circle(Vector2i(strut.anchor_world()), 3, &"fire")
-		world.fill_circle(Vector2i(modifier.anchor_world()), 3, &"fire")
-		await Engine.get_main_loop().process_frame
-		world.step(1)
-		ctx.tick(TICK, [0.0], PRESS)
-		# hp is an int per the plan, so a fraction reaching it would be a house-rule break.
-		# shortcut: the fraction reaching hp would also leave the accumulator at 0 below.
-		assert_eq(rig.hp, int(rig.hp), "hp stays an int, so the fraction lives elsewhere")
-	assert_true(rig.hp <= hp_before - 4 and rig.hp >= hp_before - 6, "one burn ticked for the chariot")
-	# The fraction that has not reached a whole point stays behind, which is the reason the
-	# accumulator exists: a per-tick round would have left 0 behind and burned slower.
-	# shortcut: the field's name is ChChariotRuntime's own, so a rename wants this assert renamed.
-	assert_true(rig.burn_damage_left > 0.0 and rig.burn_damage_left < 1.0, "a partial point stays held back")
-	_complete()
-
 # Finding 1: ChPartRuntime.charges_left reads -1 as unlimited, so `>= 0` in the loop drove a part
 # that ran out of charges from 0 straight into that sentinel. is_ready now gates on the counter, so
 # this test pins it: it stops at 0 and never equals the unlimited sentinel.
@@ -536,7 +489,7 @@ func test_press_skips_frozen_broken_and_spent() -> void:
 	_ground(world)
 	var set := _volley_rig(world, [1, 1, 1], 10)
 	var rig: ChChariotRuntime = set[0]
-	_part_of(rig, [0, 0]).freeze = 100.0
+	_part_of(rig, [0, 0]).statuses.stacks[ChStatuses.FREEZE] = 1
 	_part_of(rig, [0, 1]).broken = true
 	_part_of(rig, [0, 2]).charges_left = 0
 	assert_true(_part_of(rig, [0, 0]).is_frozen(), "the first part is frozen")

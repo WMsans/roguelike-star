@@ -144,15 +144,15 @@ func test_rocket_explodes_and_damages() -> void:
 	assert_true(rock_after < rock_before, "the blast opened the floor under the impact")
 	_complete()
 
-# A hand-built CAUGHT_FIRE in ChPartRuntime._emit's shape: side, source and position are what the
-# bus's proximity filter reads, and the rocket subscribes with no range, so it hears either side.
-# Same helper as tests/battle/test_behaviours_melee.gd's _catch_fire.
-func _catch_fire(ctx: ChBattleContext, part: ChPartRuntime) -> void:
+# A hand-built Flame gain in give_status's shape; before 0 is a caught fire. The rocket subscribes
+# with no range, so it hears either side. Same helper as tests/battle/test_behaviours_melee.gd's.
+func _catch_fire(ctx: ChBattleContext, part: ChPartRuntime, before := 0) -> void:
 	var event := ChEvent.new()
-	event.type = ChEvent.CAUGHT_FIRE
+	event.type = ChEvent.STATUS_GAINED
 	event.side = part.side
 	event.source = part
 	event.position = part.anchor_world()
+	event.data = {"status": ChStatuses.FLAME, "amount": 2, "before": before}
 	ctx.bus.emit(event)
 
 # Point-blank: the same shot with the foe's hull 7 cells from the launcher (rig origins 20 apart)
@@ -181,9 +181,9 @@ func test_rocket_point_blank_pays_a_quarter() -> void:
 	assert_eq(foe.hp, foe_hp - roundi(rocket.def.damage * 0.25), "a point-blank hit pays a quarter")
 	_complete()
 
-# Ignition: every CAUGHT_FIRE, from either side, halves the rocket's own countdown. The fire is
+# Ignition: every caught fire, from either side, halves the rocket's own countdown. The fire is
 # hand-built (the melee suite's helper) because what is under test is the subscription and the
-# halving, not ChPartRuntime's burning transition, which that suite already pins.
+# halving, not the status second, which tests/battle/test_status_second.gd pins.
 func test_rocket_ignition_halves_cooldown() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
@@ -210,6 +210,8 @@ func test_rocket_ignition_halves_cooldown() -> void:
 	assert_near(rocket.cooldown_left, rocket.def.cooldown, 0.0001,
 		"the fire reset the countdown, which the loop owns")
 	var before := rocket.cooldown_left
+	_catch_fire(ctx, burner, 2)
+	assert_near(rocket.cooldown_left, before, 0.0001, "more Flame on a burning part is no new catch")
 	_catch_fire(ctx, burner)
 	assert_near(rocket.cooldown_left, before * 0.5, 0.0001,
 		"Ignition: the caught fire halved the countdown to 0.75 s")

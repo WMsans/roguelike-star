@@ -2,7 +2,7 @@ extends ChBehaviour
 
 # The Flamethrower (spec §5.4): a 1 s burst of fire particles out along facing() and the def's damage spread
 # over that burst. The particles fly in the particle pool, so the burn itself is the sim's: they write
-# grid cells once something blocks them, and ChPartRuntime's sampling turns those cells into `burning`.
+# grid cells once something blocks them, and the status second turns those cells into Flame.
 # The reach numbers live here, not on ChPartDef (Task 4b's ruling): proximity_range 0 on the def means
 # no proximity passives, and ChBehaviour._reach_box measures that range, so the box is grown out to this
 # part's own 40-cell reach on both sides, which is how _reach_box keeps its box symmetric about the anchor.

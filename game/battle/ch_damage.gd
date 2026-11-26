@@ -30,20 +30,10 @@ static func hit_part(target_hp: int, part_integrity: int, damage: int, multiplie
 
 
 static func hit_body(target_hp, damage, multiplier := 1.0, block := 0) -> Dictionary:
-	# Untyped hp on purpose: chariot HP is a float once burning runs, so a hit accepts it.
 	var effective := int(round(damage * multiplier))
 	var hp_damage := effective - mini(block, effective)
 	return {"hp": maxi(0, target_hp - hp_damage), "hp_damage": hp_damage,
 		"block": block - (effective - hp_damage)}
-
-
-# Burning is chariot-wide: a burning chariot loses dps * delta once per tick while ANY of its
-# parts burns, not once per burning part, so three burning parts burn no harder than one.
-static func burn_tick(hp: int, burning_parts: int, delta: float, dps := 5.0) -> float:
-	if burning_parts == 0:
-		# A chariot with nothing burning is unharmed, whatever the tick length.
-		return hp
-	return maxf(0.0, hp - dps * delta)
 
 
 # The Mace's Shatter (spec §5.4): ×3 damage against a frozen part, ×1 against anything else.

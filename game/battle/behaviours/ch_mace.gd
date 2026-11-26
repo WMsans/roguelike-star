@@ -25,19 +25,7 @@ func modify_hit(ctx: ChBattleContext, hit: Dictionary) -> void:
 	if target == null or not target.is_frozen():
 		return
 	hit["multiplier"] = hit["multiplier"] * ChDamage.shatter_multiplier(true)
-	# ChBattleContext adds a pass's hit["freeze"] after the modifiers ran, so the Shatter asks for its
-	# freeze reset through the hit rather than writing the meter here: a Freeze Charge landing on the
-	# same hit still leaves the target thawed, at 0 rather than its build-up (spec §5.6's "ends its freeze").
-	# shortcut: thaw is all-freeze, so it drops whatever build-up the passives added as well as the part's
-	# own; a hit that should keep part of that build-up wants a different key.
+	# ChBattleContext gives a pass's hit["freeze"] after the modifiers ran, so the Shatter asks for its
+	# thaw through the hit rather than clearing Freeze here: a Freeze Charge landing on the same hit
+	# still leaves the target thawed (spec §5.6's "ends its freeze"). deal_hit announces the thaw.
 	hit["thaw"] = true
-	# The Shatter ends the freeze it read, so THAWED names the target as its source, as ChPartRuntime's
-	# own THAWED emission has it.
-	var event := ChEvent.new()
-	event.type = ChEvent.THAWED
-	event.side = target.side
-	event.source = target
-	event.position = target.anchor_world()
-	# Marks this thaw as a Shatter, so feedback can break the ice rather than let it melt.
-	event.data = {"shatter": true}
-	ctx.bus.emit(event)

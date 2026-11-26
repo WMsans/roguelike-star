@@ -124,7 +124,7 @@ static func build(world: PixelWorld, rng_seed: int) -> Dictionary:
 	# a 1-cell rock lid: sand straight on lava drops out of the collider for the same reason as the
 	# seam, and the measured Dozer fell through it and rolled. The lid is a blast's to break. The
 	# lava's top sits 6 under the surface, past the 4 or so cells a wheel's status sample reaches,
-	# because a wheel that samples lava wears and burns (ChPartRuntime.apply_sample).
+	# because a wheel that samples lava gains Flame (ChBattleContext._status_second).
 	# The mirrored noise leaves a dip on each side of the centre; sand fills both part way.
 	var crust_y: int = surface.slice(210, MIRROR_X).min() + 1
 	for x in range(210, MIRROR_X):

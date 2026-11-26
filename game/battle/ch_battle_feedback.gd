@@ -21,9 +21,9 @@ func _init(ctx: ChBattleContext, hud: ChBattleHud) -> void:
 
 
 func subscribe() -> void:
-	# One listener key (self) for all seven types, so unsubscribe_all(self) drops the lot.
-	for type in [ChEvent.PART_FIRED, ChEvent.HIT, ChEvent.CAUGHT_FIRE, ChEvent.FROZEN,
-			ChEvent.THAWED, ChEvent.PART_BROKEN, ChEvent.ENERGY_GAINED, ChEvent.HAZARD_HIT]:
+	# One listener key (self) for every type, so unsubscribe_all(self) drops the lot.
+	for type in [ChEvent.PART_FIRED, ChEvent.HIT, ChEvent.STATUS_GAINED, ChEvent.STATUS_LOST,
+			ChEvent.PART_BROKEN, ChEvent.ENERGY_GAINED, ChEvent.HAZARD_HIT]:
 		_ctx.bus.subscribe(self, type, on_event)
 
 
@@ -39,17 +39,16 @@ func on_event(event: ChEvent) -> void:
 			_play(&"fired", source)
 		ChEvent.HIT:
 			_hit(event, source)
-		ChEvent.CAUGHT_FIRE:
-			_play(&"caught_fire", source)
-			_fx(&"ignite", source)
-		ChEvent.FROZEN:
-			_play(&"frozen", source)
-			_fx(&"frost", source)
-		ChEvent.THAWED:
-			_play(&"thawed", source)
-			# A Shatter breaks the ice; a freeze that ran out just melts, with no burst.
-			if event.data.get("shatter", false):
-				_fx(&"shatter", source)
+		ChEvent.STATUS_GAINED:
+			if ChEvent.caught_fire(event):
+				_play(&"caught_fire", source)
+				_fx(&"ignite", source)
+			elif ChEvent.first_stack(event, ChStatuses.FREEZE):
+				_play(&"frozen", source)
+				_fx(&"frost", source)
+		ChEvent.STATUS_LOST:
+			if ChEvent.thawed(event):
+				_play(&"thawed", source)
 		ChEvent.PART_BROKEN:
 			_fx(&"fire_blast", source)
 			# The part's own def colour, so a broken wheel's burst matches its art.

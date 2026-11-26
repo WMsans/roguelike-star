@@ -5,17 +5,17 @@ class_name ChBattleContext extends RefCounted
 # part or ChDamage by itself:
 # - deal_hit is the single damage entry point. It builds the hit dict, asks every same-side passive
 #   whose def's proximity_range covers the source to change it, then the source's own behaviour,
-#   then applies ChDamage, adds hit["freeze"] onto the target part, emits HIT, and breaks the target
-#   part if its integrity reached 0.
-# - tick runs one frame for every chariot: sample -> apply_sample -> cooldowns -> energy.tick
-#   (regen, then the drive) -> on a press, the volley (ready triggered parts paid dearest energy_cost
-#   first; each paid part fires, resets its cooldown, spends a charge, emits PART_FIRED) ->
-#   behaviour.process -> burn damage -> drive. The drive cost is paid inside energy.tick, before the
-#   volley, so drive() only ever runs for a drive that was paid, which is the global "driving is
-#   paid first" rule and why drive() comes last.
-# - tick first drains the world's material blasts into ChHazards, so a blast hurts before anything fires.
+#   then applies ChDamage (after the target's Block), gives hit["freeze"] stacks of Freeze to the
+#   target part, emits HIT, and breaks the target part if its integrity reached 0.
+# - tick runs one frame: hazards -> the status clock (one _status_second per whole STATUS_SECOND)
+#   -> per chariot: cooldowns -> energy.tick (regen, then the drive) -> on a press, the volley
+#   (ready triggered parts paid dearest energy_cost first; each paid part fires, resets its
+#   cooldown, spends a charge, emits PART_FIRED) -> behaviour.process -> drive. The drive cost is
+#   paid inside energy.tick, before the volley, so drive() only ever runs for a drive that was
+#   paid, which is the global "driving is paid first" rule and why drive() comes last.
 
-const BURN_DPS := 5.0  # shortcut: ChDamage.burn_tick's own default, named here so a modifier can scale it; upgrade if burn_tick ever moves that number off its signature
+const STATUS_SECOND := 1.0  # seconds between status seconds
+const ACID_EATS: Array[StringName] = [&"sand", &"wood", &"gunpowder", &"tnt"]  # what Acid dissolves
 
 const STEAM_PUFF := 4  # steam particles when Flame and Wet cancel
 
@@ -27,6 +27,8 @@ var time: float = 0.0  # the fight's clock, which a timed behaviour counts again
 # This fight's modifier (ChFightRules). The default is the do-nothing rule, so a context that was never
 # given one — every test and caller that predates modifiers — fights exactly as it did without one.
 var rules: ChFightRules = ChFightRules.new()
+var status_clock: float = 0.0  # time since the last status second
+var _status_seconds := 0  # status seconds run so far; Oil drips on the even ones
 
 func touching(holder: Object) -> Array:
 	# The holder's own chariot's body and unbroken parts whose box, grown by 1 cell, meets the holder's.
@@ -158,14 +160,14 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	var hit := {
 		"source": source,
 		"target_part": target_part,
-		# The part a freeze lands on and a Shatter reads. Weapons mostly strike the hull, which carries
-		# no meter, so a hull hit puts it on the target's part nearest the attacker.
+		# The part a freeze lands on and a Shatter reads. Weapons mostly strike the hull, so a hull hit
+		# puts it on the target's part nearest the attacker.
 		# ponytail: nearest the source's anchor, not the impact point, which deal_hit is never given.
 		"freeze_part": target_part if target_part != null else _nearest_part(target_chariot, source.anchor_world()),
 		"target_chariot": target_chariot,
 		"damage": damage,
 		"multiplier": multiplier,
-		"freeze": 0.0,
+		"freeze": 0,  # stacks of Freeze given to freeze_part
 	}
 	# `extra` seeds those keys, which is how a caller carries an effect it has no behaviour for.
 	# shortcut: extra never needs to name a key, so a caller that wants the defaults passes {}.
@@ -194,32 +196,27 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	# The modifiers had their turn, so ChDamage applies what they left. A part hit wears the part
 	# as well as the chariot, and the multiplier never reaches the wear: that rule is ChDamage's,
 	# pinned by its own tests, so nothing here restates it.
-	var damage_out := 0
+	# The Block that soaks the hit is the holder's: the part struck, or the body for a hull hit.
+	var holder: Object = target_part if target_part != null else target_chariot
+	var block: int = holder.statuses.count(ChStatuses.BLOCK)
+	var result: Dictionary
 	if target_part == null:
-		# No part to wear, so HP takes the hit on its own. ChDamage's return is an int, which is
-		# what hp is, so it feeds the field directly. The burn rule below is the only damage that
-		# arrives as a float, and it does not go through here.
-		var body_hp: int = ChDamage.hit_body(target_chariot.hp, hit["damage"], hit["multiplier"])["hp"]
-		damage_out = target_chariot.hp - body_hp
-		target_chariot.hp = body_hp
+		result = ChDamage.hit_body(target_chariot.hp, hit["damage"], hit["multiplier"], block)
 	else:
-		var part_result: Dictionary = ChDamage.hit_part(target_chariot.hp, target_part.integrity,
-			hit["damage"], hit["multiplier"])
-		damage_out = target_chariot.hp - part_result["hp"]
-		target_chariot.hp = part_result["hp"]
-		target_part.integrity = part_result["integrity"]
-	# A passive's freeze reaches hit["freeze_part"], capped where ChPartRuntime caps its own
-	# freeze build, so one full meter of freeze is one frozen part whatever the number of passives.
-	# A modifier that asked for a thaw answers after that: the Mace's Shatter ends the freeze it read
-	# "after the hit" (spec §5.6), so a Freeze Charge landing on the same shatter leaves the target at
-	# 0 rather than the freeze it added.
+		result = ChDamage.hit_part(target_chariot.hp, target_part.integrity,
+			hit["damage"], hit["multiplier"], 0.5, block)
+		target_part.integrity = result["integrity"]
+	var damage_out: int = target_chariot.hp - result["hp"]
+	target_chariot.hp = result["hp"]
+	holder.statuses.stacks[ChStatuses.BLOCK] = result["block"]
+	# A modifier that asked for a thaw wins over the freeze: the Mace's Shatter ends the freeze it read
+	# "after the hit" (spec §5.6), so a Freeze Charge landing on the same shatter leaves the target at 0.
 	var freeze_part: ChPartRuntime = hit["freeze_part"]
 	if freeze_part != null and hit.get("thaw", false):
-		freeze_part.freeze = 0.0
-		# The Shatter announced its own THAWED, so the hold goes too and the next sample stays quiet.
-		freeze_part.frozen_held = false
-	elif freeze_part != null and hit["freeze"] > 0.0:
-		freeze_part.freeze = clampf(freeze_part.freeze + hit["freeze"], 0.0, 1.0)
+		if freeze_part.statuses.clear(ChStatuses.FREEZE) > 0:
+			_status_event(ChEvent.STATUS_LOST, freeze_part, {"status": ChStatuses.FREEZE})
+	elif freeze_part != null and hit["freeze"] > 0:
+		give_status(freeze_part, ChStatuses.FREEZE, hit["freeze"])
 	# HIT announces the hit after it landed, so a listener reads the HP already paid. The source is
 	# the part that dealt it, which is what a proximity listener measures, and the payload carries
 	# what was hit and how much HP went: hp_damage is the damage dealt, not the HP actually lost.
@@ -279,6 +276,10 @@ func tick(delta: float, drive_input: Array[float], press_input: Array = []) -> A
 	time += delta
 	if world != null:
 		ChHazards.apply(self, world.take_blasts())
+	status_clock += delta
+	while status_clock >= STATUS_SECOND:
+		status_clock -= STATUS_SECOND
+		_status_second()
 	var fired: Array[int] = []
 	for at in chariots.size():
 		# Indexed by side, so a drive_input entry belongs to the chariot at the same index.
@@ -293,22 +294,17 @@ func tick(delta: float, drive_input: Array[float], press_input: Array = []) -> A
 	return fired
 
 func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pressed: bool) -> int:
-	# One frame of one side: sample, cooldowns, the pool's tick, the volley if pressed, process,
-	# the burn, then the drive. A broken part is skipped for the whole pass: it is off the bus and
-	# out of the joints, so this pass must not fire it, re-process it or count its burning as
-	# damage. One flag, part.broken, closes all three, and the dead joint is never read here at
-	# all, which is what Review Focus 3 asks for.
+	# One frame of one side: cooldowns, the pool's tick, the volley if pressed, process, then the
+	# drive. A broken part is skipped for the whole pass: it is off the bus and out of the joints,
+	# so this pass must not fire it or re-process it. One flag, part.broken, closes both, and the
+	# dead joint is never read here at all, which is what Review Focus 3 asks for.
 	chariot.settle_mass()
 	for part in chariot.parts:
 		if part.broken:
 			continue
-		if world != null:
-			part.apply_sample(world.count_materials(part.sample_rect()), delta, bus)
-		else:
-			part.apply_sample({}, delta, bus)
 		# A cooldown only counts down here; whether the part fires is the press's call.
 		part.tick_cooldown(delta)
-	var result: Dictionary = chariot.energy.tick(delta, direction != 0.0)
+	var result: Dictionary = chariot.energy.tick(delta, direction != 0.0, _regen_mult(chariot))
 	var fired_count := 0
 	if pressed:
 		# The volley: ready triggered parts, dearest first so the big weapons get the energy before
@@ -352,25 +348,6 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 		var passive = part.behaviour
 		if passive != null:
 			passive.process(self, delta)
-	var burning_count := 0
-	for part in chariot.parts:
-		# A broken part burns nothing: it is no longer in the fight, so a wreck sets no chariot on
-		# fire. Nothing here asserts that rule; a fight that wants it asserts it there.
-		if not part.broken and part.burning:
-			burning_count += 1
-	# Burning is chariot-wide: ChDamage.burn_tick applies one dps * delta tick for the chariot when
-	# any part burns, so three burning parts burn no harder than one. Its return is a float and hp is
-	# an int per the plan, so what a tick leaves behind waits in burn_damage_left until it adds up to
-	# a whole point.
-	# The fire handicap reaches the burn the enemy takes (spec's "and burn ticks on the enemy"), and only
-	# there: a player whose own part caught fire still burns at ChDamage's own dps.
-	var dps := BURN_DPS * (rules.fire_mult if chariot.side == 1 else 1.0)
-	var burned: float = ChDamage.burn_tick(chariot.hp, burning_count, delta, dps)
-	var owed: float = float(chariot.hp) - burned
-	chariot.burn_damage_left += owed
-	var points := int(chariot.burn_damage_left)
-	chariot.burn_damage_left -= float(points)
-	chariot.hp = maxi(0, chariot.hp - points)
 	if result["drove"]:
 		# The drive was paid, so the motors run: ChChariotRuntime.drive sets a wheel's motor off when
 		# the wheel is broken or frozen, which is §5.7's "a wheel's motor locks".
@@ -380,3 +357,93 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 		# the same condition ChChariotRuntime.drive makes for a broken or frozen wheel.
 		chariot.drive(0.0)
 	return fired_count
+
+
+func _regen_mult(chariot: ChChariotRuntime) -> float:
+	# The body's statuses set the pool's regen: Freeze stops it, Speedup doubles it, Slow halves it.
+	var s := chariot.statuses
+	if s.count(ChStatuses.FREEZE) > 0:
+		return 0.0
+	if s.count(ChStatuses.SPEEDUP) > 0:
+		return 2.0
+	return 0.5 if s.count(ChStatuses.SLOW) > 0 else 1.0
+
+
+func _status_second() -> void:
+	# One status second for every living chariot, over a snapshot of its body and unbroken parts:
+	# gain from touching cells, then per holder damage, cell effects and decay.
+	_status_seconds += 1
+	for chariot in chariots:
+		if chariot == null or chariot.hp <= 0:
+			continue
+		var holders: Array = [chariot]
+		for part in chariot.parts:
+			if not part.broken:
+				holders.append(part)
+		if world != null:
+			for holder in holders:
+				var rect: Rect2i = holder.sample_rect()
+				var gains := ChStatuses.material_gains(world.count_materials(rect), rect.size.x * rect.size.y)
+				for status in ChStatuses.ALL:
+					if gains.has(status):
+						give_status(holder, status, gains[status])
+		for holder in holders:
+			# A part that broke earlier in this pass, or in its own damage below, is out of it.
+			if holder is ChPartRuntime and holder.broken:
+				continue
+			_status_damage(chariot, holder)
+			if holder is ChPartRuntime and holder.broken:
+				continue
+			if world != null:
+				_status_cells(holder)
+			for status in holder.statuses.decay():
+				_status_event(ChEvent.STATUS_LOST, holder, {"status": status})
+
+
+func _status_damage(chariot: ChChariotRuntime, holder: Object) -> void:
+	# Flame (scaled by the fire handicap on side 1), Acid past Block, and Shock: integrity on a
+	# part, HP on the body, never both. Flame and Shock go straight past Block.
+	var s: ChStatuses = holder.statuses
+	var acid := s.count(ChStatuses.ACID)
+	var flame_mult := rules.fire_mult if holder.side == 1 else 1.0
+	var damage := roundi(s.count(ChStatuses.FLAME) * flame_mult) + acid - s.absorb(acid) \
+		+ s.count(ChStatuses.SHOCK)
+	if damage <= 0:
+		return
+	if holder is ChPartRuntime:
+		holder.integrity = maxi(0, holder.integrity - damage)
+		if holder.integrity <= 0:
+			chariot.break_part(holder, self)
+	else:
+		chariot.hp = maxi(0, chariot.hp - damage)
+
+
+func _status_cells(holder: Object) -> void:
+	# What a holder's statuses do to the cells it touches, once a status second.
+	# ponytail: Shock's sparks wait for Stage 2's spark material.
+	var s: ChStatuses = holder.statuses
+	var rect: Rect2i = holder.sample_rect()
+	if s.count(ChStatuses.FLAME) > 0:
+		# One fire particle; the sim's own fire rules do the igniting.
+		world.spawn_particles(&"fire", holder.anchor_world(), Vector2.ZERO, 1, 0.0)
+	if s.count(ChStatuses.FREEZE) > 0:
+		_swap_cells(rect, [&"water"], &"ice", 4)
+	if s.count(ChStatuses.ACID) > 0:
+		_swap_cells(rect, ACID_EATS, &"air", 1)
+	if s.count(ChStatuses.OIL) > 0 and _status_seconds % 2 == 0:
+		# One drip into the first air cell of the row under the holder's box.
+		var box: Rect2 = holder.status_box()
+		var left := floori(box.position.x)
+		_swap_cells(Rect2i(left, ceili(box.end.y), ceili(box.end.x) - left, 1), [&"air"], &"oil", 1)
+
+
+func _swap_cells(rect: Rect2i, from: Array, to: StringName, most: int) -> void:
+	# Up to `most` cells of `from` become `to`, row-major from the rect's top-left.
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			if most <= 0:
+				return
+			var at := Vector2i(x, y)
+			if world.get_material_at(at) in from:
+				world.set_cell(at, to)
+				most -= 1

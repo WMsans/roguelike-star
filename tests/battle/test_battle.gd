@@ -440,12 +440,14 @@ func _drive_fight_out(battle: Node2D) -> Dictionary:
 # sinks stay arrays of Dictionaries because a lambda closes over an array by reference.
 func _hear_all(battle: Node2D, heard: Array) -> void:
 	var key := RefCounted.new()
-	for type in [ChEvent.PART_FIRED, ChEvent.HIT, ChEvent.CAUGHT_FIRE, ChEvent.ENERGY_GAINED,
-		ChEvent.FROZEN, ChEvent.THAWED, ChEvent.CELLS_CUT, ChEvent.PART_BROKEN]:
+	for type in [ChEvent.PART_FIRED, ChEvent.HIT, ChEvent.STATUS_GAINED, ChEvent.ENERGY_GAINED,
+		ChEvent.STATUS_LOST, ChEvent.CELLS_CUT, ChEvent.PART_BROKEN]:
 		battle.ctx.bus.subscribe(key, type, func(event: ChEvent): heard.append({
-			"type": event.type,
+			# "caught" and "frozen" are a holder's first Flame or Freeze stack.
+			"type": &"caught" if ChEvent.caught_fire(event)
+				else (&"frozen" if ChEvent.first_stack(event, ChStatuses.FREEZE) else event.type),
 			"side": event.side,
-			"source": &"" if event.source == null or event.source.def == null
+			"source": &"" if not (event.source is ChPartRuntime) or event.source.def == null
 				else event.source.def.id,
 			"target_part": null if event.data.get("target_part") == null
 				else (event.data["target_part"] as ChPartRuntime).def.id,
@@ -467,8 +469,8 @@ func _hear_all(battle: Node2D, heard: Array) -> void:
 # count below pins, is that the enemy's parts catch many times after the saw's cut (measured 8-40 in
 # 16 runs, counted from the cut onward), so the spec's "the target keeps burning" shows *because of
 # this chain*: the enemy's own Hearth burns the same sand, so a count over the whole fight would pass
-# with a saw that never cut. The order is the evidence, not the count: CAUGHT_FIRE carries no
-# igniter (ChPartRuntime._emit), so a catch after the saw's cut in the same fight is the causal link
+# with a saw that never cut. The order is the evidence, not the count: a caught fire carries no
+# igniter (STATUS_GAINED), so a catch after the saw's cut in the same fight is the causal link
 # this fight can show.
 func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 	var battle := _battle_scene()
@@ -488,7 +490,7 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 		if cut < 0 and entry["type"] == ChEvent.CELLS_CUT \
 				and entry["source"] == &"cutter_chainsaw" and int(entry["sparks"]) >= 1:
 			cut = at
-		elif cut >= 0 and caught < 0 and entry["type"] == ChEvent.CAUGHT_FIRE:
+		elif cut >= 0 and caught < 0 and entry["type"] == &"caught":
 			caught = at
 		elif caught >= 0 and paid < 0 and entry["type"] == ChEvent.ENERGY_GAINED \
 				and entry["source"] == &"ember_battery":
@@ -496,7 +498,7 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 		# Only catches *after* the cut: the enemy's Hearth burns the same sand the saw cuts, so a count
 		# over the whole fight would pass with a saw that never cut (cut stays -1 here, and then no
 		# entry is after it).
-		if cut >= 0 and at > cut and entry["type"] == ChEvent.CAUGHT_FIRE \
+		if cut >= 0 and at > cut and entry["type"] == &"caught" \
 				and int(entry["side"]) == 1:
 			enemy_catches += 1
 	assert_true(cut >= 0, "the Chainsaw cut cells and threw sparks (heard %d events)" % heard.size())
@@ -532,7 +534,7 @@ func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
 # The freeze lands. A Mace hits the Dozer's chassis almost every swing (its wheels hang below a
 # Corsair's top slots), and the design call in the demo balance pass was that a hull hit puts its
 # freeze on the target's part nearest the attacker (ChBattleContext.deal_hit), which then holds frozen
-# while the meter decays (ChPartRuntime.is_frozen). Before that call this test pinned "nothing froze".
+# while its Freeze stacks decay. Before that call this test pinned "nothing froze".
 func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 	var battle := _battle_scene()
 	var heard: Array = []
@@ -547,7 +549,7 @@ func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 	for entry in heard:
 		if entry["type"] == ChEvent.PART_FIRED and entry["source"] == &"ice_cream_mace":
 			swung += 1
-		elif entry["type"] == ChEvent.FROZEN:
+		elif entry["type"] == &"frozen":
 			frozen += 1
 	assert_true(swung > 0, "the fight paid the Mace, so it swung on its own cooldown")
 	# Measured on the Barge 3 s in, with the cook still 90 cells away: the player's hull sat at x 186,

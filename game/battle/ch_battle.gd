@@ -494,17 +494,12 @@ func _draw_markers() -> void:
 			if part.body == null or not is_instance_valid(part.body):
 				# A part whose body left the world has no place to mark.
 				continue
-			if not (part.broken or part.burning or part.is_frozen()):
+			if not part.broken:
 				continue
 			var size := Vector2(maxi(1, part.def.size.x), maxi(1, part.def.size.y))
 			var at: Vector2 = onto * part.anchor_world()
 			var box := Rect2(at - size * 0.5, size)
-			if part.is_frozen():
-				marks.draw_rect(box, Color(0.2, 0.4, 1.0, 0.4), true)  # blue tint
-			if part.burning:
-				marks.draw_rect(box, Color(1.0, 0.15, 0.1), false)  # red outline
-			if part.broken:
-				# An X: the wreck is out of the fight, and its body is still lying in the sand.
-				marks.draw_line(box.position, box.end, Color(1.0, 1.0, 1.0))
-				marks.draw_line(Vector2(box.position.x, box.end.y), Vector2(box.end.x, box.position.y),
-					Color(1.0, 1.0, 1.0))
+			# An X: the wreck is out of the fight, and its body is still lying in the sand.
+			marks.draw_line(box.position, box.end, Color(1.0, 1.0, 1.0))
+			marks.draw_line(Vector2(box.position.x, box.end.y), Vector2(box.end.x, box.position.y),
+				Color(1.0, 1.0, 1.0))

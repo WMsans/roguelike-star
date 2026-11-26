@@ -17,7 +17,9 @@ const POINT_BLANK_SHARE := 0.25
 func setup(ctx: ChBattleContext) -> void:
 	# Ignition hears every caught fire, on either side, so the subscription carries no range.
 	# The behaviour is the listener break_part unsubscribes, which is ChBehaviour's contract.
-	ctx.bus.subscribe(self, ChEvent.CAUGHT_FIRE, func(caught: ChEvent): _ignite())
+	ctx.bus.subscribe(self, ChEvent.STATUS_GAINED, func(gained: ChEvent):
+		if ChEvent.caught_fire(gained):
+			_ignite())
 
 func fire(ctx: ChBattleContext) -> void:
 	# The shot leaves the part's own anchor pointing where the part points, with no fall: a

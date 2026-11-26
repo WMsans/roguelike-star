@@ -10,8 +10,8 @@ var _starved_ticks: Array[int] = [0, 0]
 var _flipped_ticks: Array[int] = [0, 0]
 var _rams := 0
 var _energy_gained: Array[float] = [0.0, 0.0]  # by the side whose pool gained
-var _caught_fire: Array[int] = [0, 0]  # parts of this side that caught fire
-var _frozen: Array[int] = [0, 0]  # parts of this side that froze
+var _caught_fire: Array[int] = [0, 0]  # holders (parts or body) of this side that caught fire
+var _frozen: Array[int] = [0, 0]  # holders of this side that froze
 var _hazard_damage: Array[int] = [0, 0]  # HP this side lost to material blasts
 var _killed_by_hazard: Array[bool] = [false, false]
 var _touching := false
@@ -33,8 +33,11 @@ func _on_step(ctx: ChBattleContext) -> void:
 		_bus.subscribe(self, ChEvent.HIT, _on_hit)
 		_bus.subscribe(self, ChEvent.ENERGY_GAINED, _on_energy)
 		_bus.subscribe(self, ChEvent.HAZARD_HIT, _on_hazard)
-		_bus.subscribe(self, ChEvent.CAUGHT_FIRE, func(e: ChEvent): _count(_caught_fire, e))
-		_bus.subscribe(self, ChEvent.FROZEN, func(e: ChEvent): _count(_frozen, e))
+		_bus.subscribe(self, ChEvent.STATUS_GAINED, func(e: ChEvent):
+			if ChEvent.caught_fire(e):
+				_count(_caught_fire, e)
+			elif ChEvent.first_stack(e, ChStatuses.FREEZE):
+				_count(_frozen, e))
 	for side in 2:
 		var chariot: ChChariotRuntime = ctx.chariots[side]
 		# Starved: a part could go off but the pool can't pay its cost.
