@@ -436,3 +436,31 @@ helpers (`ChTest.make_world`) where the sim is involved.
 - GDScript or engine C++ per sim feature (sparks, hardness, wind).
 - How statuses look on parts, kept minimal and readable.
 - The 19 archetypes' names, themes and pools.
+
+## Carried from Stage 1 (statuses, landed on `all-parts-statuses`)
+
+These came out of the Stage 1 reviews. Each later plan picks up the ones in its stage.
+
+**How the status second works:**
+- Pass A: damage, then cell effects, for every holder on both chariots.
+- Pass B: material gains, then decay.
+- A status gained from cells that second skips its decay. So 1/s sources (ice, smoke) hold at 1 while touching, and fire nets +1 Flame per second.
+- STATUS_LOST fires on every path to 0.
+
+**Before Stage 4 batch 1:**
+- Add a status-damage event. "HP fell below" triggers and fight-stats attribution need it, and today it emits nothing, so there is no pop-up.
+- Unify `ChPartRuntime.status_box` with `ChBehaviour._part_box`, and `ChBattle.hull_box` with `_hull_box`.
+- Feedback ignores body-holder events, so the hull gets no caught-fire, frozen or thawed beat.
+
+**Design checks for the user:**
+- A Frozen part over water turns the water to ice and then holds its Freeze for good, because the ice's +1 cancels the decay's −1.
+- The Acid status dissolves arena sand and wood every second, so a chariot in the acid cistern reshapes the ground. Stage 2's hardness will govern this.
+- Wet never decays and has no cap.
+
+**Polish:**
+- Two opposing materials on one holder (fire and ice) still flap GAINED/LOST every second.
+- Flame under `fire_halved` rounds per second, so Flame 1 still deals 1.
+- Keyword texts leave out body effects: Freeze pausing regen, Speedup and Slow changing it.
+- `sample_rect` ignores chassis rotation, and `touching` ignores part rotation.
+- Wet and Freeze badges are both blue; revisit before the Deep Freeze batch.
+- Badge rows of adjacent narrow parts can overlap.
