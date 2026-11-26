@@ -53,6 +53,7 @@ var ai: ChEnemyAI = null  # the enemy's drive decision
 var camera: Camera2D = null
 var pcam: PhantomCamera2D = null  # the live shot: the host under $Camera drives it from here
 var hud: ChBattleHud = null  # the HUD itself, a Control under the $HUD CanvasLayer
+var badges: Node2D = null  # status stack numbers, in screen pixels on the HUD layer
 var marks: Node2D = null  # the per-part markers, drawn in the world layer
 var feedback: ChBattleFeedback = null  # the bus listener that turns this fight's events into beats
 var outcome := &""  # what this fight decided, once _step names it; "" while neither hull is dead
@@ -128,6 +129,9 @@ func _build_hud() -> void:
 	# hulls added later would bury them; no body or node under game/ sets z_index, so MARKER_Z clears them.
 	marks.z_index = MARKER_Z
 	marks.draw.connect(_draw_markers)
+	badges = Node2D.new()
+	badges.draw.connect(_draw_badges)
+	$HUD.add_child(badges)
 
 
 func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
@@ -398,6 +402,7 @@ func _hud_tick() -> void:
 	# The HUD reads the fight's numbers, then the markers redraw over the parts they mark.
 	hud.show_state(player, enemy, ctx.volley_cost(player))
 	marks.queue_redraw()
+	badges.queue_redraw()
 
 
 func _camera_at() -> void:
@@ -488,9 +493,6 @@ func _draw_markers() -> void:
 	for rig in [player, enemy]:
 		if rig == null or not _alive(rig):
 			continue
-		if rig.statuses.any():
-			var hull := hull_box(rig)
-			ChStatusBadge.draw(marks, rig.statuses, Rect2(onto * hull.position, hull.size))
 		for part in rig.parts:
 			if part.def == null:
 				continue
@@ -501,10 +503,32 @@ func _draw_markers() -> void:
 			var at: Vector2 = onto * part.anchor_world()
 			var box := Rect2(at - size * 0.5, size)
 			if not part.broken:
-				if part.statuses.any():
-					ChStatusBadge.draw(marks, part.statuses, box)
 				continue
 			# An X: the wreck is out of the fight, and its body is still lying in the sand.
 			marks.draw_line(box.position, box.end, Color(1.0, 1.0, 1.0))
 			marks.draw_line(Vector2(box.position.x, box.end.y), Vector2(box.end.x, box.position.y),
 				Color(1.0, 1.0, 1.0))
+
+
+func _draw_badges() -> void:
+	# Stack numbers in screen pixels: each holder's world box goes through the world's canvas transform,
+	# so the pixel font keeps its crisp size at every zoom.
+	if badges == null or world == null:
+		return
+	var t := world.get_global_transform_with_canvas()
+	var k := t.get_scale().abs()
+	for rig in [player, enemy]:
+		if rig == null or not _alive(rig):
+			continue
+		var hull := hull_box(rig)
+		var top := (t * hull.position).y
+		for part in rig.parts:
+			if part.def == null or part.broken or part.body == null or not is_instance_valid(part.body):
+				continue
+			var size := Vector2(maxi(1, part.def.size.x), maxi(1, part.def.size.y))
+			var box := Rect2(t * (part.anchor_world() - size * 0.5), size * k)
+			top = minf(top, box.position.y)
+			if part.statuses.any():
+				ChStatusBadge.draw(badges, part.statuses, box.get_center().x, ChStatusBadge.part_baseline(box))
+		if rig.statuses.any():
+			ChStatusBadge.draw(badges, rig.statuses, (t * hull.get_center()).x, ChStatusBadge.hull_baseline(top))
