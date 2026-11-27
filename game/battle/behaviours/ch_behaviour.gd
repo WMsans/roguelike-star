@@ -115,6 +115,42 @@ func _strike(ctx: ChBattleContext) -> bool:
 	ctx.deal_hit(part, target, part.def.damage)
 	return true
 
+
+const LOB_GRAVITY := 60.0  # cells per second squared, the lob's fall
+
+# Fire a bolt from the part's nose along facing() at `speed`, with `gravity` pulling it down, and
+# hand the raycast dict to `on_impact`. The bolt frees itself after ChProjectile.LIFE, so a target
+# that is gone just ends the flight.
+func _shoot(ctx: ChBattleContext, speed: float, gravity: float, on_impact: Callable) -> ChProjectile:
+	return _launch(ctx, part.facing(), speed, gravity, on_impact)
+
+# The lob: the same bolt, 45° up along facing, under LOB_GRAVITY. Up is the world's up, added to
+# facing, so a mirrored part lobbing left still rises rather than falling.
+func _lob(ctx: ChBattleContext, speed: float, on_impact: Callable) -> ChProjectile:
+	return _launch(ctx, (part.facing() + Vector2.UP).normalized(), speed, LOB_GRAVITY, on_impact)
+
+func _launch(ctx: ChBattleContext, dir: Vector2, speed: float, gravity: float,
+		on_impact: Callable) -> ChProjectile:
+	var bolt := ChProjectile.new()
+	bolt.setup(ctx, part, dir * speed, gravity, on_impact)
+	ctx.world.add_child(bolt)
+	bolt.global_position = _nose(dir)
+	return bolt
+
+# The part's nose: half its extent along `dir`, plus half a cell, from its anchor.
+func _nose(dir: Vector2) -> Vector2:
+	var size := Vector2(maxi(1, part.def.size.x), maxi(1, part.def.size.y))
+	var along := absf(dir.x) * size.x + absf(dir.y) * size.y
+	return part.anchor_world() + dir * (0.5 * along + 0.5)
+
+# The enemy body a beam reaches: the nearest one in the reach box.
+func _beam_target(ctx: ChBattleContext) -> Object:
+	return _nearest_enemy_body(ctx, _reach_box())
+
+# The box a beam or a spray writes cells into: the reach box.
+func _spray_box(ctx: ChBattleContext) -> Rect2:
+	return _reach_box()
+
 # The box a body occupies: def.size cells about its position, the same box as the holder's own
 # status_box (ChPartRuntime's), so a weapon's reach and a status sample measure the same footprint.
 func _part_box(foe: ChPartRuntime) -> Rect2:

@@ -18,6 +18,8 @@ const PART_SKIPPED: StringName = &"part_skipped"  # a ready part the volley's po
 const HIT: StringName = &"hit"
 const PART_BROKEN: StringName = &"part_broken"
 const CELLS_CUT: StringName = &"cells_cut"
+const CELLS_SPAWNED: StringName = &"cells_spawned"  # data: material, count, at; source = the part
+const CELLS_DUG: StringName = &"cells_dug"  # data: count; no source part
 const ENERGY_GAINED: StringName = &"energy_gained"  # data: amount
 const HEALED: StringName = &"healed"  # data: amount; source = the chariot
 const HP_LOST: StringName = &"hp_lost"  # data: amount, before, after, cause; source = attacker or null

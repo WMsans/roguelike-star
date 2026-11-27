@@ -273,6 +273,145 @@ func own_charge(rect: Rect2i, side: int) -> void:
 	# Explosive cells a part spawned: a blast that starts in them is that side's.
 	hazards.own_charge(rect, side)
 
+
+const SPARK_CELLS := 6  # spark cells throw_sparks writes about its point
+
+
+# The sim helpers a part's behaviour calls: spawn writes material cells, throw_sparks throws a spark,
+# dig removes a disc of terrain, push shoves a chassis and blow is the wind. Each is one place so a
+# part never reaches PixelWorld, ChSparks or a chassis by itself.
+
+# The world's gas-class material names, read once per call: air or a gas is the only cell a spawn may
+# overwrite. A solid, a liquid, concrete and a part's stamped body pixels are all left alone.
+func _gas_names() -> Dictionary:
+	var gas := {}
+	if world != null:
+		for m in world.material_set.materials:
+			if m.material_class == PixelMaterial.CLASS_GAS:
+				gas[m.name] = true
+	return gas
+
+# The ring at `r` about `centre`, corners once, clockwise from the top-left. Ring 0 is the centre, so
+# walking r = 0, 1, 2 ... is a spiral outward.
+static func _ring(centre: Vector2i, r: int) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if r <= 0:
+		out.append(centre)
+		return out
+	for i in range(-r, r):
+		out.append(centre + Vector2i(i, -r))
+		out.append(centre + Vector2i(r, i))
+		out.append(centre + Vector2i(-i, r))
+		out.append(centre + Vector2i(-r, -i))
+	return out
+
+# The smallest rect holding every cell, in whole cells.
+static func _rect_of(cells: Array[Vector2i]) -> Rect2i:
+	var lo := cells[0]
+	var hi := cells[0]
+	for cell in cells:
+		lo = Vector2i(mini(lo.x, cell.x), mini(lo.y, cell.y))
+		hi = Vector2i(maxi(hi.x, cell.x), maxi(hi.y, cell.y))
+	return Rect2i(lo, hi - lo + Vector2i.ONE)
+
+# Write `cells` of `material` into the air (or gas) nearest `at`, ring by ring, and answer how many
+# landed. The part's own stat hook scales the count (spawn_<material>), so a neighbour can raise it.
+# Gunpowder and TNT are owned by the part's side, and a battery block is recorded so it sparks.
+func spawn(source: ChPartRuntime, material: StringName, at: Vector2, cells: int) -> int:
+	if source == null or world == null or cells <= 0:
+		return 0
+	var want := roundi(stat(source, StringName("spawn_" + material), cells))
+	if want <= 0:
+		return 0
+	var gas := _gas_names()
+	var centre := Vector2i(roundi(at.x), roundi(at.y))
+	var written: Array[Vector2i] = []
+	var limit := maxi(world.arena.size.x, world.arena.size.y)
+	var r := 0
+	while written.size() < want and r <= limit:
+		for cell in _ring(centre, r):
+			if written.size() >= want:
+				break
+			var m := world.get_material_at(cell)
+			if m == &"" or m == material or not (m == &"air" or gas.has(m)):
+				continue
+			world.set_cell(cell, material)
+			written.append(cell)
+		r += 1
+	if not written.is_empty():
+		var rect := _rect_of(written)
+		if material == &"gunpowder" or material == &"tnt":
+			own_charge(rect, source.side)
+		elif material == &"battery":
+			sparks.add_battery(self, rect)
+	_emit(ChEvent.CELLS_SPAWNED, source,
+		{"material": material, "count": written.size(), "at": at})
+	return written.size()
+
+# The spark a part throws at a point: SPARK_CELLS spark cells about `at`, then the discharge that
+# floods out from them. Answers the holders shocked, as ChSparks.discharge does.
+func throw_sparks(source: ChPartRuntime, at: Vector2, hops := 1, first_only := false) -> Array:
+	if world == null:
+		return []
+	var gas := _gas_names()
+	var centre := Vector2i(roundi(at.x), roundi(at.y))
+	var seeds: Array[Vector2i] = []
+	var limit := maxi(world.arena.size.x, world.arena.size.y)
+	var r := 0
+	while seeds.size() < SPARK_CELLS and r <= limit:
+		for cell in _ring(centre, r):
+			if seeds.size() >= SPARK_CELLS:
+				break
+			var m := world.get_material_at(cell)
+			if m == &"" or m == &"spark" or not (m == &"air" or gas.has(m)):
+				continue
+			world.set_cell(cell, &"spark")
+			seeds.append(cell)
+		r += 1
+	return ChSparks.discharge(self, seeds, true, hops, first_only)
+
+# Remove the cells of `hardness` or softer in the disc at `at`, never concrete, and answer how many
+# went. The count is the disc rect's non-air before and after the blast, so a cell the blast only lit
+# or threw is not counted as dug.
+func dig(at: Vector2i, radius: int, hardness: int) -> int:
+	if world == null or radius <= 0:
+		return 0
+	var rect := Rect2i(at - Vector2i(radius, radius), Vector2i(radius * 2 + 1, radius * 2 + 1))
+	var before := _non_air(rect)
+	world.explode(at, radius, 0.0, hardness)
+	var removed := before - _non_air(rect)
+	if removed > 0:
+		var event := ChEvent.new()
+		event.type = ChEvent.CELLS_DUG
+		event.position = Vector2(at)
+		event.data = {"count": removed}
+		bus.emit(event)
+	return removed
+
+# The non-air cells of a rect. count_materials also reports &"burning" for the cells that carry the
+# flag, which is the same cell counted twice, so that key is left out.
+func _non_air(rect: Rect2i) -> int:
+	var counts := world.count_materials(rect)
+	var total := 0
+	for key in counts:
+		if key != &"burning":
+			total += int(counts[key])
+	return total
+
+# Shove a chariot's chassis. A chassis that has left the tree is skipped, as every other caller does.
+func push(chariot: ChChariotRuntime, impulse: Vector2) -> void:
+	if chariot == null or chariot.chassis == null or not is_instance_valid(chariot.chassis):
+		return
+	chariot.chassis.apply_impulse(impulse)
+
+# Wind: move the gas cells of `rect` by `velocity`, and answer how many moved. Grid cells only —
+# fire still in flight is a particle, not a cell, and stays where it is.
+# ponytail: a particle push in ChFx's pool, for when a wind part has to shove a flame jet.
+func blow(rect: Rect2i, velocity: Vector2i) -> int:
+	if world == null:
+		return 0
+	return world.blow(rect, velocity)
+
 func _block_used(holder: Object, had: int, attacker: Object = null) -> void:
 	# Block only ever runs out by being used: a hit or Acid. Either way the holder loses it, and a hit
 	# names the attacker so a listener can answer it.

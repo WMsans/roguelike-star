@@ -17,7 +17,8 @@ var _batteries: Array = []  # each an Array[Vector2i] of the battery cells still
 var _gases := {}  # the world's gas-class material names, read on the first tick with a battery
 
 
-static func discharge(ctx: ChBattleContext, seeds: Array[Vector2i], shock := true) -> Array:
+static func discharge(ctx: ChBattleContext, seeds: Array[Vector2i], shock := true, hops := 1,
+		first_only := false) -> Array:
 	# Answers the holders shocked, each chariot by side, its body, then its parts in mount order.
 	var world := ctx.world
 	var reached := {}
@@ -53,17 +54,30 @@ static func discharge(ctx: ChBattleContext, seeds: Array[Vector2i], shock := tru
 	var shocked: Array = []
 	if not shock:
 		return shocked
+	# Holders in mount order, each paired with its chariot, so a reached cell resolves to the body
+	# before that chariot's parts.
+	var holders: Array = []
 	for chariot in ctx.chariots:
 		if chariot == null or chariot.hp <= 0:
 			continue
-		var holders: Array = [chariot]
-		holders.append_array(chariot.parts.filter(func(p: ChPartRuntime) -> bool: return not p.broken))
-		for holder in holders:
-			var rect: Rect2i = holder.sample_rect()
-			if queue.any(func(at: Vector2i) -> bool: return rect.has_point(at)):
+		holders.append([chariot, chariot])
+		for part in chariot.parts:
+			if not part.broken:
+				holders.append([chariot, part])
+	# The queue is the flood's own BFS order, so the first holder reached is the first cell's holder.
+	for at in queue:
+		for pair in holders:
+			var holder: Object = pair[1]
+			if shocked.has(holder):
+				continue
+			if holder.sample_rect().has_point(at):
 				shocked.append(holder)
+				if first_only:
+					break
+		if first_only and not shocked.is_empty():
+			break
 	for holder in shocked:
-		ctx.give_status(holder, ChStatuses.SHOCK, SPARK_SHOCK, 1, null, &"sparks")
+		ctx.give_status(holder, ChStatuses.SHOCK, SPARK_SHOCK, hops, null, &"sparks")
 	return shocked
 
 
