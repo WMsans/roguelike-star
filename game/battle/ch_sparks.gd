@@ -63,7 +63,7 @@ static func discharge(ctx: ChBattleContext, seeds: Array[Vector2i], shock := tru
 			if queue.any(func(at: Vector2i) -> bool: return rect.has_point(at)):
 				shocked.append(holder)
 	for holder in shocked:
-		ctx.give_status(holder, ChStatuses.SHOCK, SPARK_SHOCK)
+		ctx.give_status(holder, ChStatuses.SHOCK, SPARK_SHOCK, 1, null, &"sparks")
 	return shocked
 
 

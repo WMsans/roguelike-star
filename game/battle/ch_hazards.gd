@@ -75,10 +75,11 @@ func apply(ctx: ChBattleContext, blasts: Array) -> void:
 			var damage := roundi(base * falloff)
 			if damage <= 0:  # outside, or the rim of a weak blast rounds to 0: no HP, wear or event
 				continue
-			# The hull's HP goes through the body's Block, as deal_hit's hull hit does.
+			# The hull's HP goes through the body's Block, as deal_hit's hull hit does, and out
+			# through the one HP-loss path so a blast announces what it cost.
 			var block: int = chariot.statuses.count(ChStatuses.BLOCK)
 			var result := ChDamage.hit_body(chariot.hp, damage, 1.0, block)
-			chariot.hp = result.hp
+			ctx.lose_hp(chariot, chariot.hp - result.hp, &"blast")
 			chariot.statuses.stacks[ChStatuses.BLOCK] = result.block
 			ctx._block_used(chariot, block)
 			# The body's Block shields the hull, not the parts, so they wear by the blast's damage.

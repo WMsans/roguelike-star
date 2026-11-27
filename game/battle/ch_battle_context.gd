@@ -34,7 +34,7 @@ var sparks := ChSparks.new()  # the fight's batteries
 var status_clock: float = 0.0  # time since the last status second
 var _status_seconds := 0  # status seconds run so far; Oil drips on the even ones
 var _battle_started: bool = false  # BATTLE_STARTED emitted once by the first tick
-var _stat_modifiers: Array = []  # behaviours whose own script declares modify_stat, in side/mount order
+var _modifiers: Array = []  # behaviours whose own script declares modify_stat or modify_gain, in side/mount order
 
 # Stat names ChBattleContext.stat asks about: a behaviour's modify_stat is handed one of these.
 const STAT_ENERGY_COST := &"energy_cost"
@@ -44,20 +44,20 @@ const STAT_TICK_RATE := &"tick_rate"
 const STAT_RANGE := &"range"
 
 # Folds `base` through the modify_stat of every unbroken part on both chariots, side order then
-# mount order. setup_all read once which behaviours declare modify_stat; only those are asked.
+# mount order. setup_all read once which behaviours declare a hook; only those are asked.
 func stat(target: Object, stat: StringName, base: float) -> float:
 	var value := base
-	for behaviour in _stat_modifiers:
+	for behaviour in _modifiers:
 		var part: ChPartRuntime = behaviour.part
 		if part == null or part.broken:
 			continue
 		value = behaviour.modify_stat(self, target, stat, value)
 	return value
 
-# Calls every part's setup and caches the behaviours whose own script declares modify_stat: the
-# one place behaviours subscribe (Mimic and the bench hook in later tasks), and the stat hook's list.
+# Calls every part's setup and caches the behaviours whose own script declares a hook: the one place
+# behaviours subscribe (Mimic and the bench hook in later tasks), and the hooks' list.
 func setup_all() -> void:
-	_stat_modifiers.clear()
+	_modifiers.clear()
 	if bus != null:
 		bus.near = Callable(self, "near")
 	for chariot in chariots:
@@ -67,11 +67,11 @@ func setup_all() -> void:
 			var behaviour := part.behaviour
 			if behaviour == null:
 				continue
-			if _declares_modify_stat(behaviour):
-				_stat_modifiers.append(behaviour)
+			if _declares_modifier(behaviour):
+				_modifiers.append(behaviour)
 			behaviour.setup(self)
 	# Side order, then mount order: a parent before its children, siblings in slot order.
-	_stat_modifiers.sort_custom(func(a, b) -> bool:
+	_modifiers.sort_custom(func(a, b) -> bool:
 		var pa: ChPartRuntime = a.part
 		var pb: ChPartRuntime = b.part
 		if pa.side != pb.side:
@@ -86,13 +86,13 @@ func _path_before(a: Array[int], b: Array[int]) -> bool:
 			return a[i] < b[i]
 	return a.size() < b.size()
 
-# True when the behaviour's own script declares modify_stat.
-func _declares_modify_stat(behaviour: Object) -> bool:
+# True when the behaviour's own script declares one of the hooks the context folds.
+func _declares_modifier(behaviour: Object) -> bool:
 	var script: Script = behaviour.get_script()
 	if script == null:
 		return false
 	for method in script.get_script_method_list():
-		if method["name"] == "modify_stat":
+		if method["name"] == "modify_stat" or method["name"] == "modify_gain":
 			return true
 	return false
 
@@ -136,6 +136,62 @@ func pay_trigger(part: ChPartRuntime, cost: int) -> bool:
 		return false
 	return chariot.energy.try_pay(price)
 
+func _emit(type: StringName, holder: Object, data: Dictionary) -> void:
+	var event := ChEvent.new()
+	event.type = type
+	event.side = holder.side
+	event.source = holder
+	event.position = holder.anchor_world()
+	event.data = data
+	bus.emit(event)
+
+
+# The one HP-loss path: every hit, blast and status that costs a chariot HP comes through here, so a
+# listener (and the pop-up layer) sees one event per loss. Answers the HP actually lost, which is
+# less than `amount` on a finishing blow.
+func lose_hp(chariot: ChChariotRuntime, amount: int, cause: StringName, source: Object = null) -> int:
+	if chariot == null or amount <= 0:
+		return 0
+	var before := chariot.hp
+	chariot.hp = maxi(0, chariot.hp - amount)
+	var lost := before - chariot.hp
+	if lost > 0:
+		# The one event whose source is not the holder: the attacker where there is one, null for a
+		# blast or a status, with the event's side naming the chariot that paid.
+		var event := ChEvent.new()
+		event.type = ChEvent.HP_LOST
+		event.side = chariot.side
+		event.source = source
+		event.position = chariot.anchor_world()
+		event.data = {"amount": lost, "before": before, "after": chariot.hp, "cause": cause}
+		bus.emit(event)
+	return lost
+
+
+func heal(chariot: ChChariotRuntime, amount: int) -> int:
+	# Answers what landed, capped at the body's max HP.
+	if chariot == null or amount <= 0:
+		return 0
+	var before := chariot.hp
+	chariot.hp = mini(chariot.max_hp, chariot.hp + amount)
+	var healed := chariot.hp - before
+	if healed > 0:
+		_emit(ChEvent.HEALED, chariot, {"amount": healed})
+	return healed
+
+
+func gain_energy(chariot: ChChariotRuntime, amount: float) -> float:
+	# Answers what the pool took, capped at its cap.
+	if chariot == null or chariot.energy == null or amount <= 0.0:
+		return 0.0
+	var before := chariot.energy.value
+	chariot.energy.value = minf(chariot.energy.value + amount, chariot.energy.cap)
+	var gained := chariot.energy.value - before
+	if gained > 0.0:
+		_emit(ChEvent.ENERGY_GAINED, chariot, {"amount": gained})
+	return gained
+
+
 func touching(holder: Object) -> Array:
 	# The holder's own chariot's body and unbroken parts whose box, grown by 1 cell, meets the holder's.
 	var out: Array = []
@@ -152,18 +208,13 @@ func touching(holder: Object) -> Array:
 			out.append(other)
 	return out
 
-func _status_event(type: StringName, holder: Object, data: Dictionary) -> void:
-	var event := ChEvent.new()
-	event.type = type
-	event.side = holder.side
-	event.source = holder
-	event.position = holder.anchor_world()
-	event.data = data
-	bus.emit(event)
-
-func give_status(target: Object, status: StringName, amount: int, hops := 1, from: Object = null) -> int:
+func give_status(target: Object, status: StringName, amount: int, hops := 1, from: Object = null,
+		cause: StringName = &"part") -> int:
 	# Put stacks on a part or a chariot body; answers the stacks added. Shock then jumps half to what touches.
 	if target == null or amount <= 0 or (target is ChPartRuntime and target.broken):
+		return 0
+	amount = _gain_amount(target, status, amount, cause)
+	if amount <= 0:
 		return 0
 	var before: int = target.statuses.count(status)
 	var had: Dictionary = target.statuses.stacks.duplicate()
@@ -171,16 +222,17 @@ func give_status(target: Object, status: StringName, amount: int, hops := 1, fro
 	var added: int = result["added"]
 	var puff := false
 	for pair in result["cancelled"]:
-		_status_event(ChEvent.STATUS_CANCELLED, target, {"status": status, "against": pair[0], "amount": pair[1]})
+		_emit(ChEvent.STATUS_CANCELLED, target, {"status": status, "against": pair[0], "amount": pair[1]})
 		puff = puff or (status == ChStatuses.FLAME and pair[0] == ChStatuses.WET) \
 			or (status == ChStatuses.WET and pair[0] == ChStatuses.FLAME)
 	if result["doubled"] > 0:
-		_status_event(ChEvent.STATUS_DOUBLED, target, {"status": status, "amount": result["doubled"]})
+		_emit(ChEvent.STATUS_DOUBLED, target, {"status": status, "amount": result["doubled"]})
 	if added > 0:
-		_status_event(ChEvent.STATUS_GAINED, target, {"status": status, "amount": added, "before": before})
+		_emit(ChEvent.STATUS_GAINED, target, {"status": status, "amount": added, "before": before,
+			"cause": cause, "from": from})
 	for s in ChStatuses.ALL:
 		if had[s] > 0 and target.statuses.count(s) == 0:
-			_status_event(ChEvent.STATUS_LOST, target, {"status": s})
+			_emit(ChEvent.STATUS_LOST, target, {"status": s})
 	if puff and world != null:
 		world.spawn_particles(&"steam", target.anchor_world(), Vector2.ZERO, STEAM_PUFF, 0.0)
 	var half := added / 2
@@ -189,9 +241,20 @@ func give_status(target: Object, status: StringName, amount: int, hops := 1, fro
 		for other in touching(target):
 			if other == from:
 				continue
-			_status_event(ChEvent.SHOCK_JUMPED, other, {"from": target, "amount": half})
-			give_status(other, ChStatuses.SHOCK, half, hops - 1, target)
+			_emit(ChEvent.SHOCK_JUMPED, other, {"from": target, "amount": half})
+			give_status(other, ChStatuses.SHOCK, half, hops - 1, target, &"jump")
 	return added
+
+# The gain hook, folded the way stat folds modify_stat: every unbroken part on both chariots, in
+# side/mount order. A result of 0 or less adds nothing, so a part can refuse a status outright.
+func _gain_amount(target: Object, status: StringName, amount: int, cause: StringName) -> int:
+	var value := amount
+	for behaviour in _modifiers:
+		var part: ChPartRuntime = behaviour.part
+		if part == null or part.broken:
+			continue
+		value = behaviour.modify_gain(self, target, status, value, cause)
+	return value
 
 func explode(source: ChPartRuntime, at: Vector2i, size: StringName, damage: int, dig := -1) -> void:
 	# A part-made blast of a ChHazards size: digs, emits EXPLOSION, and hits the other side only.
@@ -201,10 +264,14 @@ func own_charge(rect: Rect2i, side: int) -> void:
 	# Explosive cells a part spawned: a blast that starts in them is that side's.
 	hazards.own_charge(rect, side)
 
-func _block_used(holder: Object, had: int) -> void:
-	# Block only ever runs out by being used: a hit or Acid. Either way the holder loses it.
+func _block_used(holder: Object, had: int, attacker: Object = null) -> void:
+	# Block only ever runs out by being used: a hit or Acid. Either way the holder loses it, and a hit
+	# names the attacker so a listener can answer it.
 	if had > 0 and holder.statuses.count(ChStatuses.BLOCK) == 0:
-		_status_event(ChEvent.STATUS_LOST, holder, {"status": ChStatuses.BLOCK})
+		var data := {"status": ChStatuses.BLOCK}
+		if attacker != null:
+			data["attacker"] = attacker
+		_emit(ChEvent.STATUS_LOST, holder, data)
 
 func own(part: ChPartRuntime) -> ChChariotRuntime:
 	# index = side is this array's own contract, so a part knows its chariot by its own side.
@@ -291,6 +358,7 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 		"damage": damage,
 		"multiplier": multiplier,
 		"freeze": 0,  # stacks of Freeze given to freeze_part
+		"block_mult": 1.0,  # what Block spends on the share it soaks; U23's Etching Ray is 2
 		"bonus": source.bonus_damage,  # part's bonus damage, modifiers may raise it
 	}
 	# `extra` seeds those keys, which is how a caller carries an effect it has no behaviour for.
@@ -325,22 +393,26 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	# The applied damage is (damage + bonus) * multiplier: bonus folds in before the multiplier.
 	var applied: int = hit["damage"] + hit["bonus"]
 	if target_part == null:
-		result = ChDamage.hit_body(target_chariot.hp, applied, hit["multiplier"], block)
+		result = ChDamage.hit_body(target_chariot.hp, applied, hit["multiplier"], block,
+			hit["block_mult"])
 	else:
 		result = ChDamage.hit_part(target_chariot.hp, target_part.integrity,
-			applied, hit["multiplier"], 0.5, block)
+			applied, hit["multiplier"], 0.5, block, hit["block_mult"])
 		target_part.integrity = result["integrity"]
-	var damage_out: int = target_chariot.hp - result["hp"]
-	target_chariot.hp = result["hp"]
+	var damage_out: int = lose_hp(target_chariot, target_chariot.hp - result["hp"], &"hit", source)
 	holder.statuses.stacks[ChStatuses.BLOCK] = result["block"]
-	_block_used(holder, block)
+	var soaked: int = block - result["block"]
+	if soaked > 0:
+		# Block took part of the hit: the holder says so, and the attacker is named on both events.
+		_emit(ChEvent.BLOCK_ABSORBED, holder, {"amount": soaked, "attacker": source})
+	_block_used(holder, block, source if soaked > 0 else null)
 	# A modifier that asked for a thaw wins over the freeze: the Mace's Shatter ends the freeze it read
 	# "after the hit" (spec §5.6), so a Freeze Charge landing on the same shatter leaves the target at 0.
 	var freeze_part: ChPartRuntime = hit["freeze_part"]
 	if freeze_part != null and hit.get("thaw", false):
 		# Only the Shatter asks for a thaw, so feedback can break the ice rather than let it melt.
 		if freeze_part.statuses.clear(ChStatuses.FREEZE) > 0:
-			_status_event(ChEvent.STATUS_LOST, freeze_part, {"status": ChStatuses.FREEZE, "shatter": true})
+			_emit(ChEvent.STATUS_LOST, freeze_part, {"status": ChStatuses.FREEZE, "shatter": true})
 	elif freeze_part != null and hit["freeze"] > 0:
 		give_status(freeze_part, ChStatuses.FREEZE, hit["freeze"])
 	# HIT announces the hit after it landed, so a listener reads the HP already paid. The source is
@@ -620,29 +692,39 @@ func _status_second() -> void:
 		var held: Array = ChStatuses.ALL.filter(func(st: StringName): return holder.statuses.count(st) > 0)
 		for status in ChStatuses.ALL:
 			if gains.has(status):
-				give_status(holder, status, gains[status] - (1 if status in held else 0))
-		for status in holder.statuses.decay(gains.keys()):
-			_status_event(ChEvent.STATUS_LOST, holder, {"status": status})
+				give_status(holder, status, gains[status] - (1 if status in held else 0), 1, null, &"cells")
+		# The decay hook scales each status's loss; a holder that is not gaining it still decays it.
+		var amounts := {}
+		for status in ChStatuses.DECAYS:
+			if holder.statuses.count(status) > 0:
+				amounts[status] = roundi(stat(holder, StringName("decay_" + status), 1.0))
+		for status in holder.statuses.decay(gains.keys(), amounts):
+			_emit(ChEvent.STATUS_LOST, holder, {"status": status})
 
 
 func _status_damage(chariot: ChChariotRuntime, holder: Object) -> void:
 	# Flame (scaled by the fire handicap on side 1), Acid past Block, and Shock: integrity on a
-	# part, HP on the body, never both. Flame and Shock go straight past Block.
+	# part, HP on the body, never both. Flame and Shock go straight past Block. Each of the three is
+	# scaled by its own stat hook, so a part can raise or lower the damage a status does.
 	var s: ChStatuses = holder.statuses
-	var acid := s.count(ChStatuses.ACID)
 	var flame_mult := rules.fire_mult if holder.side == 1 else 1.0
 	var block := s.count(ChStatuses.BLOCK)
-	var damage := roundi(s.count(ChStatuses.FLAME) * flame_mult) + acid - s.absorb(acid) \
-		+ s.count(ChStatuses.SHOCK)
+	var flame := roundi(s.count(ChStatuses.FLAME) * flame_mult * stat(holder, &"flame_damage", 1.0))
+	var acid := roundi(s.count(ChStatuses.ACID) * stat(holder, &"acid_damage", 1.0))
+	var shock := roundi(s.count(ChStatuses.SHOCK) * stat(holder, &"shock_damage", 1.0))
+	var damage := flame + acid - s.absorb(acid) + shock
 	_block_used(holder, block)
 	if damage <= 0:
 		return
 	if holder is ChPartRuntime:
+		var before: int = holder.integrity
 		holder.integrity = maxi(0, holder.integrity - damage)
+		if before > holder.integrity:
+			_emit(ChEvent.INTEGRITY_LOST, holder, {"amount": before - holder.integrity, "cause": &"status"})
 		if holder.integrity <= 0:
 			chariot.break_part(holder, self)
 	else:
-		chariot.hp = maxi(0, chariot.hp - damage)
+		lose_hp(chariot, damage, &"status")
 
 
 func _status_cells(holder: Object, shock_seeds: Array[Vector2i]) -> void:

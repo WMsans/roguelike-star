@@ -115,17 +115,14 @@ func _strike(ctx: ChBattleContext) -> bool:
 	ctx.deal_hit(part, target, part.def.damage)
 	return true
 
-# The box a body occupies: def.size cells about its position. PixelRigidBody binds no bounds getter,
-# so this is the footprint ChPartRuntime.sample_rect takes for a body, without that method's sample
-# margin, which belongs to status sampling rather than to a weapon's reach.
+# The box a body occupies: def.size cells about its position, the same box as the holder's own
+# status_box (ChPartRuntime's), so a weapon's reach and a status sample measure the same footprint.
 func _part_box(foe: ChPartRuntime) -> Rect2:
-	var size := Vector2(maxi(1, foe.def.size.x), maxi(1, foe.def.size.y))
-	return Rect2(foe.anchor_world() - size * 0.5, size)
+	return foe.status_box()
 
-# The hull's own box, the same reading as _part_box: ChBodyDef.size cells about the chassis.
+# The hull's own box, the same reading as ChBattle.hull_box: ChBodyDef.size cells about the chassis.
 func _hull_box(chariot: ChChariotRuntime) -> Rect2:
-	var size := Vector2(maxi(1, chariot.body_def.size.x), maxi(1, chariot.body_def.size.y))
-	return Rect2(chariot.chassis.global_position - size * 0.5, size)
+	return ChBattle.hull_box(chariot)
 
 # Called every tick, fired or not: a timed behaviour counts its own seconds against ctx.time or the
 # delta, which is the same delta every part, cooldown and energy pool in the fight gets.
@@ -145,6 +142,13 @@ func modify_hit(ctx: ChBattleContext, hit: Dictionary) -> void:
 # raise or lower it. Only behaviours whose own script declares modify_stat are asked.
 func modify_stat(ctx: ChBattleContext, target: Object, stat: StringName, value: float) -> float:
 	return value
+
+# Asked by ChBattleContext.give_status to fold a status gain before it lands: base returns the amount
+# unchanged, modifiers may raise, lower or refuse it. A result of 0 or less adds nothing. Only
+# behaviours whose own script declares modify_gain are asked.
+func modify_gain(ctx: ChBattleContext, target: Object, status: StringName, amount: int,
+		cause: StringName) -> int:
+	return amount
 
 # --- Scopes ---------------------------------------------------------------------------------
 # All answer unbroken, non-benched own parts of this behaviour's part, other than `part` itself.

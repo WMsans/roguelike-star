@@ -13,11 +13,14 @@ class_name ChDamage extends RefCounted
 
 # hp_damage is the damage dealt, not the HP actually lost: on a finishing hit HP clamps to 0 while
 # hp_damage still reports the full amount, which is what the HIT event payload wants.
+# block_mult multiplies what Block spends on the share of the hit it soaks (U23's Etching Ray is 2),
+# so the pool runs out that many times faster while the HP behind it is untouched.
 static func hit_part(target_hp: int, part_integrity: int, damage: int, multiplier: float = 1.0,
-	wear_ratio: float = 0.5, block: int = 0) -> Dictionary:
+	wear_ratio: float = 0.5, block: int = 0, block_mult: float = 1.0) -> Dictionary:
 	# Block absorbs first; wear scales with the share of the hit that got past it.
 	var effective := int(round(damage * multiplier))
 	var absorbed := mini(block, effective)
+	var spent := mini(block, int(round(absorbed * block_mult)))
 	var hp_damage := effective - absorbed
 	var wear := int(round(damage * wear_ratio * hp_damage / effective)) if effective > 0 \
 		else int(round(damage * wear_ratio))
@@ -25,15 +28,18 @@ static func hit_part(target_hp: int, part_integrity: int, damage: int, multiplie
 		"hp": maxi(0, target_hp - hp_damage),
 		"integrity": maxi(0, part_integrity - wear),
 		"hp_damage": hp_damage,
-		"block": block - absorbed,
+		"block": block - spent,
 	}
 
 
-static func hit_body(target_hp, damage, multiplier := 1.0, block := 0) -> Dictionary:
+static func hit_body(target_hp, damage, multiplier := 1.0, block := 0,
+	block_mult := 1.0) -> Dictionary:
 	var effective := int(round(damage * multiplier))
-	var hp_damage := effective - mini(block, effective)
+	var absorbed := mini(block, effective)
+	var spent := mini(block, int(round(absorbed * block_mult)))
+	var hp_damage := effective - absorbed
 	return {"hp": maxi(0, target_hp - hp_damage), "hp_damage": hp_damage,
-		"block": block - (effective - hp_damage)}
+		"block": block - spent}
 
 
 # The Mace's Shatter (spec §5.4): ×3 damage against a frozen part, ×1 against anything else.

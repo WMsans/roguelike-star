@@ -18,9 +18,14 @@ const PART_SKIPPED: StringName = &"part_skipped"  # a ready part the volley's po
 const HIT: StringName = &"hit"
 const PART_BROKEN: StringName = &"part_broken"
 const CELLS_CUT: StringName = &"cells_cut"
-const ENERGY_GAINED: StringName = &"energy_gained"
-const STATUS_GAINED: StringName = &"status_gained"  # data: status, amount, before
-const STATUS_LOST: StringName = &"status_lost"  # data: status, and shatter: true on a Shatter's thaw
+const ENERGY_GAINED: StringName = &"energy_gained"  # data: amount
+const HEALED: StringName = &"healed"  # data: amount; source = the chariot
+const HP_LOST: StringName = &"hp_lost"  # data: amount, before, after, cause; source = attacker or null
+const INTEGRITY_LOST: StringName = &"integrity_lost"  # data: amount, cause; source = the part
+const BLOCK_ABSORBED: StringName = &"block_absorbed"  # data: amount, attacker; source = the holder
+const STATUS_GAINED: StringName = &"status_gained"  # data: status, amount, before, cause, from
+const STATUS_LOST: StringName = &"status_lost"  # data: status, shatter: true on a Shatter's thaw,
+	# attacker on a hit that spent the last Block
 const STATUS_CANCELLED: StringName = &"status_cancelled"  # data: status, against, amount
 const STATUS_DOUBLED: StringName = &"status_doubled"  # data: status, amount
 const SHOCK_JUMPED: StringName = &"shock_jumped"  # data: from, amount

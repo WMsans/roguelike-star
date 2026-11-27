@@ -66,7 +66,8 @@ func test_give_status_emits_gained_and_cancelled() -> void:
 	assert_eq(heard[0].type, ChEvent.STATUS_CANCELLED, "cancel first")
 	assert_eq(heard[0].data, {"status": ChStatuses.FLAME, "against": ChStatuses.WET, "amount": 3}, "cancel data")
 	assert_eq(heard[1].type, ChEvent.STATUS_GAINED, "gained second")
-	assert_eq(heard[1].data, {"status": ChStatuses.FLAME, "amount": 2, "before": 0}, "gained data")
+	assert_eq(heard[1].data, {"status": ChStatuses.FLAME, "amount": 2, "before": 0, "cause": &"part",
+		"from": null}, "gained data")
 	assert_eq(heard[1].source, p, "source is the holder")
 	assert_eq(heard[2].type, ChEvent.STATUS_LOST, "lost third")
 	assert_eq(heard[2].data, {"status": ChStatuses.WET}, "the Wet is gone")

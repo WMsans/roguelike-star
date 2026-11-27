@@ -228,6 +228,20 @@ func _shatters(world: Node) -> int:
 	return n
 
 
+func test_hull_feedback_for_body_flame() -> void:
+	# A status on the body has the chariot as its source, not a part: the caught-fire beat belongs on
+	# the hull's own visual, the way a part's does on the part.
+	var arena = await _arena()
+	var enemy: ChChariotRuntime = arena["enemy"]
+	var chassis := ChJuice.of(enemy.chassis_visual)
+	arena["feedback"].on_event(_event(ChEvent.STATUS_GAINED, 1, enemy,
+		{"status": ChStatuses.FLAME, "amount": 2, "before": 0}))
+	chassis.advance(PEAK_STEP)
+	assert_near(chassis.scale_value() - 1.0, _wigged(0.10), 0.001,
+		"a body's caught fire beats the hull (caught_fire's 0.10)")
+	_complete()
+
+
 func test_shatter_thaw_plays_the_shatter_fx() -> void:
 	var arena = await _arena()
 	var rocket := _part(arena["player"], _typed_path(ROCKET_PATH))
