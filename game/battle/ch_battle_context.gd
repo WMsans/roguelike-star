@@ -42,6 +42,15 @@ const STAT_ENERGY_PER_SECOND := &"energy_per_second"
 const STAT_COOLDOWN := &"cooldown"
 const STAT_TICK_RATE := &"tick_rate"
 const STAT_RANGE := &"range"
+const STAT_FLAME_DAMAGE := &"flame_damage"
+const STAT_ACID_DAMAGE := &"acid_damage"
+const STAT_SHOCK_DAMAGE := &"shock_damage"
+const STAT_DECAY_FREEZE := &"decay_freeze"
+
+# The decay stat name for a status; STAT_DECAY_FREEZE is one of these. The rest are built rather than
+# spelled out, because the decaying statuses are ChStatuses.DECAYS and grow with it.
+static func decay_stat(status: StringName) -> StringName:
+	return StringName("decay_" + status)
 
 # Folds `base` through the modify_stat of every unbroken part on both chariots, side order then
 # mount order. setup_all read once which behaviours declare a hook; only those are asked.
@@ -697,7 +706,7 @@ func _status_second() -> void:
 		var amounts := {}
 		for status in ChStatuses.DECAYS:
 			if holder.statuses.count(status) > 0:
-				amounts[status] = roundi(stat(holder, StringName("decay_" + status), 1.0))
+				amounts[status] = roundi(stat(holder, decay_stat(status), 1.0))
 		for status in holder.statuses.decay(gains.keys(), amounts):
 			_emit(ChEvent.STATUS_LOST, holder, {"status": status})
 
@@ -709,9 +718,9 @@ func _status_damage(chariot: ChChariotRuntime, holder: Object) -> void:
 	var s: ChStatuses = holder.statuses
 	var flame_mult := rules.fire_mult if holder.side == 1 else 1.0
 	var block := s.count(ChStatuses.BLOCK)
-	var flame := roundi(s.count(ChStatuses.FLAME) * flame_mult * stat(holder, &"flame_damage", 1.0))
-	var acid := roundi(s.count(ChStatuses.ACID) * stat(holder, &"acid_damage", 1.0))
-	var shock := roundi(s.count(ChStatuses.SHOCK) * stat(holder, &"shock_damage", 1.0))
+	var flame := roundi(s.count(ChStatuses.FLAME) * flame_mult * stat(holder, STAT_FLAME_DAMAGE, 1.0))
+	var acid := roundi(s.count(ChStatuses.ACID) * stat(holder, STAT_ACID_DAMAGE, 1.0))
+	var shock := roundi(s.count(ChStatuses.SHOCK) * stat(holder, STAT_SHOCK_DAMAGE, 1.0))
 	var damage := flame + acid - s.absorb(acid) + shock
 	_block_used(holder, block)
 	if damage <= 0:

@@ -15,7 +15,7 @@ func modify_stat(ctx: ChBattleContext, target: Object, stat: StringName, value: 
 		return value * 2.0
 	if mode == &"double_cooldown" and stat == ChBattleContext.STAT_COOLDOWN:
 		return value * 2.0
-	if mode == &"double_decay_freeze" and stat == &"decay_freeze":
+	if mode == &"double_decay_freeze" and stat == ChBattleContext.STAT_DECAY_FREEZE:
 		return value * 2.0
 	return value
 
