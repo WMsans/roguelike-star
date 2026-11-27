@@ -99,6 +99,9 @@ func _part(id: StringName, cost: int, cooldown: float, integrity: int, extension
 	def.id = id
 	def.energy_cost = cost
 	def.cooldown = cooldown
+	# Task 1's ready rule: a part joins the volley only in cooldown mode, so a zero-cooldown part is
+	# passive (it never fires on a press) and a part with a cooldown is triggered.
+	def.mode = ChPartDef.MODE_COOLDOWN if cooldown > 0.0 else ChPartDef.MODE_PASSIVE
 	def.damage = DAMAGE
 	def.integrity = integrity
 	# A 2x2 footprint keeps sample_rect at 6 cells.

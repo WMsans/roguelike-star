@@ -118,9 +118,10 @@ func can_run() -> bool:
 
 
 func is_ready() -> bool:
-	# A triggered part (cooldown > 0) that a press may fire: counted down, intact, not frozen and
-	# with a charge left. charges_left -1 is unlimited, so only 0 means spent.
-	return def != null and def.cooldown > 0.0 and not broken and cooldown_left <= 0.0 \
+	# A triggered part (mode cooldown) that a press may fire: counted down, intact, not frozen and
+	# with a charge left. charges_left -1 is unlimited, so only 0 means spent. A clock passive
+	# (mode passive, cooldown or not) never joins a volley, so its cooldown never gates anything.
+	return def != null and def.mode == ChPartDef.MODE_COOLDOWN and not broken and cooldown_left <= 0.0 \
 		and charges_left != 0 and not is_frozen()
 
 

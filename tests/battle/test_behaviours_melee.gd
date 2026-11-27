@@ -306,7 +306,7 @@ func test_freeze_charge_out_of_range_no_effect() -> void:
 	assert_eq(foe.hp, foe_hp - 2 * mace.def.damage, "the hits cost plain damage, x1")
 	foe.drive(1.0)
 	assert_true(wheel.joint.enable_motor, "so the wheel's motor runs")
-	assert_near(wheel.joint.motor_speed, 12.0, 0.0001, "at ChChariotRuntime.MOTOR_SPEED")
+	assert_near(wheel.joint.motor_speed, 12.0, 0.0001, "at the wheel's def.wheel_speed")
 	_complete()
 
 # A hand-built caught fire: a first Flame stack in give_status's shape. The battery subscribes with no

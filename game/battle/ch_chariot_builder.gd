@@ -7,7 +7,6 @@ class_name ChChariotBuilder extends RefCounted
 
 const MOTOR_TORQUE := 3e6
 const WHEEL_FREQUENCY := 5.0
-const WHEEL_FRICTION := 1.5  # rubber: the grip the demo car's wheels need on a sand pile
 const HULL_MATERIAL := &"wood"  # PixelRigidBody refuses an unknown pixel_material, so a def that leaves material empty is stamped in the hull material instead of joining nothing
 
 
@@ -71,7 +70,7 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		var body := _body(parent, world, texture, _material(def.material), def.size, at, PixelRigidBody.SHAPE_CIRCLE if wheel else PixelRigidBody.SHAPE_HULL, group)
 		(visual_of(body) as Sprite2D).texture = look
 		if wheel:
-			body.friction = WHEEL_FRICTION
+			body.friction = def.wheel_friction
 		var other_body: PixelRigidBody = holder.body if holder != null else runtime.chassis
 		var joint := _joint(parent, body, other_body, at, wheel)
 		# Everything ChPartRuntime leaves unset (its defaults serve the fake bodies its tests use)

@@ -22,8 +22,6 @@ var statuses := ChStatuses.new()  # the body's statuses
 var last_anchor: Vector2 = Vector2.ZERO  # the last chassis reading, for a freed chassis
 var _mass_settled := false  # settle_mass has applied the def mass
 
-const MOTOR_SPEED := 12.0  # rad/s at full drive, as the demo car's export
-
 func anchor_world() -> Vector2:
 	if chassis != null and is_instance_valid(chassis):
 		last_anchor = Vector2(chassis.global_position.x, chassis.global_position.y)
@@ -72,7 +70,7 @@ func drive(direction: float) -> void:
 			continue
 		var disabled := wheel.broken or wheel.is_frozen()
 		joint.enable_motor = not disabled and direction != 0.0
-		joint.motor_speed = 0.0 if disabled else direction * MOTOR_SPEED
+		joint.motor_speed = 0.0 if disabled else direction * wheel.def.wheel_speed
 
 func settle_mass() -> void:
 	# A pixel body joins with its pixels' mass (the engine reads props.mass at join only for a

@@ -139,3 +139,51 @@ func test_every_line_is_press_or_passive() -> void:
 			presses += int(is_press)
 		assert_eq(presses > 0, def.cooldown > 0.0, "%s: press lines iff triggered" % id)
 	_complete()
+
+# Task 1: the cost line follows the firing mode.
+func test_tooltip_line_follows_mode() -> void:
+	var tip := _tooltip()
+
+	var cooldown := ChPartDef.new()
+	cooldown.id = &"t_cooldown"
+	cooldown.mode = ChPartDef.MODE_COOLDOWN
+	cooldown.energy_cost = 3
+	cooldown.cooldown = 4.0
+	tip.show_part(cooldown, Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_eq(tip.line_label().text, "Cost 3 · Cooldown 4.0s", "a cooldown part prices a press")
+
+	var melee := ChPartDef.new()
+	melee.id = &"t_melee"
+	melee.mode = ChPartDef.MODE_MELEE
+	melee.energy_per_second = 2.0
+	tip.show_part(melee, Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_eq(tip.line_label().text, "2.0/s · Melee", "a melee part prices per second")
+
+	var beam := ChPartDef.new()
+	beam.id = &"t_beam"
+	beam.mode = ChPartDef.MODE_BEAM
+	beam.energy_per_second = 3.0
+	tip.show_part(beam, Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_eq(tip.line_label().text, "3.0/s · Beam", "a beam part prices per second")
+
+	var wheel := ChPartDef.new()
+	wheel.id = &"t_wheel"
+	wheel.mode = ChPartDef.MODE_WHEEL
+	wheel.energy_per_second = 1.0
+	tip.show_part(wheel, Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_eq(tip.line_label().text, "1.0/s while driving", "a wheel prices while driving")
+
+	var passive := ChPartDef.new()
+	passive.id = &"t_passive"
+	passive.mode = ChPartDef.MODE_PASSIVE
+	passive.energy_cost = 0
+	tip.show_part(passive, Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_true(not tip.line_label().visible, "a free passive hides its cost line")
+
+	var priced := ChPartDef.new()
+	priced.id = &"t_priced"
+	priced.mode = ChPartDef.MODE_PASSIVE
+	priced.energy_cost = 5
+	tip.show_part(priced, Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_eq(tip.line_label().text, "Cost 5 when it triggers", "a priced passive shows a trigger cost")
+	_complete()

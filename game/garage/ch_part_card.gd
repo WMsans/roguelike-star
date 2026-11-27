@@ -112,7 +112,7 @@ static func paint(canvas: CanvasItem, centre: Vector2, def: ChPartDef, zoom: flo
 		# A hand sprite gets the battle's navy rim outside its shape (see ChChariotBuilder), so it is
 		# drawn 1 px larger on every side; the wheel is model-made and outlined already.
 		var look := def.texture
-		if def.id != &"wheel":
+		if not def.is_wheel():
 			if not _looks.has(def.texture):
 				_looks[def.texture] = ChTextures.ringed(def.texture.get_image())
 			look = _looks[def.texture]
@@ -121,7 +121,7 @@ static func paint(canvas: CanvasItem, centre: Vector2, def: ChPartDef, zoom: flo
 		var w := -box.x if flipped else box.x
 		canvas.draw_texture_rect(look, Rect2(ChUi.snap(centre + Vector2(-w * 0.5, -box.y * 0.5)), Vector2(w, box.y)), false)
 		return
-	if def.id == &"wheel":
+	if def.is_wheel():
 		canvas.draw_circle(centre, box.x * 0.5, def.color)
 		return
 	canvas.draw_rect(Rect2(ChUi.snap(centre - box * 0.5), box), def.color)

@@ -22,6 +22,10 @@ var energy_cost: int = 0
 var cooldown: float = 0.0  # seconds; 0 = no cooldown
 var mode: StringName = MODE_COOLDOWN  # one of the MODE_* constants above
 var energy_per_second: float = 0.0  # energy a second while a melee/beam part runs or a wheel drives
+# Wheel-only: the motor's rad/s at full drive (ChChariotRuntime.drive) and the grip the joint
+# needs on the floor (ChChariotBuilder). Every other part leaves both at their defaults.
+var wheel_speed: float = 12.0  # rad/s at full drive
+var wheel_friction: float = 1.5  # rubber: the grip the demo car's wheels needed on a sand pile
 var damage: int = 0
 var integrity: int = 100
 var proximity_range: float = 0.0  # cells; 0 = none

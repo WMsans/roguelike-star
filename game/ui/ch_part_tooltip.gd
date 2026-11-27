@@ -69,8 +69,22 @@ func show_part(def_in: ChPartDef, anchor: Rect2, side: ChPartTooltip.Side, bound
 	_side = side
 	_bounds = bounds
 	_name.text = def.display_name
-	_line.text = "Cost %d · Cooldown %.1fs" % [def.energy_cost, def.cooldown]
-	_line.visible = not (def.energy_cost == 0 and def.cooldown == 0.0)
+	# Task 1: the cost line follows the firing mode.
+	var cost_line: String
+	if def.mode == ChPartDef.MODE_COOLDOWN:
+		cost_line = "Cost %d · Cooldown %.1fs" % [def.energy_cost, def.cooldown]
+	elif def.mode == ChPartDef.MODE_MELEE:
+		cost_line = "%s/s · Melee" % [def.energy_per_second]
+	elif def.mode == ChPartDef.MODE_BEAM:
+		cost_line = "%s/s · Beam" % [def.energy_per_second]
+	elif def.mode == ChPartDef.MODE_WHEEL:
+		cost_line = "%s/s while driving" % [def.energy_per_second]
+	elif def.energy_cost > 0:
+		cost_line = "Cost %d when it triggers" % def.energy_cost
+	else:
+		cost_line = ""
+	_line.text = cost_line
+	_line.visible = cost_line != ""
 	var lines := PackedStringArray()
 	for line in def.description:
 		lines.append("• " + ChKeywords.parse(line).bbcode)

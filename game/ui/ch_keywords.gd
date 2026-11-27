@@ -35,6 +35,8 @@ const ENTRIES := {
 		"text": "Affects your own parts within range. The garage shows the range as a circle while you hover."},
 	&"press": {"name": "Press", "color": ChUi.ACCENT,
 		"text": "Fires when you press Space, if it's ready and you have the energy. Ready parts glow."},
+	&"hold": {"name": "Hold", "color": Color("#aaaaaa"),
+		"text": "Runs while you hold Space, paying its energy each second."},
 	&"passive": {"name": "Passive", "color": Color("#9aa0aa"),
 		"text": "Works on its own. No press needed."},
 	&"extension": {"name": "Extension slots", "color": Color("#9aa0aa"),

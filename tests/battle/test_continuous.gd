@@ -386,3 +386,16 @@ func test_skipped_part_is_announced() -> void:
 		assert_eq(skipped[0].data.get("cost"), 1, "and the payload carries its cost")
 	assert_near(rig.energy.value, 0.0, 0.0001, "the pool paid the dearest part")
 	_complete()
+
+# Task 1: a passive-mode part never joins the volley, even if its def still carries a cooldown.
+func test_cooldown_mode_gates_the_volley() -> void:
+	var part := ChPartRuntime.new()
+	var def := ChPartDef.new()
+	def.id = &"passive_gun"
+	def.mode = ChPartDef.MODE_PASSIVE
+	def.cooldown = 2.0
+	def.energy_cost = 1
+	def.integrity = 100
+	part.def = def
+	assert_true(not part.is_ready(), "a passive part is never ready, cooldown or not")
+	_complete()
