@@ -83,6 +83,10 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		part_runtime.integrity = def.integrity
 		part_runtime.cooldown_left = def.cooldown
 		part_runtime.charges_left = def.charges
+		# Seeded from the def; ChBattleContext refreshes them from the stat hook every tick.
+		part_runtime.cost = def.energy_cost
+		part_runtime.rate = def.energy_per_second
+		part_runtime.cooldown = def.cooldown
 		part_runtime.body = body
 		part_runtime.visual = visual_of(body)
 		if def.cooldown > 0.0 or def.is_continuous():

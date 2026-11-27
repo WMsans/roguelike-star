@@ -140,3 +140,88 @@ func process(ctx: ChBattleContext, delta: float) -> void:
 func modify_hit(ctx: ChBattleContext, hit: Dictionary) -> void:
 	# shortcut: no key is required, and a behaviour that changes nothing answers by doing nothing.
 	pass
+
+# Asked by ChBattleContext.stat to fold a stat: base returns the value unchanged, modifiers may
+# raise or lower it. Only behaviours whose own script declares modify_stat are asked.
+func modify_stat(ctx: ChBattleContext, target: Object, stat: StringName, value: float) -> float:
+	return value
+
+# --- Scopes ---------------------------------------------------------------------------------
+# All answer unbroken, non-benched own parts of this behaviour's part, other than `part` itself.
+
+# The own parts within ctx.range_of(part) (or linked to it), in mount order.
+func _neighbours(ctx: ChBattleContext, tag: StringName = "") -> Array[ChPartRuntime]:
+	var out: Array[ChPartRuntime] = []
+	for other in _own_parts(ctx, tag):
+		if ctx.near(part, other):
+			out.append(other)
+	return out
+
+# The nearest neighbour ahead of facing(), or null.
+func _front_part(ctx: ChBattleContext, tag: StringName = "") -> ChPartRuntime:
+	return _nearest_in_direction(ctx, tag, 1.0)
+
+# The nearest neighbour behind facing(), or null.
+func _back_part(ctx: ChBattleContext, tag: StringName = "") -> ChPartRuntime:
+	return _nearest_in_direction(ctx, tag, -1.0)
+
+# The parts bolted onto this one, unbroken.
+func _mounted() -> Array[ChPartRuntime]:
+	var out: Array[ChPartRuntime] = []
+	for child in part.children:
+		if not child.broken:
+			out.append(child)
+	return out
+
+# This part's chariot's unbroken, non-benched parts other than part, matching tag if given.
+func _own_parts(ctx: ChBattleContext, tag: StringName = "") -> Array[ChPartRuntime]:
+	var out: Array[ChPartRuntime] = []
+	var side := part.side
+	var chariot := ctx.chariots[side] if side >= 0 and side < ctx.chariots.size() else null
+	if chariot == null:
+		return out
+	for other in chariot.parts:
+		if other == part or other.broken:
+			continue
+		if tag != "" and not other.def.tags.has(tag):
+			continue
+		out.append(other)
+	return out
+
+# The enemy chariot's unbroken, non-benched parts matching tag if given.
+func _enemy_parts(ctx: ChBattleContext, tag: StringName = "") -> Array[ChPartRuntime]:
+	var out: Array[ChPartRuntime] = []
+	var side := part.side
+	var chariot := ctx.chariots[1 - side] if side >= 0 and side < ctx.chariots.size() else null
+	if chariot == null:
+		return out
+	for other in chariot.parts:
+		if other.broken:
+			continue
+		if tag != "" and not other.def.tags.has(tag):
+			continue
+		out.append(other)
+	return out
+
+# The nearest enemy body in this part's reach box, as its body.
+func _hit_enemy_body(ctx: ChBattleContext, damage: int) -> void:
+	var target := _nearest_enemy_body(ctx, _reach_box())
+	if target != null:
+		ctx.deal_hit(part, target, damage)
+
+# The base links nothing: a behaviour that links two parts overrides this.
+func links(ctx: ChBattleContext, a: Object, b: Object) -> bool:
+	return false
+
+# The nearest own part in `direction` (+1 ahead, -1 behind) along facing, or null.
+func _nearest_in_direction(ctx: ChBattleContext, tag: StringName = "", direction: float = 1.0) -> ChPartRuntime:
+	var best: ChPartRuntime = null
+	var best_d := 0.0
+	var anchor := part.anchor_world()
+	var facing := part.facing()
+	for other in _own_parts(ctx, tag):
+		var d := (other.anchor_world() - anchor).dot(facing)
+		if d * direction > 0 and (best == null or absf(d) < best_d):
+			best = other
+			best_d = absf(d)
+	return best

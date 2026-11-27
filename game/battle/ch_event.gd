@@ -12,6 +12,7 @@ var source: Object = null  # the ChPartRuntime that acted, the ChChariotRuntime 
 var position: Vector2 = Vector2.ZERO  # world cells
 var data: Dictionary = {}  # event-specific payload, e.g. {"part": ..., "amount": ...}
 
+const BATTLE_STARTED: StringName = &"battle_started"  # emitted once by the first tick, no source
 const PART_FIRED: StringName = &"part_fired"
 const PART_SKIPPED: StringName = &"part_skipped"  # a ready part the volley's pool refused; data: cost
 const HIT: StringName = &"hit"

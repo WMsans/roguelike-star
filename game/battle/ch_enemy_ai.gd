@@ -85,14 +85,16 @@ static func should_press(chariot: ChChariotRuntime, target_x: float, target_half
 	for part in chariot.parts:
 		if not part.is_ready():
 			continue
-		cost += part.def.energy_cost
+		cost += part.cost
 		var range_cells := part.def.reach
-		var dx := target_x - part.anchor_world().x
+		# Measure from the part's edge (anchor + facing x half its length) and count only targets
+		# on the facing side, as ChBehaviour._reach_box does.
+		var edge := part.anchor_world() + part.facing() * (0.5 * part.def.size.x)
+		var along := (target_x - edge.x) * part.facing().x
 		if range_cells > 0.0:
-			in_reach = in_reach or absf(dx) <= range_cells + target_half
+			in_reach = in_reach or (along >= 0.0 and along <= range_cells + target_half)
 		else:
-			# A ranged part's shot flies where its slot faces, so facing the target is its reach.
-			in_reach = in_reach or signf(part.facing().x) == signf(dx)
+			in_reach = in_reach or along >= 0.0
 	if cost == 0:
 		return false
 	var pool := chariot.energy
@@ -114,7 +116,9 @@ static func should_hold(chariot: ChChariotRuntime, target_x: float, target_half:
 	for part in chariot.parts:
 		if not part.can_run():
 			continue
-		if absf(target_x - part.anchor_world().x) <= part.def.reach + target_half:
+		var edge := part.anchor_world() + part.facing() * (0.5 * part.def.size.x)
+		var along := (target_x - edge.x) * part.facing().x
+		if along >= 0.0 and along <= part.def.reach + target_half:
 			in_reach = true
-		per_second += part.def.energy_per_second
+		per_second += part.rate
 	return in_reach and chariot.energy.value >= HOLD_SHARE * per_second

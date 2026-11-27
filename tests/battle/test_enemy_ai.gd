@@ -25,6 +25,10 @@ func _part_with(def: ChPartDef, ready := true) -> ChPartRuntime:
 	part.def = def
 	part.charges_left = -1
 	part.cooldown_left = 0.0 if ready else def.cooldown
+	# The fields the AI reads, seeded the way the builder seeds them (Task 2).
+	part.cost = def.energy_cost
+	part.rate = def.energy_per_second
+	part.cooldown = def.cooldown
 	part.body = FakeBody.new()
 	return part
 
@@ -109,17 +113,17 @@ func test_ranged_part_counts_in_reach_when_facing() -> void:
 
 
 func test_reach_is_not_counted_twice_for_an_offset_part() -> void:
-	# A Mace (range 6) mounted 10 cells off the chassis centre of a hull with half-width 10, target_half 5.
-	# Reach is measured from the part, so it lands up to 6 + 5 = 11 cells away; adding the own half
-	# again (the old bug) would call 21 in reach and waste a press.
+	# A Mace (range 6, 8 cells long) mounted 10 cells off the chassis centre of a hull with half-width
+	# 10, target_half 5. Reach is measured from the part's edge (anchor + half its length), so the
+	# 6 + 5 = 11 cells are past that edge: 12 past it is out, 6.5 past it is in.
 	var mace := _part(&"ice_cream_mace")
 	mace.body.global_position = Vector2(10.0, 0.0)
 	var rig := _rig([mace], 20.0, 20.0)
 	rig.energy.value = float(mace.def.energy_cost)  # below cap, above 60%
 	rig.energy.cap = 20.0
-	assert_true(not ChEnemyAI.should_press(rig, 25.0, 5.0),
-		"15 cells from the part is out of reach, though within range + both halves")
-	assert_true(ChEnemyAI.should_press(rig, 20.5, 5.0), "10.5 cells from the part is inside 6 + 5")
+	assert_true(not ChEnemyAI.should_press(rig, 26.0, 5.0),
+		"12 cells from the part's edge is out of reach, though within range + both halves")
+	assert_true(ChEnemyAI.should_press(rig, 20.5, 5.0), "6.5 cells from the edge is inside 6 + 5")
 	_complete()
 
 

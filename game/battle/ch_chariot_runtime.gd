@@ -17,6 +17,7 @@ var energy: ChEnergy = null  # the body's pool, capped and regenerating from bod
 var chassis: PixelRigidBody = null  # the one body that carries the whole chariot's HP
 var chassis_visual: Node2D = null  # the chassis body's "Visual" child (the builder's, Task 6)
 var parts: Array[ChPartRuntime] = []  # every part, in the order the builder mounted them
+var driving: bool = false  # set from energy.tick's drove each tick; wheels read it
 
 var statuses := ChStatuses.new()  # the body's statuses
 var last_anchor: Vector2 = Vector2.ZERO  # the last chassis reading, for a freed chassis
@@ -53,7 +54,7 @@ func drive_cost() -> float:
 	var total := 0.0
 	for part in parts:
 		if part.def != null and part.def.is_wheel() and not part.broken:
-			total += part.def.energy_per_second
+			total += part.rate
 	return total
 
 

@@ -95,7 +95,7 @@ func _part_of(runtime: ChChariotRuntime, steps: Array[int]) -> ChPartRuntime:
 	return null
 
 # A battle context over `rigs` (index = side), with every mounted behaviour getting the setup call
-# that subscribes it, exactly as test_context.gd's _battle does.
+# that subscribes it through the one entry point, exactly as test_context.gd's _battle does.
 func _battle(world: PixelWorld, catalog: ChCatalog, rigs: Array[ChChariotRuntime]) -> ChBattleContext:
 	var ctx := ChBattleContext.new()
 	ctx.world = world
@@ -103,10 +103,7 @@ func _battle(world: PixelWorld, catalog: ChCatalog, rigs: Array[ChChariotRuntime
 	ctx.bus = ChEventBus.new()
 	ctx.catalog = catalog
 	ctx.chariots = rigs
-	for rig in rigs:
-		for part in rig.parts:
-			if part.behaviour != null:
-				part.behaviour.setup(ctx)
+	ctx.setup_all()
 	return ctx
 
 # The player rig with `defs` mounted at `mounts`, and a bare enemy rig 12 cells to the right, inside

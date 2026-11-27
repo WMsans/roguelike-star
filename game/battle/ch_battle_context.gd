@@ -33,6 +33,108 @@ var hazards := ChHazards.new()  # blast ownership lives here, so it is per fight
 var sparks := ChSparks.new()  # the fight's batteries
 var status_clock: float = 0.0  # time since the last status second
 var _status_seconds := 0  # status seconds run so far; Oil drips on the even ones
+var _battle_started: bool = false  # BATTLE_STARTED emitted once by the first tick
+var _stat_modifiers: Array = []  # behaviours whose own script declares modify_stat, in side/mount order
+
+# Stat names ChBattleContext.stat asks about: a behaviour's modify_stat is handed one of these.
+const STAT_ENERGY_COST := &"energy_cost"
+const STAT_ENERGY_PER_SECOND := &"energy_per_second"
+const STAT_COOLDOWN := &"cooldown"
+const STAT_TICK_RATE := &"tick_rate"
+const STAT_RANGE := &"range"
+
+# Folds `base` through the modify_stat of every unbroken part on both chariots, side order then
+# mount order. setup_all read once which behaviours declare modify_stat; only those are asked.
+func stat(target: Object, stat: StringName, base: float) -> float:
+	var value := base
+	for behaviour in _stat_modifiers:
+		var part: ChPartRuntime = behaviour.part
+		if part == null or part.broken:
+			continue
+		value = behaviour.modify_stat(self, target, stat, value)
+	return value
+
+# Calls every part's setup and caches the behaviours whose own script declares modify_stat: the
+# one place behaviours subscribe (Mimic and the bench hook in later tasks), and the stat hook's list.
+func setup_all() -> void:
+	_stat_modifiers.clear()
+	if bus != null:
+		bus.near = Callable(self, "near")
+	for chariot in chariots:
+		if chariot == null:
+			continue
+		for part in chariot.parts:
+			var behaviour := part.behaviour
+			if behaviour == null:
+				continue
+			if _declares_modify_stat(behaviour):
+				_stat_modifiers.append(behaviour)
+			behaviour.setup(self)
+	# Side order, then mount order: a parent before its children, siblings in slot order.
+	_stat_modifiers.sort_custom(func(a, b) -> bool:
+		var pa: ChPartRuntime = a.part
+		var pb: ChPartRuntime = b.part
+		if pa.side != pb.side:
+			return pa.side < pb.side
+		return _path_before(pa.path, pb.path))
+
+# Lexicographic slot-path order, which is the order the layout was placed in.
+func _path_before(a: Array[int], b: Array[int]) -> bool:
+	var n := mini(a.size(), b.size())
+	for i in range(n):
+		if a[i] != b[i]:
+			return a[i] < b[i]
+	return a.size() < b.size()
+
+# True when the behaviour's own script declares modify_stat.
+func _declares_modify_stat(behaviour: Object) -> bool:
+	var script: Script = behaviour.get_script()
+	if script == null:
+		return false
+	for method in script.get_script_method_list():
+		if method["name"] == "modify_stat":
+			return true
+	return false
+
+# Proximity range of a part, through the stat hook.
+func range_of(part: ChPartRuntime) -> float:
+	if part == null or part.def == null:
+		return 0.0
+	return stat(part, STAT_RANGE, part.def.proximity_range)
+
+# True when a and b are on the same side, unbroken, and either within range_of(a) or linked by a
+# live behaviour's links(a, b).
+func near(a: Object, b: Object) -> bool:
+	if a == null or b == null or a == b:
+		return false
+	var sa: Variant = a.get("side")
+	var sb: Variant = b.get("side")
+	if sa == null or sb == null or sa != sb:
+		return false
+	if a is ChPartRuntime and a.broken:
+		return false
+	if b is ChPartRuntime and b.broken:
+		return false
+	var ra := range_of(a) if a is ChPartRuntime else 0.0
+	if a.anchor_world().distance_to(b.anchor_world()) <= ra:
+		return true
+	var side := int(sa)
+	var chariot := chariots[side] if side >= 0 and side < chariots.size() else null
+	if chariot != null:
+		for p in chariot.parts:
+			if p.broken or p.behaviour == null:
+				continue
+			if p.behaviour.has_method("links") and p.behaviour.links(self, a, b):
+				return true
+	return false
+
+# Pays a triggered passive's modified cost, or answers false. Spec Stage 3.
+func pay_trigger(part: ChPartRuntime, cost: int) -> bool:
+	var price := stat(part, STAT_ENERGY_COST, cost)
+	var chariot := chariots[part.side] if part.side >= 0 and part.side < chariots.size() else null
+	if chariot == null:
+		return false
+	return chariot.energy.try_pay(price)
 
 func touching(holder: Object) -> Array:
 	# The holder's own chariot's body and unbroken parts whose box, grown by 1 cell, meets the holder's.
@@ -189,6 +291,7 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 		"damage": damage,
 		"multiplier": multiplier,
 		"freeze": 0,  # stacks of Freeze given to freeze_part
+		"bonus": source.bonus_damage,  # part's bonus damage, modifiers may raise it
 	}
 	# `extra` seeds those keys, which is how a caller carries an effect it has no behaviour for.
 	# shortcut: extra never needs to name a key, so a caller that wants the defaults passes {}.
@@ -206,10 +309,8 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 				# part out of the energy queue and off the bus: this is the third place a part could
 				# still act from, and the same one flag (part.broken) closes all three.
 				continue
-			var reach: float = other.def.proximity_range
-			# 0 means no proximity effect at all, per ChPartDef's own comment, so a weapon with a
-			# reach of 0 is never asked, and cells here match cells in count_materials.
-			if reach > 0.0 and other.anchor_world().distance_to(source.anchor_world()) <= reach:
+			# near is the single proximity helper: range through the stat hook, or a links() behaviour.
+			if near(other, source):
 				_ask_behaviour(other, hit)
 	# The source's own behaviour gets the last word on its own hit: a weapon reads the target off
 	# the dict rather than measuring, which is how the Mace's Shatter reads a frozen part.
@@ -221,11 +322,13 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	var holder: Object = target_part if target_part != null else target_chariot
 	var block: int = holder.statuses.count(ChStatuses.BLOCK)
 	var result: Dictionary
+	# The applied damage is (damage + bonus) * multiplier: bonus folds in before the multiplier.
+	var applied: int = hit["damage"] + hit["bonus"]
 	if target_part == null:
-		result = ChDamage.hit_body(target_chariot.hp, hit["damage"], hit["multiplier"], block)
+		result = ChDamage.hit_body(target_chariot.hp, applied, hit["multiplier"], block)
 	else:
 		result = ChDamage.hit_part(target_chariot.hp, target_part.integrity,
-			hit["damage"], hit["multiplier"], 0.5, block)
+			applied, hit["multiplier"], 0.5, block)
 		target_part.integrity = result["integrity"]
 	var damage_out: int = target_chariot.hp - result["hp"]
 	target_chariot.hp = result["hp"]
@@ -303,7 +406,7 @@ func volley_cost(chariot: ChChariotRuntime) -> int:
 	var total := 0
 	for part in chariot.parts:
 		if part.is_ready():
-			total += part.def.energy_cost
+			total += part.cost
 	return total
 
 
@@ -311,6 +414,11 @@ func tick(delta: float, drive_input: Array[float], press_input: Array = [], hold
 	# One frame of the fight for every chariot, in the order this file's header states. Answers the
 	# number of parts each side fired this frame, indexed by side. hold_input is the held button per
 	# side, which only the continuous step reads: a side with no entry reads not held.
+	if not _battle_started and bus != null:
+		_battle_started = true
+		var event := ChEvent.new()
+		event.type = ChEvent.BATTLE_STARTED
+		bus.emit(event)
 	time += delta
 	if world != null:
 		hazards.apply(self, world.take_blasts())
@@ -341,15 +449,24 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 	# part.broken, closes both, and the dead joint is never read here at all, which is what Review
 	# Focus 3 asks for.
 	chariot.settle_mass()
+	# Per-tick refresh of the fields the volley, the continuous step and the AI read: they come
+	# from the stat hook so a modify_stat behaviour can change cost, rate or cooldown mid-fight.
+	for part in chariot.parts:
+		if part.broken or part.def == null:
+			continue
+		part.cost = roundi(stat(part, STAT_ENERGY_COST, part.def.energy_cost))
+		part.rate = stat(part, STAT_ENERGY_PER_SECOND, part.def.energy_per_second)
+		part.cooldown = stat(part, STAT_COOLDOWN, part.def.cooldown)
 	for part in chariot.parts:
 		if part.broken:
 			continue
 		# A cooldown only counts down here; whether the part fires is the press's call.
-		part.tick_cooldown(delta)
+		part.tick_cooldown(delta, stat(part, STAT_TICK_RATE, part.tick_rate()))
 	# The drive's price is this chariot's unbroken wheels (ChChariotRuntime.drive_cost), so a wheel
 	# that broke this tick stops costing at once.
 	chariot.energy.drive_cost = chariot.drive_cost()
 	var result: Dictionary = chariot.energy.tick(delta, direction != 0.0, _regen_mult(chariot))
+	chariot.driving = result["drove"]
 	var fired_count := 0
 	if pressed:
 		# The volley: ready triggered parts, dearest first so the big weapons get the energy before
@@ -364,24 +481,23 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 		for at in chariot.parts.size():
 			order[chariot.parts[at]] = at
 		volley.sort_custom(func(a: ChPartRuntime, b: ChPartRuntime) -> bool:
-			if a.def.energy_cost != b.def.energy_cost:
-				return a.def.energy_cost > b.def.energy_cost
+			if a.cost != b.cost:
+				return a.cost > b.cost
 			return order[a] < order[b])
 		for part in volley:
 			# A fire earlier in this volley can break or freeze a part that was ready when the press
 			# began, so readiness is read again before paying.
 			if not part.is_ready():
 				continue
-			if not chariot.energy.try_pay(part.def.energy_cost):
-				# The pool refused it: the part stays ready, and the refusal is announced.
-				_emit_skipped(part, part.def.energy_cost)
+			if not chariot.energy.try_pay(part.cost):
+				_emit_skipped(part, part.cost)
 				continue
 			var behaviour = part.behaviour
 			if behaviour != null:
 				behaviour.fire(self)
 			# The cooldown and the charge belong to the loop, not to the behaviour, so a part cannot
 			# fire twice on one payment: its countdown restarts here and is_ready is false again.
-			part.cooldown_left = part.def.cooldown
+			part.cooldown_left = part.cooldown
 			if part.charges_left > 0:
 				# charges_left -1 is unlimited, so an unlimited part never enters this branch. A
 				# limited part stops at 0, where is_ready turns false, rather than stepping into
@@ -432,12 +548,12 @@ func _continuous(chariot: ChChariotRuntime, delta: float, held: bool) -> void:
 			order[part] = at
 			parts.append(part)
 	parts.sort_custom(func(a: ChPartRuntime, b: ChPartRuntime) -> bool:
-		if a.def.energy_per_second != b.def.energy_per_second:
-			return a.def.energy_per_second > b.def.energy_per_second
+		if a.rate != b.rate:
+			return a.rate > b.rate
 		return order[a] < order[b])
 	for part in parts:
 		if not held or not part.can_run() \
-				or not chariot.energy.try_pay(part.def.energy_per_second * delta):
+				or not chariot.energy.try_pay(part.rate * delta):
 			# Not held, not runnable or not affordable: the part did not run, and its timer stays as it was.
 			part.running = false
 			continue
@@ -445,7 +561,7 @@ func _continuous(chariot: ChChariotRuntime, delta: float, held: bool) -> void:
 			# A beam announces the moment it switches on, then hits each second without repeating.
 			_emit_fired(part)
 		part.running = true
-		part.tick_left -= delta * part.tick_rate()
+		part.tick_left -= delta * stat(part, STAT_TICK_RATE, part.tick_rate())
 		if part.tick_left > 0.0:
 			continue
 		var behaviour = part.behaviour

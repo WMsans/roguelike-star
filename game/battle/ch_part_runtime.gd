@@ -17,6 +17,11 @@ var cooldown_left: float = 0.0  # seconds until ready; 0 means ready
 var tick_left: float = 0.0  # seconds until a continuous part's next tick; 0 swings at once
 var running: bool = false  # whether a continuous part ran on the last tick
 var charges_left: int = -1  # fires before the part runs out; -1 = unlimited (def.charges)
+# Refreshed from the stat hook at the start of every tick (ChBattleContext._tick_chariot):
+var cost: int = 0  # energy the volley pays to fire this part
+var rate: float = 0.0  # energy a second the held button pays while this runs or drives
+var cooldown: float = 0.0  # seconds the volley resets cooldown_left to after a fire
+var bonus_damage: int = 0  # flat damage this part adds to its own hits, for the battle
 var statuses := ChStatuses.new()  # the nine stacking statuses
 var broken: bool = false  # set by ChChariotRuntime.break_part (Task 10)
 # shortcut: body stays loose-typed on purpose; Task 9 is the only caller that hands a real
@@ -125,7 +130,7 @@ func is_ready() -> bool:
 		and charges_left != 0 and not is_frozen()
 
 
-func tick_cooldown(delta: float) -> bool:
+func tick_cooldown(delta: float, rate := NAN) -> bool:
 	# Count the cooldown down by one tick and report whether the part is ready to fire. It no
 	# longer implies a fire: ChBattleContext fires only on a press, and resets cooldown_left to
 	# def.cooldown when the part fires.
@@ -133,11 +138,13 @@ func tick_cooldown(delta: float) -> bool:
 	# a press never fires it. A part with no def has nothing to gate either.
 	if def == null or def.cooldown <= 0.0:
 		return false
-	# Freeze pauses the countdown; Speedup runs it at double speed, Slow at half.
+	# Freeze pauses the countdown; Speedup runs it at double speed, Slow at half. The caller may pass
+	# the rate the stat hook folded (R26), which replaces tick_rate() rather than multiplying it.
 	if is_frozen():
 		return false
+	var scale := tick_rate() if is_nan(rate) else rate
 	# clamp at 0 rather than negative, so an over-tick reports ready once and stays ready.
-	cooldown_left = maxf(0.0, cooldown_left - delta * tick_rate())
+	cooldown_left = maxf(0.0, cooldown_left - delta * scale)
 	# The brief's rule: true when the countdown reaches 0. Past 0 it stays ready, so the caller owns
 	# the reset.
 	return cooldown_left <= 0.0
