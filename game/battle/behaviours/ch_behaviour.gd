@@ -43,14 +43,16 @@ func continuous_tick(ctx: ChBattleContext) -> bool:
 # from its own mount.
 # The box the swing measures: reach cells out from the part's own edge along facing(), as tall as the
 # part. A cell at (x, y) spans x .. x + 1, so the part's edge sits half a cell out from its anchor, and
-# the part's own extent is def.size in cells.
-func _reach_box() -> Rect2:
+# the part's own extent is def.size in cells. A negative `reach` keeps def.reach, so every caller that
+# gives no override is unchanged; a weapon whose row leaves the Rng cell empty passes its own length.
+func _reach_box(reach := -1.0) -> Rect2:
 	var dir := part.facing()
 	var size := Vector2(maxi(1, part.def.size.x), maxi(1, part.def.size.y))
 	# The part's extent along facing and across it, so a turned or mirrored part keeps one box.
 	var along := absf(dir.x) * size.x + absf(dir.y) * size.y
 	var across := absf(dir.x) * size.y + absf(dir.y) * size.x
-	var half_along := part.def.reach + 0.5 + 0.5 * along
+	var cells := part.def.reach if reach < 0.0 else reach
+	var half_along := cells + 0.5 + 0.5 * along
 	var half_across := 0.5 * across
 	var span := Vector2(absf(dir.x) * half_along + absf(dir.y) * half_across,
 		absf(dir.y) * half_along + absf(dir.x) * half_across)

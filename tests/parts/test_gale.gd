@@ -66,7 +66,8 @@ func test_smokestack_puffs_8_smoke_4_in_front_of_a_fire_part() -> void:
 	_complete()
 
 
-# U50: an enemy holder's Slow gains 1 energy; an own holder's, or another status, gains none.
+# U50: an enemy part's Slow gains 1 energy; the enemy hull's, an own part's, or another status gains
+# none.
 func test_turbine_gains_1_energy_for_an_enemy_slow() -> void:
 	var ctx := await duel([[[7], &"turbine"]], [[[7], &"reinforced_frame"]], 60.0)
 	var turbine := of(ctx, 0, &"turbine")
@@ -79,9 +80,9 @@ func test_turbine_gains_1_energy_for_an_enemy_slow() -> void:
 	energy.value = 5.0
 	ctx.give_status(foe, ChStatuses.SLOW, 2)
 	assert_eq(energy.value, 6.0, "an enemy part's Slow gained 1 energy")
-	# The row says part, the brief says holder: the body counts too.
+	# The row says enemy part, so the enemy hull's own Slow is not the enemy part's.
 	ctx.give_status(ctx.chariots[1], ChStatuses.SLOW, 1)
-	assert_eq(energy.value, 7.0, "and an enemy body's Slow gained 1 more")
+	assert_eq(energy.value, 6.0, "an enemy body's Slow gains nothing")
 	energy.value = 5.0
 	ctx.give_status(turbine, ChStatuses.SLOW, 1)
 	assert_eq(energy.value, 5.0, "an own Slow gains none")
@@ -150,7 +151,8 @@ func test_weather_vane_drifts_gases_sideways_toward_the_enemy() -> void:
 	_complete()
 
 
-# R23: every gas within 40 cells moves onto the enemy hull; a gas past 40 stays put.
+# R23: a gas exactly 40 cells out moves onto the enemy hull; one at 41 stays where it is. The
+# boundary is pinned on both sides, so any other RANGE fails.
 func test_toxic_tempest_moves_gas_within_40_onto_the_enemy() -> void:
 	var ctx := await duel([[[7], &"toxic_tempest"]], [], 60.0)
 	var tempest := of(ctx, 0, &"toxic_tempest")
@@ -160,16 +162,16 @@ func test_toxic_tempest_moves_gas_within_40_onto_the_enemy() -> void:
 		_complete()
 		return
 	var anchor := Vector2i(roundi(tempest.anchor_world().x), roundi(tempest.anchor_world().y))
-	var near := anchor + Vector2i(0, -20)
-	var far := anchor + Vector2i(0, -50)
+	var near := anchor + Vector2i(0, -40)
+	var far := anchor + Vector2i(0, -41)
 	ctx.world.set_cell(near, &"smoke")
 	ctx.world.set_cell(far, &"smoke")
 	tempest.cooldown_left = 0.0
 	await step(ctx, TICK, true)
 	await step(ctx, 0.5)
 	var hull := Rect2i(ChBattle.hull_box(foe)).grow(1)
-	assert_true(_count(ctx, &"smoke", hull) > 0, "the gas in reach moved onto the enemy hull")
-	assert_eq(ctx.world.get_material_at(far), &"smoke", "the gas past 40 cells stayed")
+	assert_true(_count(ctx, &"smoke", hull) > 0, "the gas exactly 40 cells out moved onto the enemy hull")
+	assert_eq(ctx.world.get_material_at(far), &"smoke", "the gas 41 cells out stayed")
 	_complete()
 
 
@@ -187,7 +189,7 @@ func test_stormfront_gives_own_parts_the_enemy_slow_amount_as_speedup() -> void:
 	ctx.give_status(foe, ChStatuses.SLOW, 3)
 	assert_eq(spare.statuses.count(ChStatuses.SPEEDUP), 3, "the spare gained the 3 Slow as Speedup")
 	assert_eq(front.statuses.count(ChStatuses.SPEEDUP), 3, "and the stormfront itself gained 3")
-	# The brief says holder: an enemy body's Slow counts too.
+	# The row says enemy part, so the enemy hull's own Slow is not the enemy part's.
 	var body_ctx := await duel([[[0], &"spare_cell"], [[6], &"stormfront"]],
 		[[[7], &"reinforced_frame"]], 60.0)
 	var body_spare := of(body_ctx, 0, &"spare_cell")
@@ -196,7 +198,8 @@ func test_stormfront_gives_own_parts_the_enemy_slow_amount_as_speedup() -> void:
 		_complete()
 		return
 	body_ctx.give_status(body_ctx.chariots[1], ChStatuses.SLOW, 2)
-	assert_eq(body_spare.statuses.count(ChStatuses.SPEEDUP), 2, "an enemy body's Slow counts too")
+	assert_eq(body_spare.statuses.count(ChStatuses.SPEEDUP), 0,
+		"an enemy body's Slow gives no Speedup")
 	# Our own Slow is not the enemy's.
 	var own_ctx := await duel([[[0], &"spare_cell"], [[6], &"stormfront"]],
 		[[[7], &"reinforced_frame"]], 60.0)
@@ -228,12 +231,14 @@ func test_stormfront_with_smoke_bomb() -> void:
 	assert_eq(ctx.chariots[1].statuses.count(ChStatuses.SLOW), 0, "no Slow before a status second")
 	await step(ctx, 1.1)
 	assert_true(ctx.chariots[1].statuses.count(ChStatuses.SLOW) > 0, "the smoke slowed the enemy")
-	# The smoke can reach more than one enemy holder, and every gain is its own trigger.
+	# The smoke can reach more than one enemy part, and every gain is its own trigger. The hull's own
+	# Slow is not an enemy part's, so the Speedup counts only the parts' gains.
 	var slowed := 0
 	for event in gains:
-		if event.side == 1 and event.data.get("status") == ChStatuses.SLOW:
+		if event.side == 1 and event.source is ChPartRuntime \
+				and event.data.get("status") == ChStatuses.SLOW:
 			slowed += int(event.data.get("amount", 0))
-	assert_true(slowed > 0, "an enemy holder gained Slow")
+	assert_true(slowed > 0, "an enemy part gained Slow")
 	assert_eq(spare.statuses.count(ChStatuses.SPEEDUP), slowed,
 		"and every stack of it came back as Speedup")
 	_complete()
