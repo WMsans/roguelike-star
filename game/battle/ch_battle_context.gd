@@ -941,7 +941,10 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 				lose_hp(chariot, roundi(BLOOD_PER_ENERGY * short), &"blood", part)
 			var behaviour = part.behaviour
 			if behaviour != null:
+				# U63 prices the 1 energy the volley paid off this; a forced fire leaves it false.
+				part.paid = true
 				behaviour.fire(self)
+				part.paid = false
 			# The cooldown and the charge belong to the loop, not to the behaviour, so a part cannot
 			# fire twice on one payment: its countdown restarts here and is_ready is false again.
 			part.cooldown_left = part.cooldown

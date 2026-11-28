@@ -17,6 +17,7 @@ var cooldown_left: float = 0.0  # seconds until ready; 0 means ready
 var tick_left: float = 0.0  # seconds until a continuous part's next tick; 0 swings at once
 var running: bool = false  # whether a continuous part ran on the last tick
 var charges_left: int = -1  # fires before the part runs out; -1 = unlimited (def.charges)
+var paid: bool = false  # true for the fire the volley paid for, false for a forced fire that paid nothing
 # Refreshed from the stat hook at the start of every tick (ChBattleContext._tick_chariot):
 var cost: int = 0  # energy the volley pays to fire this part
 var rate: float = 0.0  # energy a second the held button pays while this runs or drives

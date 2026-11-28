@@ -97,7 +97,9 @@ func _check_energy(row: Dictionary, def: ChPartDef) -> void:
 		if def.energy_cost != 0:
 			mismatches.append("%s: energy_cost %d, want 0 for a /s cell" % [row.get("name"), def.energy_cost])
 	else:
-		var want := en.to_int()
+		# U63's cell says `all`: the whole pool is spent, and the brief fixes energy_cost = 1, the
+		# minimum to join a volley. Only that one word is spelled out; to_int() would read it as 0.
+		var want := 1 if en == "all" else en.to_int()
 		if def.energy_cost != want:
 			mismatches.append("%s: energy_cost %d, want %d" % [row.get("name"), def.energy_cost, want])
 		if def.energy_per_second != 0.0:

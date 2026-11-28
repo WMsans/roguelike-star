@@ -156,6 +156,33 @@ func test_surge_cannon_spends_the_pool_for_15_damage_an_energy() -> void:
 	_complete()
 
 
+# U63 again: a forced fire is paid by nobody, so there is no already-paid 1 energy to charge for. A
+# pool of 5 is 75 damage, not the 90 a volley's own point would make it.
+func test_surge_cannon_forced_fire_charges_only_what_it_spends() -> void:
+	var ctx := await duel([[[7], &"surge_cannon"]], [[[7], &"reinforced_frame"]], 60.0)
+	var cannon := of(ctx, 0, &"surge_cannon")
+	var target := of(ctx, 1, &"reinforced_frame")
+	assert_true(cannon != null and target != null, "the cannon and its target mounted")
+	if cannon == null or target == null:
+		_complete()
+		return
+	var hits := sink(ctx, ChEvent.HIT)
+	var player := ctx.chariots[0]
+	await step(ctx, 1.0, false, false, 0.0, true)
+	player.energy.regen = 0.0
+	player.energy.value = 5.0
+	ctx.force_fire(cannon, target)
+	assert_near(player.energy.value, 0.0, 0.001, "the forced fire spends the pool it was given")
+	for _frame in 30:
+		if not hits.is_empty():
+			break
+		await step(ctx, TICK, false, false, 0.0, true)
+	assert_eq(hits.size(), 1, "the shell landed")
+	if hits.size() == 1:
+		assert_eq(int(hits[0].data["hp_damage"]), 75, "15 damage for each of the 5 energy spent")
+	_complete()
+
+
 # R27: while the pool is full, the next part to fire gets one forced second fire; once the pool is
 # no longer full, nothing doubles.
 func test_fusion_core_doubles_the_next_part_to_fire_while_full() -> void:
