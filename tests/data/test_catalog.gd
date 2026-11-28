@@ -36,6 +36,9 @@ const PART_IDS: Array[StringName] = [
 	# Task 13's Fortress parts (U25-U30, R12-R14).
 	&"spiked_shield", &"shield_battery", &"rampart", &"bunker_frame", &"compound_plating",
 	&"thermal_plating", &"aegis_mirror", &"iron_will", &"citadel",
+	# Task 14's Thorns parts (U82-U85, R35-R36).
+	&"spiked_armour", &"reactive_plate", &"shock_plate", &"mirror_plating", &"retribution",
+	&"guardian_core",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 
