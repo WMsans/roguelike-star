@@ -99,7 +99,9 @@ func setup_all() -> void:
 	for chariot in chariots:
 		if chariot == null:
 			continue
-		for part in chariot.parts:
+		# The bench's behaviours are set up here too, so a passive carried in the inventory can
+		# subscribe (R30): they are bodyless, so only the hooks that do not measure reach ask them.
+		for part in chariot.parts + chariot.bench:
 			var behaviour := part.behaviour
 			if behaviour == null:
 				continue
@@ -150,6 +152,12 @@ func near(a: Object, b: Object) -> bool:
 	if a is ChPartRuntime and a.broken:
 		return false
 	if b is ChPartRuntime and b.broken:
+		return false
+	# A benched part has no body and no path, so nothing is ever near it and it is never near
+	# anything: the bench's own effects are the hooks that do not measure reach.
+	if a is ChPartRuntime and a.benched:
+		return false
+	if b is ChPartRuntime and b.benched:
 		return false
 	var ra := range_of(a) if a is ChPartRuntime else 0.0
 	if a.anchor_world().distance_to(b.anchor_world()) <= ra:
@@ -573,6 +581,12 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 			# near is the single proximity helper: range through the stat hook, or a links() behaviour.
 			if near(other, source):
 				_ask_behaviour(other, hit)
+		# The bench's passives are on the hitter's own side but have no position, so they are asked
+		# without a reach test: their own-chariot effects apply (R30).
+		for other in other_chariot.bench:
+			if other == source or other.broken:
+				continue
+			_ask_behaviour(other, hit)
 	# The source's own behaviour gets the last word on its own hit: a weapon reads the target off
 	# the dict rather than measuring, which is how the Mace's Shatter reads a frozen part.
 	_ask_behaviour(source, hit)

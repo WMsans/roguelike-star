@@ -100,6 +100,10 @@ func _on_finished(result: StringName, from: ChBattle) -> void:
 	if from.hud != null:
 		from.hud.visible = false
 	_result = result
+	# A win is a run event before it is a screen: every owned part hears it, whether the shop comes
+	# next or the run is over (U64's Piggy Bank banks its +1 sell value here).
+	if result == &"win":
+		run.announce(&"won", {&"kind": run.kind(run.fight_index)})
 	screen = &"result"
 	result_panel = ChResultPanel.new()
 	# The run's last fight is the run itself won, which a bare &"win" cannot name.

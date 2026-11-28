@@ -5,4 +5,7 @@ class_name ChSlotNode extends Resource
 
 var part_id: StringName = &""
 var flipped: bool = false
+# What this copy of the part carries between runs: a Piggy Bank's sell_bonus, a Scrap Cannon's
+# damage_bonus. The shop always offers a part in its base state, so this travels with the copy.
+var state: Dictionary = {}
 var children: Dictionary[int, ChSlotNode] = {}

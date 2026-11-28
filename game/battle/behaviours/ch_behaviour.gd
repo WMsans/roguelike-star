@@ -199,6 +199,13 @@ func prevent_death(ctx: ChBattleContext, chariot: ChChariotRuntime) -> bool:
 func run_stat(run: ChRun, state: Dictionary, stat: StringName, value: int) -> int:
 	return value
 
+# Asked by ChRun.announce on a throwaway instance with part = null, for every owned entry: a run
+# event (&"won", &"sold", and a sale's own &"sold_self") together with the instance state it may
+# change. A banked sell value or a permanent damage gain is written into `state` here.
+func run_event(run: ChRun, state: Dictionary, type: StringName, data: Dictionary) -> void:
+	# shortcut: the base keeps no run state, so it answers by doing nothing.
+	pass
+
 # Asked by ChBattleContext.stat to fold a stat: base returns the value unchanged, modifiers may
 # raise or lower it. Only behaviours whose own script declares modify_stat are asked.
 func modify_stat(ctx: ChBattleContext, target: Object, stat: StringName, value: float) -> float:

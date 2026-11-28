@@ -96,8 +96,14 @@ func drop_part(part_id: StringName, path) -> bool:
 	# so nothing was lifted, and take cannot fail after the has() that just passed.
 	if inventory == null or layout == null or not inventory.has(part_id):
 		return false
+	# The state is the first carried copy's: hold() carries an id rather than an index, so with two
+	# copies of one id the first one's state is the one that travels.
+	# shortcut: a hold of the second copy keeps the first copy's state; pass an index through hold()
+	# when the bar can tell the two copies apart.
+	var at := inventory.part_ids.find(part_id)
+	var state: Dictionary = inventory.states[at]
 	var step: Array[int] = _typed(path)
-	if not layout.place(step, part_id):
+	if not layout.place(step, part_id, state):
 		return false
 	inventory.take(part_id)
 	changed.emit()
@@ -118,7 +124,8 @@ func mount_from_inventory(index: int, path) -> bool:
 	if index < 0 or index >= inventory.part_ids.size():
 		return false
 	var step: Array[int] = _typed(path)
-	if not layout.place(step, inventory.part_ids[index]):
+	# The copy's own state travels with it: the index is what says which copy of an id it is.
+	if not layout.place(step, inventory.part_ids[index], inventory.states[index]):
 		return false
 	inventory.remove_at(index)
 	changed.emit()
@@ -239,7 +246,7 @@ func cancel_hold() -> void:
 
 
 func _lift_branches(branches) -> Array[StringName]:
-	# Whole subtrees go home, parent first: subtree_part_ids is the order a builder needs, which
+	# Whole subtrees go home, parent first: subtree_entries is the order a builder needs, which
 	# is also the order that lets a re-drop mount a parent before the child that needs it.
 	# What does not fit comes back as overflow instead of being dropped on the floor: both callers check
 	# free_slots first (lift the branch, a body swap the whole build), so nothing overflows today. Task
@@ -248,10 +255,11 @@ func _lift_branches(branches) -> Array[StringName]:
 	if inventory == null:
 		return overflow
 	for branch in branches:
-		for id in layout.subtree_part_ids(branch):
+		for entry in layout.subtree_entries(branch):
 			# add never dedupes, so a returning branch really is new copies: it left the pit.
-			if not inventory.add(id):
-				overflow.append(id)
+			# The entry's state goes back with its id, so a lifted Scrap Cannon keeps its damage.
+			if not inventory.add(entry[&"id"], entry[&"state"]):
+				overflow.append(entry[&"id"])
 	return overflow
 
 
@@ -391,7 +399,7 @@ func _copy_of_build() -> ChChariotLayout:
 	for path in layout.all_paths():
 		var step: Array[int] = _typed(path)
 		var node: ChSlotNode = layout.get_node(step)
-		copy.place(step, node.part_id)
+		copy.place(step, node.part_id, node.state)
 		if node.flipped:
 			copy.toggle_flip(step)
 	return copy

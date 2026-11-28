@@ -130,6 +130,9 @@ func _in_range(proximity_of: Object, range: float, event: ChEvent) -> bool:
 	# A subscription with no proximity_of is chariot-wide: it hears whatever the type says.
 	if proximity_of == null:
 		return true
+	# A benched part has no body or position, so it is never near an event (R30).
+	if proximity_of is ChPartRuntime and proximity_of.benched:
+		return false
 	# shortcut: `side` and anchor_world() are read duck-typed off both objects here (the test fakes
 	# carry them); upgrade to the ChPartRuntime accessors once it gains `side` in Task 8.
 	# A sourceless event has nothing to measure, so no proximity subscription can hear it.

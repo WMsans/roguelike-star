@@ -48,6 +48,8 @@ func _init(p_run: ChRun, p_catalog: ChCatalog) -> void:
 	# call, and a second one would price and HP-read a different table than the run holds.
 	run = p_run
 	catalog = p_catalog
+	# A shop is where the reroll counter starts: the Trade-In Coupon's free first reroll is per shop.
+	run.rerolls_this_shop = 0
 	credited = run.reward(run.fight_index)
 	run.gold += credited
 	_roll_options()
@@ -137,10 +139,13 @@ func take(item_index: int) -> bool:
 
 
 func reroll() -> bool:
-	# One reroll per shop stage, for 3 gold. A pack has none.
-	if picked.get(&"kind") != &"shop" or rerolled or run.gold < ChPrices.REROLL:
+	# One reroll per shop stage, priced through the run stat so the Trade-In Coupon can make the
+	# first one of the shop free. A pack has none.
+	var price := run.run_stat(ChRun.STAT_REROLL_PRICE, ChPrices.REROLL)
+	if picked.get(&"kind") != &"shop" or rerolled or run.gold < price:
 		return false
-	run.gold -= ChPrices.REROLL
+	run.gold -= price
+	run.rerolls_this_shop += 1
 	rerolled = true
 	_roll_items(picked)
 	return true
@@ -148,16 +153,26 @@ func reroll() -> bool:
 
 func sell(inventory_index: int) -> int:
 	# Selling works at any stage and in either view; the value is the carried part's rarity through the
-	# price table, which is floor(price / 2).
+	# price table, which is floor(price / 2), plus whatever sell value the instance has banked.
 	var ids: Array[StringName] = run.inventory.part_ids
 	if inventory_index < 0 or inventory_index >= ids.size():
 		return 0
-	var def: ChPartDef = catalog.part(ids[inventory_index])
+	var id: StringName = ids[inventory_index]
+	var state: Dictionary = run.inventory.states[inventory_index]
+	var def: ChPartDef = catalog.part(id)
 	if def == null:
 		# No def means no rarity, so no price: the part stays carried rather than vanishing for 0.
 		return 0
-	run.inventory.remove_at(inventory_index)
-	var value := ChPrices.sell_value(def.rarity)
+	# The entry is removed first: the sold part is no longer owned when the other parts hear about it.
+	run.inventory.remove_entry(inventory_index)
+	run.parts_sold += 1
+	# The sold part itself hears first (the Safe's 3 gold), then every part still owned hears the sale
+	# (the Scrap Cannon's +5 damage).
+	if def.behaviour != null:
+		var behaviour = def.behaviour.new()
+		behaviour.run_event(run, state, &"sold_self", {})
+	run.announce(&"sold", {&"id": id, &"state": state})
+	var value := ChPrices.sell_value(def.rarity) + int(state.get(&"sell_bonus", 0))
 	run.gold += value
 	# After the part has left, so a capacity part sold out of a full inventory always fits.
 	run.refresh_capacity()
@@ -272,13 +287,17 @@ func _mount_body(id: StringName) -> void:
 	# auto_sold is not cleared here: a stage can buy two bodies, and the screen reads one list holding
 	# both swaps.
 	for branch in run.layout.swap_body(catalog.body(id), catalog):
-		for part_id in run.layout.subtree_part_ids(branch):
-			if run.inventory.add(part_id):
+		for entry in run.layout.subtree_entries(branch):
+			var part_id: StringName = entry[&"id"]
+			if run.inventory.add(part_id, entry[&"state"]):
 				continue
 			var def: ChPartDef = catalog.part(part_id)
 			# A part with no def cannot be priced, so it is the one thing this swap can lose; the
 			# catalog keeps every mountable id, so it does not happen in a run.
 			if def != null:
-				run.gold += ChPrices.sell_value(def.rarity)
+				run.gold += ChPrices.sell_value(def.rarity) \
+					+ int((entry[&"state"] as Dictionary).get(&"sell_bonus", 0))
+			# An auto-sold part is sold, so it counts toward the run's sales (R29).
+			run.parts_sold += 1
 			auto_sold.append(part_id)
 	run.refresh_capacity()

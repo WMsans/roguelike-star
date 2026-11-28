@@ -62,6 +62,9 @@ const PART_IDS: Array[StringName] = [
 	# Task 22's Reactor parts (U59-U63, R27-R28).
 	&"overflow_valve", &"priority_relay", &"dynamo_wheel", &"power_siphon", &"surge_cannon",
 	&"fusion_core", &"blood_cell",
+	# Task 23's Merchant parts (U64-U68, R29-R30).
+	&"piggy_bank", &"scrap_cannon", &"safe", &"trade_in_coupon", &"collectors_shelf",
+	&"golden_gear", &"bench_warmer",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 

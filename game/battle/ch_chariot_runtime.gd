@@ -25,6 +25,12 @@ var energy: ChEnergy = null  # the body's pool, capped and regenerating from bod
 var chassis: PixelRigidBody = null  # the one body that carries the whole chariot's HP
 var chassis_visual: Node2D = null  # the chassis body's "Visual" child (the builder's, Task 6)
 var parts: Array[ChPartRuntime] = []  # every part, in the order the builder mounted them
+# The passives fighting from the inventory (R30): bodyless ChPartRuntime entries. They are not in
+# `parts`, so the body walks, scopes and proximity never see them.
+var bench: Array[ChPartRuntime] = []
+# Run counts copied in from the layout: parts carried (U68) and parts sold (R29).
+var inventory_count: int = 0
+var parts_sold: int = 0
 var driving: bool = false  # set from energy.tick's drove each tick; wheels read it
 
 var statuses := ChStatuses.new()  # the body's statuses

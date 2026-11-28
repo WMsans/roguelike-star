@@ -214,9 +214,20 @@ func _update_sell_label(global: Vector2) -> void:
 	# calls this from _input for one of its own cards' drags; a shelf item's drag carries no def and
 	# the zone is not sellable, so it never prices it.
 	if _drag_def != null and _sellable and over_sell(global):
-		sell_label.text = "+$%d" % ChPrices.sell_value(_drag_def.rarity)
+		sell_label.text = "+$%d" % _sell_value()
 	else:
 		sell_label.text = "SELL"
+
+
+func _sell_value() -> int:
+	# The label prices the dragged copy, not its rarity alone: a banked sell_bonus (U64) is part of
+	# what SELL would pay. A shelf item has no card, so it never reaches here as sellable.
+	var value := ChPrices.sell_value(_drag_def.rarity)
+	if _drag_card != null and inventory != null:
+		var at := _index_of(_drag_card)
+		if at >= 0 and at < inventory.states.size():
+			value += int(inventory.states[at].get(&"sell_bonus", 0))
+	return value
 
 
 func _input(event: InputEvent) -> void:

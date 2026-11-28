@@ -17,7 +17,11 @@ const LAST_INDEX := 9  # a run is 10 fights, 0-based, and the last one is the bo
 const ELITE_INDEXES := [2, 5, 8]
 const MODIFIERS := [&"fire_halved", &"time_limit", &"chains_weak"]
 const ENEMY := "res://game/data/enemies/dozer_cook.tres"  # the run's one enemy build, as data
-const STAT_INVENTORY_CAPACITY := &"inventory_capacity"  # ChRun.run_stat's one stat so far
+const STAT_INVENTORY_CAPACITY := &"inventory_capacity"  # ChRun.run_stat's stats
+const STAT_REROLL_PRICE := &"reroll_price"  # the Trade-In Coupon (U67) drops it to 0 once a shop
+# The run's Bench Warmer (R30) id: owning one, mounted or carried, puts the inventory's passives in
+# the battle's bench. A stat would read the same, but the id is the whole rule and one line.
+const BENCH_WARMER := &"bench_warmer"
 
 var seed: int = 0
 var rng: RandomNumberGenerator = null  # every draw in the run comes off this one rng
@@ -25,6 +29,10 @@ var catalog: ChCatalog = null  # player_layout re-reads the body's HP through it
 var fight_index := 0
 var gold := 20  # the spec's start gold
 var hp_bonus := 0  # what the shop's +100 max HP option adds, on top of the body's own HP
+# Counters the shop and the battle read: how many parts the run has sold (R29) and how many rerolls
+# this shop has spent (U67). rerolls_this_shop is reset by ChShopPhase._init.
+var parts_sold := 0
+var rerolls_this_shop := 0
 var inventory: ChInventory = null
 var layout: ChChariotLayout = null
 var modifiers: Dictionary = {}  # fight index -> a modifier StringName; elites and the boss only
@@ -120,6 +128,17 @@ func player_layout() -> ChChariotLayout:
 	var copy := layout.mirrored().mirrored()
 	var body: ChBodyDef = catalog.body(layout.body_id)
 	copy.max_hp = (body.hp if body != null else 0) + hp_bonus
+	# The two run counts the battle reads (U68's Collector's Shelf and R29's Golden Gear).
+	copy.inventory_count = inventory.part_ids.size() if inventory != null else 0
+	copy.parts_sold = parts_sold
+	# The bench (R30): with a Bench Warmer owned, every passive carried fights too. The state travels
+	# so a benched Scrap Cannon still carries its saved damage.
+	copy.bench.clear()
+	if inventory != null and _owns(BENCH_WARMER):
+		for at in inventory.part_ids.size():
+			var def: ChPartDef = catalog.part(inventory.part_ids[at])
+			if def != null and def.mode == ChPartDef.MODE_PASSIVE:
+				copy.bench.append({&"id": inventory.part_ids[at], &"state": inventory.states[at]})
 	return copy
 
 
@@ -134,25 +153,58 @@ func run_stat(stat: StringName, base: int) -> int:
 	# layout order then inventory order. The base run_stat answers unchanged, so only the behaviours
 	# that read the stat move it.
 	var value := base
+	for entry in _owned_entries():
+		var def: ChPartDef = entry[&"def"]
+		if def == null or def.behaviour == null:
+			continue
+		var behaviour = def.behaviour.new()
+		value = behaviour.run_stat(self, entry[&"state"], stat, value)
+	return value
+
+
+func announce(type: StringName, data: Dictionary) -> void:
+	# A run event (a win, a sale) goes to every part the run owns, mounted or carried, each on a
+	# throwaway behaviour instance handed its own state to mutate. This is how a Piggy Bank banks
+	# sell value and a Scrap Cannon adds damage for good.
+	for entry in _owned_entries():
+		var def: ChPartDef = entry[&"def"]
+		if def == null or def.behaviour == null:
+			continue
+		var behaviour = def.behaviour.new()
+		behaviour.run_event(self, entry[&"state"], type, data)
+
+
+func _owned_entries() -> Array:
+	# Every owned part as {def, state}, mounted in layout order then carried in inventory order: the
+	# walk run_stat and announce share.
+	var out: Array = []
 	for path in layout.all_paths():
 		# all_paths hands back untyped slot indices; get_node wants Array[int].
 		var steps: Array[int] = []
 		for index in path:
 			steps.append(index)
 		var node: ChSlotNode = layout.get_node(steps)
-		if node == null:
-			continue
-		value = _fold_run_stat(catalog.part(node.part_id), stat, value)
-	for id in inventory.part_ids:
-		value = _fold_run_stat(catalog.part(id), stat, value)
-	return value
+		if node != null:
+			out.append({&"def": catalog.part(node.part_id), &"state": node.state})
+	for at in inventory.part_ids.size():
+		out.append({&"def": catalog.part(inventory.part_ids[at]),
+			&"state": inventory.states[at]})
+	return out
 
 
-func _fold_run_stat(def: ChPartDef, stat: StringName, value: int) -> int:
-	if def == null or def.behaviour == null:
-		return value
-	var behaviour = def.behaviour.new()
-	return behaviour.run_stat(self, {}, stat, value)
+func _owns(id: StringName) -> bool:
+	# Whether the run owns a copy of an id, mounted or carried: what player_layout asks the Bench
+	# Warmer before it benches anything.
+	if inventory != null and inventory.has(id):
+		return true
+	for path in layout.all_paths():
+		var steps: Array[int] = []
+		for index in path:
+			steps.append(index)
+		var node: ChSlotNode = layout.get_node(steps)
+		if node != null and node.part_id == id:
+			return true
+	return false
 
 
 func refresh_capacity() -> void:
