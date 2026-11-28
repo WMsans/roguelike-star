@@ -512,6 +512,9 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 		"multiplier": multiplier,
 		"block_mult": 1.0,  # what Block spends on the share it soaks; U23's Etching Ray is 2
 		"bonus": source.bonus_damage,  # part's bonus damage, modifiers may raise it
+		# Which holder soaks the hit: the part struck, or the body when the hull was hit. An incoming
+		# hook may name another holder, which is how the Citadel spends the body's Block first.
+		"block_holder": null,
 	}
 	# `extra` seeds those keys, which is how a caller carries an effect it has no behaviour for.
 	# shortcut: extra never needs to name a key, so a caller that wants the defaults passes {}.
@@ -535,11 +538,18 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	# The source's own behaviour gets the last word on its own hit: a weapon reads the target off
 	# the dict rather than measuring, which is how the Mace's Shatter reads a frozen part.
 	_ask_behaviour(source, hit)
+	# The side being hit gets its turn next, in mount order, before any of the hit is paid: a hook can
+	# redirect the part struck or name the holder whose Block soaks it.
+	_ask_incoming(target_chariot, hit)
+	target_part = hit["target_part"]
 	# The modifiers had their turn, so ChDamage applies what they left. A part hit wears the part
 	# as well as the chariot, and the multiplier never reaches the wear: that rule is ChDamage's,
 	# pinned by its own tests, so nothing here restates it.
-	# The Block that soaks the hit is the holder's: the part struck, or the body for a hull hit.
-	var holder: Object = target_part if target_part != null else target_chariot
+	# The Block that soaks the hit is the holder's: the part struck, the body for a hull hit, or what
+	# an incoming hook named.
+	var holder: Object = hit["block_holder"]
+	if holder == null:
+		holder = target_part if target_part != null else target_chariot
 	var block: int = holder.statuses.count(ChStatuses.BLOCK)
 	var result: Dictionary
 	# The applied damage is (damage + bonus) * multiplier: bonus folds in before the multiplier.
@@ -570,6 +580,11 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	bus.emit(event)
 	if target_part != null and target_part.integrity <= 0:
 		target_chariot.break_part(target_part, self)
+	if source.fire_cells_per_hit > 0:
+		# The hit has landed, so a part it just broke still pays out where it stood.
+		var at := target_part.anchor_world() if target_part != null \
+				else ChBattle.hull_box(target_chariot).get_center()
+		spawn(source, &"fire", at, source.fire_cells_per_hit)
 
 
 func _player_fire(source: ChPartRuntime) -> bool:
@@ -582,6 +597,16 @@ func _ask_behaviour(part: ChPartRuntime, hit: Dictionary) -> void:
 	var behaviour = part.behaviour
 	if behaviour != null:
 		behaviour.modify_hit(self, hit)
+
+func _ask_incoming(chariot: ChChariotRuntime, hit: Dictionary) -> void:
+	# Every unbroken part of the side being hit, in mount order, so a redirect named by an earlier
+	# part is seen by the later ones and no hit ever asks a broken part.
+	for part in chariot.parts:
+		if part == null or part.broken or part.def == null:
+			continue
+		var behaviour = part.behaviour
+		if behaviour != null:
+			behaviour.modify_incoming(self, hit)
 
 func _emit_fired(part: ChPartRuntime) -> void:
 	# PART_FIRED announces that a part went off. The source names it, so the payload stays empty,

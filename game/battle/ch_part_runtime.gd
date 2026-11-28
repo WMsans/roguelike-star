@@ -22,6 +22,7 @@ var cost: int = 0  # energy the volley pays to fire this part
 var rate: float = 0.0  # energy a second the held button pays while this runs or drives
 var cooldown: float = 0.0  # seconds the volley resets cooldown_left to after a fire
 var bonus_damage: int = 0  # flat damage this part adds to its own hits, for the battle
+var fire_cells_per_hit: int = 0  # fire cells a hit from this part spawns on its target (U30)
 var statuses := ChStatuses.new()  # the nine stacking statuses
 var broken: bool = false  # set by ChChariotRuntime.break_part (Task 10)
 # shortcut: body stays loose-typed on purpose; Task 9 is the only caller that hands a real

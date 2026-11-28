@@ -33,6 +33,9 @@ const PART_IDS: Array[StringName] = [
 	# Task 12's Acid Eater parts (U20-U24, R10-R11).
 	&"acid_cannon", &"corroder", &"acid_gas_vent", &"etching_ray", &"sinkhole_flask",
 	&"universal_solvent", &"matter_eater",
+	# Task 13's Fortress parts (U25-U30, R12-R14).
+	&"spiked_shield", &"shield_battery", &"rampart", &"bunker_frame", &"compound_plating",
+	&"thermal_plating", &"aegis_mirror", &"iron_will", &"citadel",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 

@@ -176,6 +176,20 @@ func modify_hit(ctx: ChBattleContext, hit: Dictionary) -> void:
 	# shortcut: no key is required, and a behaviour that changes nothing answers by doing nothing.
 	pass
 
+# Asked by ChBattleContext.deal_hit on every unbroken part of the side being hit, in mount order,
+# after the source-side modifiers and before Block is read: the hit is the same Dictionary the entry
+# point built, so a mutation travels. A hook may set hit["target_part"] (redirect the hit to another
+# own part) or hit["block_holder"] (the holder whose Block soaks it; default the part struck, or the
+# body when the hull was hit).
+func modify_incoming(ctx: ChBattleContext, hit: Dictionary) -> void:
+	# shortcut: no key is required, and a behaviour that changes nothing answers by doing nothing.
+	pass
+
+# Asked by ChRun.run_stat to fold a run-level stat, on a throwaway instance with part = null: base
+# returns the value unchanged, modifiers may raise or lower it.
+func run_stat(run: ChRun, state: Dictionary, stat: StringName, value: int) -> int:
+	return value
+
 # Asked by ChBattleContext.stat to fold a stat: base returns the value unchanged, modifiers may
 # raise or lower it. Only behaviours whose own script declares modify_stat are asked.
 func modify_stat(ctx: ChBattleContext, target: Object, stat: StringName, value: float) -> float:

@@ -112,6 +112,7 @@ func buy(item_index: int) -> bool:
 		_mount_body(item[&"id"])
 	else:
 		run.inventory.add(item[&"id"])
+	run.refresh_capacity()
 	return true
 
 
@@ -131,6 +132,7 @@ func take(item_index: int) -> bool:
 		_mount_body(item[&"id"])
 	else:
 		run.inventory.add(item[&"id"])
+	run.refresh_capacity()
 	return true
 
 
@@ -157,6 +159,8 @@ func sell(inventory_index: int) -> int:
 	run.inventory.remove_at(inventory_index)
 	var value := ChPrices.sell_value(def.rarity)
 	run.gold += value
+	# After the part has left, so a capacity part sold out of a full inventory always fits.
+	run.refresh_capacity()
 	return value
 
 
@@ -277,3 +281,4 @@ func _mount_body(id: StringName) -> void:
 			if def != null:
 				run.gold += ChPrices.sell_value(def.rarity)
 			auto_sold.append(part_id)
+	run.refresh_capacity()

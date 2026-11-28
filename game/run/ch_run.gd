@@ -17,6 +17,7 @@ const LAST_INDEX := 9  # a run is 10 fights, 0-based, and the last one is the bo
 const ELITE_INDEXES := [2, 5, 8]
 const MODIFIERS := [&"fire_halved", &"time_limit", &"chains_weak"]
 const ENEMY := "res://game/data/enemies/dozer_cook.tres"  # the run's one enemy build, as data
+const STAT_INVENTORY_CAPACITY := &"inventory_capacity"  # ChRun.run_stat's one stat so far
 
 var seed: int = 0
 var rng: RandomNumberGenerator = null  # every draw in the run comes off this one rng
@@ -125,6 +126,41 @@ func player_layout() -> ChChariotLayout:
 func fight_seed(index: int) -> int:
 	# The seed a fight's arena is built from: the same run and fight index give the same fight.
 	return hash([seed, index])
+
+
+func run_stat(stat: StringName, base: int) -> int:
+	# Folds a run-level stat through every part the run owns, mounted or carried: each def's
+	# behaviour script is instantiated throwaway (part stays null) and handed the running total, in
+	# layout order then inventory order. The base run_stat answers unchanged, so only the behaviours
+	# that read the stat move it.
+	var value := base
+	for path in layout.all_paths():
+		# all_paths hands back untyped slot indices; get_node wants Array[int].
+		var steps: Array[int] = []
+		for index in path:
+			steps.append(index)
+		var node: ChSlotNode = layout.get_node(steps)
+		if node == null:
+			continue
+		value = _fold_run_stat(catalog.part(node.part_id), stat, value)
+	for id in inventory.part_ids:
+		value = _fold_run_stat(catalog.part(id), stat, value)
+	return value
+
+
+func _fold_run_stat(def: ChPartDef, stat: StringName, value: int) -> int:
+	if def == null or def.behaviour == null:
+		return value
+	var behaviour = def.behaviour.new()
+	return behaviour.run_stat(self, {}, stat, value)
+
+
+func refresh_capacity() -> void:
+	# The shop calls this after every action that changes what the run owns: a carried or mounted
+	# capacity part moves the limit, and a part that just left has already freed its slot.
+	if inventory == null:
+		return
+	inventory.capacity = run_stat(STAT_INVENTORY_CAPACITY, ChInventory.CAPACITY)
 
 
 func is_last(index: int) -> bool:

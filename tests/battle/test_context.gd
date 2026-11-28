@@ -41,6 +41,8 @@ class ContextBehaviour:
 
 	func modify_hit(ctx, hit) -> void: pass
 
+	func modify_incoming(ctx, hit) -> void: pass
+
 	# A behaviour that held a looping fx would stop it here; these doubles hold none.
 	func teardown() -> void: pass
 
