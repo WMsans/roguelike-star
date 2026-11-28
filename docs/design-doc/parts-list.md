@@ -472,7 +472,7 @@ Very strong, usually a build's core. Price 12 gold.
 |---|---|---|---|---|---|---|---|---|---|
 | R20 | Chain Detonator | Earth | 0 | — | 60 | — | — | When an explosion happens near the enemy, spawn a TNT crate there. | discussion example |
 | R21 | Earthquake | Earth | 10 | 15 | 60 | — | — | Collapse the ground under the enemy down to hardness 8, exposing lava. | A: Noita Earthquake |
-| R22 | Blast Amplifier | Earth, Defence | 0 | — | 100 | — | — | Explosions you cause are one size bigger. Your parts take no damage from your own explosions. | C: bigger blasts + immunity |
+| R22 | Blast Amplifier | Earth, Defence | 0 | — | 100 | — | — | Explosions you cause are one size bigger. Your parts and body take no damage from your own explosions or from unowned ones (terrain TNT, gunpowder and flammable gas). | C: bigger blasts + immunity |
 
 ### 5.9 Gale
 

@@ -13,6 +13,8 @@ const SIZES := {
 	&"large": {radius = 12, dig = 6, damage = 300, power = 400.0},
 }
 const MATERIAL_SIZE := {&"gunpowder": &"small", &"flammable_gas": &"medium", &"tnt": &"large"}
+# Smallest to biggest: a blast_size stat steps one place along it, and the last one stays put.
+const SIZE_ORDER: Array[StringName] = [&"small", &"medium", &"large"]
 const BLAST_WEAR := 0.5  # share of the HP damage each part inside the radius loses as integrity
 const BLAST_IMPULSE := 60.0  # per unit of power at the centre, same falloff
 const CHARGE_MARGIN := 4  # cells around an owned charge that still count as it
@@ -39,6 +41,8 @@ func explode(ctx: ChBattleContext, source: ChPartRuntime, at: Vector2i, size: St
 		dig := -1) -> void:
 	# A part-made blast: dig the world, announce it, own it, then hurt the other side through deal_hit
 	# (the hit dict's "explosion" names the size) and wear its parts in the radius by what was dealt.
+	# The source's side may own a bigger blast than the part asked for (R22).
+	size = _stepped(ctx.stat(source, ChBattleContext.STAT_BLAST_SIZE, 0.0), size)
 	var s: Dictionary = SIZES[size]
 	var digs: int = dig if dig >= 0 else s.dig
 	if ctx.world != null:
@@ -49,7 +53,7 @@ func explode(ctx: ChBattleContext, source: ChPartRuntime, at: Vector2i, size: St
 		if chariot == null or chariot.side == source.side:
 			continue
 		var falloff := _push(chariot, Vector2(at), s.radius, s.power)
-		var dealt := roundi(damage * falloff)
+		var dealt := roundi(damage * falloff * _taken(ctx, chariot, source.side))
 		if dealt > 0:
 			ctx.deal_hit(source, chariot.chassis, dealt, {"explosion": size})
 			_wear(ctx, chariot, Vector2(at), s.radius, dealt)
@@ -66,13 +70,23 @@ func apply(ctx: ChBattleContext, blasts: Array) -> void:
 		var owner := _owner(ctx, centre)
 		if owner >= 0:
 			_record(ctx, centre, radius, owner)
+			# The side that laid the explosive may own a bigger blast than the material's own size
+			# (R22). Only the size table grows: the dig the engine already ran is its own.
+			var owner_chariot: ChChariotRuntime = null
+			if owner < ctx.chariots.size():
+				owner_chariot = ctx.chariots[owner]
+			if owner_chariot != null:
+				size = _stepped(ctx.stat(owner_chariot, ChBattleContext.STAT_BLAST_SIZE, 0.0), size)
+				radius = SIZES[size].radius
+		# ponytail: a stepped-up material blast digs the engine's own crater, not the bigger size's;
+		# upgrade if an owned blast's dig ever has to grow after the world already ran it.
 		_emit(ctx, owner, blast.position, size, radius, blast.dig, blast.material, null)
 		if radius <= 0:
 			continue
 		var base: int = SIZES[size].damage
 		for chariot in ctx.chariots:
 			var falloff := _push(chariot, centre, radius, blast.power)
-			var damage := roundi(base * falloff)
+			var damage := roundi(base * falloff * _taken(ctx, chariot, owner))
 			if damage <= 0:  # outside, or the rim of a weak blast rounds to 0: no HP, wear or event
 				continue
 			# The hull's HP goes through the body's Block, as deal_hit's hull hit does, and out
@@ -93,6 +107,23 @@ func apply(ctx: ChBattleContext, blasts: Array) -> void:
 			event.data = {"target_side": chariot.side, "hp_damage": result.hp_damage,
 				"material": blast.material, "hp_after": chariot.hp}
 			ctx.bus.emit(event)
+
+
+# The blast size `steps` places along SIZE_ORDER, clamped at large.
+static func _stepped(steps: float, size: StringName) -> StringName:
+	var at := SIZE_ORDER.find(size)
+	if at < 0:
+		return size
+	return SIZE_ORDER[clampi(at + roundi(steps), 0, SIZE_ORDER.size() - 1)]
+
+# The share of a blast this chariot's HP and wear pay: its own blast, an unowned terrain one, or the
+# other side's, which is neither and pays in full (R22).
+static func _taken(ctx: ChBattleContext, chariot: ChChariotRuntime, owner: int) -> float:
+	if owner < 0:
+		return ctx.stat(chariot, ChBattleContext.STAT_ENV_BLAST_TAKEN, 1.0)
+	if chariot.side == owner:
+		return ctx.stat(chariot, ChBattleContext.STAT_OWN_BLAST_TAKEN, 1.0)
+	return 1.0
 
 
 static func _wear(ctx: ChBattleContext, chariot: ChChariotRuntime, centre: Vector2, radius: int,

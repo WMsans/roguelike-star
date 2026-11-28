@@ -66,6 +66,9 @@ const STAT_DECAY_FREEZE := &"decay_freeze"
 const STAT_DECAY_FLAME := &"decay_flame"
 const STAT_SHOCK_HOPS := &"shock_hops"  # how many times a Shock gain jumps on (R07)
 const STAT_ACID_TO_HP := &"acid_to_hp"  # 1 pays Acid on a part to its chariot's HP too (R10)
+const STAT_BLAST_SIZE := &"blast_size"  # steps a blast's size up: small -> medium -> large (R22)
+const STAT_OWN_BLAST_TAKEN := &"own_blast_taken"  # share of a blast the side itself laid that lands (R22)
+const STAT_ENV_BLAST_TAKEN := &"env_blast_taken"  # share of an unowned terrain blast that lands (R22)
 
 # The decay stat name for a status; STAT_DECAY_FREEZE is one of these. The rest are built rather than
 # spelled out, because the decaying statuses are ChStatuses.DECAYS and grow with it.
@@ -819,20 +822,55 @@ func tick(delta: float, drive_input: Array[float], press_input: Array = [], hold
 
 func _tick_fuses(delta: float) -> void:
 	# One tick of every lit fuse: the ones still burning stay, the ones that ran out explode where they
-	# landed. The entry carries the blast, so the context needs no knowledge of the part that lit it.
+	# landed. A mine has no clock of its own: it waits in the same list for an enemy part to come near,
+	# so it outlives the part that laid it. The entry carries the blast, so the context needs no
+	# knowledge of the part behind it.
 	if fuses.is_empty():
 		return
 	var live: Array = []
 	for fuse in fuses:
+		if fuse.has("mine"):
+			if _mine_set_off(fuse):
+				_explode_fuse(fuse)
+			else:
+				live.append(fuse)
+			continue
 		var left: float = float(fuse["left"]) - delta
 		if left > 0.0:
 			fuse["left"] = left
 			live.append(fuse)
 			continue
-		var source: ChPartRuntime = fuse["part"]
-		if source != null:
-			explode(source, fuse["at"], fuse["size"], int(fuse["damage"]), int(fuse["dig"]))
+		_explode_fuse(fuse)
 	fuses = live
+
+func _explode_fuse(fuse: Dictionary) -> void:
+	# The blast every fuse entry carries, and the marker a mine leaves in the world: both go together,
+	# so a spent mine takes its sprite with it.
+	var node: Node = fuse.get("node")
+	if node != null and is_instance_valid(node):
+		node.queue_free()
+	var source: ChPartRuntime = fuse["part"]
+	if source != null:
+		explode(source, fuse["at"], fuse["size"], int(fuse["damage"]), int(fuse["dig"]))
+
+func _mine_set_off(fuse: Dictionary) -> bool:
+	# True once an enemy part's box comes within `mine` cells of the mine. The layer's side is the
+	# mine's own, read off the part, so a layer broken in the meantime still knows whose it is.
+	var source: ChPartRuntime = fuse["part"]
+	if source == null:
+		return false
+	var at: Vector2 = fuse["at"]
+	var reach := float(fuse["mine"])
+	for chariot in chariots:
+		if chariot == null or chariot.side == source.side:
+			continue
+		for part in chariot.parts:
+			if part.broken:
+				continue
+			var box := part.status_box()
+			if at.distance_to(at.clamp(box.position, box.end)) <= reach:
+				return true
+	return false
 
 func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pressed: bool,
 		held: bool) -> int:

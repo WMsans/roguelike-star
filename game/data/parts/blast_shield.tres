@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/blast_shield.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"blast_shield"
+behaviour = ExtResource("2_beh")
+display_name = "Blast Shield"
+tags = PackedStringArray("earth", "defence")
+rarity = &"uncommon"
+description = PackedStringArray("When an explosion happens within range, neighbours gain 10 {block}.")
+energy_cost = 0
+cooldown = 0.0
+mode = &"passive"
+energy_per_second = 0.0
+damage = 0
+integrity = 120
+proximity_range = 12.0
+reach = 0.0
+size = Vector2i(10,4)
+color = Color(0.55, 0.58, 0.42, 1)
