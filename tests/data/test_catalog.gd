@@ -22,6 +22,9 @@ const PART_IDS: Array[StringName] = [
 	# Task 8's Inferno parts (U01-U06, R01-R03).
 	&"oil_sprayer", &"fuel_line", &"heat_shield", &"incinerator", &"napalm_launcher",
 	&"bellows", &"inferno_core", &"eternal_flame", &"pyre",
+	# Task 9's Deep Freeze parts (U07-U13, R04-R06).
+	&"rainmaker", &"cryo_cannon", &"icebreaker", &"antifreeze_coat", &"cold_snap",
+	&"freeze_ray", &"ice_scope", &"absolute_zero", &"permafrost", &"glacier_engine",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 

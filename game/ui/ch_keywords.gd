@@ -9,7 +9,7 @@ const DARK_TEXT := Color(0.08, 0.08, 0.1)
 const ENTRIES := {
 	&"flame": {"name": "Flame", "color": Color("#ff6060"),
 		"text": "Each second, deals damage equal to its stacks. Loses 1 stack a second, and Wet or Freeze cancels it."},
-	&"freeze": {"name": "Frozen", "color": Color("#6fb6e8"),
+	&"freeze": {"name": "Frozen", "color": Color("#bfe8ff"),
 		"text": "While above 0, a part's cooldown is paused and a wheel locks. Loses 1 stack a second, and Flame cancels it."},
 	&"block": {"name": "Block", "color": Color("#c9ccd4"),
 		"text": "Absorbs weapon hits and Acid before they reach the part (or HP, on the body). Flame and Shock go straight past it. Doesn't wear off."},

@@ -251,10 +251,10 @@ More powerful and leaning towards a build. Price 6 gold.
 | ID | Name | Tags | En | CD | Int | Rng | Ext | Effect | SCAMPER |
 |---|---|---|---|---|---|---|---|---|---|
 | U07 | Rainmaker | Ice | 3 | 5 | 40 | — | — | Spawn a small rain cloud above the enemy for 3 seconds. | M: Noita Sea of Water (small, overhead) |
-| U08 | Cryo Cannon | Weapon, Ice | 5 | 7 | 60 | — | — | 40 damage. Bursts into frost cells, twice as many if the part hit is Wet. | C: Bazaar Frost Potion + Ice Luge |
+| U08 | Cryo Cannon | Weapon, Ice | 5 | 7 | 60 | — | — | 40 damage. Bursts into 8 frost cells, twice as many if the part hit is Wet. | C: Bazaar Frost Potion + Ice Luge |
 | U09 | Icebreaker | Weapon, Ice | 4 | 7 | 70 | — | — | 100 damage. When any enemy part gains Freeze, this gains 1 Speedup. | A: Bazaar Icebreaker |
 | U10 | Antifreeze Coat | Ice, Defence | 0 | — | 60 | M | — | Your parts within range lose Freeze twice as fast. | A: Bazaar Cryosleeve |
-| U11 | Cold Snap | Ice | 3 | 6 | 40 | — | — | Spawn frost cells around the enemy part with the most Wet. | P: Wet doubling as a payoff |
+| U11 | Cold Snap | Ice | 3 | 6 | 40 | — | — | Spawn 10 frost cells around the enemy part with the most Wet. | P: Wet doubling as a payoff |
 | U12 | Freeze Ray | Weapon, Ice, Beam | 3/s | Beam | 40 | — | — | No damage. Spawns frost cells along the beam. When it switches on, sprays a burst of water. | A: Noita Freezing Gaze |
 | U13 | Ice Scope | Ice, Attack | 0 | — | 40 | S | — | Neighbouring weapons deal +25 damage per hit to parts that have Freeze. | C: Ice Pick (C21) + Sniper build |
 
