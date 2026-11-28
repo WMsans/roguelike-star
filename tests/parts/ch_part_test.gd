@@ -1,13 +1,13 @@
-extends ChTest
+class_name ChPartTest extends ChTest
 
 # Task 1: the harness every part test extends (Tasks 5-24).
 # RIG := &"rig": a test body, 60x8 cells. Eight top slots in a row 6 cells apart (x = -21 .. 21,
 # y = -4) and two wheel slots on the bottom edge (x = +/-20, y = 4). Slot indices 0-7 are the top
 # slots, 8-9 the wheels. 800 HP, energy 20, regen 4.
-# Before Task 5 lands the Roller, the old `wheel` fills the two wheel slots.
+# The two wheel slots always carry the common wheel (Task 5's Roller), so the chariot can drive.
 
 const RIG := &"rig"
-const WHEEL_ID := &"wheel"  # Task 1: the old wheel; Task 5 swaps this to &"roller"
+const WHEEL_ID := &"roller"  # Task 5: the Roller, the common wheel (the old `wheel` before it)
 const GROUND_TOP := 160
 const TICK := 1.0 / 60.0
 
@@ -39,9 +39,12 @@ func _build_rig(world: PixelWorld, catalog: ChCatalog, mounts: Array, origin: Ve
 	layout.place([8], WHEEL_ID)
 	layout.place([9], WHEEL_ID)
 	for mount in mounts:
-		var path := mount[0]
-		var id := mount[1]
-		var flipped := mount.size() > 2 and mount[2]
+		# place() takes a typed Array[int], and a mount literal is untyped, so the path is copied into one.
+		var path: Array[int] = []
+		for step in mount[0]:
+			path.append(step)
+		var id: StringName = mount[1]
+		var flipped: bool = mount.size() > 2 and mount[2]
 		assert_true(layout.place(path, id), "%s mounts %s" % [path, id])
 		if flipped:
 			layout.toggle_flip(path)
@@ -77,7 +80,7 @@ func duel(mine: Array, theirs: Array = [], gap := 40.0) -> ChBattleContext:
 func step(ctx: ChBattleContext, seconds: float, press := false, hold := false, drive := 0.0,
 		frames := false) -> void:
 	var ticks := ceilf(seconds * 60.0)
-	for _ in range(ticks):
+	for _tick in range(ticks):
 		ctx.tick(TICK, [drive, 0.0], [press, false], [hold, false])
 		if frames:
 			await Engine.get_main_loop().process_frame

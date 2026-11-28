@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/shotgun.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"shotgun"
+behaviour = ExtResource("2_beh")
+display_name = "Shotgun"
+tags = PackedStringArray("weapon")
+rarity = &"common"
+description = PackedStringArray("7 pellets of 12 damage. Knocks both chariots back.")
+energy_cost = 5
+cooldown = 5.0
+mode = &"cooldown"
+energy_per_second = 0.0
+damage = 12
+integrity = 60
+proximity_range = 0.0
+reach = 0.0
+size = Vector2i(10,4)
+color = Color(0.6,0.45,0.35, 1)

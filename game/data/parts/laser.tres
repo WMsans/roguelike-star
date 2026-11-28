@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/laser.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"laser"
+behaviour = ExtResource("2_beh")
+display_name = "Laser"
+tags = PackedStringArray("weapon", "beam")
+rarity = &"common"
+description = PackedStringArray("12 damage per second along the beam.")
+energy_cost = 0
+cooldown = 0.0
+mode = &"beam"
+energy_per_second = 3.0
+damage = 12
+integrity = 40
+proximity_range = 0.0
+reach = 120.0
+size = Vector2i(10,3)
+color = Color(0.85,0.3,0.35, 1)

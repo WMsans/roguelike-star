@@ -161,24 +161,24 @@ func test_lift_refusal_shakes_the_piece() -> void:
 
 func test_click_flips() -> void:
 	var catalog := _catalog()
-	var inventory := _inventory([&"strut", &"wheel", &"wheel"])
+	var inventory := _inventory([&"long_arm", &"wheel", &"wheel"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, catalog)
-	assert_true(garage.drop_part(&"strut", [1]), "the strut takes cutter slot 1 at (9,4.5)")
-	assert_true(garage.drop_part(&"wheel", [1, 1]), "the wheel sits on the strut's extension 1 at (4,-6)")
-	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(13, -1.5), "unflipped parent: 9+4 across, 4.5-6 up")
+	assert_true(garage.drop_part(&"long_arm", [1]), "the long arm takes cutter slot 1 at (9,4.5)")
+	assert_true(garage.drop_part(&"wheel", [1, 0]), "the wheel sits on the long arm's extension 0 at (30,0)")
+	assert_eq(layout.anchor_of([1, 0], catalog), Vector2(39, 4.5), "unflipped parent: 9+30 across, 4.5 up")
 	garage.click_part([1])
 	# A flip turns the mount the other way, so the child's extension x negates: the anchor moves,
 	# which is the only visible effect a flip has on a part that owns no range of its own.
 	assert_true(layout.get_node([1]).flipped, "the flag toggled")
-	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(5, -1.5), "flipped parent: 9-4 across")
+	assert_eq(layout.anchor_of([1, 0], catalog), Vector2(-21, 4.5), "flipped parent: 9-30 across")
 	# The pit reads the layout's own walk now, so this pins the wiring: a second copy in the garage
 	# would be free to drift again without it.
-	assert_eq(garage.screen_of([1, 1]), garage.CHARIOT_AT + layout.anchor_of([1, 1], catalog) * garage.ZOOM,
+	assert_eq(garage.screen_of([1, 0]), garage.CHARIOT_AT + layout.anchor_of([1, 0], catalog) * garage.ZOOM,
 		"a flipped nested part sits where the layout says it does")
 	garage.click_part([1])
 	assert_true(not layout.get_node([1]).flipped, "a second click toggles back")
-	assert_eq(layout.anchor_of([1, 1], catalog), Vector2(13, -1.5), "and the child returns to its cell")
+	assert_eq(layout.anchor_of([1, 0], catalog), Vector2(39, 4.5), "and the child returns to its cell")
 	# ChChariotLayout.toggle_flip answers silently for a path nothing holds; the garage does not
 	# add its own check, so a stray click changes nothing rather than losing a part.
 	garage.click_part([2])

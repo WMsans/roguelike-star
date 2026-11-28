@@ -119,10 +119,12 @@ func _strike(ctx: ChBattleContext) -> bool:
 const LOB_GRAVITY := 60.0  # cells per second squared, the lob's fall
 
 # Fire a bolt from the part's nose along facing() at `speed`, with `gravity` pulling it down, and
-# hand the raycast dict to `on_impact`. The bolt frees itself after ChProjectile.LIFE, so a target
-# that is gone just ends the flight.
-func _shoot(ctx: ChBattleContext, speed: float, gravity: float, on_impact: Callable) -> ChProjectile:
-	return _launch(ctx, part.facing(), speed, gravity, on_impact)
+# hand the raycast dict to `on_impact`. `angle` turns the line off facing(), which is how the
+# Shotgun fans its pellets. The bolt frees itself after ChProjectile.LIFE, so a target that is gone
+# just ends the flight.
+func _shoot(ctx: ChBattleContext, speed: float, gravity: float, on_impact: Callable,
+		angle := 0.0) -> ChProjectile:
+	return _launch(ctx, part.facing().rotated(angle), speed, gravity, on_impact)
 
 # The lob: the same bolt, 45° up along facing, under LOB_GRAVITY. Up is the world's up, added to
 # facing, so a mirrored part lobbing left still rises rather than falling.

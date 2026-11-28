@@ -128,16 +128,19 @@ func test_tooltip_profile_loads() -> void:
 	assert_true(Feedback.profile(&"tooltip") != null)
 	_complete()
 
-func test_every_line_is_press_or_passive() -> void:
+# Task 5: a description is the parts-list Effect text with its keywords marked up inline, so the
+# firing mode is the cost line's job (test_tooltip_line_follows_mode) rather than a tag at the start
+# of every line. What is left to pin here is that every tag resolves and the mode agrees with the
+# cooldown the cost line prints.
+func test_every_description_line_resolves_its_tags() -> void:
 	var catalog := ChCatalog.load_default()
 	for id in catalog.parts:
 		var def: ChPartDef = catalog.parts[id]
-		var presses := 0
 		for line in def.description:
-			var is_press := line.begins_with("{press}")
-			assert_true(is_press or line.begins_with("{passive}"), "%s: '%s' is tagged" % [id, line])
-			presses += int(is_press)
-		assert_eq(presses > 0, def.cooldown > 0.0, "%s: press lines iff triggered" % id)
+			assert_true(not line.is_empty(), "%s: '%s' is not empty" % [id, line])
+			assert_eq(ChKeywords.parse(line).unknown, [], "%s: '%s' has no unknown tag" % [id, line])
+		assert_eq(def.cooldown > 0.0, def.mode == ChPartDef.MODE_COOLDOWN,
+			"%s: a cooldown part is what a press fires" % id)
 	_complete()
 
 # Task 1: the cost line follows the firing mode.

@@ -10,6 +10,11 @@ const PART_IDS: Array[StringName] = [
 	&"ice_cream_mace", &"cutter_chainsaw", &"flamethrower", &"hearth", &"cutter_rocket",
 	&"corsair_harpoon", &"ember_battery", &"firebolt_launcher", &"ring_of_fire",
 	&"freeze_charge", &"wheel", &"strut",
+	# Task 5's common parts (C01-C15, C36-C43); the strut above is now the C42 def.
+	&"rocket_pod", &"cannon", &"chainsaw", &"drill", &"stinger", &"spinning_blade",
+	&"laser", &"shotgun", &"minigun", &"bayonet", &"steel_plate", &"shield_generator",
+	&"bumper", &"plating_rig", &"first_aid_kit", &"spare_cell", &"generator",
+	&"reinforced_frame", &"roller", &"bigfoot", &"sticky_tire", &"long_arm",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 
@@ -28,7 +33,7 @@ func test_all_ids_load() -> void:
 	assert_eq(missing_parts, [], "every slice part id has a def")
 	assert_eq(missing_bodies, [], "every slice body id has a def")
 	# The counts catch a def filed under an id these lists do not name.
-	assert_eq(catalog.parts.size(), 12, "12 part defs on disk")
+	assert_eq(catalog.parts.size(), PART_IDS.size(), "%d part defs on disk" % PART_IDS.size())
 	assert_eq(catalog.bodies.size(), 3, "3 body defs on disk")
 	_complete()
 
@@ -67,7 +72,7 @@ func test_spec_numbers() -> void:
 	assert_eq(firebolt.charges, 5, "Firebolt has 5 charges per fight")
 	var strut: ChPartDef = catalog.part(&"strut")
 	assert_true(strut != null, "the strut def loads")
-	assert_eq(strut.extension_slots.size(), 2, "the Strut carries 2 extension slots")
+	assert_eq(strut.extension_slots.size(), 1, "the Strut carries 1 extension slot")
 	_complete()
 
 
@@ -94,7 +99,7 @@ func test_every_part_has_rarity_and_tags() -> void:
 	var strut: ChPartDef = catalog.part(&"strut")
 	assert_true(strut != null, "the Strut def loads")
 	if strut != null:
-		assert_true(strut.tags.has("tricky"), "the Strut is tricky")
+		assert_true(strut.tags.has("stats"), "the Strut is a stats part")
 	_complete()
 
 
@@ -137,6 +142,10 @@ func test_old_weapons_kept_their_reach() -> void:
 			continue
 		if def.id == &"corsair_harpoon":
 			# The Harpoon owns no proximity_range: its reach is its behaviour's own 120-cell line.
+			continue
+		if def.tags.has("melee") or def.tags.has("beam"):
+			# Task 5: a melee or beam weapon's reach is the distance it strikes, not a proximity
+			# range, so the two fields are free to differ (the Stinger reaches 48 with no chain).
 			continue
 		assert_near(def.reach, def.proximity_range, 0.001, "%s reach equals its proximity_range" % id)
 	_complete()
@@ -314,7 +323,7 @@ func test_cook_is_a_barge() -> void:
 
 func test_every_part_described() -> void:
 	var catalog := ChCatalog.load_default()
-	assert_eq(catalog.parts.size(), 12, "the slice's 12 parts")
+	assert_eq(catalog.parts.size(), PART_IDS.size(), "the slice's %d parts" % PART_IDS.size())
 	for id in catalog.parts:
 		var def: ChPartDef = catalog.parts[id]
 		assert_true(def.description.size() > 0, "%s has a description" % id)
@@ -389,7 +398,8 @@ func test_sprites_keep_the_placeholder_pixels() -> void:
 	var catalog := ChCatalog.load_default()
 	var defs: Array = catalog.parts.values() + catalog.bodies.values()
 	for def in defs:
-		assert_true(def.texture != null, "%s has a sprite" % def.id)
+		# Task 5: a def with no sprite draws the flat placeholder, so only the art that exists is
+		# held to the placeholder's silhouette.
 		if def.texture == null:
 			continue
 		var want: Image

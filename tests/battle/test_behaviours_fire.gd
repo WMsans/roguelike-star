@@ -40,14 +40,16 @@ func _catalog(damage_scale: int = 1) -> ChCatalog:
 		var def: ChPartDef = loaded.part(id)
 		assert_true(def != null, "%s loads from res://game/data/parts" % id)
 		if damage_scale != 1 and id in [&"flamethrower", &"hearth"]:
-			# ChPartDef's fields are plain vars, which Resource.duplicate() does not copy, so the copy
-			# is made field by field.
-			var copy := ChPartDef.new()
-			for prop in def.get_property_list():
-				if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
-					copy.set(prop.name, def.get(prop.name))
+			var copy := _copy_def(def)
 			copy.damage *= damage_scale
 			def = copy
+		if id == &"strut":
+			# Task 5: the C42 Strut carries 50 integrity, which breaks inside the 9-pulse window, and a
+			# broken part stops sampling the fire it stands in. The plain shell this test aims at is the
+			# old 100-integrity mount, so the def is copied and raised rather than the shared .tres edited.
+			var shell := _copy_def(def)
+			shell.integrity = 100
+			def = shell
 		# The emitters stay unlimited-charge parts: the brief never spends charges on them.
 		# A charge-limited emitter would read charges_left in process, and the loop's -1 sentinel
 		# means unlimited, so a limited behaviour would have to park cooldown_left at INF (Task 13's
@@ -64,6 +66,16 @@ func _catalog(damage_scale: int = 1) -> ChCatalog:
 		var has: bool = catalog.part(pair[0]).behaviour != null
 		assert_eq(has, pair[1], "%s behaviour is%s as the .tres stand" % [pair[0], "" if pair[1] else " left out"])
 	return catalog
+
+
+# A field-by-field copy of a def: ChPartDef's fields are plain vars, which Resource.duplicate()
+# does not copy, so a test that changes one field copies them all.
+func _copy_def(def: ChPartDef) -> ChPartDef:
+	var copy := ChPartDef.new()
+	for prop in def.get_property_list():
+		if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			copy.set(prop.name, def.get(prop.name))
+	return copy
 
 
 # A build from [[path, part_id]] in mount order on the rig body; place() takes Array[int].

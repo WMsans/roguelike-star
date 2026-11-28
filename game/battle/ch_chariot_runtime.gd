@@ -13,6 +13,11 @@ var max_hp: int = 0:
 		if max_hp > 0 or body_def == null:
 			return max_hp
 		return body_def.hp
+	set(value):
+		# A part that raises the body's ceiling (C38 Reinforced Frame) writes the override, which is
+		# what the getter above reads first; the body def is shared by every chariot of that body, so
+		# the raise must not go there.
+		max_hp = value
 var energy: ChEnergy = null  # the body's pool, capped and regenerating from body_def
 var chassis: PixelRigidBody = null  # the one body that carries the whole chariot's HP
 var chassis_visual: Node2D = null  # the chassis body's "Visual" child (the builder's, Task 6)
