@@ -69,7 +69,6 @@ func apply(ctx: ChBattleContext, blasts: Array) -> void:
 		var centre := Vector2(blast.position)
 		var owner := _owner(ctx, centre)
 		if owner >= 0:
-			_record(ctx, centre, radius, owner)
 			# The side that laid the explosive may own a bigger blast than the material's own size
 			# (R22). Only the size table grows: the dig the engine already ran is its own.
 			var owner_chariot: ChChariotRuntime = null
@@ -78,6 +77,9 @@ func apply(ctx: ChBattleContext, blasts: Array) -> void:
 			if owner_chariot != null:
 				size = _stepped(ctx.stat(owner_chariot, ChBattleContext.STAT_BLAST_SIZE, 0.0), size)
 				radius = SIZES[size].radius
+			# Recorded after the step, so the disc hands the owner to a chain inside the stepped
+			# radius rather than only inside the material's own.
+			_record(ctx, centre, radius, owner)
 		# ponytail: a stepped-up material blast digs the engine's own crater, not the bigger size's;
 		# upgrade if an owned blast's dig ever has to grow after the world already ran it.
 		_emit(ctx, owner, blast.position, size, radius, blast.dig, blast.material, null)

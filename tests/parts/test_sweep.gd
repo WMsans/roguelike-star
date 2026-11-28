@@ -4,8 +4,10 @@ extends ChPartTest
 # of the mirrored side-1 RIG and fights a side-0 RIG carrying a Steel Plate for 3 s, both sides
 # pressing and holding, with frames = false so the fight is the ctx clock alone.
 # Two things are asserted: nothing a part does lands a HIT on its own side, and no part errors. A
-# script error stops the test body, which the runner reads as a failure (ChTest's completion marker),
-# so the id printed before each run is what names the part that broke.
+# script error that kills the whole test body is caught by ChTest's completion marker (the runner
+# reads a missing _complete() as a failure); an error inside fire/continuous_tick/process only aborts
+# that function and leaves _sweep running, so run the suite through tools/test.sh, which fails on any
+# SCRIPT ERROR in the output. Either way the id printed before each run names the part that broke.
 # The second pass kills side 0 at 1 s (HP 0 and its chassis freed), so a part firing, holding or
 # triggering with no target left must not error either.
 

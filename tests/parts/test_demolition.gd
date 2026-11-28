@@ -356,3 +356,24 @@ func test_amplifier_ignores_terrain_tnt() -> void:
 	assert_eq(foe_before - foe.hp, int(ChHazards.SIZES[&"large"]["damage"]),
 		"the enemy pays a full TNT")
 	_complete()
+
+
+# R22: the ownership disc covers the blast's stepped size, so a chain landing past the material's
+# own radius still belongs to the side that laid the first blast.
+func test_amplified_blast_owns_the_stepped_radius() -> void:
+	var ctx := await duel([[[6], &"blast_amplifier"]], [], 200.0)
+	ctx.setup_all()
+	var booms := sink(ctx, ChEvent.EXPLOSION)
+	var at := Vector2i(240, 100)
+	ctx.hazards.own_charge(Rect2i(at, Vector2i(2, 2)), 0)
+	# gunpowder is a small blast (radius 5); the amplifier steps it to medium (radius 8).
+	ctx.hazards.apply(ctx, [_blast(Vector2(at), &"gunpowder", 5)])
+	assert_eq(booms.size(), 1, "the charge's blast announced")
+	if booms.size() == 1:
+		assert_eq(booms[0].data.owner, 0, "the charge owns it")
+	# 7 cells out: outside the small radius and outside the charge's 4-cell margin, inside medium.
+	ctx.hazards.apply(ctx, [_blast(at + Vector2i(7, 0), &"tnt", 12)])
+	assert_eq(booms.size(), 2, "the chained blast announced")
+	if booms.size() == 2:
+		assert_eq(booms[1].data.owner, 0, "the chain carries the owner inside the stepped radius")
+	_complete()

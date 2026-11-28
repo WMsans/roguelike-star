@@ -8,7 +8,6 @@ extends ChBehaviour
 # hull needs 60 for the gate's 0.2 s at gravity 600, but the rig's wheel springs keep the wheels down
 # until a faster jump drags them off the floor: 200 measures 0.35 s airborne on the 336 kg rig.
 const JUMP_SPEED := 200.0
-const DAMAGE := 30
 const BELOW := 8.0  # cells under the hull's box that count as underneath
 
 var _jumping := false  # fired, waiting for the landing that pays
@@ -40,7 +39,7 @@ func _landed(ctx: ChBattleContext, event: ChEvent) -> void:
 	for foe in _enemy_parts(ctx):
 		if not _underneath(foe.status_box(), hull):
 			continue
-		ctx.deal_hit(part, foe.body, DAMAGE)
+		ctx.deal_hit(part, foe.body, part.def.damage)
 
 
 # The box starts at or under the hull's bottom edge, no more than BELOW further down, and overlaps

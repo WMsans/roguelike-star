@@ -264,7 +264,8 @@ func _own_parts(ctx: ChBattleContext, tag: StringName = "") -> Array[ChPartRunti
 func _enemy_parts(ctx: ChBattleContext, tag: StringName = "") -> Array[ChPartRuntime]:
 	var out: Array[ChPartRuntime] = []
 	var side := part.side
-	var chariot := ctx.chariots[1 - side] if side >= 0 and side < ctx.chariots.size() else null
+	var chariot := ctx.chariots[1 - side] if side >= 0 and side < ctx.chariots.size() \
+			and 1 - side < ctx.chariots.size() else null
 	if chariot == null:
 		return out
 	for other in chariot.parts:

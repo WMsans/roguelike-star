@@ -586,10 +586,14 @@ func test_dud_press_nudges_hull() -> void:
 	for part in battle.player.parts:
 		part.cooldown_left = 100.0
 	var juice := ChJuice.of(battle.player.chassis_visual)
-	await Engine.get_main_loop().process_frame
-	# Every tick presses and fires nothing, so a nudge beat lands on the hull each tick: read one
-	# frame after a tick, nudge's 0.06 is still bent into the scale.
-	assert_true(absf(juice.scale_value() - 1.0) > 0.01, "a dud press beats the hull")
+	# A beat's excursion peaks partway through its wiggle, so the largest deviation is recorded over
+	# the ticks the fight runs instead of sampling whichever frame the press happened to land on.
+	var peak := [0.0]
+	battle.stepped.connect(func(_ctx: ChBattleContext):
+		peak[0] = maxf(peak[0], absf(juice.scale_value() - 1.0)))
+	for _i in 30:
+		await Engine.get_main_loop().process_frame
+	assert_true(peak[0] > 0.01, "a dud press beats the hull (peak deviation %.3f)" % peak[0])
 	battle.free()
 	_complete()
 

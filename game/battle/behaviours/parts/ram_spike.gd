@@ -3,9 +3,6 @@ extends ChBehaviour
 # The Ram Spike (U73): when its chariot rams, the part it met takes 40. The ram names the target; a
 # contact that met only the hull pays the hull.
 
-const DAMAGE := 40
-
-
 func setup(ctx: ChBattleContext) -> void:
 	ctx.bus.subscribe(self, ChEvent.RAMMED, func(event: ChEvent): _rammed(ctx, event))
 
@@ -20,4 +17,4 @@ func _rammed(ctx: ChBattleContext, event: ChEvent) -> void:
 		body = foe.chassis if foe != null else null
 	if body == null:
 		return
-	ctx.deal_hit(part, body, DAMAGE)
+	ctx.deal_hit(part, body, part.def.damage)

@@ -11,6 +11,9 @@ const WAIT_FRAMES = 600
 
 var failures: Array[String] = []
 var completed: int = 0
+# A known-fail test calls skip() instead of running its body: run_tests.gd prints the reason as a
+# SKIP line, so the skip stays visible in the suite output instead of reading as a pass.
+var skipped: String = ""
 # What this test instance added to the tree, freed by _complete(). The suite used to leave most
 # of it behind (38 make_world calls against 14 world.free(), and every _parent() Node2D plus the
 # bodies and joints under it never freed), which is what made Godot report 321 leaked ObjectDB
@@ -27,6 +30,11 @@ func _track(node: Node) -> Node:
 func _complete() -> void:
 	_free_tracked()
 	completed += 1
+
+
+func skip(reason: String) -> void:
+	skipped = reason
+	_complete()
 
 
 # Frees everything this test has put in the tree so far and stops tracking it: the same order and

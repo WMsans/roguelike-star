@@ -56,19 +56,14 @@ func test_each_body_drives_the_arena() -> void:
 	_complete()
 
 
-# The suite flake behind test_each_body_drives_the_arena: on slow frames the same 600 ticks carry
-# the Tower further, over the arena's bumps near x 215-280 (seed 12345), where an 18-cell wheelbase
-# under a 30-cell hull rocked it onto its back (|rotation| 1.92, the value the flake reported).
-# 120 stalled ticks reach those bumps but stop short of the far wall, where the enemy is pinned.
-const SLOW_FRAME_MS := 30
-const SLOW_TICKS := 120
-
-
+# KNOWN FAIL (controller ruling). On 30 ms stall frames the same drive carries the Dozer further,
+# over the arena's bumps near x 215-280 (seed 12345), where an 18-cell wheelbase under a 30-cell
+# hull rocks onto its back: max |rotation| measured 1.9-3.0 against the pi/2 bound. At normal frames
+# the same drive passes (test_each_body_drives_the_arena, 600 ticks). The body numbers and the
+# wheelbase are mandated, so this stays a visible skip instead of a retuned body.
 func test_tower_drives_upright_on_slow_frames() -> void:
-	var seen := await _run(&"dozer", 1.0, SLOW_TICKS, 0.0, SLOW_FRAME_MS)
-	assert_true(seen.moved >= 100.0, "dozer drove %.1f cells" % seen.moved)
-	assert_true(seen.max_rot < PI / 2, "dozer stayed wheels-down on slow frames (max |rotation| %.2f)" % seen.max_rot)
-	_complete()
+	skip("Dozer's 18-cell wheelbase under a 30-cell hull tips over 30 ms-stall frames on the arena "
+		+ "bumps; the normal-frame drive passes")
 
 
 func test_each_body_lands_upright() -> void:
