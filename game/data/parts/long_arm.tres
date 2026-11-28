@@ -1,14 +1,16 @@
-[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/long_arm.gd" id="2_beh"]
 
 [resource]
 script = ExtResource("1_part")
 id = &"long_arm"
+behaviour = ExtResource("2_beh")
 display_name = "Long Arm"
 tags = PackedStringArray("stats")
 rarity = &"common"
-description = PackedStringArray("Holds one part 30 cells out from its slot, past the edge of the body.")
+description = PackedStringArray("Holds {extension:one part} 30 cells out from its slot, past the edge of the body.")
 energy_cost = 0
 cooldown = 0.0
 mode = &"passive"

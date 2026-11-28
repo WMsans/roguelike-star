@@ -148,9 +148,11 @@ func _check_ext(row: Dictionary, def: ChPartDef) -> void:
 		mismatches.append("%s: extension_slots %d, want %d" % [row.get("name"), def.extension_slots.size(), want])
 
 func _check_description(row: Dictionary, def: ChPartDef) -> void:
+	# The def's line is the Effect cell with its keywords marked up, so both sides are stripped before
+	# they are compared (ChKeywords' rule: the markup is the only difference).
 	var stripped := _strip_markup(String(row.get("effect")))
 	var want := def.description
-	if want.size() != 1 or want[0] != stripped:
+	if want.size() != 1 or _strip_markup(want[0]) != stripped:
 		mismatches.append("%s: description %s, want single entry %s" % [row.get("name"), def.description, stripped])
 
 func _strip_markup(text: String) -> String:

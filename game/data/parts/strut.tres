@@ -1,15 +1,17 @@
-[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+[gd_resource type="Resource" script_classes=1 load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/strut.gd" id="2_beh"]
 [ext_resource type="Texture2D" path="res://textures/sprites/strut.png" id="tex_sprite"]
 
 [resource]
 script = ExtResource("1_part")
 id = &"strut"
+behaviour = ExtResource("2_beh")
 display_name = "Strut"
 tags = PackedStringArray("stats")
 rarity = &"common"
-description = PackedStringArray("No effect of its own. Holds one more part.")
+description = PackedStringArray("No effect of its own. Holds {extension:one more part}.")
 energy_cost = 0
 cooldown = 0.0
 mode = &"passive"

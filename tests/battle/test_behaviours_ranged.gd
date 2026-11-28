@@ -37,7 +37,7 @@ func _catalog() -> ChCatalog:
 		assert_true(def != null, "%s loads from res://game/data/parts" % id)
 		defs.append(def)
 	var catalog := ChCatalog.from_defs(defs, [_rig()])
-	for pair in [[&"cutter_rocket", true], [&"firebolt_launcher", true], [&"corsair_harpoon", true], [&"strut", false]]:
+	for pair in [[&"cutter_rocket", true], [&"firebolt_launcher", true], [&"corsair_harpoon", true], [&"strut", true]]:
 		var has: bool = catalog.part(pair[0]).behaviour != null
 		assert_eq(has, pair[1], "%s behaviour is%s as the .tres stand" % [pair[0], "" if pair[1] else " left out"])
 	return catalog

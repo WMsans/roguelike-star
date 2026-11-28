@@ -2,6 +2,28 @@ extends ChTest
 
 const BOUNDS := Rect2(0, 0, 1280, 720)
 
+# Task 5: a description marks the glossary words it uses, so the tooltip can paint and explain them.
+# The words are the parts-list Effect cell's own (test_parts_list pins that the cell with the tags
+# stripped is the description), so each part's tags are the ones its cell names.
+const TASK5_KEYWORDS := {
+	&"steel_plate": [&"block"],
+	&"shield_generator": [&"block"],
+	&"bumper": [&"block"],
+	&"plating_rig": [&"block"],
+	&"spare_cell": [&"energy"],
+	&"generator": [&"energy"],
+	&"strut": [&"extension"],
+	&"long_arm": [&"extension"],
+}
+
+func test_task5_descriptions_name_their_keywords() -> void:
+	var catalog := ChCatalog.load_default()
+	for id in TASK5_KEYWORDS:
+		var def: ChPartDef = catalog.part(id)
+		assert_eq(ChKeywords.keys_of(def.description), TASK5_KEYWORDS[id],
+			"%s marks %s" % [id, TASK5_KEYWORDS[id]])
+	_complete()
+
 func _tooltip() -> ChPartTooltip:
 	var holder := Control.new()
 	holder.size = BOUNDS.size

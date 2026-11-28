@@ -60,9 +60,9 @@ func _catalog(damage_scale: int = 1) -> ChCatalog:
 	rig.hp *= damage_scale
 	var catalog := ChCatalog.from_defs(defs, [rig])
 	for pair in [[&"flamethrower", true], [&"hearth", true], [&"ring_of_fire", true],
-	 [&"ember_battery", true], [&"strut", false]]:
-		# A part the brief leaves behaviour-less (the strut) stays a plain mountable shell.
-		# The emitters must carry their scripts as the .tres stand, or a fire would be no-ops.
+	 [&"ember_battery", true], [&"strut", true]]:
+		# Every part carries its behaviour script, even one that does nothing: the emitters must carry
+		# theirs as the .tres stand, or a fire would be no-ops.
 		var has: bool = catalog.part(pair[0]).behaviour != null
 		assert_eq(has, pair[1], "%s behaviour is%s as the .tres stand" % [pair[0], "" if pair[1] else " left out"])
 	return catalog

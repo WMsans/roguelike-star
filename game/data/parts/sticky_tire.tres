@@ -1,10 +1,12 @@
-[gd_resource type="Resource" script_classes=1 load_steps=2 format=3]
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/sticky_tire.gd" id="2_beh"]
 
 [resource]
 script = ExtResource("1_part")
 id = &"sticky_tire"
+behaviour = ExtResource("2_beh")
 display_name = "Sticky Tire"
 tags = PackedStringArray("wheel")
 rarity = &"common"

@@ -1,11 +1,13 @@
-[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+[gd_resource type="Resource" script_classes=1 load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/roller.gd" id="2_beh"]
 [ext_resource type="Texture2D" path="res://textures/sprites/wheel.png" id="tex_sprite"]
 
 [resource]
 script = ExtResource("1_part")
 id = &"roller"
+behaviour = ExtResource("2_beh")
 display_name = "Roller"
 tags = PackedStringArray("wheel")
 rarity = &"common"
