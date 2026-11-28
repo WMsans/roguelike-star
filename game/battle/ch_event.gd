@@ -32,6 +32,8 @@ const STATUS_DOUBLED: StringName = &"status_doubled"  # data: status, amount
 const SHOCK_JUMPED: StringName = &"shock_jumped"  # data: from, amount
 const HAZARD_HIT: StringName = &"hazard_hit"  # a material blast hurt a chariot; no source part
 const EXPLOSION: StringName = &"explosion"  # side = owner (-1 unowned); data: size, radius, dig, owner, material, source
+const RAMMED: StringName = &"rammed"  # side = the rammer; source = its chariot; data: target_part (null for the hull)
+const LANDED: StringName = &"landed"  # an airborne chariot touched the floor again; source = the chariot
 
 
 # The holder's first stack of `status`: "caught fire" for Flame, "frozen" for Freeze.

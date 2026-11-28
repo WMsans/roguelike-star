@@ -12,7 +12,9 @@ class_name ChBattleContext extends RefCounted
 #   (ready triggered parts paid dearest energy_cost first; each paid part fires, resets its
 #   cooldown, spends a charge, emits PART_FIRED; a part the pool refuses emits PART_SKIPPED)
 #   -> the held button's continuous step (every part that can run, paid energy_per_second * delta
-#   dearest first, ticks one a second of running) -> behaviour.process -> drive. The drive cost is
+#   dearest first, ticks one a second of running) -> behaviour.process -> drive. Before any of that,
+#   the fight's own checks run on its clock: a new hull contact at RAM_SPEED emits RAMMED, and a
+#   chariot touching down after LANDED_AFTER seconds in the air emits LANDED. The drive cost is
 #   paid inside energy.tick, before the volley and the hold, so drive() only ever runs for a drive
 #   that was paid, which is the global "driving is paid first" rule and why drive() comes last.
 
@@ -20,6 +22,8 @@ const STATUS_SECOND := 1.0  # seconds between status seconds
 const ACID_EATS: Array[StringName] = [&"sand", &"dirt", &"wood", &"coal", &"gunpowder", &"tnt", &"battery", &"steel"]  # what Acid dissolves
 
 const STEAM_PUFF := 4  # steam particles when Flame and Wet cancel
+const RAM_SPEED := 20.0  # cells/s toward the other hull that a touching contact needs to count as a ram
+const LANDED_AFTER := 0.2  # seconds airborne before touching down again counts as a landing
 
 var world: PixelWorld = null
 var bus: ChEventBus = null
@@ -41,6 +45,13 @@ var _battle_started: bool = false  # BATTLE_STARTED emitted once by the first ti
 # across every part that forces (R15: two gearboxes in range of one weapon force it once).
 var _forced_at := {}  # part -> ctx.time
 var _modifiers: Array = []  # behaviours whose own script declares modify_stat or modify_gain, in side/mount order
+# The hulls' boxes are touching, so this contact has already been counted: a contact ends when they
+# stop overlapping, and the next overlap is a new one whether or not anybody moved in between.
+var _ram_contact: bool = false
+# Seconds each side has been airborne, and whether it was on the last tick: an airborne -> grounded
+# transition that lasted LANDED_AFTER or more is a landing.
+var _airborne_for: Array[float] = []
+var _was_airborne: Array[bool] = []
 
 # Stat names ChBattleContext.stat asks about: a behaviour's modify_stat is handed one of these.
 const STAT_ENERGY_COST := &"energy_cost"
@@ -691,6 +702,87 @@ func volley_cost(chariot: ChChariotRuntime) -> int:
 	return total
 
 
+# Emits RAMMED when the two hulls start to overlap at ramming speed, once per contact. The boxes
+# (and each one grown 1 cell, so a face landing flush still counts) are the hull boxes the rest of the
+# fight measures; a contact ends when they stop overlapping, so the next touch is a new ram.
+func _check_ram() -> void:
+	if chariots.size() < 2:
+		_ram_contact = false
+		return
+	var a: ChChariotRuntime = chariots[0]
+	var b: ChChariotRuntime = chariots[1]
+	if a == null or b == null or a.chassis == null or b.chassis == null \
+			or not is_instance_valid(a.chassis) or not is_instance_valid(b.chassis):
+		_ram_contact = false
+		return
+	if not a.status_box().grow(1.0).intersects(b.status_box().grow(1.0)):
+		_ram_contact = false
+		return
+	if _ram_contact:
+		return
+	_ram_contact = true
+	# Both sides can ram in one contact: each one's own speed toward the other decides.
+	_try_ram(a, b)
+	_try_ram(b, a)
+
+func _try_ram(rammer: ChChariotRuntime, other: ChChariotRuntime) -> void:
+	var toward := other.anchor_world() - rammer.anchor_world()
+	if toward.length() <= 0.0:
+		return
+	if rammer.chassis.linear_velocity.dot(toward.normalized()) < RAM_SPEED:
+		return
+	var overlap: Rect2 = rammer.status_box().grow(1.0).intersection(other.status_box().grow(1.0))
+	var at: Vector2 = overlap.get_center() if overlap.size.x > 0.0 and overlap.size.y > 0.0 \
+			else (rammer.anchor_world() + other.anchor_world()) * 0.5
+	var event := ChEvent.new()
+	event.type = ChEvent.RAMMED
+	event.side = rammer.side
+	event.source = rammer
+	event.position = at
+	event.data = {"target_part": _nearest_part(other, at)}
+	bus.emit(event)
+
+# The other side's unbroken part nearest `at`, or null for the hull: the part a ram pays.
+func _nearest_part(chariot: ChChariotRuntime, at: Vector2) -> ChPartRuntime:
+	var best: ChPartRuntime = null
+	var best_at := INF
+	for part in chariot.parts:
+		if part.broken or part.def == null:
+			continue
+		var near := part.anchor_world().distance_to(at)
+		if near < best_at:
+			best_at = near
+			best = part
+	return best
+
+# Emits LANDED for each side that touched down after LANDED_AFTER or more seconds in the air.
+func _check_landings(delta: float) -> void:
+	while _airborne_for.size() < chariots.size():
+		_airborne_for.append(0.0)
+		_was_airborne.append(false)
+	for at in chariots.size():
+		var chariot: ChChariotRuntime = chariots[at]
+		# A hull that has left the world is nobody's landing: the walk resets rather than emitting
+		# for a chariot that was freed mid-fight.
+		if chariot == null or chariot.chassis == null or not is_instance_valid(chariot.chassis):
+			_airborne_for[at] = 0.0
+			_was_airborne[at] = false
+			continue
+		if chariot.airborne():
+			_was_airborne[at] = true
+			_airborne_for[at] += delta
+			continue
+		if _was_airborne[at] and _airborne_for[at] >= LANDED_AFTER:
+			var event := ChEvent.new()
+			event.type = ChEvent.LANDED
+			event.side = chariot.side
+			event.source = chariot
+			event.position = chariot.anchor_world()
+			bus.emit(event)
+		_was_airborne[at] = false
+		_airborne_for[at] = 0.0
+
+
 func tick(delta: float, drive_input: Array[float], press_input: Array = [], hold_input: Array = []) -> Array[int]:
 	# One frame of the fight for every chariot, in the order this file's header states. Answers the
 	# number of parts each side fired this frame, indexed by side. hold_input is the held button per
@@ -701,6 +793,8 @@ func tick(delta: float, drive_input: Array[float], press_input: Array = [], hold
 		event.type = ChEvent.BATTLE_STARTED
 		bus.emit(event)
 	time += delta
+	_check_ram()
+	_check_landings(delta)
 	_tick_fuses(delta)
 	if world != null:
 		hazards.apply(self, world.take_blasts())

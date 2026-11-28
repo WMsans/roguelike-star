@@ -4,6 +4,9 @@ class_name ChChariotRuntime extends RefCounted
 # off it. `parts` is depth-first, so a part comes before what is bolted onto it.
 
 var side: int = 0  # 0 = the player's chariot, 1 = the enemy's (the ChariotLayout index)
+# The arena this chariot was built into. airborne() asks it which bodies touch the floor; unset on a
+# runtime hand-built by a test, where airborne() answers false rather than reading a missing world.
+var world: PixelWorld = null
 var body_def: ChBodyDef = null  # the def this chassis was built from
 var hp: int = 0  # body HP left; the builder seeds it from max_hp
 # Starting HP: the layout's max_hp, set by the builder. Unset (0) reads as the body's own hp, so a
@@ -51,6 +54,23 @@ func wheels() -> Array[ChPartRuntime]:
 		if part.def != null and part.def.is_wheel():
 			out.append(part)
 	return out
+
+
+func airborne() -> bool:
+	# No wheel and not the chassis has a floor contact: the whole rig is in the air. A broken wheel
+	# is out of the fight (its joint is gone and its body lies on the ground), so it cannot ground a
+	# chariot that has left the floor.
+	if world == null or chassis == null or not is_instance_valid(chassis):
+		return false
+	var bodies: Array = [chassis]
+	for wheel in wheels():
+		if wheel.broken or wheel.body == null or not is_instance_valid(wheel.body):
+			continue
+		bodies.append(wheel.body)
+	for bits in world.body_contacts(bodies):
+		if bits & PixelWorld.SIDE_FLOOR:
+			return false
+	return true
 
 
 func drive_cost() -> float:

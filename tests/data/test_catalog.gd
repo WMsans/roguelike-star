@@ -44,6 +44,9 @@ const PART_IDS: Array[StringName] = [
 	# Task 16's Grinder parts (U31-U36, R15-R17).
 	&"buzzsaw_arm", &"hot_teeth", &"gear_train", &"heavy_grinder", &"rotary_drill",
 	&"overdrive_clutch", &"meshing_gearbox", &"bloodsaw", &"grinding_engine",
+	# Task 17's Rammer parts (U73-U77, R32-R33).
+	&"ram_spike", &"booster_rocket", &"pogo_spring", &"spiked_wheel", &"harpoon",
+	&"juggernaut", &"wrecking_gear",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 

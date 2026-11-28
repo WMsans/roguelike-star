@@ -17,6 +17,7 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		return null
 	var runtime: ChChariotRuntime = ChChariotRuntime.new()
 	runtime.side = side
+	runtime.world = world
 	runtime.body_def = body_def
 	runtime.max_hp = layout.max_hp if layout.max_hp > 0 else body_def.hp
 	runtime.hp = runtime.max_hp
