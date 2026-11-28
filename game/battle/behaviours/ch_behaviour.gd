@@ -185,6 +185,13 @@ func modify_incoming(ctx: ChBattleContext, hit: Dictionary) -> void:
 	# shortcut: no key is required, and a behaviour that changes nothing answers by doing nothing.
 	pass
 
+# Asked by ChBattleContext.lose_hp when the loss would take the chariot to 0 HP or below: answer
+# true to survive at 1 HP, which ends the walk. The chariot's unbroken parts are asked in mount
+# order and the first true is the only one asked, so a save is once per blow, not per part.
+func prevent_death(ctx: ChBattleContext, chariot: ChChariotRuntime) -> bool:
+	# shortcut: the base never saves its chariot, so a behaviour with no would-die trigger keeps this.
+	return false
+
 # Asked by ChRun.run_stat to fold a run-level stat, on a throwaway instance with part = null: base
 # returns the value unchanged, modifiers may raise or lower it.
 func run_stat(run: ChRun, state: Dictionary, stat: StringName, value: int) -> int:

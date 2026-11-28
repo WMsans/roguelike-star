@@ -107,10 +107,10 @@ func test_themes_threshold() -> void:
 	var phase := _phase()
 	var themes: Array[StringName] = phase.available_themes()
 	themes.sort()
-	# Every theme with at least MIN_MATCHING distinct items on disk. Tricky stays out: no part on
-	# disk carries the tricky tag (the Acid Eater batch is what gave acid its third item).
+	# Every theme with at least MIN_MATCHING distinct items on disk. Tricky reaches 3 with Task 15's
+	# Last Stand batch (the Adrenaline Injector, the Last Rites and the Death Wish).
 	var expected: Array[StringName] = [&"acid", &"attack", &"body", &"defence", &"earth", &"electric",
-		&"fire", &"ice", &"passive", &"stats", &"triggered", &"weapon", &"wind"]
+		&"fire", &"ice", &"passive", &"stats", &"tricky", &"triggered", &"weapon", &"wind"]
 	expected.sort()
 	assert_eq(themes, expected, "every theme with at least 3 matching items, and no other")
 	_complete()

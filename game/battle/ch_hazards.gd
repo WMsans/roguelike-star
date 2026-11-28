@@ -79,8 +79,10 @@ func apply(ctx: ChBattleContext, blasts: Array) -> void:
 			# through the one HP-loss path so a blast announces what it cost.
 			var block: int = chariot.statuses.count(ChStatuses.BLOCK)
 			var result := ChDamage.hit_body(chariot.hp, damage, 1.0, block)
-			ctx.lose_hp(chariot, chariot.hp - result.hp, &"blast")
+			# Block pays before HP does: the pool is written first, so a would-die save that adds Block
+			# during lose_hp is not wiped by the pre-hit reading.
 			chariot.statuses.stacks[ChStatuses.BLOCK] = result.block
+			ctx.lose_hp(chariot, chariot.hp - result.hp, &"blast")
 			ctx._block_used(chariot, block)
 			# The body's Block shields the hull, not the parts, so they wear by the blast's damage.
 			_wear(ctx, chariot, centre, radius, damage)

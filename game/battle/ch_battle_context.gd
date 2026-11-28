@@ -168,7 +168,12 @@ func lose_hp(chariot: ChChariotRuntime, amount: int, cause: StringName, source: 
 	if chariot == null or amount <= 0:
 		return 0
 	var before := chariot.hp
-	chariot.hp = maxi(0, chariot.hp - amount)
+	# A blow that would end a living chariot asks the would-die hook first. A chariot already at 0 is
+	# not asked again: it is dead, not about to die, so a later hit cannot revive it.
+	if before > 0 and before - amount <= 0 and _prevent_death(chariot):
+		chariot.hp = 1
+	else:
+		chariot.hp = maxi(0, chariot.hp - amount)
 	var lost := before - chariot.hp
 	if lost > 0:
 		# The one event whose source is not the holder: the attacker where there is one, null for a
@@ -181,6 +186,18 @@ func lose_hp(chariot: ChChariotRuntime, amount: int, cause: StringName, source: 
 		event.data = {"amount": lost, "before": before, "after": chariot.hp, "cause": cause}
 		bus.emit(event)
 	return lost
+
+
+# The would-die walk: every unbroken part of the losing chariot in mount order, until one answers
+# true. A part with no behaviour is never asked, the same rule deal_hit's hooks follow.
+func _prevent_death(chariot: ChChariotRuntime) -> bool:
+	for part in chariot.parts:
+		if part == null or part.broken or part.def == null:
+			continue
+		var behaviour = part.behaviour
+		if behaviour != null and behaviour.prevent_death(self, chariot):
+			return true
+	return false
 
 
 func heal(chariot: ChChariotRuntime, amount: int) -> int:
@@ -561,8 +578,10 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 		result = ChDamage.hit_part(target_chariot.hp, target_part.integrity,
 			applied, hit["multiplier"], 0.5, block, hit["block_mult"])
 		target_part.integrity = result["integrity"]
-	var damage_out: int = lose_hp(target_chariot, target_chariot.hp - result["hp"], &"hit", source)
+	# Block pays before HP does: the hole in the pool is written first, so a would-die save that adds
+	# Block during lose_hp is not wiped by the pre-hit reading.
 	holder.statuses.stacks[ChStatuses.BLOCK] = result["block"]
+	var damage_out: int = lose_hp(target_chariot, target_chariot.hp - result["hp"], &"hit", source)
 	var soaked: int = block - result["block"]
 	if soaked > 0:
 		# Block took part of the hit: the holder says so, and the attacker is named on both events.
