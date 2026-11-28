@@ -167,11 +167,47 @@ func test_mimic_copies_a_chainsaw_and_holds() -> void:
 	_complete()
 
 
+# R37: a wheel is not a part in a slot ahead to copy. The left wheel sits one cell ahead of
+# slot 0, so the old "nearest part ahead" rule copied it and gave the Mimic the wheel tag and mode,
+# which put it back in chariot.wheels() as a wheel that cannot motorise.
+func test_mimic_with_a_wheel_ahead_stays_inert() -> void:
+	var ctx := await duel([[[0], &"mimic_module"]])
+	var mimic := of(ctx, 0, &"mimic_module")
+	assert_true(mimic != null, "the Mimic mounted")
+	if mimic == null:
+		_complete()
+		return
+	ctx.setup_all()
+	assert_eq(mimic.def.id, &"mimic_module", "the Mimic keeps its own id")
+	assert_eq(mimic.def.mode, ChPartDef.MODE_PASSIVE, "it stays passive")
+	assert_true(not mimic.def.is_wheel(), "and it did not become a wheel")
+	assert_true(not ctx.chariots[0].wheels().has(mimic), "the chariot does not motorise it")
+	_complete()
+
+
+# R37: the Mimic copies the slot immediately ahead, not the next part along its facing. A chainsaw
+# two slots ahead with slot 3 empty is out of reach.
+func test_mimic_with_a_gap_ahead_stays_inert() -> void:
+	var ctx := await duel([[[2], &"mimic_module"], [[4], &"chainsaw"]])
+	var mimic := of(ctx, 0, &"mimic_module")
+	assert_true(mimic != null, "the Mimic mounted")
+	if mimic == null:
+		_complete()
+		return
+	ctx.setup_all()
+	assert_eq(mimic.def.id, &"mimic_module", "the Mimic keeps its own id")
+	assert_eq(mimic.def.damage, 0, "a part two slots ahead is not copied")
+	assert_eq(mimic.def.mode, ChPartDef.MODE_PASSIVE, "so it stays passive")
+	assert_true(mimic.behaviour != null and mimic.behaviour.has_method("resolve"),
+		"with no copy taken")
+	_complete()
+
+
 # R37 and parts-list §6: two Mimic Modules facing each other copy nothing and the fight runs on.
+# Slots 0 and 1: the two face each other in adjacent slots, and the left wheel a cell ahead of the
+# left Mimic is not copied either, so the wheel case cannot hide behind the Mimic rule.
 func test_two_mimics_do_nothing() -> void:
-	# Slots 4 and 5, so the two face each other and no wheel is the nearest part ahead of either
-	# (the left wheel sits behind the left Mimic, the right wheel past its front part).
-	var ctx := await duel([[[4], &"mimic_module"], [[5], &"mimic_module", true]])
+	var ctx := await duel([[[0], &"mimic_module"], [[1], &"mimic_module", true]])
 	ctx.setup_all()
 	var mimics: Array[ChPartRuntime] = []
 	for part in ctx.chariots[0].parts:
