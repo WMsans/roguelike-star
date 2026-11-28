@@ -205,8 +205,8 @@ func test_lightning_bolt_150_damage_and_a_large_explosion() -> void:
 	_complete()
 
 
-# R09: the Superconductor doubles the Shock damage on its own side and refuses Shock to its own parts.
-func test_superconductor_doubles_own_shock_and_refuses_it_on_own_parts() -> void:
+# R09: the Superconductor doubles the Shock damage on the enemy side and refuses Shock to its own parts.
+func test_superconductor_doubles_enemy_shock_and_refuses_it_on_own_parts() -> void:
 	var ctx := await duel([[[6], &"superconductor"], [[7], &"spare_cell"]],
 		[[[0], &"reinforced_frame"]], 60.0)
 	ctx.setup_all()
@@ -221,6 +221,6 @@ func test_superconductor_doubles_own_shock_and_refuses_it_on_own_parts() -> void
 	var hp_before := body.hp
 	var integrity_before := foe.integrity
 	await step(ctx, 1.1)
-	assert_eq(hp_before - body.hp, 6, "the body's 3 Shock dealt 6")
-	assert_eq(integrity_before - foe.integrity, 3, "and the enemy's 3 Shock dealt 3")
+	assert_eq(hp_before - body.hp, 3, "the body's 3 Shock dealt 3")
+	assert_eq(integrity_before - foe.integrity, 6, "and the enemy's 3 Shock dealt 6")
 	_complete()
