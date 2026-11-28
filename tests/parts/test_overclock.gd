@@ -198,6 +198,29 @@ func test_perpetual_gear_and_linkage_loop_ends() -> void:
 	_complete()
 
 
+# Review Focus 4's real loop: two Perpetual Gears in adjacent slots, the leading one flipped, so
+# each is the other's `_front_part`. One that answered another gear's hand-out would double until the
+# int64 wraps, which ends the chain silently: the wrapped non-positive amount makes give_status
+# return early, so the bus's cap never trips. The hand-out carries the `perpetual` cause, so a gear
+# refuses it and the chain stops after one round.
+func test_adjacent_perpetual_gears_do_not_feed_each_other() -> void:
+	var ctx := await duel([[[3], &"perpetual_gear"], [[4], &"perpetual_gear", true]])
+	var left := _at(ctx, 0, 3)
+	var right := _at(ctx, 0, 4)
+	assert_true(left != null and right != null, "the two adjacent gears mounted")
+	if left == null or right == null:
+		_complete()
+		return
+	ctx.give_status(left, ChStatuses.SPEEDUP, 1)
+	assert_eq(left.statuses.count(ChStatuses.SPEEDUP), 1, "the left gear keeps its 1")
+	assert_eq(right.statuses.count(ChStatuses.SPEEDUP), 2,
+		"the left gear's one hand-out gives the right gear 2 and no more")
+	assert_true(not ctx.bus.capped, "the chain stopped on its own, without the bus's cap")
+	await step(ctx, 10.0)
+	assert_true(ctx.time >= 10.0, "the fight reached 10 s")
+	_complete()
+
+
 # R26: Speedup runs an own part's cooldown at 3x; no Speedup stays 1x, and an enemy part stays 2x.
 func test_overdrive_runs_own_speedup_at_triple_speed() -> void:
 	var ctx := await duel([[[5], &"overdrive"], [[6], &"reinforced_frame"], [[7], &"reinforced_frame"]],
