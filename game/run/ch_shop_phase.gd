@@ -292,6 +292,13 @@ func _mount_body(id: StringName) -> void:
 			if run.inventory.add(part_id, entry[&"state"]):
 				continue
 			var def: ChPartDef = catalog.part(part_id)
+			# An auto-sell is a sale: the sold part hears "sold_self" (the Safe's 3 gold) and every part
+			# still owned hears "sold" (the Scrap Cannon's +5), exactly as sell() has it. The sold part
+			# is never in the layout or the inventory at this point, so announce cannot reach it back.
+			if def != null and def.behaviour != null:
+				var behaviour = def.behaviour.new()
+				behaviour.run_event(run, entry[&"state"], &"sold_self", {})
+			run.announce(&"sold", {&"id": part_id, &"state": entry[&"state"]})
 			# A part with no def cannot be priced, so it is the one thing this swap can lose; the
 			# catalog keeps every mountable id, so it does not happen in a run.
 			if def != null:

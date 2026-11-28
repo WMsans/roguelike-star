@@ -563,6 +563,26 @@ func test_mount_from_inventory() -> void:
 	_complete()
 
 
+func test_hold_carries_the_copy_it_names() -> void:
+	# Two carried copies of one id, each with its own state: the hold names the copy, so the drop mounts
+	# the second one's state and leaves the first copy carried and untouched.
+	var inventory := ChInventory.new()
+	assert_true(inventory.add(&"scrap_cannon", {&"damage_bonus": 10}), "the first copy is carried")
+	assert_true(inventory.add(&"scrap_cannon", {&"damage_bonus": 20}), "so is the second")
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage(inventory, layout, _catalog())
+	garage.hold(&"scrap_cannon", 1)
+	assert_eq(garage.held_index, 1, "the hold knows which copy it is")
+	garage.click_pit(garage.screen_of([0]))
+	assert_eq(int(layout.get_node([0]).state.get(&"damage_bonus", 0)), 20,
+		"the second copy's state is the one that mounted")
+	assert_eq(inventory.part_ids.size(), 1, "one copy is still carried")
+	assert_eq(int(inventory.states[0].get(&"damage_bonus", 0)), 10,
+		"and it is the first copy, untouched")
+	garage.free()
+	_complete()
+
+
 func test_mount_refused_restores() -> void:
 	var inventory := _inventory([&"roller", &"strut"])
 	var layout := _layout(&"cutter")

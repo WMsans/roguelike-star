@@ -238,6 +238,26 @@ func test_bar_to_pit_mounts() -> void:
 	_complete()
 
 
+func test_bar_click_holds_the_copy_it_names() -> void:
+	# The bar clicks a card by index, so the hold it starts names that copy: with two carried copies of
+	# one id, the pit gets the second one's state and the first copy stays carried, untouched.
+	var screen := _screen()
+	assert_true(screen.run.inventory.add(&"scrap_cannon", {&"damage_bonus": 10}), "the first copy")
+	assert_true(screen.run.inventory.add(&"scrap_cannon", {&"damage_bonus": 20}), "the second copy")
+	screen.bar.refresh()
+	screen._on_toggle()
+	var path := _free_path(screen)
+	assert_true(not path.is_empty(), "the starting build leaves a free slot")
+	screen._on_bar_clicked(1)
+	screen.garage.click_pit(screen.garage.screen_of(path))
+	assert_eq(int(screen.run.layout.get_node(path).state.get(&"damage_bonus", 0)), 20,
+		"the second copy's state mounted")
+	assert_eq(screen.run.inventory.part_ids.size(), 1, "one copy is still carried")
+	assert_eq(int(screen.run.inventory.states[0].get(&"damage_bonus", 0)), 10,
+		"and it is the first copy, untouched")
+	_complete()
+
+
 func test_toggle_keeps_stage() -> void:
 	var screen := _screen()
 	screen._on_option_clicked(0)

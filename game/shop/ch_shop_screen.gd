@@ -268,7 +268,7 @@ func _on_bar_clicked(index: int) -> void:
 		return
 	var ids: Array[StringName] = run.inventory.part_ids
 	if index >= 0 and index < ids.size():
-		garage.hold(ids[index])
+		garage.hold(ids[index], index)
 
 
 func _on_bar_dropped(index: int, at: Vector2) -> void:

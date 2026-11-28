@@ -122,6 +122,49 @@ func test_auto_sold_counts_parts_sold() -> void:
 	_complete()
 
 
+# An auto-sell is a sale like any other: the part sold hears "sold_self" (the Safe's 3 gold), every
+# other owned part hears "sold" (the Scrap Cannon's +5), and the count rises.
+func test_auto_sold_announces_the_sale() -> void:
+	var catalog := _catalog()
+	var run := ChRun.start(7, catalog)
+	run.layout.swap_body(catalog.body(&"dozer"), catalog)
+	# A hull of nothing but Safes, so every part the swap cannot seat is one whose own sale pays 3.
+	var mounted: Array = []
+	for path in run.layout.all_paths():
+		if path.size() == 1:
+			mounted.append(_typed_path(path))
+	for path in mounted:
+		run.layout.remove(path)
+	for slot in catalog.body(&"dozer").slots.size():
+		assert_true(run.layout.place(_typed_path([slot]), &"safe"), "a Safe in slot %d" % slot)
+	# The cannon is carried with its own state and hears the others' sales; the rest fills the kit so
+	# the swap's overflow has nowhere to land.
+	assert_true(run.inventory.add(&"scrap_cannon"), "the cannon is carried")
+	run.refresh_capacity()
+	for i in 32:
+		if run.inventory.free_slots() <= 0:
+			break
+		assert_true(run.inventory.add(&"strut"), "fill carried slot %d" % i)
+	assert_eq(run.inventory.free_slots(), 0, "the kit is full")
+	var carried_before := run.inventory.part_ids.size()
+	var phase := ChShopPhase.new(run, catalog)
+	phase.picked = {&"kind": &"shop"}
+	phase.items = [{"id": &"cutter", "is_body": true, "rarity": &"common",
+		"price": 2, "taken": false}]
+	run.gold = 2
+	assert_true(phase.buy(0), "the Cutter is swapped in")
+	assert_eq(phase.auto_sold.size(), 2, "two Safes found no seat")
+	assert_eq(run.inventory.part_ids.size(), carried_before, "the full kit takes nothing")
+	assert_eq(run.parts_sold, 2, "both auto-sells are counted")
+	assert_eq(int(run.inventory.states[0].get(&"damage_bonus", 0)), 10,
+		"the carried cannon heard both sales")
+	var gained := 0
+	for id in phase.auto_sold:
+		gained += ChPrices.sell_value(catalog.part(id).rarity) + 3
+	assert_eq(run.gold, 2 - 2 + gained, "each sold Safe paid its sell value and its own 3 gold")
+	_complete()
+
+
 # rerolls_this_shop is the per-shop counter the Trade-In Coupon reads: the phase resets it.
 func test_rerolls_counter_resets_each_shop() -> void:
 	var catalog := _catalog()
