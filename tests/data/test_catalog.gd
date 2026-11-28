@@ -25,6 +25,8 @@ const PART_IDS: Array[StringName] = [
 	# Task 9's Deep Freeze parts (U07-U13, R04-R06).
 	&"rainmaker", &"cryo_cannon", &"icebreaker", &"antifreeze_coat", &"cold_snap",
 	&"freeze_ray", &"ice_scope", &"absolute_zero", &"permafrost", &"glacier_engine",
+	# Task 10's Steam parts (U69-U72, R31).
+	&"boiler", &"pressure_valve", &"thermal_shock_gun", &"condenser", &"steam_engine",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 
