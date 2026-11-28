@@ -37,6 +37,18 @@ func _landed(ctx: ChBattleContext, side: int) -> void:
 	ctx.bus.emit(event)
 
 
+# Seats an enemy part 2 cells under the hull's bottom edge, inside the row's 8: its joint is freed
+# and it hangs off the floor, because no flat arena puts an enemy part under a hull that rests on its
+# own wheels. Only the seating is rigged; the jump and the landing are the physics'.
+func _seat_below(target: ChPartRuntime, player: ChChariotRuntime) -> void:
+	if target.joint != null and is_instance_valid(target.joint):
+		target.joint.queue_free()
+	target.body.gravity_scale = 0.0
+	target.body.terrain_collision = false
+	var hull := player.status_box()
+	target.body.teleport(Vector2(hull.get_center().x, hull.end.y + 4.0))
+
+
 # The own chariots' hulls start apart (gap 80: two 60-wide boxes), settle on the rock, then touch
 # at rest and charge in at `speed`. Answers the RAMMED sink for the caller to count.
 func _ram(ctx: ChBattleContext, speed := RAM_SPEED + 5.0) -> Array:
@@ -80,24 +92,32 @@ func test_ram_spike_40_on_the_part_rammed() -> void:
 	_complete()
 
 
-# U74: the press launches the chariot forward.
+# U74: the press launches the chariot along the way its slot faces, on both sides of the mirror.
 func test_booster_rocket_launches_forward() -> void:
-	var ctx := await duel([[[7], &"booster_rocket"]], [], 80.0)
+	var ctx := await duel([[[7], &"booster_rocket"]], [[[7], &"booster_rocket"]], 80.0)
 	ctx.world.simulating = false
 	var rocket := of(ctx, 0, &"booster_rocket")
-	assert_true(rocket != null, "the booster mounted")
+	var foe_rocket := of(ctx, 1, &"booster_rocket")
+	assert_true(rocket != null and foe_rocket != null, "a booster on each side")
 	await _roll(ctx, 40)
 	var player := ctx.chariots[0]
+	var foe := ctx.chariots[1]
 	rocket.cooldown_left = 0.0
 	ctx.tick(TICK, [0.0, 0.0], [true, false], [])
 	assert_true(player.chassis.linear_velocity.x > 0.0, "the launch pushes the hull along its facing")
 	var start_x := player.chassis.global_position.x
 	await _roll(ctx, 30)
 	assert_true(player.chassis.global_position.x > start_x, "and the hull travels forward")
+	# The enemy is mirrored by flipped slots and negated anchors, never by its chassis rotation, so a
+	# chassis-rotation launch would send it the same way. Its slot faces -x, and so must the launch.
+	foe_rocket.cooldown_left = 0.0
+	ctx.tick(TICK, [0.0, 0.0], [false, true], [])
+	assert_true(foe.chassis.linear_velocity.x < 0.0, "the mirrored slot launches the other way")
 	_complete()
 
 
-# U75: the press jumps, and the next landing deals 30 to the parts underneath.
+# U75: the press jumps for real, and the landing the physics produces deals 30 to enemy parts under
+# the hull.
 func test_pogo_spring_jumps_and_30_on_the_next_landing() -> void:
 	var ctx := await duel([[[7], &"pogo_spring"]], [[[0], &"reinforced_frame"]], 80.0)
 	ctx.world.simulating = false
@@ -107,23 +127,30 @@ func test_pogo_spring_jumps_and_30_on_the_next_landing() -> void:
 	await _roll(ctx, 40)
 	var player := ctx.chariots[0]
 	var hits := sink(ctx, ChEvent.HIT)
-	# The part waits 4 cells under the hull, inside the row's 8.
-	target.body.global_position = Vector2(player.chassis.global_position.x,
-		player.status_box().end.y + 4.0)
-	# A landing that is not the jump's pays nothing: the spring is armed by its firing.
+	# A landing that is not the jump's pays nothing: the spring is armed by its press.
 	_landed(ctx, 0)
 	assert_eq(_paid(hits, pogo), [], "a landing before the press is not the jump")
+	var landings := sink(ctx, ChEvent.LANDED)
+	_seat_below(target, player)
 	pogo.cooldown_left = 0.0
-	var fall := player.chassis.linear_velocity.y
 	ctx.tick(TICK, [0.0, 0.0], [true, false], [])
-	assert_true(player.chassis.linear_velocity.y < fall - 1.0, "the spring shoves the hull up")
-	_landed(ctx, 0)
+	var air := 0
+	for _tick in range(180):
+		await Engine.get_main_loop().process_frame
+		ctx.world.step(1)
+		ctx.tick(TICK, [0.0, 0.0], [], [])
+		if player.airborne():
+			air += 1
+		if not landings.is_empty():
+			break
+	assert_eq(landings.size(), 1, "the jump lands on its own")
+	assert_true(air >= 12, "the jump clears the 0.2 s landing gate (%s ticks airborne)" % air)
 	assert_eq(_paid(hits, pogo), [30], "30 to the part underneath")
 	if hits.size() == 1:
 		assert_true(hits[0].data["target_part"] == target, "the part under the hull took it")
-	# The next landing is not the jump's: the spring pays once.
+	# The landing paid once: the spring is disarmed by it.
 	_landed(ctx, 0)
-	assert_eq(_paid(hits, pogo), [30], "only the next landing pays")
+	assert_eq(_paid(hits, pogo), [30], "only the jump's landing pays")
 	_complete()
 
 

@@ -4,7 +4,10 @@ extends ChBehaviour
 # is underneath the hull. Only the jump's own landing pays: a landing the spring did not fire for is
 # not its jump, so the part is armed by fire() and disarmed by the landing that follows.
 
-const LAUNCH := 700.0  # impulse up
+# Cells a second up, times the hull's mass, so every body clears the landing gate the same way. A bare
+# hull needs 60 for the gate's 0.2 s at gravity 600, but the rig's wheel springs keep the wheels down
+# until a faster jump drags them off the floor: 200 measures 0.35 s airborne on the 336 kg rig.
+const JUMP_SPEED := 200.0
 const DAMAGE := 30
 const BELOW := 8.0  # cells under the hull's box that count as underneath
 
@@ -16,7 +19,13 @@ func setup(ctx: ChBattleContext) -> void:
 
 
 func fire(ctx: ChBattleContext) -> void:
-	ctx.push(ctx.own(part), Vector2(0.0, -LAUNCH))
+	var own := ctx.own(part)
+	if own == null or own.chassis == null or not is_instance_valid(own.chassis):
+		return
+	var mass := own.chassis.get_mass()
+	if mass <= 0.0:
+		return
+	ctx.push(own, Vector2(0.0, -mass * JUMP_SPEED))
 	_jumping = true
 
 
