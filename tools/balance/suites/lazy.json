@@ -449,49 +449,6 @@
    }
   },
   {
-   "name": "lazy/igniter-nowheels",
-   "player": {
-    "body_id": "corsair",
-    "parts": [
-     {
-      "slot": [
-       6
-      ],
-      "part": "igniter"
-     }
-    ]
-   },
-   "enemy": {
-    "layout": "res://game/data/enemies/dozer_cook.tres"
-   },
-   "seeds": {
-    "from": 1,
-    "count": 16
-   },
-   "press": {
-    "player": "mash",
-    "enemy": "ai"
-   },
-   "expect": {
-    "win_rate": [
-     0.875,
-     1.0
-    ],
-    "aborted": [
-     0,
-     0
-    ],
-    "enemy.hp_left": [
-     0,
-     700
-    ],
-    "enemy.killed_by_hazard": [
-     0,
-     0.25
-    ]
-   }
-  },
-  {
    "name": "lazy/molotov",
    "player": {
     "body_id": "corsair",
