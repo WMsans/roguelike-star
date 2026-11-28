@@ -11,6 +11,9 @@ const WAIT_FRAMES = 600
 
 var failures: Array[String] = []
 var completed: int = 0
+# A known-fail test calls skip() instead of running its body: run_tests.gd prints the reason as a
+# SKIP line, so the skip stays visible in the suite output instead of reading as a pass.
+var skipped: String = ""
 # What this test instance added to the tree, freed by _complete(). The suite used to leave most
 # of it behind (38 make_world calls against 14 world.free(), and every _parent() Node2D plus the
 # bodies and joints under it never freed), which is what made Godot report 321 leaked ObjectDB
@@ -25,6 +28,20 @@ func _track(node: Node) -> Node:
 
 
 func _complete() -> void:
+	_free_tracked()
+	completed += 1
+
+
+func skip(reason: String) -> void:
+	skipped = reason
+	_complete()
+
+
+# Frees everything this test has put in the tree so far and stops tracking it: the same order and
+# the same reason _complete frees it. _complete calls it once at the end; a test that builds a world
+# per iteration (the part sweep) calls it per iteration, so one arena is alive at a time instead of
+# one per entry.
+func _free_tracked() -> void:
 	# Nodes are freed in the order they were made: a PixelRigidBody or joint leaves before the world
 	# it joined, so the body detaches from a Box2D world that is still alive (PixelWorld's own
 	# predelete detaches whatever is left, but only for a world that outlives its bodies).
@@ -32,7 +49,6 @@ func _complete() -> void:
 		if is_instance_valid(node):
 			node.free()
 	_tracked.clear()
-	completed += 1
 
 
 func _parent() -> Node2D:
@@ -105,7 +121,7 @@ func _player_layout() -> ChChariotLayout:
 	# Rocket in slot 3 (6, -3), unflipped so it fires +x, which is the way the player faces.
 	var layout := ChChariotLayout.new()
 	layout.body_id = &"cutter"
-	for mount in [[[0], &"wheel"], [[1], &"wheel"], [[3], &"cutter_rocket"]]:
+	for mount in [[[0], &"roller"], [[1], &"roller"], [[3], &"rocket_pod"]]:
 		assert_true(layout.place(_typed_path(mount[0]), mount[1]), "%s mounts" % [_typed_path(mount[0])])
 	return layout
 

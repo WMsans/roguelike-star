@@ -16,8 +16,8 @@ class_name ChGarage extends Control
 # mount from the bar takes the copy by index and removes it only after the place landed. The tooltip
 # reads the DEF, never a runtime: no fight has run yet, so cooldown_left, integrity and charges_left
 # do not exist here.
-# Nothing leaves the inventory on a pick: a part in hand is only an id, so a fight asked for or a hold
-# cancelled mid-way can lose nothing (both clear the hold first).
+# Nothing leaves the inventory on a pick: a part in hand is only an id and its index, so a fight asked
+# for or a hold cancelled mid-way can lose nothing (both clear the hold first).
 
 # After any mount, lift or flip: the bar refreshes its cards from it. Not on a refusal, where nothing
 # changed. Same-tick duplicates are fine - the bar just redraws.
@@ -40,6 +40,7 @@ var inventory: ChInventory = null
 var layout: ChChariotLayout = null
 var catalog: ChCatalog = null
 var held_id: StringName = &""  # the carried part in hand; &"" when nothing is
+var held_index := -1  # which carried copy the hold names; -1 when the id alone says it
 var hover_path: Array[int] = []  # the mounted part under the pointer, empty when nothing is
 
 var _pit: Control = null  # the input surface: a click here places, lifts, flips or drags a piece
@@ -91,15 +92,19 @@ func _typed(path) -> Array[int]:
 	return steps
 
 
-func drop_part(part_id: StringName, path) -> bool:
-	# has -> place -> take is the one order that keeps every part: a taken slot refuses at place
-	# so nothing was lifted, and take cannot fail after the has() that just passed.
+func drop_part(part_id: StringName, path, at := -1) -> bool:
+	# has -> place -> remove_at is the one order that keeps every part: a taken slot refuses at place
+	# so nothing was lifted, and remove_at cannot fail after the has() that just passed.
 	if inventory == null or layout == null or not inventory.has(part_id):
 		return false
+	# A hold names its copy: an index the inventory still answers with this id is that copy, and
+	# anything else (no index, or a list that shifted under the hold) falls back to the first copy.
+	var in_range := at >= 0 and at < inventory.part_ids.size() and inventory.part_ids[at] == part_id
+	var index := at if in_range else inventory.part_ids.find(part_id)
 	var step: Array[int] = _typed(path)
-	if not layout.place(step, part_id):
+	if not layout.place(step, part_id, inventory.states[index]):
 		return false
-	inventory.take(part_id)
+	inventory.remove_at(index)
 	changed.emit()
 	_sync_pit()
 	# After the sync, so the piece the beat kicks is the one the drop just built.
@@ -118,7 +123,8 @@ func mount_from_inventory(index: int, path) -> bool:
 	if index < 0 or index >= inventory.part_ids.size():
 		return false
 	var step: Array[int] = _typed(path)
-	if not layout.place(step, inventory.part_ids[index]):
+	# The copy's own state travels with it: the index is what says which copy of an id it is.
+	if not layout.place(step, inventory.part_ids[index], inventory.states[index]):
 		return false
 	inventory.remove_at(index)
 	changed.emit()
@@ -183,15 +189,17 @@ func click_part(path) -> void:
 		changed.emit()
 
 
-func hold(id: StringName) -> void:
+func hold(id: StringName, index := -1) -> void:
 	# The bar's click: a part comes to hand, and the bar owns "is this card draggable" now, so the
 	# garage asks the inventory nothing - a held id the kit carries none of draws no part and drops
 	# nowhere, which is the refusal that needs no rule here.
+	# The index is the copy the bar clicked, so two carried copies of one id stay two parts.
 	# Holding the part already in hand is how a player puts it back, so that clears the hold instead.
-	if id == held_id:
+	if id == held_id and index == held_index:
 		cancel_hold()
 		return
 	held_id = id
+	held_index = index if index >= 0 else -1
 	if _held_layer != null:
 		_held_layer.queue_redraw()
 	_refresh_tooltip()
@@ -214,7 +222,7 @@ func click_pit(pointer: Vector2) -> void:
 		if slot.is_empty():
 			cancel_hold()
 			return
-		drop_part(held_id, slot[0])
+		drop_part(held_id, slot[0], held_index)
 		cancel_hold()
 		return
 	var path: Array[int] = _hover_at(pointer)
@@ -232,6 +240,7 @@ func right_click_pit(pointer: Vector2) -> void:
 func cancel_hold() -> void:
 	# Putting a part back: the hold is only a reference, so this is the whole of it.
 	held_id = &""
+	held_index = -1
 	if _held_layer != null:
 		_held_layer.queue_redraw()
 	_refresh_tooltip()
@@ -239,7 +248,7 @@ func cancel_hold() -> void:
 
 
 func _lift_branches(branches) -> Array[StringName]:
-	# Whole subtrees go home, parent first: subtree_part_ids is the order a builder needs, which
+	# Whole subtrees go home, parent first: subtree_entries is the order a builder needs, which
 	# is also the order that lets a re-drop mount a parent before the child that needs it.
 	# What does not fit comes back as overflow instead of being dropped on the floor: both callers check
 	# free_slots first (lift the branch, a body swap the whole build), so nothing overflows today. Task
@@ -248,10 +257,11 @@ func _lift_branches(branches) -> Array[StringName]:
 	if inventory == null:
 		return overflow
 	for branch in branches:
-		for id in layout.subtree_part_ids(branch):
+		for entry in layout.subtree_entries(branch):
 			# add never dedupes, so a returning branch really is new copies: it left the pit.
-			if not inventory.add(id):
-				overflow.append(id)
+			# The entry's state goes back with its id, so a lifted Scrap Cannon keeps its damage.
+			if not inventory.add(entry[&"id"], entry[&"state"]):
+				overflow.append(entry[&"id"])
 	return overflow
 
 
@@ -391,7 +401,7 @@ func _copy_of_build() -> ChChariotLayout:
 	for path in layout.all_paths():
 		var step: Array[int] = _typed(path)
 		var node: ChSlotNode = layout.get_node(step)
-		copy.place(step, node.part_id)
+		copy.place(step, node.part_id, node.state)
 		if node.flipped:
 			copy.toggle_flip(step)
 	return copy

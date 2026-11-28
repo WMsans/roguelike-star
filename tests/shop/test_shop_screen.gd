@@ -16,7 +16,7 @@ func _screen(seed := 7) -> ChShopScreen:
 	return screen
 
 
-func _force_shop(screen: ChShopScreen, id := &"wheel", price := 2) -> void:
+func _force_shop(screen: ChShopScreen, id := &"roller", price := 2) -> void:
 	# A shop stage with one real card, so the price and rarity in the assertions are the phase's own.
 	screen.phase.picked = {&"kind": &"shop", &"theme": &"weapon", &"resource": &""}
 	screen.phase.items.clear()
@@ -57,7 +57,7 @@ func _force_pack(screen: ChShopScreen) -> void:
 	# A pack stage with three real parts, so the take rule is the phase's own.
 	screen.phase.picked = {&"kind": &"pack", &"theme": &"weapon", &"resource": &""}
 	screen.phase.items.clear()
-	for id in [&"wheel", &"strut", &"cutter_rocket"]:
+	for id in [&"roller", &"strut", &"rocket_pod"]:
 		screen.phase.items.append({
 			&"id": id,
 			&"is_body": false,
@@ -113,7 +113,7 @@ func test_drag_buy() -> void:
 	var price: int = screen.phase.items[0][&"price"]
 	screen._on_item_dropped(0, _bar_global(screen, screen.bar._slots[0]))
 	assert_eq(screen.run.gold, gold_before - price, "the drop on a slot pays the price")
-	assert_true(screen.run.inventory.part_ids.has(&"wheel"), "and the part is carried")
+	assert_true(screen.run.inventory.part_ids.has(&"roller"), "and the part is carried")
 	assert_true(screen.phase.items[0][&"taken"], "the item is taken")
 	_complete()
 
@@ -135,7 +135,7 @@ func test_bought_card_leaves_the_shelf() -> void:
 	# Two real cards, so the survivor's phase index is not its shelf position after the reflow.
 	screen.phase.picked = {&"kind": &"shop", &"theme": &"weapon", &"resource": &""}
 	screen.phase.items.clear()
-	for id in [&"wheel", &"strut"]:
+	for id in [&"roller", &"strut"]:
 		screen.phase.items.append({
 			&"id": id,
 			&"is_body": false,
@@ -144,7 +144,7 @@ func test_bought_card_leaves_the_shelf() -> void:
 			&"taken": false,
 		})
 	screen._render_stage()
-	var both: Array[StringName] = [&"wheel", &"strut"]
+	var both: Array[StringName] = [&"roller", &"strut"]
 	assert_eq(_shelf_part_ids(screen), both, "both cards start on the shelf")
 	var price: int = screen.phase.items[0][&"price"]
 	var gold_before := screen.run.gold
@@ -161,7 +161,7 @@ func test_bought_card_leaves_the_shelf() -> void:
 	var gold_after := screen.run.gold
 	screen._on_item_clicked(0)
 	assert_eq(screen.run.gold, gold_after, "a second press on the taken card spends nothing")
-	assert_eq(screen.run.inventory.part_ids.count(&"wheel"), 1, "and adds no second wheel")
+	assert_eq(screen.run.inventory.part_ids.count(&"roller"), 1, "and adds no second wheel")
 
 	# The surviving card is now first on the shelf but is still phase item 1, so it buys the strut.
 	_shelf_part_cards(screen)[0].clicked.emit()
@@ -198,11 +198,11 @@ func test_pack_take_clears_the_shelf() -> void:
 
 func test_bar_to_sell() -> void:
 	var screen := _screen()
-	assert_true(screen.run.inventory.add(&"wheel"), "the wheel fits")
+	assert_true(screen.run.inventory.add(&"roller"), "the wheel fits")
 	screen.bar.refresh()
 	var gold_before := screen.run.gold
 	var carried_before := screen.run.inventory.part_ids.size()
-	var value := ChPrices.sell_value(screen.catalog.part(&"wheel").rarity)
+	var value := ChPrices.sell_value(screen.catalog.part(&"roller").rarity)
 	screen._on_bar_dropped(0, _bar_global(screen, screen.bar._sell))
 	assert_eq(screen.run.gold, gold_before + value, "SELL pays the part's sell value")
 	assert_eq(screen.run.inventory.part_ids.size(), carried_before - 1,
@@ -212,11 +212,11 @@ func test_bar_to_sell() -> void:
 
 func test_bar_reorder() -> void:
 	var screen := _screen()
-	for id in [&"wheel", &"strut", &"cutter_rocket"]:
+	for id in [&"roller", &"strut", &"rocket_pod"]:
 		assert_true(screen.run.inventory.add(id), "%s fits" % [id])
 	screen.bar.refresh()
 	screen._on_bar_dropped(0, _bar_global(screen, screen.bar._slots[2]))
-	var expected: Array[StringName] = [&"strut", &"cutter_rocket", &"wheel"]
+	var expected: Array[StringName] = [&"strut", &"rocket_pod", &"roller"]
 	assert_eq(screen.run.inventory.part_ids, expected,
 		"dropping the first card on slot 2 moves it behind the other two")
 	_complete()
@@ -235,6 +235,26 @@ func test_bar_to_pit_mounts() -> void:
 	screen._on_bar_dropped(0, at)
 	assert_true(screen.run.layout.get_node(path) != null, "the part is mounted in the free slot")
 	assert_eq(screen.run.inventory.part_ids.size(), 0, "and left the inventory")
+	_complete()
+
+
+func test_bar_click_holds_the_copy_it_names() -> void:
+	# The bar clicks a card by index, so the hold it starts names that copy: with two carried copies of
+	# one id, the pit gets the second one's state and the first copy stays carried, untouched.
+	var screen := _screen()
+	assert_true(screen.run.inventory.add(&"scrap_cannon", {&"damage_bonus": 10}), "the first copy")
+	assert_true(screen.run.inventory.add(&"scrap_cannon", {&"damage_bonus": 20}), "the second copy")
+	screen.bar.refresh()
+	screen._on_toggle()
+	var path := _free_path(screen)
+	assert_true(not path.is_empty(), "the starting build leaves a free slot")
+	screen._on_bar_clicked(1)
+	screen.garage.click_pit(screen.garage.screen_of(path))
+	assert_eq(int(screen.run.layout.get_node(path).state.get(&"damage_bonus", 0)), 20,
+		"the second copy's state mounted")
+	assert_eq(screen.run.inventory.part_ids.size(), 1, "one copy is still carried")
+	assert_eq(int(screen.run.inventory.states[0].get(&"damage_bonus", 0)), 10,
+		"and it is the first copy, untouched")
 	_complete()
 
 
@@ -300,7 +320,7 @@ func test_shelf_hover_shows_the_part_tooltip() -> void:
 	var card: ChCard = _shelf_part_cards(screen)[0]
 	card.mouse_entered.emit()
 	assert_true(screen.tooltip.visible, "hovering a shelf card shows its part")
-	assert_eq(screen.tooltip.def.id, &"wheel", "with the card's own part")
+	assert_eq(screen.tooltip.def.id, &"roller", "with the card's own part")
 	card.mouse_exited.emit()
 	assert_true(not screen.tooltip.visible, "and leaving it hides the tooltip")
 	_complete()

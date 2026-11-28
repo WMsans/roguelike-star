@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/stinger.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"stinger"
+behaviour = ExtResource("2_beh")
+display_name = "Stinger"
+tags = PackedStringArray("weapon", "melee")
+rarity = &"common"
+description = PackedStringArray("Stab: 25 damage. Reaches twice as far as other melee weapons.")
+energy_cost = 3
+cooldown = 2.0
+mode = &"cooldown"
+energy_per_second = 0.0
+damage = 25
+integrity = 50
+proximity_range = 0.0
+reach = 48.0
+size = Vector2i(10,3)
+color = Color(0.7,0.72,0.75, 1)

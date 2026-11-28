@@ -43,14 +43,16 @@ func continuous_tick(ctx: ChBattleContext) -> bool:
 # from its own mount.
 # The box the swing measures: reach cells out from the part's own edge along facing(), as tall as the
 # part. A cell at (x, y) spans x .. x + 1, so the part's edge sits half a cell out from its anchor, and
-# the part's own extent is def.size in cells.
-func _reach_box() -> Rect2:
+# the part's own extent is def.size in cells. A negative `reach` keeps def.reach, so every caller that
+# gives no override is unchanged; a weapon whose row leaves the Rng cell empty passes its own length.
+func _reach_box(reach := -1.0) -> Rect2:
 	var dir := part.facing()
 	var size := Vector2(maxi(1, part.def.size.x), maxi(1, part.def.size.y))
 	# The part's extent along facing and across it, so a turned or mirrored part keeps one box.
 	var along := absf(dir.x) * size.x + absf(dir.y) * size.y
 	var across := absf(dir.x) * size.y + absf(dir.y) * size.x
-	var half_along := part.def.reach + 0.5 + 0.5 * along
+	var cells := part.def.reach if reach < 0.0 else reach
+	var half_along := cells + 0.5 + 0.5 * along
 	var half_across := 0.5 * across
 	var span := Vector2(absf(dir.x) * half_along + absf(dir.y) * half_across,
 		absf(dir.y) * half_along + absf(dir.x) * half_across)
@@ -115,17 +117,52 @@ func _strike(ctx: ChBattleContext) -> bool:
 	ctx.deal_hit(part, target, part.def.damage)
 	return true
 
-# The box a body occupies: def.size cells about its position. PixelRigidBody binds no bounds getter,
-# so this is the footprint ChPartRuntime.sample_rect takes for a body, without that method's sample
-# margin, which belongs to status sampling rather than to a weapon's reach.
-func _part_box(foe: ChPartRuntime) -> Rect2:
-	var size := Vector2(maxi(1, foe.def.size.x), maxi(1, foe.def.size.y))
-	return Rect2(foe.anchor_world() - size * 0.5, size)
 
-# The hull's own box, the same reading as _part_box: ChBodyDef.size cells about the chassis.
+const LOB_GRAVITY := 60.0  # cells per second squared, the lob's fall
+
+# Fire a bolt from the part's nose along facing() at `speed`, with `gravity` pulling it down, and
+# hand the raycast dict to `on_impact`. `angle` turns the line off facing(), which is how the
+# Shotgun fans its pellets. The bolt frees itself after ChProjectile.LIFE, so a target that is gone
+# just ends the flight.
+func _shoot(ctx: ChBattleContext, speed: float, gravity: float, on_impact: Callable,
+		angle := 0.0) -> ChProjectile:
+	return _launch(ctx, part.facing().rotated(angle), speed, gravity, on_impact)
+
+# The lob: the same bolt, 45° up along facing, under LOB_GRAVITY. Up is the world's up, added to
+# facing, so a mirrored part lobbing left still rises rather than falling.
+func _lob(ctx: ChBattleContext, speed: float, on_impact: Callable) -> ChProjectile:
+	return _launch(ctx, (part.facing() + Vector2.UP).normalized(), speed, LOB_GRAVITY, on_impact)
+
+func _launch(ctx: ChBattleContext, dir: Vector2, speed: float, gravity: float,
+		on_impact: Callable) -> ChProjectile:
+	var bolt := ChProjectile.new()
+	bolt.setup(ctx, part, dir * speed, gravity, on_impact)
+	ctx.world.add_child(bolt)
+	bolt.global_position = _nose(dir)
+	return bolt
+
+# The part's nose: half its extent along `dir`, plus half a cell, from its anchor.
+func _nose(dir: Vector2) -> Vector2:
+	var size := Vector2(maxi(1, part.def.size.x), maxi(1, part.def.size.y))
+	var along := absf(dir.x) * size.x + absf(dir.y) * size.y
+	return part.anchor_world() + dir * (0.5 * along + 0.5)
+
+# The enemy body a beam reaches: the nearest one in the reach box.
+func _beam_target(ctx: ChBattleContext) -> Object:
+	return _nearest_enemy_body(ctx, _reach_box())
+
+# The box a beam or a spray writes cells into: the reach box.
+func _spray_box(ctx: ChBattleContext) -> Rect2:
+	return _reach_box()
+
+# The box a body occupies: def.size cells about its position, the same box as the holder's own
+# status_box (ChPartRuntime's), so a weapon's reach and a status sample measure the same footprint.
+func _part_box(foe: ChPartRuntime) -> Rect2:
+	return foe.status_box()
+
+# The hull's own box, the same reading as ChBattle.hull_box: ChBodyDef.size cells about the chassis.
 func _hull_box(chariot: ChChariotRuntime) -> Rect2:
-	var size := Vector2(maxi(1, chariot.body_def.size.x), maxi(1, chariot.body_def.size.y))
-	return Rect2(chariot.chassis.global_position - size * 0.5, size)
+	return ChBattle.hull_box(chariot)
 
 # Called every tick, fired or not: a timed behaviour counts its own seconds against ctx.time or the
 # delta, which is the same delta every part, cooldown and energy pool in the fight gets.
@@ -140,3 +177,124 @@ func process(ctx: ChBattleContext, delta: float) -> void:
 func modify_hit(ctx: ChBattleContext, hit: Dictionary) -> void:
 	# shortcut: no key is required, and a behaviour that changes nothing answers by doing nothing.
 	pass
+
+# Asked by ChBattleContext.deal_hit on every unbroken part of the side being hit, in mount order,
+# after the source-side modifiers and before Block is read: the hit is the same Dictionary the entry
+# point built, so a mutation travels. A hook may set hit["target_part"] (redirect the hit to another
+# own part) or hit["block_holder"] (the holder whose Block soaks it; default the part struck, or the
+# body when the hull was hit).
+func modify_incoming(ctx: ChBattleContext, hit: Dictionary) -> void:
+	# shortcut: no key is required, and a behaviour that changes nothing answers by doing nothing.
+	pass
+
+# Asked by ChBattleContext.lose_hp when the loss would take the chariot to 0 HP or below: answer
+# true to survive at 1 HP, which ends the walk. The chariot's unbroken parts are asked in mount
+# order and the first true is the only one asked, so a save is once per blow, not per part.
+func prevent_death(ctx: ChBattleContext, chariot: ChChariotRuntime) -> bool:
+	# shortcut: the base never saves its chariot, so a behaviour with no would-die trigger keeps this.
+	return false
+
+# Asked by ChRun.run_stat to fold a run-level stat, on a throwaway instance with part = null: base
+# returns the value unchanged, modifiers may raise or lower it.
+func run_stat(run: ChRun, state: Dictionary, stat: StringName, value: int) -> int:
+	return value
+
+# Asked by ChRun.announce on a throwaway instance with part = null, for every owned entry: a run
+# event (&"won", &"sold", and a sale's own &"sold_self") together with the instance state it may
+# change. A banked sell value or a permanent damage gain is written into `state` here.
+func run_event(run: ChRun, state: Dictionary, type: StringName, data: Dictionary) -> void:
+	# shortcut: the base keeps no run state, so it answers by doing nothing.
+	pass
+
+# Asked by ChBattleContext.stat to fold a stat: base returns the value unchanged, modifiers may
+# raise or lower it. Only behaviours whose own script declares modify_stat are asked.
+func modify_stat(ctx: ChBattleContext, target: Object, stat: StringName, value: float) -> float:
+	return value
+
+# Asked by ChBattleContext.give_status to fold a status gain before it lands: base returns the amount
+# unchanged, modifiers may raise, lower or refuse it. A result of 0 or less adds nothing. Only
+# behaviours whose own script declares modify_gain are asked.
+func modify_gain(ctx: ChBattleContext, target: Object, status: StringName, amount: int,
+		cause: StringName) -> int:
+	return amount
+
+# --- Scopes ---------------------------------------------------------------------------------
+# All answer unbroken, non-benched own parts of this behaviour's part, other than `part` itself.
+
+# The own parts within ctx.range_of(part) (or linked to it), in mount order.
+func _neighbours(ctx: ChBattleContext, tag: StringName = "") -> Array[ChPartRuntime]:
+	var out: Array[ChPartRuntime] = []
+	for other in _own_parts(ctx, tag):
+		if ctx.near(part, other):
+			out.append(other)
+	return out
+
+# The nearest neighbour ahead of facing(), or null.
+func _front_part(ctx: ChBattleContext, tag: StringName = "") -> ChPartRuntime:
+	return _nearest_in_direction(ctx, tag, 1.0)
+
+# The nearest neighbour behind facing(), or null.
+func _back_part(ctx: ChBattleContext, tag: StringName = "") -> ChPartRuntime:
+	return _nearest_in_direction(ctx, tag, -1.0)
+
+# The parts bolted onto this one, unbroken.
+func _mounted() -> Array[ChPartRuntime]:
+	var out: Array[ChPartRuntime] = []
+	for child in part.children:
+		if not child.broken:
+			out.append(child)
+	return out
+
+# This part's chariot's unbroken, non-benched parts other than part, matching tag if given.
+func _own_parts(ctx: ChBattleContext, tag: StringName = "") -> Array[ChPartRuntime]:
+	var out: Array[ChPartRuntime] = []
+	var side := part.side
+	var chariot := ctx.chariots[side] if side >= 0 and side < ctx.chariots.size() else null
+	if chariot == null:
+		return out
+	for other in chariot.parts:
+		if other == part or other.broken:
+			continue
+		if tag != "" and not other.def.tags.has(tag):
+			continue
+		out.append(other)
+	return out
+
+# The enemy chariot's unbroken, non-benched parts matching tag if given.
+func _enemy_parts(ctx: ChBattleContext, tag: StringName = "") -> Array[ChPartRuntime]:
+	var out: Array[ChPartRuntime] = []
+	var side := part.side
+	var chariot := ctx.chariots[1 - side] if side >= 0 and side < ctx.chariots.size() \
+			and 1 - side < ctx.chariots.size() else null
+	if chariot == null:
+		return out
+	for other in chariot.parts:
+		if other.broken:
+			continue
+		if tag != "" and not other.def.tags.has(tag):
+			continue
+		out.append(other)
+	return out
+
+# The nearest enemy body in this part's reach box, as its body.
+func _hit_enemy_body(ctx: ChBattleContext, damage: int) -> void:
+	var target := _nearest_enemy_body(ctx, _reach_box())
+	if target != null:
+		ctx.deal_hit(part, target, damage)
+
+# The base links nothing: a behaviour that links two parts overrides this.
+func links(ctx: ChBattleContext, a: Object, b: Object) -> bool:
+	return false
+
+# The nearest own part in `direction` (+1 ahead, -1 behind) along facing, or null.
+func _nearest_in_direction(ctx: ChBattleContext, tag: StringName = "", direction: float = 1.0) -> ChPartRuntime:
+	var best: ChPartRuntime = null
+	var best_d := 0.0
+	var anchor := part.anchor_world()
+	var facing := part.facing()
+	for other in _own_parts(ctx, tag):
+		var d := (other.anchor_world() - anchor).dot(facing)
+		if d * direction > 0 and (best == null or absf(d) < best_d):
+			best = other
+			best_d = absf(d)
+	return best

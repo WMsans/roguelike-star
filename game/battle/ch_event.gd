@@ -12,19 +12,28 @@ var source: Object = null  # the ChPartRuntime that acted, the ChChariotRuntime 
 var position: Vector2 = Vector2.ZERO  # world cells
 var data: Dictionary = {}  # event-specific payload, e.g. {"part": ..., "amount": ...}
 
+const BATTLE_STARTED: StringName = &"battle_started"  # emitted once by the first tick, no source
 const PART_FIRED: StringName = &"part_fired"
 const PART_SKIPPED: StringName = &"part_skipped"  # a ready part the volley's pool refused; data: cost
 const HIT: StringName = &"hit"
 const PART_BROKEN: StringName = &"part_broken"
 const CELLS_CUT: StringName = &"cells_cut"
-const ENERGY_GAINED: StringName = &"energy_gained"
-const STATUS_GAINED: StringName = &"status_gained"  # data: status, amount, before
-const STATUS_LOST: StringName = &"status_lost"  # data: status, and shatter: true on a Shatter's thaw
+const CELLS_SPAWNED: StringName = &"cells_spawned"  # data: material, count, at; source = the part
+const CELLS_DUG: StringName = &"cells_dug"  # data: count; no source part
+const ENERGY_GAINED: StringName = &"energy_gained"  # data: amount
+const HEALED: StringName = &"healed"  # data: amount; source = the chariot
+const HP_LOST: StringName = &"hp_lost"  # data: amount, before, after, cause; source = attacker or null
+const INTEGRITY_LOST: StringName = &"integrity_lost"  # data: amount, cause; source = the part
+const BLOCK_ABSORBED: StringName = &"block_absorbed"  # data: amount, attacker; source = the holder
+const STATUS_GAINED: StringName = &"status_gained"  # data: status, amount, before, cause, from
+const STATUS_LOST: StringName = &"status_lost"  # data: status; attacker on a hit that spent the last Block
 const STATUS_CANCELLED: StringName = &"status_cancelled"  # data: status, against, amount
 const STATUS_DOUBLED: StringName = &"status_doubled"  # data: status, amount
 const SHOCK_JUMPED: StringName = &"shock_jumped"  # data: from, amount
 const HAZARD_HIT: StringName = &"hazard_hit"  # a material blast hurt a chariot; no source part
 const EXPLOSION: StringName = &"explosion"  # side = owner (-1 unowned); data: size, radius, dig, owner, material, source
+const RAMMED: StringName = &"rammed"  # side = the rammer; source = its chariot; data: target_part (null for the hull)
+const LANDED: StringName = &"landed"  # an airborne chariot touched the floor again; source = the chariot
 
 
 # The holder's first stack of `status`: "caught fire" for Flame, "frozen" for Freeze.

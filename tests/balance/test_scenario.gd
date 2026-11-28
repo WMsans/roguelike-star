@@ -4,8 +4,8 @@ func _base() -> ChCatalog:
 	return ChCatalog.load_default()
 
 func _side() -> Dictionary:
-	return {"body_id": "cutter", "parts": [{"slot": [0], "part": "wheel"}, {"slot": [1], "part": "wheel"},
-		{"slot": [2], "part": "cutter_rocket"}]}
+	return {"body_id": "cutter", "parts": [{"slot": [0], "part": "roller"}, {"slot": [1], "part": "roller"},
+		{"slot": [2], "part": "rocket_pod"}]}
 
 func test_valid_scenario_builds_one_matchup() -> void:
 	var out := ChBalanceScenario.parse({"name": "s", "player": _side(),
@@ -16,7 +16,7 @@ func test_valid_scenario_builds_one_matchup() -> void:
 	assert_eq(m.seeds, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "default seeds")
 	assert_eq(Array(m.drive), ["ai", "ai"], "default drive")
 	assert_eq(Array(m.press), ["ai", "ai"], "default press")
-	assert_eq(m.player.get_node([2]).part_id, &"cutter_rocket")
+	assert_eq(m.player.get_node([2]).part_id, &"rocket_pod")
 	_complete()
 
 func test_unknown_part_names_field_and_known_ids() -> void:
@@ -25,7 +25,7 @@ func test_unknown_part_names_field_and_known_ids() -> void:
 	var out := ChBalanceScenario.parse({"name": "s", "player": side, "enemy": _side()}, _base(), "s.json")
 	assert_true(not out.ok)
 	assert_true(out.errors[0].begins_with("s.json: player.parts[2].part: unknown part 'rocket'"), out.errors[0])
-	assert_true(out.errors[0].contains("cutter_rocket"), "lists the known ids")
+	assert_true(out.errors[0].contains("rocket_pod"), "lists the known ids")
 	_complete()
 
 func test_slot_the_body_lacks_is_an_error() -> void:

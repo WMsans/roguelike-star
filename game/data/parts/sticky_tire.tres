@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/sticky_tire.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"sticky_tire"
+behaviour = ExtResource("2_beh")
+display_name = "Sticky Tire"
+tags = PackedStringArray("wheel")
+rarity = &"common"
+description = PackedStringArray("Excellent grip. Hard to push back.")
+energy_cost = 0
+cooldown = 0.0
+mode = &"wheel"
+energy_per_second = 1.0
+wheel_speed = 10.0
+wheel_friction = 3.0
+damage = 0
+integrity = 70
+proximity_range = 0.0
+reach = 0.0
+size = Vector2i(12,12)
+color = Color(0.2,0.2,0.22, 1)

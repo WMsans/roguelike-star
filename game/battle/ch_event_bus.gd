@@ -10,6 +10,9 @@ class_name ChEventBus extends RefCounted
 const MAX_DELIVERIES := 256
 
 var subscriptions: Array = []  # of {"listener": Object, "type": StringName, "callback": Callable, "proximity_of": Object, "range": float}
+# Set by ChBattleContext to Callable(ctx, "near"); _in_range defers to it so proximity
+# subscriptions and deal_hit share one range/links helper.
+var near: Callable
 # The chain handicap (spec's "Chains weakened"), indexed by the listener's side: [1.0, 1.0] delivers
 # everything, which is every fight that has no modifier. ChBattle.start puts its rule's number on side 0,
 # the player's, because these modifiers handicap the player.
@@ -127,10 +130,15 @@ func _in_range(proximity_of: Object, range: float, event: ChEvent) -> bool:
 	# A subscription with no proximity_of is chariot-wide: it hears whatever the type says.
 	if proximity_of == null:
 		return true
+	# A benched part has no body or position, so it is never near an event (R30).
+	if proximity_of is ChPartRuntime and proximity_of.benched:
+		return false
 	# shortcut: `side` and anchor_world() are read duck-typed off both objects here (the test fakes
 	# carry them); upgrade to the ChPartRuntime accessors once it gains `side` in Task 8.
 	# A sourceless event has nothing to measure, so no proximity subscription can hear it.
 	if event.source == null or event.source.side != proximity_of.side:
 		# The far chariot's parts are never "near" this one, whatever the range says.
 		return false
+	if near.is_valid():
+		return near.call(proximity_of, event.source)
 	return event.source.anchor_world().distance_to(proximity_of.anchor_world()) <= range

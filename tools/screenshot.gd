@@ -20,8 +20,8 @@ const RESULT_WAIT := 600  # frames the forced win is given to reach the result p
 # What the shot mounts on the run's build, as the shop's buy then the bar's drop would. The run
 # starts with its kit already mounted (two wheels and the chainsaw), so [3] is the free slot, and it
 # is the part tooltip_hull.png points at.
-const MOUNTS := [[[3], &"ice_cream_mace"]]
-const SHELF := [&"dozer", &"flamethrower", &"ice_cream_mace"]  # what shop.png's shelf offers, in row order
+const MOUNTS := [[[3], &"ice_pick"]]
+const SHELF := [&"dozer", &"flamethrower", &"ice_pick"]  # what shop.png's shelf offers, in row order
 
 var outdir := ""
 var started := false

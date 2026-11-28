@@ -9,13 +9,17 @@ const UNLIMITED := 1 << 30
 
 var capacity: int = -1
 var part_ids: Array[StringName] = []
+# Parallel to part_ids: the instance state each carried copy holds (see ChSlotNode.state).
+var states: Array[Dictionary] = []
 
 
-func add(id: StringName) -> bool:
+func add(id: StringName, state: Dictionary = {}) -> bool:
 	# add checks capacity before appending so a full inventory keeps what it held.
 	if capacity >= 0 and part_ids.size() >= capacity:
 		return false
 	part_ids.append(id)
+	# A fresh empty dict rather than the argument's default, so two parts never share one state.
+	states.append(state if not state.is_empty() else {})
 	# add stores an id without checking the catalog, so an unknown id still fits.
 	# shortcut: add never deduplicates; the shop should not offer a part already carried.
 	return true
@@ -30,6 +34,8 @@ func take(id: StringName) -> bool:
 	# Array.remove_at keeps the list packed so the order the garage shows stays stable.
 	# shortcut: take lifts the FIRST copy; remove_at is the handle for a copy chosen by index.
 	part_ids.remove_at(at)
+	# The state goes with the id: a part that left the inventory cannot leave its state behind.
+	states.remove_at(at)
 	return true
 
 
@@ -51,15 +57,23 @@ func move(from: int, to: int) -> bool:
 		return false
 	var id: StringName = part_ids.pop_at(from)
 	part_ids.insert(to, id)
+	# The state moves in the same step, so the card and its state never disagree about the slot.
+	var state: Dictionary = states.pop_at(from)
+	states.insert(to, state)
 	return true
 
 
-func remove_at(index: int) -> StringName:
+func remove_entry(index: int) -> Dictionary:
 	# The index handle take does not have: two copies of one part are two cards in the bar, and the
-	# slot says which one was sold or mounted. Nothing there answers with the empty id.
+	# slot says which one was sold or mounted. An index with nothing in it answers an empty dict.
 	if index < 0 or index >= part_ids.size():
-		return &""
-	return part_ids.pop_at(index)
+		return {}
+	return {&"id": part_ids.pop_at(index), &"state": states.pop_at(index)}
+
+
+func remove_at(index: int) -> StringName:
+	# The id half of remove_entry, kept so a caller that only needs the id reads as before.
+	return remove_entry(index).get(&"id", &"")
 
 
 func has(id: StringName) -> bool:

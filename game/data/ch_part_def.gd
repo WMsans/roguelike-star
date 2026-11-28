@@ -22,6 +22,10 @@ var energy_cost: int = 0
 var cooldown: float = 0.0  # seconds; 0 = no cooldown
 var mode: StringName = MODE_COOLDOWN  # one of the MODE_* constants above
 var energy_per_second: float = 0.0  # energy a second while a melee/beam part runs or a wheel drives
+# Wheel-only: the motor's rad/s at full drive (ChChariotRuntime.drive) and the grip the joint
+# needs on the floor (ChChariotBuilder). Every other part leaves both at their defaults.
+var wheel_speed: float = 12.0  # rad/s at full drive
+var wheel_friction: float = 1.5  # rubber: the grip the demo car's wheels needed on a sand pile
 var damage: int = 0
 var integrity: int = 100
 var proximity_range: float = 0.0  # cells; 0 = none
@@ -38,6 +42,17 @@ var texture: Texture2D
 var material: StringName = &""
 var behaviour: Script
 var description: PackedStringArray = []  # one tagged bullet per entry ({key} / {key:shown}, see ChKeywords)
+
+
+func copy() -> ChPartDef:
+	# Field by field: duplicate() drops a script resource's own (non-exported) properties on this
+	# build (the copy answers empty tags and 0 damage). Walking the script variables keeps a field
+	# added later from being forgotten here. The Mimic (R37) is the one caller.
+	var out := ChPartDef.new()
+	for prop in get_property_list():
+		if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			out.set(prop.name, get(prop.name))
+	return out
 
 
 func is_wheel() -> bool:

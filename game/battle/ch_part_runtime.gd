@@ -11,12 +11,27 @@ const SAMPLE_MARGIN := 2  # cells sample_rect grows beyond the part's own footpr
 var def: ChPartDef = null  # the static definition this part was built from
 var side: int = 0  # 0 = the player's chariot, 1 = the enemy's (the ChariotLayout index)
 var path: Array[int] = []  # the slot/extension indices this part sits at
+# The instance state this copy carries (ChSlotNode.state), copied in by the builder: a Scrap
+# Cannon's saved damage, a Piggy Bank's sell value.
+var state: Dictionary = {}
+# A passive carried in the inventory and fighting from the bench (R30): it has no body and no path,
+# so no scope, proximity test or body walk ever returns it; only the stat and gain/hit hooks ask it.
+var benched: bool = false
 var flipped: bool = false  # the slot's left/right flip (ChariotLayout.toggle_flip)
+# Set while a part is fired the other way (U86 Turret Mount): facing() is negated while this is on.
+var reversed: bool = false
 var integrity: int = 0  # wear left; the builder (Task 9) seeds it from def.integrity
 var cooldown_left: float = 0.0  # seconds until ready; 0 means ready
 var tick_left: float = 0.0  # seconds until a continuous part's next tick; 0 swings at once
 var running: bool = false  # whether a continuous part ran on the last tick
 var charges_left: int = -1  # fires before the part runs out; -1 = unlimited (def.charges)
+var paid: bool = false  # true for the fire the volley paid for, false for a forced fire that paid nothing
+# Refreshed from the stat hook at the start of every tick (ChBattleContext._tick_chariot):
+var cost: int = 0  # energy the volley pays to fire this part
+var rate: float = 0.0  # energy a second the held button pays while this runs or drives
+var cooldown: float = 0.0  # seconds the volley resets cooldown_left to after a fire
+var bonus_damage: int = 0  # flat damage this part adds to its own hits, for the battle
+var fire_cells_per_hit: int = 0  # fire cells a hit from this part spawns on its target (U30)
 var statuses := ChStatuses.new()  # the nine stacking statuses
 var broken: bool = false  # set by ChChariotRuntime.break_part (Task 10)
 # shortcut: body stays loose-typed on purpose; Task 9 is the only caller that hands a real
@@ -55,7 +70,7 @@ func facing() -> Vector2:
 	if body != null and is_instance_valid(body):
 		last_facing = body.global_rotation
 	var dir := Vector2.RIGHT.rotated(last_facing)
-	return -dir if flipped else dir
+	return -dir if flipped != reversed else dir
 
 
 func status_box() -> Rect2:
@@ -118,13 +133,14 @@ func can_run() -> bool:
 
 
 func is_ready() -> bool:
-	# A triggered part (cooldown > 0) that a press may fire: counted down, intact, not frozen and
-	# with a charge left. charges_left -1 is unlimited, so only 0 means spent.
-	return def != null and def.cooldown > 0.0 and not broken and cooldown_left <= 0.0 \
+	# A triggered part (mode cooldown) that a press may fire: counted down, intact, not frozen and
+	# with a charge left. charges_left -1 is unlimited, so only 0 means spent. A clock passive
+	# (mode passive, cooldown or not) never joins a volley, so its cooldown never gates anything.
+	return def != null and def.mode == ChPartDef.MODE_COOLDOWN and not broken and cooldown_left <= 0.0 \
 		and charges_left != 0 and not is_frozen()
 
 
-func tick_cooldown(delta: float) -> bool:
+func tick_cooldown(delta: float, rate := NAN) -> bool:
 	# Count the cooldown down by one tick and report whether the part is ready to fire. It no
 	# longer implies a fire: ChBattleContext fires only on a press, and resets cooldown_left to
 	# def.cooldown when the part fires.
@@ -132,11 +148,13 @@ func tick_cooldown(delta: float) -> bool:
 	# a press never fires it. A part with no def has nothing to gate either.
 	if def == null or def.cooldown <= 0.0:
 		return false
-	# Freeze pauses the countdown; Speedup runs it at double speed, Slow at half.
+	# Freeze pauses the countdown; Speedup runs it at double speed, Slow at half. The caller may pass
+	# the rate the stat hook folded (R26), which replaces tick_rate() rather than multiplying it.
 	if is_frozen():
 		return false
+	var scale := tick_rate() if is_nan(rate) else rate
 	# clamp at 0 rather than negative, so an over-tick reports ready once and stays ready.
-	cooldown_left = maxf(0.0, cooldown_left - delta * tick_rate())
+	cooldown_left = maxf(0.0, cooldown_left - delta * scale)
 	# The brief's rule: true when the countdown reaches 0. Past 0 it stays ready, so the caller owns
 	# the reset.
 	return cooldown_left <= 0.0

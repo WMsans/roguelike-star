@@ -7,7 +7,6 @@ class_name ChChariotBuilder extends RefCounted
 
 const MOTOR_TORQUE := 3e6
 const WHEEL_FREQUENCY := 5.0
-const WHEEL_FRICTION := 1.5  # rubber: the grip the demo car's wheels need on a sand pile
 const HULL_MATERIAL := &"wood"  # PixelRigidBody refuses an unknown pixel_material, so a def that leaves material empty is stamped in the hull material instead of joining nothing
 
 
@@ -18,10 +17,14 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		return null
 	var runtime: ChChariotRuntime = ChChariotRuntime.new()
 	runtime.side = side
+	runtime.world = world
 	runtime.body_def = body_def
 	runtime.max_hp = layout.max_hp if layout.max_hp > 0 else body_def.hp
 	runtime.hp = runtime.max_hp
 	runtime.energy = ChEnergy.new(body_def.energy_cap, body_def.energy_regen)
+	# The two run counts a battle reads (U68's Collector's Shelf, R29's Golden Gear).
+	runtime.inventory_count = layout.inventory_count
+	runtime.parts_sold = layout.parts_sold
 	# One collision group per chariot (Task 1): two bodies with an equal non-zero group never collide,
 	# so a part that overlaps its own hull or another part costs nothing, while terrain, projectiles
 	# and the other chariot (whose group is side + 1 too) still hit every body here.
@@ -71,7 +74,7 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		var body := _body(parent, world, texture, _material(def.material), def.size, at, PixelRigidBody.SHAPE_CIRCLE if wheel else PixelRigidBody.SHAPE_HULL, group)
 		(visual_of(body) as Sprite2D).texture = look
 		if wheel:
-			body.friction = WHEEL_FRICTION
+			body.friction = def.wheel_friction
 		var other_body: PixelRigidBody = holder.body if holder != null else runtime.chassis
 		var joint := _joint(parent, body, other_body, at, wheel)
 		# Everything ChPartRuntime leaves unset (its defaults serve the fake bodies its tests use)
@@ -81,9 +84,15 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 		part_runtime.side = side
 		part_runtime.path = steps
 		part_runtime.flipped = node.flipped
+		# The instance's saved state, deep-copied so a battle can never write back into the run.
+		part_runtime.state = node.state.duplicate(true)
 		part_runtime.integrity = def.integrity
 		part_runtime.cooldown_left = def.cooldown
 		part_runtime.charges_left = def.charges
+		# Seeded from the def; ChBattleContext refreshes them from the stat hook every tick.
+		part_runtime.cost = def.energy_cost
+		part_runtime.rate = def.energy_per_second
+		part_runtime.cooldown = def.cooldown
 		part_runtime.body = body
 		part_runtime.visual = visual_of(body)
 		if def.cooldown > 0.0 or def.is_continuous():
@@ -109,6 +118,29 @@ static func build(world: PixelWorld, parent: Node, layout: ChChariotLayout, cata
 			part_runtime.behaviour = behaviour
 		runtime.parts.append(part_runtime)
 		mounted[steps] = part_runtime
+	# The bench (R30): a bodyless runtime per entry, so setup_all and the stat/gain/hit hooks can ask
+	# it, but no body walk or scope can reach it.
+	for entry in layout.bench:
+		var def: ChPartDef = catalog.part(entry[&"id"])
+		if def == null:
+			push_error("chariot builder: benched id %s has no def, so it does not fight" % String(entry[&"id"]))
+			continue
+		var benched := ChPartRuntime.new()
+		benched.def = def
+		benched.side = side
+		benched.benched = true
+		# No path and no body: the two things every scope and body walk measure.
+		benched.state = (entry[&"state"] as Dictionary).duplicate(true)
+		benched.integrity = def.integrity
+		benched.cost = def.energy_cost
+		benched.rate = def.energy_per_second
+		benched.cooldown = def.cooldown
+		benched.charges_left = def.charges
+		if def.behaviour != null:
+			var behaviour = def.behaviour.new()
+			behaviour.part = benched
+			benched.behaviour = behaviour
+		runtime.bench.append(benched)
 	return runtime
 
 

@@ -2,6 +2,28 @@ extends ChTest
 
 const BOUNDS := Rect2(0, 0, 1280, 720)
 
+# Task 5: a description marks the glossary words it uses, so the tooltip can paint and explain them.
+# The words are the parts-list Effect cell's own (test_parts_list pins that the cell with the tags
+# stripped is the description), so each part's tags are the ones its cell names.
+const TASK5_KEYWORDS := {
+	&"steel_plate": [&"block"],
+	&"shield_generator": [&"block"],
+	&"bumper": [&"block"],
+	&"plating_rig": [&"block"],
+	&"spare_cell": [&"energy"],
+	&"generator": [&"energy"],
+	&"strut": [&"extension"],
+	&"long_arm": [&"extension"],
+}
+
+func test_task5_descriptions_name_their_keywords() -> void:
+	var catalog := ChCatalog.load_default()
+	for id in TASK5_KEYWORDS:
+		var def: ChPartDef = catalog.part(id)
+		assert_eq(ChKeywords.keys_of(def.description), TASK5_KEYWORDS[id],
+			"%s marks %s" % [id, TASK5_KEYWORDS[id]])
+	_complete()
+
 func _tooltip() -> ChPartTooltip:
 	var holder := Control.new()
 	holder.size = BOUNDS.size
@@ -12,6 +34,15 @@ func _tooltip() -> ChPartTooltip:
 
 func _def(id: StringName) -> ChPartDef:
 	return ChCatalog.load_default().part(id)
+
+# A hand-built def with this one description line, so a test can show a tooltip with more glossary
+# words than any one part carries (Task 6's descriptions are a single line, one word each).
+func _line_def(id: StringName, line: String) -> ChPartDef:
+	var def := ChPartDef.new()
+	def.id = id
+	def.display_name = "Fixture"
+	def.description = [line]
+	return def
 
 func _frames(n := 2) -> void:
 	for i in n:
@@ -47,33 +78,35 @@ func test_show_builds_main_and_keyword_boxes() -> void:
 	await _frames()
 	assert_true(tip.visible)
 	assert_eq(tip.name_label().text, "Flamethrower")
-	assert_eq(tip.line_label().text, "Cost 2 · Cooldown 3.0s")
-	assert_eq(tip.keyword_keys(), [&"press", &"flame"])
-	assert_eq(tip.boxes().size(), 3, "main + Press + Burning")
-	var style := tip.boxes()[2].get_theme_stylebox("panel") as StyleBoxFlat
+	assert_eq(tip.line_label().text, "2.0/s · Beam")
+	assert_eq(tip.keyword_keys(), [&"flame"])
+	assert_eq(tip.boxes().size(), 2, "main + Burning")
+	var style := tip.boxes()[1].get_theme_stylebox("panel") as StyleBoxFlat
 	assert_eq(style.border_color, ChKeywords.color_of(&"flame"), "the keyword box rim wears its colour")
-	var title := tip.boxes()[2].get_child(0).get_child(0) as Label
+	var title := tip.boxes()[1].get_child(0).get_child(0) as Label
 	assert_eq(title.get_theme_color("font_color"), ChKeywords.color_of(&"flame"), "and so does its title")
 	_complete()
 
 func test_passive_hides_cost_line() -> void:
 	var tip := _tooltip()
-	tip.show_part(_def(&"ember_battery"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	tip.show_part(_def(&"generator"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	await _frames()
 	assert_true(not tip.line_label().visible)
-	assert_eq(tip.keyword_keys(), [&"passive", &"flame", &"energy"])
+	assert_eq(tip.keyword_keys(), [&"energy"])
 	_complete()
 
 func test_switch_def_reuses_boxes_and_hide() -> void:
 	var tip := _tooltip()
-	tip.show_part(_def(&"ember_battery"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
-	# boxes()[1] is the Passive box for both parts, so the reuse is read on [2]: the ember's second
-	# keyword box, which the freeze charge must refill rather than rebuild.
+	tip.show_part(_line_def(&"words_a", "{passive} {proximity} {freeze}"),
+		Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	# boxes()[1] is the Passive box for both parts, so the reuse is read on [2]: the first part's
+	# second keyword box, which the second part must refill rather than rebuild.
 	var second_kw := tip.boxes()[2]
-	tip.show_part(_def(&"freeze_charge"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
-	assert_eq(tip.keyword_keys(), [&"passive", &"proximity", &"freeze"])
+	tip.show_part(_line_def(&"words_b", "{passive} {flame} {energy}"),
+		Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_eq(tip.keyword_keys(), [&"passive", &"flame", &"energy"])
 	assert_eq(tip.boxes()[2], second_kw, "pooled box reused")
-	tip.show_part(_def(&"wheel"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	tip.show_part(_def(&"generator"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	assert_eq(tip.boxes().size(), 2, "extra keyword boxes hidden")
 	tip.hide_tooltip()
 	assert_true(not tip.visible and tip.def == null)
@@ -87,7 +120,7 @@ func test_pop_in_from_hidden_but_not_on_switch() -> void:
 	assert_true(juice.scale_spring.value < 1.0, "a fresh show pops in from small")
 	juice.scale_spring.value = 1.0
 	juice.scale_spring.velocity = 0.0
-	tip.show_part(_def(&"hearth"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	tip.show_part(_def(&"igniter"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	assert_eq(juice.scale_spring.value, 1.0, "a switch does not reset the spring")
 	juice.advance(PEAK_STEP)
 	# Two tooltip beats at the same age: the first show's (box 0 plays at once) and the switch's,
@@ -97,7 +130,7 @@ func test_pop_in_from_hidden_but_not_on_switch() -> void:
 
 func test_boxes_stack_without_overlap() -> void:
 	var tip := _tooltip()
-	tip.show_part(_def(&"ember_battery"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	tip.show_part(_def(&"generator"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	await _frames(3)
 	var boxes := tip.boxes()
 	for i in boxes.size() - 1:
@@ -107,7 +140,7 @@ func test_boxes_stack_without_overlap() -> void:
 
 func test_ignores_mouse_everywhere() -> void:
 	var tip := _tooltip()
-	tip.show_part(_def(&"freeze_charge"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	tip.show_part(_def(&"frost_sprayer"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	assert_eq(tip.mouse_filter, Control.MOUSE_FILTER_IGNORE)
 	for node in tip.find_children("*", "Control", true, false):
 		assert_eq(node.mouse_filter, Control.MOUSE_FILTER_IGNORE, "%s ignores the mouse" % node.name)
@@ -115,7 +148,8 @@ func test_ignores_mouse_everywhere() -> void:
 
 func test_keyword_bbcode_renders_clean() -> void:
 	var tip := _tooltip()
-	tip.show_part(_def(&"ice_cream_mace"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	tip.show_part(_line_def(&"words_c", "20 damage. 40 instead if the part hit has {freeze:frozen} ×3."),
+		Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	await _frames()
 	var shown := tip.bullets_label().get_parsed_text()
 	assert_true(shown.contains("frozen"), "the keyword's word shows")
@@ -128,14 +162,65 @@ func test_tooltip_profile_loads() -> void:
 	assert_true(Feedback.profile(&"tooltip") != null)
 	_complete()
 
-func test_every_line_is_press_or_passive() -> void:
+# Task 5: a description is the parts-list Effect text with its keywords marked up inline, so the
+# firing mode is the cost line's job (test_tooltip_line_follows_mode) rather than a tag at the start
+# of every line. What is left to pin here is that every tag resolves and the mode agrees with the
+# cooldown the cost line prints.
+func test_every_description_line_resolves_its_tags() -> void:
 	var catalog := ChCatalog.load_default()
 	for id in catalog.parts:
 		var def: ChPartDef = catalog.parts[id]
-		var presses := 0
 		for line in def.description:
-			var is_press := line.begins_with("{press}")
-			assert_true(is_press or line.begins_with("{passive}"), "%s: '%s' is tagged" % [id, line])
-			presses += int(is_press)
-		assert_eq(presses > 0, def.cooldown > 0.0, "%s: press lines iff triggered" % id)
+			assert_true(not line.is_empty(), "%s: '%s' is not empty" % [id, line])
+			assert_eq(ChKeywords.parse(line).unknown, [], "%s: '%s' has no unknown tag" % [id, line])
+		assert_eq(def.cooldown > 0.0, def.mode == ChPartDef.MODE_COOLDOWN,
+			"%s: a cooldown part is what a press fires" % id)
+	_complete()
+
+# Task 1: the cost line follows the firing mode.
+func test_tooltip_line_follows_mode() -> void:
+	var tip := _tooltip()
+
+	var cooldown := ChPartDef.new()
+	cooldown.id = &"t_cooldown"
+	cooldown.mode = ChPartDef.MODE_COOLDOWN
+	cooldown.energy_cost = 3
+	cooldown.cooldown = 4.0
+	tip.show_part(cooldown, Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_eq(tip.line_label().text, "Cost 3 · Cooldown 4.0s", "a cooldown part prices a press")
+
+	var melee := ChPartDef.new()
+	melee.id = &"t_melee"
+	melee.mode = ChPartDef.MODE_MELEE
+	melee.energy_per_second = 2.0
+	tip.show_part(melee, Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_eq(tip.line_label().text, "2.0/s · Melee", "a melee part prices per second")
+
+	var beam := ChPartDef.new()
+	beam.id = &"t_beam"
+	beam.mode = ChPartDef.MODE_BEAM
+	beam.energy_per_second = 3.0
+	tip.show_part(beam, Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_eq(tip.line_label().text, "3.0/s · Beam", "a beam part prices per second")
+
+	var wheel := ChPartDef.new()
+	wheel.id = &"t_wheel"
+	wheel.mode = ChPartDef.MODE_WHEEL
+	wheel.energy_per_second = 1.0
+	tip.show_part(wheel, Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_eq(tip.line_label().text, "1.0/s while driving", "a wheel prices while driving")
+
+	var passive := ChPartDef.new()
+	passive.id = &"t_passive"
+	passive.mode = ChPartDef.MODE_PASSIVE
+	passive.energy_cost = 0
+	tip.show_part(passive, Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_true(not tip.line_label().visible, "a free passive hides its cost line")
+
+	var priced := ChPartDef.new()
+	priced.id = &"t_priced"
+	priced.mode = ChPartDef.MODE_PASSIVE
+	priced.energy_cost = 5
+	tip.show_part(priced, Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_eq(tip.line_label().text, "Cost 5 when it triggers", "a priced passive shows a trigger cost")
 	_complete()

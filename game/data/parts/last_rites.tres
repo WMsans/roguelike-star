@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/last_rites.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"last_rites"
+behaviour = ExtResource("2_beh")
+display_name = "Last Rites"
+tags = PackedStringArray("tricky", "earth")
+rarity = &"uncommon"
+description = PackedStringArray("When one of your parts breaks, it explodes (medium) where it falls.")
+energy_cost = 0
+cooldown = 0.0
+mode = &"passive"
+energy_per_second = 0.0
+damage = 0
+integrity = 60
+proximity_range = 0.0
+reach = 0.0
+size = Vector2i(6,6)
+color = Color(0.6,0.55,0.4, 1)

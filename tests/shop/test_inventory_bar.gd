@@ -64,12 +64,12 @@ func _under_tooltip(label: Label) -> bool:
 
 
 func test_cards_match_inventory() -> void:
-	var bar := _bar([&"wheel", &"wheel", &"cutter_rocket"])
+	var bar := _bar([&"roller", &"roller", &"rocket_pod"])
 	assert_near(bar.size.y, ChInventoryBar.HEIGHT, 0.5, "the bar is the bottom strip")
 	assert_eq(bar._cards.size(), 3, "three carried parts are three cards")
-	assert_eq(bar._cards[0].part_id, &"wheel", "the first card is the first carried part")
-	assert_eq(bar._cards[1].part_id, &"wheel", "a duplicate part is its own card")
-	assert_eq(bar._cards[2].part_id, &"cutter_rocket", "and the order is the inventory's")
+	assert_eq(bar._cards[0].part_id, &"roller", "the first card is the first carried part")
+	assert_eq(bar._cards[1].part_id, &"roller", "a duplicate part is its own card")
+	assert_eq(bar._cards[2].part_id, &"rocket_pod", "and the order is the inventory's")
 	assert_eq(bar._cards[2].price, -1, "the bar shows no price")
 	assert_true(not bar._cards[2].show_count, "nor a count")
 	assert_eq(bar._slots.size(), ChInventory.CAPACITY, "all five slots are drawn")
@@ -88,7 +88,7 @@ func test_cards_match_inventory() -> void:
 
 
 func test_slot_and_sell_hit() -> void:
-	var bar := _bar([&"wheel"])
+	var bar := _bar([&"roller"])
 	for index in ChInventory.CAPACITY:
 		var centre := _global(bar, bar._slots[index].get_center())
 		assert_eq(bar.slot_index_at(centre), index, "slot %d hit-tests to its index" % index)
@@ -105,7 +105,7 @@ func test_slot_and_sell_hit() -> void:
 func test_card_click_announces_the_current_index() -> void:
 	# A press and a release under the 6 px threshold are a click, and the index it names is read off
 	# _cards when the click fires, not cached when the card was built.
-	var bar := _bar([&"wheel", &"strut", &"cutter_rocket"])
+	var bar := _bar([&"roller", &"strut", &"rocket_pod"])
 	var clicks: Array = []
 	bar.card_clicked.connect(func(index: int) -> void: clicks.append(index))
 	var p := _centre_of(bar._cards[0])
@@ -116,7 +116,7 @@ func test_card_click_announces_the_current_index() -> void:
 	# The inventory reorders: the same node is now the third part, and the click must say so.
 	assert_true(bar.inventory.move(0, 2), "the wheel moves to the last slot")
 	bar.refresh()
-	assert_eq(bar._cards[2].part_id, &"wheel", "the wheel's own card is the third now")
+	assert_eq(bar._cards[2].part_id, &"roller", "the wheel's own card is the third now")
 	var q := _centre_of(bar._cards[2])
 	bar._cards[2].press(q)
 	bar._cards[2].move(q + Vector2(2, 0))
@@ -129,13 +129,13 @@ func test_card_drag_over_sell_labels_and_drops() -> void:
 	# The whole drag path through a real card: drag_started rims the zones and starts the bar reading
 	# the pointer, the motions price the hover, and the drop announces the part and where it landed
 	# before putting the bar back to rest. Every step is the shipped connection, not a private call.
-	var bar := _bar([&"wheel", &"strut"])
+	var bar := _bar([&"roller", &"strut"])
 	var drops: Array = []
 	bar.card_dropped.connect(func(index: int, at: Vector2) -> void: drops.append([index, at]))
 	assert_true(bar.inventory.move(0, 1), "the wheel moves behind the strut")
 	bar.refresh()
 	var card := bar._cards[1]
-	assert_eq(card.part_id, &"wheel", "the wheel is the card at index 1")
+	assert_eq(card.part_id, &"roller", "the wheel is the card at index 1")
 	assert_eq(bar.sell_label.text, "SELL", "the label rests on SELL before the drag")
 	var p := _centre_of(card)
 	card.press(p)
@@ -165,11 +165,11 @@ func test_card_drag_over_sell_labels_and_drops() -> void:
 func test_hover_shows_the_part_tooltip() -> void:
 	# Finding 3: a carried part's name, cost and bullets were unreadable after the strip became the
 	# bar. The card's own hover signal is what the bar listens to in the shipped game.
-	var bar := _bar([&"wheel"])
+	var bar := _bar([&"roller"])
 	var card := bar._cards[0]
 	card.mouse_entered.emit()
 	assert_true(bar.tooltip.visible, "hovering a carried card shows its part")
-	assert_eq(bar.tooltip.def.id, &"wheel", "with that card's own part")
+	assert_eq(bar.tooltip.def.id, &"roller", "with that card's own part")
 	card.mouse_exited.emit()
 	assert_true(not bar.tooltip.visible, "leaving the card hides it")
 	# A drag in hand hides it: the pointer is carrying something, not naming it.
@@ -182,7 +182,7 @@ func test_hover_shows_the_part_tooltip() -> void:
 
 
 func test_refresh_keeps_nodes() -> void:
-	var bar := _bar([&"wheel", &"strut", &"cutter_rocket"])
+	var bar := _bar([&"roller", &"strut", &"rocket_pod"])
 	var before := bar._cards.duplicate()
 	assert_eq(before.size(), 3, "three cards to start")
 	assert_true(bar.inventory.move(0, 2), "the wheel moves to the last slot")
@@ -191,7 +191,7 @@ func test_refresh_keeps_nodes() -> void:
 	assert_true(bar._cards[0] == before[1], "the strut's node is first now")
 	assert_true(bar._cards[1] == before[2], "the rocket's node is second")
 	assert_true(bar._cards[2] == before[0], "the wheel's own node moved to the last slot")
-	assert_eq(bar._cards[2].part_id, &"wheel", "and it is still the wheel")
+	assert_eq(bar._cards[2].part_id, &"roller", "and it is still the wheel")
 	assert_near(bar._cards[2].position.x,
 		bar._slots[2].get_center().x - bar._cards[2].size.x * 0.5, 0.5,
 		"the reused card is repositioned onto its new slot")

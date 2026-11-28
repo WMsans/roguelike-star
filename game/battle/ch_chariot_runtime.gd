@@ -4,6 +4,9 @@ class_name ChChariotRuntime extends RefCounted
 # off it. `parts` is depth-first, so a part comes before what is bolted onto it.
 
 var side: int = 0  # 0 = the player's chariot, 1 = the enemy's (the ChariotLayout index)
+# The arena this chariot was built into. airborne() asks it which bodies touch the floor; unset on a
+# runtime hand-built by a test, where airborne() answers false rather than reading a missing world.
+var world: PixelWorld = null
 var body_def: ChBodyDef = null  # the def this chassis was built from
 var hp: int = 0  # body HP left; the builder seeds it from max_hp
 # Starting HP: the layout's max_hp, set by the builder. Unset (0) reads as the body's own hp, so a
@@ -13,16 +16,26 @@ var max_hp: int = 0:
 		if max_hp > 0 or body_def == null:
 			return max_hp
 		return body_def.hp
+	set(value):
+		# A part that raises the body's ceiling (C38 Reinforced Frame) writes the override, which is
+		# what the getter above reads first; the body def is shared by every chariot of that body, so
+		# the raise must not go there.
+		max_hp = value
 var energy: ChEnergy = null  # the body's pool, capped and regenerating from body_def
 var chassis: PixelRigidBody = null  # the one body that carries the whole chariot's HP
 var chassis_visual: Node2D = null  # the chassis body's "Visual" child (the builder's, Task 6)
 var parts: Array[ChPartRuntime] = []  # every part, in the order the builder mounted them
+# The passives fighting from the inventory (R30): bodyless ChPartRuntime entries. They are not in
+# `parts`, so the body walks, scopes and proximity never see them.
+var bench: Array[ChPartRuntime] = []
+# Run counts copied in from the layout: parts carried (U68) and parts sold (R29).
+var inventory_count: int = 0
+var parts_sold: int = 0
+var driving: bool = false  # set from energy.tick's drove each tick; wheels read it
 
 var statuses := ChStatuses.new()  # the body's statuses
 var last_anchor: Vector2 = Vector2.ZERO  # the last chassis reading, for a freed chassis
 var _mass_settled := false  # settle_mass has applied the def mass
-
-const MOTOR_SPEED := 12.0  # rad/s at full drive, as the demo car's export
 
 func anchor_world() -> Vector2:
 	if chassis != null and is_instance_valid(chassis):
@@ -49,13 +62,30 @@ func wheels() -> Array[ChPartRuntime]:
 	return out
 
 
+func airborne() -> bool:
+	# No wheel and not the chassis has a floor contact: the whole rig is in the air. A broken wheel
+	# is out of the fight (its joint is gone and its body lies on the ground), so it cannot ground a
+	# chariot that has left the floor.
+	if world == null or chassis == null or not is_instance_valid(chassis):
+		return false
+	var bodies: Array = [chassis]
+	for wheel in wheels():
+		if wheel.broken or wheel.body == null or not is_instance_valid(wheel.body):
+			continue
+		bodies.append(wheel.body)
+	for bits in world.body_contacts(bodies):
+		if bits & PixelWorld.SIDE_FLOOR:
+			return false
+	return true
+
+
 func drive_cost() -> float:
 	# The drive's price per second: the energy_per_second of every unbroken wheel. A frozen wheel
 	# still counts (the spec says unbroken), and a broken one is out of the fight.
 	var total := 0.0
 	for part in parts:
 		if part.def != null and part.def.is_wheel() and not part.broken:
-			total += part.def.energy_per_second
+			total += part.rate
 	return total
 
 
@@ -72,7 +102,7 @@ func drive(direction: float) -> void:
 			continue
 		var disabled := wheel.broken or wheel.is_frozen()
 		joint.enable_motor = not disabled and direction != 0.0
-		joint.motor_speed = 0.0 if disabled else direction * MOTOR_SPEED
+		joint.motor_speed = 0.0 if disabled else direction * wheel.def.wheel_speed
 
 func settle_mass() -> void:
 	# A pixel body joins with its pixels' mass (the engine reads props.mass at join only for a

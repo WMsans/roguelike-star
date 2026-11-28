@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/shield_generator.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"shield_generator"
+behaviour = ExtResource("2_beh")
+display_name = "Shield Generator"
+tags = PackedStringArray("defence")
+rarity = &"common"
+description = PackedStringArray("Your body gains 30 {block}.")
+energy_cost = 3
+cooldown = 5.0
+mode = &"cooldown"
+energy_per_second = 0.0
+damage = 0
+integrity = 60
+proximity_range = 0.0
+reach = 0.0
+size = Vector2i(6,6)
+color = Color(0.35,0.55,0.75, 1)

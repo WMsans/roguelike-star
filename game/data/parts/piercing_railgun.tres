@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/piercing_railgun.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"piercing_railgun"
+behaviour = ExtResource("2_beh")
+display_name = "Piercing Railgun"
+tags = PackedStringArray("weapon")
+rarity = &"rare"
+description = PackedStringArray("500 damage, split evenly across every enemy part in a line.")
+energy_cost = 10
+cooldown = 12.0
+mode = &"cooldown"
+energy_per_second = 0.0
+damage = 500
+integrity = 60
+proximity_range = 0.0
+reach = 0.0
+size = Vector2i(12,4)
+color = Color(0.7,0.6,0.5, 1)

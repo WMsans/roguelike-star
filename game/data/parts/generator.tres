@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/generator.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"generator"
+behaviour = ExtResource("2_beh")
+display_name = "Generator"
+tags = PackedStringArray("stats")
+rarity = &"common"
+description = PackedStringArray("+1 {energy:energy} regen per second.")
+energy_cost = 0
+cooldown = 0.0
+mode = &"passive"
+energy_per_second = 0.0
+damage = 0
+integrity = 50
+proximity_range = 0.0
+reach = 0.0
+size = Vector2i(5,5)
+color = Color(0.5,0.6,0.5, 1)

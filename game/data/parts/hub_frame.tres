@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/hub_frame.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"hub_frame"
+behaviour = ExtResource("2_beh")
+display_name = "Hub Frame"
+tags = PackedStringArray("tricky")
+rarity = &"uncommon"
+description = PackedStringArray("Parts mounted on this count as neighbours of each other and of this part, whatever the distance.")
+energy_cost = 0
+cooldown = 0.0
+mode = &"passive"
+energy_per_second = 0.0
+damage = 0
+integrity = 60
+proximity_range = 0.0
+reach = 0.0
+size = Vector2i(6,6)
+color = Color(0.62,0.55,0.4, 1)
+extension_slots = PackedVector2Array(0,-6, 0,6)

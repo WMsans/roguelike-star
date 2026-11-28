@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/overdrive_clutch.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"overdrive_clutch"
+behaviour = ExtResource("2_beh")
+display_name = "Overdrive Clutch"
+tags = PackedStringArray("melee", "tricky")
+rarity = &"uncommon"
+description = PackedStringArray("Every 10th time a neighbouring melee weapon fires, it gains 3 {speedup}.")
+energy_cost = 0
+cooldown = 0.0
+mode = &"passive"
+energy_per_second = 0.0
+damage = 0
+integrity = 40
+proximity_range = 12.0
+reach = 0.0
+size = Vector2i(6,6)
+color = Color(0.55,0.6,0.62, 1)

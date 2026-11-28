@@ -7,9 +7,66 @@ extends ChTest
 
 
 const PART_IDS: Array[StringName] = [
-	&"ice_cream_mace", &"cutter_chainsaw", &"flamethrower", &"hearth", &"cutter_rocket",
-	&"corsair_harpoon", &"ember_battery", &"firebolt_launcher", &"ring_of_fire",
-	&"freeze_charge", &"wheel", &"strut",
+	# Task 5's common parts (C01-C15, C36-C43).
+	&"rocket_pod", &"cannon", &"chainsaw", &"drill", &"stinger", &"spinning_blade",
+	&"laser", &"shotgun", &"minigun", &"bayonet", &"steel_plate", &"shield_generator",
+	&"bumper", &"plating_rig", &"first_aid_kit", &"spare_cell", &"generator",
+	&"reinforced_frame", &"roller", &"bigfoot", &"sticky_tire", &"long_arm",
+	# Task 6's common elemental and support parts (C16-C35).
+	&"molotov", &"igniter", &"frost_sprayer", &"water_cannon", &"ice_pick",
+	&"zap_gun", &"battery_dropper", &"lightning_rod", &"acid_squirter", &"acid_dripper",
+	&"dynamite_toss", &"gunpowder_hopper", &"sandbag", &"fan", &"smoke_bomb",
+	&"turbo_booster", &"targeting_computer", &"sharpener", &"heavy_rounds",
+	# The two whose ids the retired parts also used: the C42 Strut and the C16 Flamethrower.
+	&"strut", &"flamethrower",
+	# Task 8's Inferno parts (U01-U06, R01-R03).
+	&"oil_sprayer", &"fuel_line", &"heat_shield", &"incinerator", &"napalm_launcher",
+	&"bellows", &"inferno_core", &"eternal_flame", &"pyre",
+	# Task 9's Deep Freeze parts (U07-U13, R04-R06).
+	&"rainmaker", &"cryo_cannon", &"icebreaker", &"antifreeze_coat", &"cold_snap",
+	&"freeze_ray", &"ice_scope", &"absolute_zero", &"permafrost", &"glacier_engine",
+	# Task 10's Steam parts (U69-U72, R31).
+	&"boiler", &"pressure_valve", &"thermal_shock_gun", &"condenser", &"steam_engine",
+	# Task 11's Shock Chain parts (U14-U19, R07-R09).
+	&"tesla_coil", &"chain_lightning", &"ball_lightning", &"capacitor", &"wet_wire",
+	&"grounding_spike", &"storm_core", &"lightning_bolt", &"superconductor",
+	# Task 12's Acid Eater parts (U20-U24, R10-R11).
+	&"acid_cannon", &"corroder", &"acid_gas_vent", &"etching_ray", &"sinkhole_flask",
+	&"universal_solvent", &"matter_eater",
+	# Task 13's Fortress parts (U25-U30, R12-R14).
+	&"spiked_shield", &"shield_battery", &"rampart", &"bunker_frame", &"compound_plating",
+	&"thermal_plating", &"aegis_mirror", &"iron_will", &"citadel",
+	# Task 14's Thorns parts (U82-U85, R35-R36).
+	&"spiked_armour", &"reactive_plate", &"shock_plate", &"mirror_plating", &"retribution",
+	&"guardian_core",
+	# Task 15's Last Stand parts (U78-U81, R34).
+	&"adrenaline_injector", &"emergency_plating", &"berserker_chip", &"last_rites", &"death_wish",
+	# Task 16's Grinder parts (U31-U36, R15-R17).
+	&"buzzsaw_arm", &"hot_teeth", &"gear_train", &"heavy_grinder", &"rotary_drill",
+	&"overdrive_clutch", &"meshing_gearbox", &"bloodsaw", &"grinding_engine",
+	# Task 17's Rammer parts (U73-U77, R32-R33).
+	&"ram_spike", &"booster_rocket", &"pogo_spring", &"spiked_wheel", &"harpoon",
+	&"juggernaut", &"wrecking_gear",
+	# Task 18's Sniper parts (U37-U41, R18-R19).
+	&"railgun", &"focus_lens", &"rangefinder", &"stabiliser", &"long_barrel",
+	&"distance_lens", &"piercing_railgun",
+	# Task 19's Demolition parts (U42-U47, R20-R22).
+	&"tnt_launcher", &"detonator", &"blast_shield", &"demolition_charge", &"mine_layer",
+	&"excavator", &"chain_detonator", &"earthquake", &"blast_amplifier",
+	# Task 20's Gale parts (U48-U52, R23-R24).
+	&"gust_cannon", &"smokestack", &"turbine", &"steam_vent", &"weather_vane",
+	&"toxic_tempest", &"stormfront",
+	# Task 21's Overclock parts (U53-U58, R25-R26).
+	&"overclocker", &"gear_linkage", &"momentum_hammer", &"coolant_pump", &"pulse_gun",
+	&"static_gears", &"perpetual_gear", &"overdrive",
+	# Task 22's Reactor parts (U59-U63, R27-R28).
+	&"overflow_valve", &"priority_relay", &"dynamo_wheel", &"power_siphon", &"surge_cannon",
+	&"fusion_core", &"blood_cell",
+	# Task 23's Merchant parts (U64-U68, R29-R30).
+	&"piggy_bank", &"scrap_cannon", &"safe", &"trade_in_coupon", &"collectors_shelf",
+	&"golden_gear", &"bench_warmer",
+	# Task 24's frames and Mimic (U86-U88, R37-R38).
+	&"turret_mount", &"gantry", &"hub_frame", &"mimic_module", &"exo_frame",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 
@@ -28,46 +85,35 @@ func test_all_ids_load() -> void:
 	assert_eq(missing_parts, [], "every slice part id has a def")
 	assert_eq(missing_bodies, [], "every slice body id has a def")
 	# The counts catch a def filed under an id these lists do not name.
-	assert_eq(catalog.parts.size(), 12, "12 part defs on disk")
+	assert_eq(catalog.parts.size(), PART_IDS.size(), "%d part defs on disk" % PART_IDS.size())
 	assert_eq(catalog.bodies.size(), 3, "3 body defs on disk")
 	_complete()
 
 
 func test_spec_numbers() -> void:
 	var catalog := ChCatalog.load_default()
+	var cutter: ChBodyDef = catalog.body(&"cutter")
+	assert_true(cutter != null, "the Cutter def loads")
 	var dozer: ChBodyDef = catalog.body(&"dozer")
 	assert_true(dozer != null, "the Dozer def loads")
-	# The demo balance pass (docs/superpowers/handoffs/2026-11-07-demo-balance-handoff.md): caps and
-	# regen small enough that a full loadout runs short of energy. HP and regen were re-tuned for the
-	# press volley and the body shapes (button-and-bodies Task 9, same handoff, "Re-balance for presses").
-	assert_eq(dozer.hp, 700, "Dozer HP 700")
-	assert_eq(dozer.energy_cap, 14, "Dozer energy cap 14")
-	assert_eq(dozer.energy_regen, 3.0, "Dozer regen 3/s")
+	# The parts-list §1.1 scale (Task 7): HP about 800, energy about 20, regen about 4/s.
+	assert_eq(cutter.hp, 750, "Cutter HP 750")
+	assert_eq(cutter.energy_cap, 18, "Cutter energy cap 18")
+	assert_eq(cutter.energy_regen, 4.0, "Cutter regen 4/s")
+	assert_eq(dozer.hp, 900, "Dozer HP 900")
+	assert_eq(dozer.energy_cap, 20, "Dozer energy cap 20")
+	assert_eq(dozer.energy_regen, 4.0, "Dozer regen 4/s")
 	var corsair: ChBodyDef = catalog.body(&"corsair")
 	assert_true(corsair != null, "the Corsair def loads")
-	assert_eq(corsair.hp, 900, "Corsair HP 900")
-	assert_eq(corsair.energy_cap, 12, "Corsair energy cap 12")
-	assert_eq(corsair.energy_regen, 3.25, "Corsair regen 3.25/s")
-	# Costs started on the CATS rule in Global Constraints (power 5 -> 1 energy, power 10 -> 2); the
-	# balance pass moved the Chainsaw and the Ring to their measured damage per energy.
+	assert_eq(corsair.hp, 1000, "Corsair HP 1000")
+	assert_eq(corsair.energy_cap, 22, "Corsair energy cap 22")
+	assert_eq(corsair.energy_regen, 4.5, "Corsair regen 4.5/s")
 	# part() answers null for an id the catalog does not hold, so each def is bound and asserted
 	# before its properties are read: chaining onto null aborts the body with a null-access error
-	# that names no def, which is what the Dozer/Corsair guards above already do.
-	var mace: ChPartDef = catalog.part(&"ice_cream_mace")
-	assert_true(mace != null, "the mace def loads")
-	assert_eq(mace.energy_cost, 1, "mace costs 1")
-	var chainsaw: ChPartDef = catalog.part(&"cutter_chainsaw")
-	assert_true(chainsaw != null, "the chainsaw def loads")
-	assert_eq(chainsaw.energy_cost, 1, "chainsaw costs 1")
-	var ring: ChPartDef = catalog.part(&"ring_of_fire")
-	assert_true(ring != null, "the Ring of Fire def loads")
-	assert_eq(ring.energy_cost, 3, "Ring of Fire costs 3")
-	var firebolt: ChPartDef = catalog.part(&"firebolt_launcher")
-	assert_true(firebolt != null, "the Firebolt launcher def loads")
-	assert_eq(firebolt.charges, 5, "Firebolt has 5 charges per fight")
+	# that names no def, which is what the Cutter/Dozer/Corsair guards above already do.
 	var strut: ChPartDef = catalog.part(&"strut")
 	assert_true(strut != null, "the strut def loads")
-	assert_eq(strut.extension_slots.size(), 2, "the Strut carries 2 extension slots")
+	assert_eq(strut.extension_slots.size(), 1, "the Strut carries 1 extension slot")
 	_complete()
 
 
@@ -84,17 +130,17 @@ func test_every_part_has_rarity_and_tags() -> void:
 	var flame: ChPartDef = catalog.part(&"flamethrower")
 	assert_true(flame != null, "the Flamethrower def loads")
 	if flame != null:
-		assert_eq(flame.rarity, &"uncommon", "the Flamethrower is uncommon")
-		for tag in ["fire", "weapon", "triggered"]:
+		assert_eq(flame.rarity, &"common", "the Flamethrower is common")
+		for tag in ["fire", "weapon", "beam"]:
 			assert_true(flame.tags.has(tag), "the Flamethrower is tagged %s" % tag)
-	var rocket: ChPartDef = catalog.part(&"cutter_rocket")
-	assert_true(rocket != null, "the Rocket def loads")
+	var rocket: ChPartDef = catalog.part(&"rocket_pod")
+	assert_true(rocket != null, "the Rocket Pod def loads")
 	if rocket != null:
-		assert_eq(rocket.rarity, &"rare", "the Cutter Rocket is rare")
+		assert_eq(rocket.rarity, &"common", "the Rocket Pod is common")
 	var strut: ChPartDef = catalog.part(&"strut")
 	assert_true(strut != null, "the Strut def loads")
 	if strut != null:
-		assert_true(strut.tags.has("tricky"), "the Strut is tricky")
+		assert_true(strut.tags.has("stats"), "the Strut is a stats part")
 	_complete()
 
 
@@ -120,23 +166,19 @@ func test_every_part_has_a_mode() -> void:
 	_complete()
 
 
-# The reach the driver closes with is ChPartDef.reach, not proximity_range: the old weapons keep
-# the range they had, and the Harpoon's 120 cells move onto the field.
-func test_old_weapons_kept_their_reach() -> void:
+# The reach the driver closes with is ChPartDef.reach, not proximity_range: a weapon's reach is the
+# distance it strikes, and only a part that is not a weapon keeps the two equal.
+func test_reach_matches_proximity_range_outside_weapons() -> void:
 	var catalog := ChCatalog.load_default()
-	for pair in [[&"ice_cream_mace", 6.0], [&"cutter_chainsaw", 14.0], [&"corsair_harpoon", 120.0]]:
-		var def: ChPartDef = catalog.part(pair[0])
-		assert_true(def != null, "%s loads" % pair[0])
-		if def != null:
-			assert_near(def.reach, pair[1], 0.001, "%s reach is %s" % [pair[0], pair[1]])
 	for id in catalog.parts:
 		var def: ChPartDef = catalog.parts[id]
 		if def.damage <= 0 or def.cooldown <= 0.0:
 			# A passive (Freeze Charge, Ember Battery, Strut) or a wheel brought nothing to bear
 			# before, so its reach stays 0 whatever its proximity_range is.
 			continue
-		if def.id == &"corsair_harpoon":
-			# The Harpoon owns no proximity_range: its reach is its behaviour's own 120-cell line.
+		if def.tags.has("melee") or def.tags.has("beam"):
+			# Task 5: a melee or beam weapon's reach is the distance it strikes, not a proximity
+			# range, so the two fields are free to differ (the Stinger reaches 48 with no chain).
 			continue
 		assert_near(def.reach, def.proximity_range, 0.001, "%s reach equals its proximity_range" % id)
 	_complete()
@@ -202,7 +244,7 @@ func test_enemy_layout_valid() -> void:
 		var anchor := layout.anchor_of(steps, catalog)
 		# A path whose indices no def owns has no position: the anchor reads ZERO.
 		assert_true(anchor != Vector2.ZERO, "%s lands on a real slot" % [steps])
-		if node.part_id == &"wheel":
+		if node.part_id == &"roller":
 			wheels += 1
 			# The wheels sit low and exposed: their anchor y matches the body's lowest slots, so
 			# moving a wheel to a higher slot index fails here instead of only counting wheels.
@@ -212,9 +254,10 @@ func test_enemy_layout_valid() -> void:
 			# the edge leaves the hull on the sand).
 			assert_near(anchor.y, _bottom_at(body_def, anchor.x), 0.5,
 				"%s sits on the hull's bottom edge" % steps)
-		elif node.part_id == &"corsair_harpoon" or node.part_id == &"ice_cream_mace":
-			# ChBodyDef.slots say +x is forward, so these two sit on the front half of the hull;
-			# the hearth stays behind them and gets no assertion.
+		elif node.part_id == &"rocket_pod" or node.part_id == &"igniter" \
+				or node.part_id == &"shield_generator":
+			# ChBodyDef.slots say +x is forward, so these three sit on the front half of the hull;
+			# the two Molotovs stay behind them and get no assertion.
 			assert_true(anchor.x > 0.0, "%s mounts facing forward" % node.part_id)
 	assert_eq(wheels, 2, "the build has exactly 2 wheels, low and exposed")
 	_complete()
@@ -284,15 +327,15 @@ func test_slots_inside_outline() -> void:
 
 
 func test_cook_is_a_barge() -> void:
-	# Spec §2: the cook's kit is a brawler's, so it drives the Barge with its two Hearths on the two
-	# frontmost top slots (+x is forward; the battle mirrors the enemy so its front faces the player).
+	# Spec §2: the cook's kit is a brawler's, so it drives the Barge. Task 7 rebuilds it from list
+	# parts: two Molotovs on the rear top slots, a Rocket Pod, an Igniter and a Shield Generator in
+	# front (+x is forward; the battle mirrors the enemy so its front faces the player).
 	var catalog := ChCatalog.load_default()
 	var layout: ChChariotLayout = load("res://game/data/enemies/dozer_cook.tres")
 	assert_eq(layout.body_id, &"corsair", "the cook drives a Corsair")
-	# 1800 was the auto-fire number; presses fire less often, so Task 9 re-tuned it to 700, and the
-	# cook-and-arena tune (two Firebolts on [2]/[3], a second Hearth for the Mace, tools/balance/README.md)
-	# to 1500 with the runner.
-	assert_eq(layout.max_hp, 1500, "the cook has its re-tuned 1500 HP")
+	# The HP is the run's fight-0 enemy HP (ChRun.FIRST_HP), re-tuned with the smoke suite; see
+	# tools/balance/README.md's tuning table.
+	assert_eq(layout.max_hp, ChRun.FIRST_HP, "the cook has the run's fight-0 HP")
 	var body: ChBodyDef = catalog.body(layout.body_id)
 	var wheels := _wheel_slots(body)
 	var tops: Array[int] = []
@@ -300,37 +343,29 @@ func test_cook_is_a_barge() -> void:
 		if not wheels.has(i):
 			tops.append(i)
 	tops.sort_custom(func(a: int, b: int) -> bool: return body.slots[a].x > body.slots[b].x)
-	var front: Array[StringName] = []
+	var front: Array[String] = []
 	for i in tops.slice(0, 2):
 		var node: ChSlotNode = layout.get_node(_typed_path([i]))
-		front.append(node.part_id if node != null else &"")
+		front.append(String(node.part_id) if node != null else "")
 	front.sort()
-	assert_eq(front, [&"hearth", &"hearth"], "two Hearths on the front top slots")
+	assert_eq(front, ["igniter", "shield_generator"],
+		"the Igniter and the Shield Generator on the front top slots")
 	for i in wheels:
 		var node: ChSlotNode = layout.get_node(_typed_path([i]))
-		assert_true(node != null and node.part_id == &"wheel", "wheel on slot %d" % i)
+		assert_true(node != null and node.part_id == &"roller", "roller on slot %d" % i)
 	_complete()
 
 
 func test_every_part_described() -> void:
 	var catalog := ChCatalog.load_default()
-	assert_eq(catalog.parts.size(), 12, "the slice's 12 parts")
+	assert_eq(catalog.parts.size(), PART_IDS.size(), "the slice's %d parts" % PART_IDS.size())
 	for id in catalog.parts:
 		var def: ChPartDef = catalog.parts[id]
 		assert_true(def.description.size() > 0, "%s has a description" % id)
 		for line in def.description:
 			assert_eq(ChKeywords.parse(line).unknown, [], "%s: every tag resolves" % id)
 			assert_true(not line.begins_with("•"), "%s: the tooltip adds the bullet" % id)
-	assert_eq(ChKeywords.keys_of(catalog.part(&"flamethrower").description), [&"press", &"flame"])
-	assert_eq(ChKeywords.keys_of(catalog.part(&"freeze_charge").description), [&"passive", &"proximity", &"freeze"])
-	assert_eq(ChKeywords.keys_of(catalog.part(&"ember_battery").description), [&"passive", &"flame", &"energy"])
-	_complete()
-
-
-func test_ember_battery_names_its_cooldown() -> void:
-	# Five parts lighting at once pay 3, not 15: the battery's internal cooldown is part of the rule.
-	var lines := "\n".join(ChCatalog.load_default().part(&"ember_battery").description)
-	assert_true(lines.contains("0.5 s"), "ch_ember_battery.gd's BATTERY_COOLDOWN is stated")
+	assert_eq(ChKeywords.keys_of(catalog.part(&"flamethrower").description), [&"flame"])
 	_complete()
 
 
@@ -389,19 +424,20 @@ func test_sprites_keep_the_placeholder_pixels() -> void:
 	var catalog := ChCatalog.load_default()
 	var defs: Array = catalog.parts.values() + catalog.bodies.values()
 	for def in defs:
-		assert_true(def.texture != null, "%s has a sprite" % def.id)
+		# Task 5: a def with no sprite draws the flat placeholder, so only the art that exists is
+		# held to the placeholder's silhouette.
 		if def.texture == null:
 			continue
 		var want: Image
 		if def is ChBodyDef:
 			want = ChTextures.polygon(def.outline, def.size, Color.BLACK).get_image()
-		elif def.id == &"wheel":
+		elif def.id == &"roller":
 			want = ChTextures.disc(def.size.x, Color.BLACK).get_image()
 		else:
 			want = ChTextures.box(def.size.x, def.size.y, Color.BLACK).get_image()
 		var got: Image = def.texture.get_image()
 		# A hand sprite's art has a transparent background; its body collides as ChTextures.solid(art).
-		if def is ChPartDef and def.id != &"wheel":
+		if def is ChPartDef and def.id != &"roller":
 			got = ChTextures.solid(got).get_image()
 		assert_eq(got.get_size(), want.get_size(), "%s sprite is its def's size" % def.id)
 		var off := 0

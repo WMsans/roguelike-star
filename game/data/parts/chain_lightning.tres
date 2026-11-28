@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/chain_lightning.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"chain_lightning"
+behaviour = ExtResource("2_beh")
+display_name = "Chain Lightning"
+tags = PackedStringArray("weapon", "electric")
+rarity = &"uncommon"
+description = PackedStringArray("30 damage. Throws {sparks:sparks} at the part hit. {shock:Shock} from these sparks jumps one extra hop.")
+energy_cost = 5
+cooldown = 6.0
+mode = &"cooldown"
+energy_per_second = 0.0
+damage = 30
+integrity = 50
+proximity_range = 0.0
+reach = 0.0
+size = Vector2i(6,3)
+color = Color(0.9,0.9,0.4, 1)

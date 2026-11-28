@@ -39,12 +39,12 @@ func test_free_slots() -> void:
 
 
 func test_remove_at_lifts_one_copy_by_index() -> void:
-	var inventory := _inventory([&"wheel", &"wheel", &"strut"])
-	assert_eq(inventory.remove_at(1), &"wheel", "the copy at that index leaves")
-	assert_eq(inventory.part_ids, [&"wheel", &"strut"], "and the others keep their order")
+	var inventory := _inventory([&"roller", &"roller", &"strut"])
+	assert_eq(inventory.remove_at(1), &"roller", "the copy at that index leaves")
+	assert_eq(inventory.part_ids, [&"roller", &"strut"], "and the others keep their order")
 	assert_eq(inventory.remove_at(9), &"", "an index past the end removes nothing")
-	assert_eq(inventory.part_ids, [&"wheel", &"strut"], "so the list is unchanged")
+	assert_eq(inventory.part_ids, [&"roller", &"strut"], "so the list is unchanged")
 	# take (the id handle) and remove_at (the index handle) find the same part.
 	assert_eq(inventory.remove_at(1), &"strut", "the strut by index")
-	assert_eq(inventory.part_ids, [&"wheel"], "leaves the wheel")
+	assert_eq(inventory.part_ids, [&"roller"], "leaves the wheel")
 	_complete()

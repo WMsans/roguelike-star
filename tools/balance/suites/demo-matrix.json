@@ -11,43 +11,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         4
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         2
        ],
-       "part": "ember_battery"
+       "part": "generator"
       }
      ]
     },
@@ -58,31 +58,31 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         4
        ],
-       "part": "freeze_charge"
+       "part": "frost_sprayer"
       },
       {
        "slot": [
         5
        ],
-       "part": "corsair_harpoon"
+       "part": "cannon"
       }
      ]
     },
@@ -93,43 +93,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         4
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "hearth"
+       "part": "igniter"
       },
       {
        "slot": [
         2
        ],
-       "part": "ember_battery"
+       "part": "generator"
       }
      ]
     },
@@ -140,13 +140,13 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
@@ -164,19 +164,19 @@
        "slot": [
         4
        ],
-       "part": "firebolt_launcher"
+       "part": "molotov"
       },
       {
        "slot": [
         3
        ],
-       "part": "firebolt_launcher"
+       "part": "molotov"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       }
      ]
     },
@@ -187,43 +187,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         4
        ],
-       "part": "ring_of_fire"
+       "part": "molotov"
       },
       {
        "slot": [
         3
        ],
-       "part": "hearth"
+       "part": "igniter"
       },
       {
        "slot": [
         2
        ],
-       "part": "hearth"
+       "part": "igniter"
       }
      ]
     }
@@ -236,43 +236,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         4
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         2
        ],
-       "part": "ember_battery"
+       "part": "generator"
       }
      ]
     },
@@ -283,31 +283,31 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         4
        ],
-       "part": "freeze_charge"
+       "part": "frost_sprayer"
       },
       {
        "slot": [
         5
        ],
-       "part": "corsair_harpoon"
+       "part": "cannon"
       }
      ]
     },
@@ -318,43 +318,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         4
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "hearth"
+       "part": "igniter"
       },
       {
        "slot": [
         2
        ],
-       "part": "ember_battery"
+       "part": "generator"
       }
      ]
     },
@@ -365,13 +365,13 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
@@ -389,19 +389,19 @@
        "slot": [
         4
        ],
-       "part": "firebolt_launcher"
+       "part": "molotov"
       },
       {
        "slot": [
         3
        ],
-       "part": "firebolt_launcher"
+       "part": "molotov"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       }
      ]
     },
@@ -412,43 +412,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         4
        ],
-       "part": "ring_of_fire"
+       "part": "molotov"
       },
       {
        "slot": [
         3
        ],
-       "part": "hearth"
+       "part": "igniter"
       },
       {
        "slot": [
         2
        ],
-       "part": "hearth"
+       "part": "igniter"
       }
      ]
     }
@@ -478,43 +478,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         4
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         2
        ],
-       "part": "ember_battery"
+       "part": "generator"
       }
      ]
     },
@@ -525,31 +525,31 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         4
        ],
-       "part": "freeze_charge"
+       "part": "frost_sprayer"
       },
       {
        "slot": [
         5
        ],
-       "part": "corsair_harpoon"
+       "part": "cannon"
       }
      ]
     },
@@ -560,43 +560,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         4
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "hearth"
+       "part": "igniter"
       },
       {
        "slot": [
         2
        ],
-       "part": "ember_battery"
+       "part": "generator"
       }
      ]
     },
@@ -607,13 +607,13 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
@@ -631,19 +631,19 @@
        "slot": [
         4
        ],
-       "part": "firebolt_launcher"
+       "part": "molotov"
       },
       {
        "slot": [
         3
        ],
-       "part": "firebolt_launcher"
+       "part": "molotov"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       }
      ]
     },
@@ -654,43 +654,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         4
        ],
-       "part": "ring_of_fire"
+       "part": "molotov"
       },
       {
        "slot": [
         3
        ],
-       "part": "hearth"
+       "part": "igniter"
       },
       {
        "slot": [
         2
        ],
-       "part": "hearth"
+       "part": "igniter"
       }
      ]
     }
@@ -703,43 +703,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         4
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         2
        ],
-       "part": "ember_battery"
+       "part": "generator"
       }
      ]
     },
@@ -750,31 +750,31 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         4
        ],
-       "part": "freeze_charge"
+       "part": "frost_sprayer"
       },
       {
        "slot": [
         5
        ],
-       "part": "corsair_harpoon"
+       "part": "cannon"
       }
      ]
     },
@@ -785,43 +785,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         4
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "hearth"
+       "part": "igniter"
       },
       {
        "slot": [
         2
        ],
-       "part": "ember_battery"
+       "part": "generator"
       }
      ]
     },
@@ -832,13 +832,13 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
@@ -856,19 +856,19 @@
        "slot": [
         4
        ],
-       "part": "firebolt_launcher"
+       "part": "molotov"
       },
       {
        "slot": [
         3
        ],
-       "part": "firebolt_launcher"
+       "part": "molotov"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       }
      ]
     },
@@ -879,43 +879,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         4
        ],
-       "part": "ring_of_fire"
+       "part": "molotov"
       },
       {
        "slot": [
         3
        ],
-       "part": "hearth"
+       "part": "igniter"
       },
       {
        "slot": [
         2
        ],
-       "part": "hearth"
+       "part": "igniter"
       }
      ]
     }
@@ -945,43 +945,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         4
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         2
        ],
-       "part": "ember_battery"
+       "part": "generator"
       }
      ]
     },
@@ -992,31 +992,31 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         4
        ],
-       "part": "freeze_charge"
+       "part": "frost_sprayer"
       },
       {
        "slot": [
         5
        ],
-       "part": "corsair_harpoon"
+       "part": "cannon"
       }
      ]
     },
@@ -1027,43 +1027,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         4
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "hearth"
+       "part": "igniter"
       },
       {
        "slot": [
         2
        ],
-       "part": "ember_battery"
+       "part": "generator"
       }
      ]
     },
@@ -1074,13 +1074,13 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
@@ -1098,19 +1098,19 @@
        "slot": [
         4
        ],
-       "part": "firebolt_launcher"
+       "part": "molotov"
       },
       {
        "slot": [
         3
        ],
-       "part": "firebolt_launcher"
+       "part": "molotov"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       }
      ]
     },
@@ -1121,43 +1121,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         4
        ],
-       "part": "ring_of_fire"
+       "part": "molotov"
       },
       {
        "slot": [
         3
        ],
-       "part": "hearth"
+       "part": "igniter"
       },
       {
        "slot": [
         2
        ],
-       "part": "hearth"
+       "part": "igniter"
       }
      ]
     }
@@ -1170,43 +1170,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         4
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         2
        ],
-       "part": "ember_battery"
+       "part": "generator"
       }
      ]
     },
@@ -1217,31 +1217,31 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         4
        ],
-       "part": "freeze_charge"
+       "part": "frost_sprayer"
       },
       {
        "slot": [
         5
        ],
-       "part": "corsair_harpoon"
+       "part": "cannon"
       }
      ]
     },
@@ -1252,43 +1252,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         4
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "hearth"
+       "part": "igniter"
       },
       {
        "slot": [
         2
        ],
-       "part": "ember_battery"
+       "part": "generator"
       }
      ]
     },
@@ -1299,13 +1299,13 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
@@ -1323,19 +1323,19 @@
        "slot": [
         4
        ],
-       "part": "firebolt_launcher"
+       "part": "molotov"
       },
       {
        "slot": [
         3
        ],
-       "part": "firebolt_launcher"
+       "part": "molotov"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       }
      ]
     },
@@ -1346,43 +1346,43 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       },
       {
        "slot": [
         4
        ],
-       "part": "ring_of_fire"
+       "part": "molotov"
       },
       {
        "slot": [
         3
        ],
-       "part": "hearth"
+       "part": "igniter"
       },
       {
        "slot": [
         2
        ],
-       "part": "hearth"
+       "part": "igniter"
       }
      ]
     }
@@ -1397,8 +1397,8 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0
+     0.0,
+     0.75
     ],
     "aborted": [
      0,

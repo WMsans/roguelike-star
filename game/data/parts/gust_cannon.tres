@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/gust_cannon.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"gust_cannon"
+behaviour = ExtResource("2_beh")
+display_name = "Gust Cannon"
+tags = PackedStringArray("weapon", "wind")
+rarity = &"uncommon"
+description = PackedStringArray("A blast of air: 10 damage, pushes the enemy and all gases in front 20 cells.")
+energy_cost = 3
+cooldown = 5.0
+mode = &"cooldown"
+energy_per_second = 0.0
+damage = 10
+integrity = 50
+proximity_range = 0.0
+reach = 0.0
+size = Vector2i(8,6)
+color = Color(0.72,0.85,0.92, 1)

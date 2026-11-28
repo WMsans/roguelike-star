@@ -233,7 +233,7 @@ func test_block_absorbs_weapon_hit_in_deal_hit() -> void:
 	assert_eq(target.statuses.count(ChStatuses.BLOCK), 0, "Block spent")
 	assert_eq(lost.size(), 1, "the last Block used up is lost")
 	if lost.size() == 1:
-		assert_eq(lost[0].data, {"status": ChStatuses.BLOCK}, "lost Block")
+		assert_eq(lost[0].data, {"status": ChStatuses.BLOCK, "attacker": gun}, "lost Block, with the attacker")
 		assert_eq(lost[0].source, target, "on the part hit")
 	_complete()
 

@@ -95,7 +95,7 @@ func _part_of(runtime: ChChariotRuntime, steps: Array[int]) -> ChPartRuntime:
 	return null
 
 # A battle context over `rigs` (index = side), with every mounted behaviour getting the setup call
-# that subscribes it, exactly as test_context.gd's _battle does.
+# that subscribes it through the one entry point, exactly as test_context.gd's _battle does.
 func _battle(world: PixelWorld, catalog: ChCatalog, rigs: Array[ChChariotRuntime]) -> ChBattleContext:
 	var ctx := ChBattleContext.new()
 	ctx.world = world
@@ -103,10 +103,7 @@ func _battle(world: PixelWorld, catalog: ChCatalog, rigs: Array[ChChariotRuntime
 	ctx.bus = ChEventBus.new()
 	ctx.catalog = catalog
 	ctx.chariots = rigs
-	for rig in rigs:
-		for part in rig.parts:
-			if part.behaviour != null:
-				part.behaviour.setup(ctx)
+	ctx.setup_all()
 	return ctx
 
 # The player rig with `defs` mounted at `mounts`, and a bare enemy rig 12 cells to the right, inside
@@ -385,4 +382,17 @@ func test_skipped_part_is_announced() -> void:
 		assert_true(skipped[0].source == low, "the 1-cost part is the one the pool refused")
 		assert_eq(skipped[0].data.get("cost"), 1, "and the payload carries its cost")
 	assert_near(rig.energy.value, 0.0, 0.0001, "the pool paid the dearest part")
+	_complete()
+
+# Task 1: a passive-mode part never joins the volley, even if its def still carries a cooldown.
+func test_cooldown_mode_gates_the_volley() -> void:
+	var part := ChPartRuntime.new()
+	var def := ChPartDef.new()
+	def.id = &"passive_gun"
+	def.mode = ChPartDef.MODE_PASSIVE
+	def.cooldown = 2.0
+	def.energy_cost = 1
+	def.integrity = 100
+	part.def = def
+	assert_true(not part.is_ready(), "a passive part is never ready, cooldown or not")
 	_complete()

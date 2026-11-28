@@ -70,6 +70,7 @@ func _run_file(test_file: String) -> bool:
 			continue
 		var before: int = inst.failures.size()
 		var done_before: int = inst.completed
+		inst.skipped = ""
 		# ChTest assertions record into inst.failures instead of raising; await lets a
 		# coroutine test (ChTest.make_world waits for its world) finish before the delta.
 		# Kept inline: when this await sits in a helper one level deeper, a test method that
@@ -84,8 +85,11 @@ func _run_file(test_file: String) -> bool:
 		if inst.completed == done_before:
 			problems.append("did not reach _complete() (body aborted mid-way or marker missing)")
 		if problems.size() == 0:
-			_passed += 1
-			print("PASS ", file_name, " ", method_name)
+			if inst.skipped != "":
+				print("SKIP ", file_name, " ", method_name, ": ", inst.skipped)
+			else:
+				_passed += 1
+				print("PASS ", file_name, " ", method_name)
 		else:
 			_failed += 1
 			print("FAIL ", file_name, " ", method_name, ": ", "; ".join(problems))

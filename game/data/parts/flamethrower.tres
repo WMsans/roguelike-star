@@ -1,23 +1,25 @@
 [gd_resource type="Resource" script_classes=1 load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
-[ext_resource type="Script" path="res://game/battle/behaviours/ch_flamethrower.gd" id="2_flame"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/flamethrower.gd" id="2_beh"]
 [ext_resource type="Texture2D" path="res://textures/sprites/flamethrower.png" id="tex_sprite"]
 
 [resource]
 script = ExtResource("1_part")
-behaviour = ExtResource("2_flame")
 id = &"flamethrower"
+behaviour = ExtResource("2_beh")
 display_name = "Flamethrower"
-tags = PackedStringArray("weapon", "triggered", "fire")
-rarity = &"uncommon"
-description = PackedStringArray("{press} Sprays a 1 s burst of {flame:fire} ahead.", "{press} 63 damage over the burst.")
-energy_cost = 2
-cooldown = 3.0
-mode = &"cooldown"
-damage = 63
-proximity_range = 40.0
-reach = 40.0
-size = Vector2i(8, 4)
-color = Color(0.95, 0.45, 0.2, 1)
+tags = PackedStringArray("weapon", "fire", "beam")
+rarity = &"common"
+description = PackedStringArray("Short beam: 4 damage per second. Sprays {flame:fire} cells along the beam.")
+energy_cost = 0
+cooldown = 0.0
+mode = &"beam"
+energy_per_second = 2.0
+damage = 4
+integrity = 50
+proximity_range = 0.0
+reach = 30.0
+size = Vector2i(8,4)
+color = Color(0.95,0.45,0.2, 1)
 texture = ExtResource("tex_sprite")

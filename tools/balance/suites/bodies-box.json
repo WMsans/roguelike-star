@@ -11,25 +11,25 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       }
      ],
      "plain_hull": true
@@ -41,25 +41,25 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       }
      ],
      "plain_hull": true
@@ -71,25 +71,25 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       }
      ],
      "plain_hull": true
@@ -103,25 +103,25 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         2
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       }
      ],
      "plain_hull": true
@@ -133,25 +133,25 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         3
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       }
      ],
      "plain_hull": true
@@ -163,25 +163,25 @@
        "slot": [
         0
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         1
        ],
-       "part": "wheel"
+       "part": "roller"
       },
       {
        "slot": [
         5
        ],
-       "part": "cutter_rocket"
+       "part": "rocket_pod"
       },
       {
        "slot": [
         6
        ],
-       "part": "cutter_chainsaw"
+       "part": "chainsaw"
       }
      ],
      "plain_hull": true

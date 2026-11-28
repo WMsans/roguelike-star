@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/scrap_cannon.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"scrap_cannon"
+behaviour = ExtResource("2_beh")
+display_name = "Scrap Cannon"
+tags = PackedStringArray("weapon")
+rarity = &"uncommon"
+description = PackedStringArray("30 damage. When you sell a part, this gains +5 damage permanently.")
+energy_cost = 4
+cooldown = 5.0
+mode = &"cooldown"
+energy_per_second = 0.0
+damage = 30
+integrity = 50
+proximity_range = 0.0
+reach = 0.0
+size = Vector2i(10,4)
+color = Color(0.55,0.5,0.45, 1)

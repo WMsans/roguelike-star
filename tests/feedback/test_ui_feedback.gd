@@ -59,9 +59,9 @@ func _bursts() -> int:
 
 
 func test_drop_pops_the_new_piece() -> void:
-	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
+	var garage: ChGarage = _garage_scene(_inventory([&"roller"]), _layout(&"cutter"), _catalog())
 	var bursts_before := _bursts()
-	assert_true(garage.drop_part(&"wheel", [0]), "the wheel mounts in body slot 0")
+	assert_true(garage.drop_part(&"roller", [0]), "the wheel mounts in body slot 0")
 	var piece := garage.piece_at(_typed_path([0]))
 	assert_true(piece != null, "the drop left a piece to kick")
 	if piece == null:

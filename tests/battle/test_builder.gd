@@ -15,8 +15,8 @@ const JOIN_WAIT_FRAMES := 240
 const STRUT_FRAMES := 180  # frames the strut-pair rig is given to settle
 const STRUT_WINDOW := 30  # the frames the chassis rotation is measured over
 const STRUT_MOUNTS: Array = [
-	[[0], &"wheel"], [[1], &"wheel"], [[2], &"strut"],
-	[[2, 0], &"cutter_chainsaw"], [[2, 1], &"flamethrower"]]
+	[[0], &"roller"], [[1], &"roller"], [[2], &"strut"],
+	[[2, 0], &"chainsaw"], [[2, 1], &"flamethrower"]]
 const STRUT_HINGED: Array = [[2], [2, 0], [2, 1]]  # that build's parts, the wheels excepted
 const DRIFT_SPLIT := 0.6  # cells off the layout anchor: a grouped rig's parts sit inside it, a group-0 rig's outside
 
@@ -58,7 +58,7 @@ func test_builds_bodies_and_joints() -> void:
 	# Dozer slots 0/1 are the two lowest (y = 15), so the wheels sit under the hull; slot 2 is (-9,-3)
 	# and the mace hangs off the strut's first extension slot, one body further out.
 	var layout: ChChariotLayout = _mount(&"dozer", [
-		[[0], &"wheel"], [[1], &"wheel"], [[2], &"strut"], [[2, 0], &"ice_cream_mace"]])
+		[[0], &"roller"], [[1], &"roller"], [[2], &"strut"], [[2, 0], &"ice_pick"]])
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(
 		world, _parent(), layout, ChCatalog.load_default(), 0, ORIGIN, false)
 	assert_true(runtime != null, "the build returns a runtime")
@@ -95,7 +95,7 @@ func test_settles_on_ground() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(
-		world, _parent(), _mount(&"dozer", [[[0], &"wheel"], [[1], &"wheel"]]), ChCatalog.load_default(), 0, ORIGIN, false)
+		world, _parent(), _mount(&"dozer", [[[0], &"roller"], [[1], &"roller"]]), ChCatalog.load_default(), 0, ORIGIN, false)
 	assert_true(runtime != null, "the build returns a runtime")
 	# One world.step per awaited frame: joining runs on the engine's internal physics tick, so a
 	# single step(120) call would tick an empty world before any body had joined.
@@ -116,7 +116,7 @@ func test_drive_moves_right() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(
-		world, _parent(), _mount(&"dozer", [[[0], &"wheel"], [[1], &"wheel"]]), ChCatalog.load_default(), 0, ORIGIN, false)
+		world, _parent(), _mount(&"dozer", [[[0], &"roller"], [[1], &"roller"]]), ChCatalog.load_default(), 0, ORIGIN, false)
 	var start_x := runtime.chassis.global_position.x
 	for _tick in range(TICKS):
 		runtime.drive(1.0)
@@ -134,7 +134,7 @@ func test_wheelless_chariot_spawns_and_fires() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(
-		world, _parent(), _mount(&"dozer", [[[2], &"ice_cream_mace"]]), ChCatalog.load_default(), 0, ORIGIN, false)
+		world, _parent(), _mount(&"dozer", [[[2], &"ice_pick"]]), ChCatalog.load_default(), 0, ORIGIN, false)
 	assert_eq(runtime.parts.size(), 1, "the mace is the only part")
 	assert_eq(runtime.wheels(), [], "nothing to motorise")
 	# The chassis and the part still joined the world, so the chariot stands in the arena.
@@ -175,7 +175,7 @@ func test_off_ground_wheel_drives_nothing() -> void:
 	# Dozer slot 4 is body-local (-6, -9): after the settle the chassis rests on the rock (centre y 151)
 	# and this wheel's 12-cell disc hangs with its bottom at 148.8, 11 cells clear of the floor.
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(
-		world, _parent(), _mount(&"dozer", [[[4], &"wheel"]]), ChCatalog.load_default(), 0, ORIGIN, false)
+		world, _parent(), _mount(&"dozer", [[[4], &"roller"]]), ChCatalog.load_default(), 0, ORIGIN, false)
 	assert_true(runtime != null, "the build returns a runtime")
 	assert_eq(runtime.parts.size(), 1, "the hovering wheel is the only part")
 	var wheel := _part_of(runtime, [4])
@@ -218,18 +218,17 @@ func test_parts_have_real_sizes() -> void:
 	# at ChPartDef's 1x1 default samples and reaches from a footprint the part does not have.
 	var catalog := ChCatalog.load_default()
 	for pair in [
-		[&"ice_cream_mace", Vector2i(8, 4)],
-		[&"cutter_chainsaw", Vector2i(10, 4)],
+		[&"ice_pick", Vector2i(8, 3)],
+		[&"chainsaw", Vector2i(10, 4)],
 		[&"flamethrower", Vector2i(8, 4)],
-		[&"hearth", Vector2i(6, 6)],
-		[&"cutter_rocket", Vector2i(8, 3)],
-		[&"corsair_harpoon", Vector2i(10, 3)],
-		[&"ember_battery", Vector2i(5, 5)],
-		[&"firebolt_launcher", Vector2i(8, 4)],
-		[&"ring_of_fire", Vector2i(6, 6)],
-		[&"freeze_charge", Vector2i(4, 4)],
+		[&"igniter", Vector2i(4, 4)],
+		[&"rocket_pod", Vector2i(8, 3)],
+		[&"cannon", Vector2i(10, 4)],
+		[&"generator", Vector2i(5, 5)],
+		[&"molotov", Vector2i(4, 4)],
+		[&"frost_sprayer", Vector2i(6, 4)],
 		[&"strut", Vector2i(3, 8)],
-		[&"wheel", Vector2i(12, 12)],
+		[&"roller", Vector2i(12, 12)],
 	]:
 		var def: ChPartDef = catalog.part(pair[0])
 		assert_true(def != null, "%s loads from res://game/data/parts" % [String(pair[0])])
@@ -246,7 +245,7 @@ func test_chariot_shares_one_group() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var catalog := ChCatalog.load_default()
-	var mounts: Array = [[[0], &"wheel"], [[1], &"wheel"], [[2], &"strut"], [[2, 0], &"ice_cream_mace"]]
+	var mounts: Array = [[[0], &"roller"], [[1], &"roller"], [[2], &"strut"], [[2, 0], &"ice_pick"]]
 	var left: ChChariotRuntime = ChChariotBuilder.build(
 		world, _parent(), _mount(&"dozer", mounts), catalog, 0, ORIGIN, false)
 	var right: ChChariotRuntime = ChChariotBuilder.build(
@@ -358,7 +357,7 @@ func test_mirror_x_flips_anchor() -> void:
 	# x anchor negates and y stays (a flip turns the build left/right, not upside down).
 	var world: PixelWorld = await make_world()
 	_ground(world)
-	var layout := _mount(&"corsair", [[[1], &"ice_cream_mace"]])
+	var layout := _mount(&"corsair", [[[1], &"ice_pick"]])
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(world, _parent(), layout, ChCatalog.load_default(), 1, ORIGIN, true)
 	var part := _part_of(runtime, [1])
 	# Read before any physics tick: the builder put the body where the layout said it sits.
@@ -373,7 +372,7 @@ func test_bodies_hide_and_carry_a_visual() -> void:
 	# body transform are the ones Box2D joined while everything that wobbles lives one node down.
 	var world: PixelWorld = await make_world()
 	_ground(world)
-	var layout: ChChariotLayout = _mount(&"dozer", [[[0], &"wheel"], [[2], &"strut"]])
+	var layout: ChChariotLayout = _mount(&"dozer", [[[0], &"roller"], [[2], &"strut"]])
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(
 		world, _parent(), layout, ChCatalog.load_default(), 0, ORIGIN, false)
 	assert_true(runtime != null, "the build returns a runtime")
@@ -421,10 +420,10 @@ func test_visual_does_not_change_collision() -> void:
 	_ground(world)
 	var catalog := ChCatalog.load_default()
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(
-		world, _parent(), _mount(&"dozer", [[[0], &"wheel"], [[2], &"strut"]]), catalog, 0, ORIGIN, false)
+		world, _parent(), _mount(&"dozer", [[[0], &"roller"], [[2], &"strut"]]), catalog, 0, ORIGIN, false)
 	# The control build sits 200 cells along, out of the first one's way.
 	var bare: ChChariotRuntime = ChChariotBuilder.build(
-		world, _parent(), _mount(&"dozer", [[[0], &"wheel"], [[2], &"strut"]]), catalog, 0,
+		world, _parent(), _mount(&"dozer", [[[0], &"roller"], [[2], &"strut"]]), catalog, 0,
 		ORIGIN + Vector2(200, 0), false)
 	assert_true(runtime != null and bare != null, "both builds return a runtime")
 	ChChariotBuilder.visual_of(bare.chassis).free()
@@ -457,7 +456,7 @@ func test_kicked_visual_leaves_body_alone() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(
-		world, _parent(), _mount(&"dozer", [[[0], &"wheel"], [[2], &"strut"]]),
+		world, _parent(), _mount(&"dozer", [[[0], &"roller"], [[2], &"strut"]]),
 		ChCatalog.load_default(), 0, ORIGIN, false)
 	# simulating off: no physics tick can move the body between the two reads below, so the transform
 	# is the same value before and after the beat unless something wrote it.
@@ -505,7 +504,7 @@ func test_triggered_parts_get_an_outline() -> void:
 	# side; a passive part (the Wheel) has nothing to light, so it carries none.
 	var world: PixelWorld = await make_world()
 	_ground(world)
-	var layout: ChChariotLayout = _mount(&"cutter", [[[0], &"wheel"], [[3], &"cutter_rocket"]])
+	var layout: ChChariotLayout = _mount(&"cutter", [[[0], &"roller"], [[3], &"rocket_pod"]])
 	var runtime: ChChariotRuntime = ChChariotBuilder.build(
 		world, _parent(), layout, ChCatalog.load_default(), 0, ORIGIN, false)
 	var rocket := _part_of(runtime, _typed_path([3]))

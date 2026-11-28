@@ -25,6 +25,10 @@ func _part_with(def: ChPartDef, ready := true) -> ChPartRuntime:
 	part.def = def
 	part.charges_left = -1
 	part.cooldown_left = 0.0 if ready else def.cooldown
+	# The fields the AI reads, seeded the way the builder seeds them (Task 2).
+	part.cost = def.energy_cost
+	part.rate = def.energy_per_second
+	part.cooldown = def.cooldown
 	part.body = FakeBody.new()
 	return part
 
@@ -52,7 +56,7 @@ func _rig(parts: Array[ChPartRuntime], cap: float, value: float) -> ChChariotRun
 
 
 func test_no_ready_parts_never_press() -> void:
-	var rig := _rig([_part(&"ice_cream_mace", false), _part(&"cutter_rocket", false)], 20.0, 20.0)
+	var rig := _rig([_part(&"ice_pick", false), _part(&"rocket_pod", false)], 20.0, 20.0)
 	assert_true(not ChEnemyAI.should_press(rig, 1.0, HALF),
 		"nothing is ready: a full pool still has nothing to fire")
 	_complete()
@@ -60,13 +64,13 @@ func test_no_ready_parts_never_press() -> void:
 
 func test_full_pool_presses() -> void:
 	# A ready Rocket facing away and out of reach, but the pool is at cap: sitting on a full pool wastes regen.
-	var rig := _rig([_part(&"cutter_rocket", true, true)], 20.0, 20.0)
+	var rig := _rig([_part(&"rocket_pod", true, true)], 20.0, 20.0)
 	assert_true(ChEnemyAI.should_press(rig, 100.0, HALF), "a pool at cap presses")
 	_complete()
 
 
 func test_in_reach_and_enough_energy_presses() -> void:
-	var mace := _part(&"ice_cream_mace")
+	var mace := _part(&"ice_pick")
 	var rig := _rig([mace], 20.0, 0.0)
 	var cost := float(mace.def.energy_cost)
 	var dx := mace.def.reach + HALF  # measured from the part: reach + target half
@@ -91,35 +95,35 @@ func test_reach_reads_the_reach_field() -> void:
 
 
 func test_out_of_reach_melee_waits() -> void:
-	var rig := _rig([_part(&"ice_cream_mace")], 20.0, 16.0)
+	var rig := _rig([_part(&"ice_pick")], 20.0, 16.0)
 	assert_true(not ChEnemyAI.should_press(rig, 100.0, HALF),
 		"a Mace 100 cells from its target waits, even at 80% of cap")
 	_complete()
 
 
 func test_ranged_part_counts_in_reach_when_facing() -> void:
-	var rocket := _part(&"cutter_rocket")
+	var rocket := _part(&"rocket_pod")
 	var rig := _rig([rocket], 20.0, 20.0)
 	rig.energy.value = float(rocket.def.energy_cost) * ChEnemyAI.PRESS_SHARE
 	assert_true(ChEnemyAI.should_press(rig, 100.0, HALF), "a Rocket facing the target presses")
-	var away := _part(&"cutter_rocket", true, true)
+	var away := _part(&"rocket_pod", true, true)
 	rig.parts = [away] as Array[ChPartRuntime]
 	assert_true(not ChEnemyAI.should_press(rig, 100.0, HALF), "facing away it waits")
 	_complete()
 
 
 func test_reach_is_not_counted_twice_for_an_offset_part() -> void:
-	# A Mace (range 6) mounted 10 cells off the chassis centre of a hull with half-width 10, target_half 5.
-	# Reach is measured from the part, so it lands up to 6 + 5 = 11 cells away; adding the own half
-	# again (the old bug) would call 21 in reach and waste a press.
-	var mace := _part(&"ice_cream_mace")
-	mace.body.global_position = Vector2(10.0, 0.0)
-	var rig := _rig([mace], 20.0, 20.0)
-	rig.energy.value = float(mace.def.energy_cost)  # below cap, above 60%
+	# An Ice Pick (range 24, 8 cells long) mounted 10 cells off the chassis centre of a hull with
+	# half-width 10, target_half 5. Reach is measured from the part's edge (anchor + half its length,
+	# so x 14 here), so the 24 + 5 = 29 cells past that edge are in reach: 30 past it is out, 6.5 is in.
+	var pick := _part(&"ice_pick")
+	pick.body.global_position = Vector2(10.0, 0.0)
+	var rig := _rig([pick], 20.0, 20.0)
+	rig.energy.value = float(pick.def.energy_cost)  # below cap, above 60%
 	rig.energy.cap = 20.0
-	assert_true(not ChEnemyAI.should_press(rig, 25.0, 5.0),
-		"15 cells from the part is out of reach, though within range + both halves")
-	assert_true(ChEnemyAI.should_press(rig, 20.5, 5.0), "10.5 cells from the part is inside 6 + 5")
+	assert_true(not ChEnemyAI.should_press(rig, 44.0, 5.0),
+		"30 cells from the part's edge is out of reach, though within range + both halves")
+	assert_true(ChEnemyAI.should_press(rig, 20.5, 5.0), "6.5 cells from the edge is inside 24 + 5")
 	_complete()
 
 

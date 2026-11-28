@@ -41,6 +41,8 @@ class ContextBehaviour:
 
 	func modify_hit(ctx, hit) -> void: pass
 
+	func modify_incoming(ctx, hit) -> void: pass
+
 	# A behaviour that held a looping fx would stop it here; these doubles hold none.
 	func teardown() -> void: pass
 
@@ -99,6 +101,9 @@ func _part(id: StringName, cost: int, cooldown: float, integrity: int, extension
 	def.id = id
 	def.energy_cost = cost
 	def.cooldown = cooldown
+	# Task 1's ready rule: a part joins the volley only in cooldown mode, so a zero-cooldown part is
+	# passive (it never fires on a press) and a part with a cooldown is triggered.
+	def.mode = ChPartDef.MODE_COOLDOWN if cooldown > 0.0 else ChPartDef.MODE_PASSIVE
 	def.damage = DAMAGE
 	def.integrity = integrity
 	# A 2x2 footprint keeps sample_rect at 6 cells.
@@ -114,7 +119,7 @@ func _part(id: StringName, cost: int, cooldown: float, integrity: int, extension
 	return def
 
 # A wheel: the tag is what makes it one (ChPartDef.is_wheel), and its energy_per_second is the
-# drive's price per second. The id is deliberately not "wheel", so a reader that matches on the
+# drive's price per second. The id is deliberately not "roller", so a reader that matches on the
 # old id instead of the tag finds no wheels at all.
 func _wheel_def() -> ChPartDef:
 	var def := ChPartDef.new()

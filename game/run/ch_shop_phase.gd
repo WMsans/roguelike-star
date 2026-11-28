@@ -7,14 +7,23 @@ class_name ChShopPhase extends RefCounted
 # Every draw comes off run.rng, so a run seed replays the same shop.
 
 # A theme is a tag a part carries, and it is in play only when enough distinct items match it, which is
-# what keeps Defence, Ice, Attack and the rest out until there are parts to fill them. `body` has no
-# tag because bodies carry none: the theme is the fact that they are bodies.
+# what keeps Defence, Ice, Attack and the rest out until there are parts to fill them. `passive` and
+# `triggered` are the firing modes rather than tags (spec §Shop themes), and `body` has no tag because
+# bodies carry none: the theme is the fact that they are bodies.
 const THEMES := {
 	&"weapon": [&"weapon"],
-	&"fire": [&"fire"],
+	&"defence": [&"defence"],
 	&"tricky": [&"tricky"],
-	&"passive": [&"passive"],
-	&"triggered": [&"triggered"],
+	&"attack": [&"attack"],
+	&"fire": [&"fire"],
+	&"ice": [&"ice"],
+	&"wind": [&"wind"],
+	&"earth": [&"earth"],
+	&"electric": [&"electric"],
+	&"acid": [&"acid"],
+	&"stats": [&"stats"],
+	&"passive": [],
+	&"triggered": [],
 	&"body": [],
 }
 const MIN_MATCHING := 3  # the spec's threshold for a theme appearing at all
@@ -39,6 +48,8 @@ func _init(p_run: ChRun, p_catalog: ChCatalog) -> void:
 	# call, and a second one would price and HP-read a different table than the run holds.
 	run = p_run
 	catalog = p_catalog
+	# A shop is where the reroll counter starts: the Trade-In Coupon's free first reroll is per shop.
+	run.rerolls_this_shop = 0
 	credited = run.reward(run.fight_index)
 	run.gold += credited
 	_roll_options()
@@ -103,6 +114,7 @@ func buy(item_index: int) -> bool:
 		_mount_body(item[&"id"])
 	else:
 		run.inventory.add(item[&"id"])
+	run.refresh_capacity()
 	return true
 
 
@@ -122,14 +134,18 @@ func take(item_index: int) -> bool:
 		_mount_body(item[&"id"])
 	else:
 		run.inventory.add(item[&"id"])
+	run.refresh_capacity()
 	return true
 
 
 func reroll() -> bool:
-	# One reroll per shop stage, for 3 gold. A pack has none.
-	if picked.get(&"kind") != &"shop" or rerolled or run.gold < ChPrices.REROLL:
+	# One reroll per shop stage, priced through the run stat so the Trade-In Coupon can make the
+	# first one of the shop free. A pack has none.
+	var price := run.run_stat(ChRun.STAT_REROLL_PRICE, ChPrices.REROLL)
+	if picked.get(&"kind") != &"shop" or rerolled or run.gold < price:
 		return false
-	run.gold -= ChPrices.REROLL
+	run.gold -= price
+	run.rerolls_this_shop += 1
 	rerolled = true
 	_roll_items(picked)
 	return true
@@ -137,17 +153,29 @@ func reroll() -> bool:
 
 func sell(inventory_index: int) -> int:
 	# Selling works at any stage and in either view; the value is the carried part's rarity through the
-	# price table, which is floor(price / 2).
+	# price table, which is floor(price / 2), plus whatever sell value the instance has banked.
 	var ids: Array[StringName] = run.inventory.part_ids
 	if inventory_index < 0 or inventory_index >= ids.size():
 		return 0
-	var def: ChPartDef = catalog.part(ids[inventory_index])
+	var id: StringName = ids[inventory_index]
+	var state: Dictionary = run.inventory.states[inventory_index]
+	var def: ChPartDef = catalog.part(id)
 	if def == null:
 		# No def means no rarity, so no price: the part stays carried rather than vanishing for 0.
 		return 0
-	run.inventory.remove_at(inventory_index)
-	var value := ChPrices.sell_value(def.rarity)
+	# The entry is removed first: the sold part is no longer owned when the other parts hear about it.
+	run.inventory.remove_entry(inventory_index)
+	run.parts_sold += 1
+	# The sold part itself hears first (the Safe's 3 gold), then every part still owned hears the sale
+	# (the Scrap Cannon's +5 damage).
+	if def.behaviour != null:
+		var behaviour = def.behaviour.new()
+		behaviour.run_event(run, state, &"sold_self", {})
+	run.announce(&"sold", {&"id": id, &"state": state})
+	var value := ChPrices.sell_value(def.rarity) + int(state.get(&"sell_bonus", 0))
 	run.gold += value
+	# After the part has left, so a capacity part sold out of a full inventory always fits.
+	run.refresh_capacity()
 	return value
 
 
@@ -226,6 +254,15 @@ func _pool(theme: StringName) -> Array:
 		for id in catalog.bodies:
 			bodies.append(catalog.bodies[id])
 		return bodies
+	if theme == &"passive" or theme == &"triggered":
+		# The two mode themes: a passive is the mode, and triggered is every other mode, wheels
+		# included (the spec's rule, so a wheel is a triggered part the shop can offer).
+		var by_mode: Array = []
+		for id in catalog.parts:
+			var part: ChPartDef = catalog.parts[id]
+			if (part.mode == ChPartDef.MODE_PASSIVE) == (theme == &"passive"):
+				by_mode.append(part)
+		return by_mode
 	var out: Array = []
 	for id in catalog.parts:
 		var part: ChPartDef = catalog.parts[id]
@@ -250,12 +287,24 @@ func _mount_body(id: StringName) -> void:
 	# auto_sold is not cleared here: a stage can buy two bodies, and the screen reads one list holding
 	# both swaps.
 	for branch in run.layout.swap_body(catalog.body(id), catalog):
-		for part_id in run.layout.subtree_part_ids(branch):
-			if run.inventory.add(part_id):
+		for entry in run.layout.subtree_entries(branch):
+			var part_id: StringName = entry[&"id"]
+			if run.inventory.add(part_id, entry[&"state"]):
 				continue
 			var def: ChPartDef = catalog.part(part_id)
+			# An auto-sell is a sale: the sold part hears "sold_self" (the Safe's 3 gold) and every part
+			# still owned hears "sold" (the Scrap Cannon's +5), exactly as sell() has it. The sold part
+			# is never in the layout or the inventory at this point, so announce cannot reach it back.
+			if def != null and def.behaviour != null:
+				var behaviour = def.behaviour.new()
+				behaviour.run_event(run, entry[&"state"], &"sold_self", {})
+			run.announce(&"sold", {&"id": part_id, &"state": entry[&"state"]})
 			# A part with no def cannot be priced, so it is the one thing this swap can lose; the
 			# catalog keeps every mountable id, so it does not happen in a run.
 			if def != null:
-				run.gold += ChPrices.sell_value(def.rarity)
+				run.gold += ChPrices.sell_value(def.rarity) \
+					+ int((entry[&"state"] as Dictionary).get(&"sell_bonus", 0))
+			# An auto-sold part is sold, so it counts toward the run's sales (R29).
+			run.parts_sold += 1
 			auto_sold.append(part_id)
+	run.refresh_capacity()

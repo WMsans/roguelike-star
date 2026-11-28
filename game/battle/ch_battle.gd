@@ -197,12 +197,9 @@ func start(player_layout: ChChariotLayout, enemy_layout: ChChariotLayout,
 	for rect: Rect2i in spawn["batteries"]:
 		ctx.sparks.add_battery(ctx, rect)
 	ai = ChEnemyAI.new()
-	for rig in rigs:
-		for part in rig.parts:
-			# The setup call Tasks 12-14 wait for: it is where a behaviour subscribes, so without
-			# it a subscribing part (Rocket's Ignition, Ember Battery) is dead in a real fight.
-			if part.behaviour != null:
-				part.behaviour.setup(ctx)
+	# setup_all is the single place every behaviour gets setup (Mimic and the bench hook in
+	# later tasks), so ChBattle no longer loops over parts itself.
+	ctx.setup_all()
 	# The bus's events, played: one listener key for the seven types, held here so the fight keeps it.
 	feedback = ChBattleFeedback.new(ctx, hud)
 	feedback.subscribe()

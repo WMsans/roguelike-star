@@ -4,15 +4,24 @@ class_name ChRun extends RefCounted
 # No nodes and no screens: the shop phase (Task 7), the fight rules (Task 8) and the main loop
 # (Task 13) all read this one object.
 
-# Enemy HP at fight 0. Tuned with tools/balance/run.sh: the starting kit (Cutter, two wheels, the
-# chainsaw on [2]) against the cook at this HP, seeds 1-10, player press mash, enemy AI - 500 won 0 of
-# 10, 150 won 6, 65 won 8 (the two losses leave the cook at 5 HP).
-const FIRST_HP := 65
+# Enemy HP at fight 0, and the ramp's top at the last elite (the boss is LAST_HP x1.5). Tuned with
+# tools/balance/run.sh --suite smoke: the starting kit (Cutter, a Roller on each wheel slot, the
+# Chainsaw on [2], player press ai) against the cook at this HP over seeds 1-10. The cook's HP is
+# dozer_cook.tres's max_hp, so the two move together. Tried: 1500 0/10, 1200 0, 1100 0, 1000 1,
+# 900 2, 800 3, 700 7 (kept), 600 10, 500 10, 400 10, 300 10, 250 10, 200 10, 150 10, 100 10.
+# The smoke suite measures fight 0 only, so LAST_HP keeps the old ramp's top: the brief's aim is the
+# fight-0 win rate, and a built run's fight 8 is not something this suite can measure.
+const FIRST_HP := 700
 const LAST_HP := 1500  # the ramp's top, reached at the last elite, before that fight's x1.25
 const LAST_INDEX := 9  # a run is 10 fights, 0-based, and the last one is the boss
 const ELITE_INDEXES := [2, 5, 8]
 const MODIFIERS := [&"fire_halved", &"time_limit", &"chains_weak"]
 const ENEMY := "res://game/data/enemies/dozer_cook.tres"  # the run's one enemy build, as data
+const STAT_INVENTORY_CAPACITY := &"inventory_capacity"  # ChRun.run_stat's stats
+const STAT_REROLL_PRICE := &"reroll_price"  # the Trade-In Coupon (U67) drops it to 0 once a shop
+# The run's Bench Warmer (R30) id: owning one, mounted or carried, puts the inventory's passives in
+# the battle's bench. A stat would read the same, but the id is the whole rule and one line.
+const BENCH_WARMER := &"bench_warmer"
 
 var seed: int = 0
 var rng: RandomNumberGenerator = null  # every draw in the run comes off this one rng
@@ -20,6 +29,10 @@ var catalog: ChCatalog = null  # player_layout re-reads the body's HP through it
 var fight_index := 0
 var gold := 20  # the spec's start gold
 var hp_bonus := 0  # what the shop's +100 max HP option adds, on top of the body's own HP
+# Counters the shop and the battle read: how many parts the run has sold (R29) and how many rerolls
+# this shop has spent (U67). rerolls_this_shop is reset by ChShopPhase._init.
+var parts_sold := 0
+var rerolls_this_shop := 0
 var inventory: ChInventory = null
 var layout: ChChariotLayout = null
 var modifiers: Dictionary = {}  # fight index -> a modifier StringName; elites and the boss only
@@ -51,11 +64,11 @@ static func start(seed: int, catalog: ChCatalog) -> ChRun:
 		order.sort_custom(func(a: int, b: int) -> bool: return body.slots[a].y > body.slots[b].y)
 		var mounts: Array[int] = order.slice(0, 2)
 		for mount in mounts:
-			run.layout.place([mount], &"wheel")
+			run.layout.place([mount], &"roller")
 		for i in body.slots.size():
 			if not mounts.has(i):
 				# The first slot that is not a wheel mount, i.e. the first one a weapon can use.
-				run.layout.place([i], &"cutter_chainsaw")
+				run.layout.place([i], &"chainsaw")
 				break
 	for index in ELITE_INDEXES + [LAST_INDEX]:
 		run.modifiers[index] = MODIFIERS[run.rng.randi_range(0, MODIFIERS.size() - 1)]
@@ -115,12 +128,91 @@ func player_layout() -> ChChariotLayout:
 	var copy := layout.mirrored().mirrored()
 	var body: ChBodyDef = catalog.body(layout.body_id)
 	copy.max_hp = (body.hp if body != null else 0) + hp_bonus
+	# The two run counts the battle reads (U68's Collector's Shelf and R29's Golden Gear).
+	copy.inventory_count = inventory.part_ids.size() if inventory != null else 0
+	copy.parts_sold = parts_sold
+	# The bench (R30): with a Bench Warmer owned, every passive carried fights too. The state travels
+	# so a benched Scrap Cannon still carries its saved damage.
+	copy.bench.clear()
+	if inventory != null and _owns(BENCH_WARMER):
+		for at in inventory.part_ids.size():
+			var def: ChPartDef = catalog.part(inventory.part_ids[at])
+			if def != null and def.mode == ChPartDef.MODE_PASSIVE:
+				copy.bench.append({&"id": inventory.part_ids[at], &"state": inventory.states[at]})
 	return copy
 
 
 func fight_seed(index: int) -> int:
 	# The seed a fight's arena is built from: the same run and fight index give the same fight.
 	return hash([seed, index])
+
+
+func run_stat(stat: StringName, base: int) -> int:
+	# Folds a run-level stat through every part the run owns, mounted or carried: each def's
+	# behaviour script is instantiated throwaway (part stays null) and handed the running total, in
+	# layout order then inventory order. The base run_stat answers unchanged, so only the behaviours
+	# that read the stat move it.
+	var value := base
+	for entry in _owned_entries():
+		var def: ChPartDef = entry[&"def"]
+		if def == null or def.behaviour == null:
+			continue
+		var behaviour = def.behaviour.new()
+		value = behaviour.run_stat(self, entry[&"state"], stat, value)
+	return value
+
+
+func announce(type: StringName, data: Dictionary) -> void:
+	# A run event (a win, a sale) goes to every part the run owns, mounted or carried, each on a
+	# throwaway behaviour instance handed its own state to mutate. This is how a Piggy Bank banks
+	# sell value and a Scrap Cannon adds damage for good.
+	for entry in _owned_entries():
+		var def: ChPartDef = entry[&"def"]
+		if def == null or def.behaviour == null:
+			continue
+		var behaviour = def.behaviour.new()
+		behaviour.run_event(self, entry[&"state"], type, data)
+
+
+func _owned_entries() -> Array:
+	# Every owned part as {def, state}, mounted in layout order then carried in inventory order: the
+	# walk run_stat and announce share.
+	var out: Array = []
+	for path in layout.all_paths():
+		# all_paths hands back untyped slot indices; get_node wants Array[int].
+		var steps: Array[int] = []
+		for index in path:
+			steps.append(index)
+		var node: ChSlotNode = layout.get_node(steps)
+		if node != null:
+			out.append({&"def": catalog.part(node.part_id), &"state": node.state})
+	for at in inventory.part_ids.size():
+		out.append({&"def": catalog.part(inventory.part_ids[at]),
+			&"state": inventory.states[at]})
+	return out
+
+
+func _owns(id: StringName) -> bool:
+	# Whether the run owns a copy of an id, mounted or carried: what player_layout asks the Bench
+	# Warmer before it benches anything.
+	if inventory != null and inventory.has(id):
+		return true
+	for path in layout.all_paths():
+		var steps: Array[int] = []
+		for index in path:
+			steps.append(index)
+		var node: ChSlotNode = layout.get_node(steps)
+		if node != null and node.part_id == id:
+			return true
+	return false
+
+
+func refresh_capacity() -> void:
+	# The shop calls this after every action that changes what the run owns: a carried or mounted
+	# capacity part moves the limit, and a part that just left has already freed its slot.
+	if inventory == null:
+		return
+	inventory.capacity = run_stat(STAT_INVENTORY_CAPACITY, ChInventory.CAPACITY)
 
 
 func is_last(index: int) -> bool:

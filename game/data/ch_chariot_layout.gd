@@ -9,9 +9,16 @@ var body_id: StringName = &""
 # run through rarer parts and more max HP (core-mechanics.md §8), and this is that lever.
 var max_hp: int = 0
 var slots: Dictionary[int, ChSlotNode] = {}  # body slot index -> node
+# Passives carried in the inventory that fight anyway (the Bench Warmer, R30), as {id, state}.
+# The builder turns each one into a bodyless ChPartRuntime in the chariot's bench.
+var bench: Array[Dictionary] = []
+# Two run counts a battle reads: how many parts are carried (the Collector's Shelf, U68) and how
+# many the run has sold (the Golden Gear, R29). player_layout fills both from ChRun.
+var inventory_count: int = 0
+var parts_sold: int = 0
 
 
-func place(path: Array[int], part_id: StringName) -> bool:
+func place(path: Array[int], part_id: StringName, state: Dictionary = {}) -> bool:
 	# Fails when the slot is taken or the parent node is missing: place has no catalog, so an
 	# unknown id or an out-of-range index mounts and reads back no anchor through anchor_of.
 	# shortcut: place returns a bool; the garage explains a refusal with its own get_node check.
@@ -34,6 +41,10 @@ func place(path: Array[int], part_id: StringName) -> bool:
 	# A fresh node arrives unflipped: facing is the garage's separate click action.
 	var node := ChSlotNode.new()
 	node.part_id = part_id
+	# A fresh node starts with an empty state, so an empty argument leaves it alone rather than
+	# sharing one dict between every part placed without state.
+	if not state.is_empty():
+		node.state = state
 	# The id is stored as given, with no catalog here to validate it against; a missing def shows
 	# up as no anchor at anchor_of. The slot index is the key, so a moved branch keeps its paths.
 	table[index] = node
@@ -238,12 +249,16 @@ func mirrored() -> ChChariotLayout:
 	var copy := ChChariotLayout.new()
 	copy.body_id = body_id
 	copy.max_hp = max_hp
+	copy.inventory_count = inventory_count
+	copy.parts_sold = parts_sold
 	var stack: Array = []
 	for index in slots.keys():
 		# A copy keeps its keys, so a mirrored build answers the same paths as the original.
 		var fresh := ChSlotNode.new()
 		fresh.part_id = slots[index].part_id
 		fresh.flipped = not slots[index].flipped
+		# The state travels with the copy but is deep-copied: a fight's read never writes the player's.
+		fresh.state = slots[index].state.duplicate(true)
 		copy.slots[index] = fresh
 		stack.append([slots[index], fresh])
 	while not stack.is_empty():
@@ -252,17 +267,27 @@ func mirrored() -> ChChariotLayout:
 			var child := ChSlotNode.new()
 			child.part_id = entry[0].children[key].part_id
 			child.flipped = not entry[0].children[key].flipped
+			child.state = entry[0].children[key].state.duplicate(true)
 			entry[1].children[key] = child
 			stack.append([entry[0].children[key], child])
 	return copy
 
 
-func subtree_part_ids(node: ChSlotNode) -> Array[StringName]:
-	# The ids in a subtree, parent before child, which is the order a builder needs for its joints.
+func subtree_entries(node: ChSlotNode) -> Array[Dictionary]:
+	# The {id, state} entries of a subtree, parent before child, which is the order a builder needs
+	# for its joints and the order a lift hands back to the inventory.
 	# shortcut: recursive, the only recursion in the file, since nothing else keeps state to walk.
+	var entries: Array[Dictionary] = [{&"id": node.part_id, &"state": node.state}]
+	for key in node.children.keys():
+		entries.append_array(subtree_entries(node.children[key]))
+	return entries
+
+
+func subtree_part_ids(node: ChSlotNode) -> Array[StringName]:
+	# The ids in a subtree, parent before child: the wrapper a caller that only needs ids reads.
 	# shortcut: ids rather than nodes, so ChInventory stays free of layout knowledge: a lift hands
 	# this array straight to ChInventory.add.
-	var ids: Array[StringName] = [node.part_id]
-	for key in node.children.keys():
-		ids.append_array(subtree_part_ids(node.children[key]))
+	var ids: Array[StringName] = []
+	for entry in subtree_entries(node):
+		ids.append(entry[&"id"])
 	return ids

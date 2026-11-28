@@ -2,7 +2,7 @@
  "name": "lazy",
  "scenarios": [
   {
-   "name": "lazy/cutter_chainsaw",
+   "name": "lazy/chainsaw",
    "player": {
     "body_id": "corsair",
     "parts": [
@@ -10,19 +10,19 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        6
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -39,16 +39,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.75,
+     0.875
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
+     0,
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
@@ -57,7 +57,7 @@
    }
   },
   {
-   "name": "lazy/cutter_chainsaw-nowheels",
+   "name": "lazy/chainsaw-nowheels",
    "player": {
     "body_id": "corsair",
     "parts": [
@@ -65,7 +65,7 @@
       "slot": [
        6
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -82,16 +82,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.6875,
+     0.8125
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
+     0,
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
@@ -100,7 +100,7 @@
    }
   },
   {
-   "name": "lazy/cutter_rocket",
+   "name": "lazy/rocket_pod",
    "player": {
     "body_id": "corsair",
     "parts": [
@@ -108,19 +108,19 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        6
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      }
     ]
    },
@@ -137,16 +137,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.6875,
+     0.8125
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
+     0,
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
@@ -155,7 +155,7 @@
    }
   },
   {
-   "name": "lazy/cutter_rocket-nowheels",
+   "name": "lazy/rocket_pod-nowheels",
    "player": {
     "body_id": "corsair",
     "parts": [
@@ -163,7 +163,7 @@
       "slot": [
        6
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      }
     ]
    },
@@ -180,16 +180,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.1875
+     0.5938,
+     0.7812
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
+     0,
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
@@ -198,7 +198,7 @@
    }
   },
   {
-   "name": "lazy/ice_cream_mace",
+   "name": "lazy/ice_pick",
    "player": {
     "body_id": "corsair",
     "parts": [
@@ -206,19 +206,19 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        6
       ],
-      "part": "ice_cream_mace"
+      "part": "ice_pick"
      }
     ]
    },
@@ -235,16 +235,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.75,
+     0.875
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
+     0,
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
@@ -253,7 +253,7 @@
    }
   },
   {
-   "name": "lazy/ice_cream_mace-nowheels",
+   "name": "lazy/ice_pick-nowheels",
    "player": {
     "body_id": "corsair",
     "parts": [
@@ -261,7 +261,7 @@
       "slot": [
        6
       ],
-      "part": "ice_cream_mace"
+      "part": "ice_pick"
      }
     ]
    },
@@ -278,16 +278,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.8125,
+     0.9375
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
+     0,
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
@@ -304,13 +304,13 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
@@ -333,16 +333,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.5625,
+     0.6875
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
+     0,
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
@@ -376,16 +376,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.1875
+     0.8438,
+     1.0
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
+     0,
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
@@ -394,7 +394,7 @@
    }
   },
   {
-   "name": "lazy/hearth",
+   "name": "lazy/igniter",
    "player": {
     "body_id": "corsair",
     "parts": [
@@ -402,19 +402,19 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        6
       ],
-      "part": "hearth"
+      "part": "igniter"
      }
     ]
    },
@@ -431,16 +431,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.3125,
+     0.4375
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
+     0,
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
@@ -449,50 +449,7 @@
    }
   },
   {
-   "name": "lazy/hearth-nowheels",
-   "player": {
-    "body_id": "corsair",
-    "parts": [
-     {
-      "slot": [
-       6
-      ],
-      "part": "hearth"
-     }
-    ]
-   },
-   "enemy": {
-    "layout": "res://game/data/enemies/dozer_cook.tres"
-   },
-   "seeds": {
-    "from": 1,
-    "count": 16
-   },
-   "press": {
-    "player": "mash",
-    "enemy": "ai"
-   },
-   "expect": {
-    "win_rate": [
-     0,
-     0.125
-    ],
-    "aborted": [
-     0,
-     0
-    ],
-    "enemy.hp_left": [
-     600,
-     1500
-    ],
-    "enemy.killed_by_hazard": [
-     0,
-     0.25
-    ]
-   }
-  },
-  {
-   "name": "lazy/ring_of_fire",
+   "name": "lazy/molotov",
    "player": {
     "body_id": "corsair",
     "parts": [
@@ -500,19 +457,19 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        6
       ],
-      "part": "ring_of_fire"
+      "part": "molotov"
      }
     ]
    },
@@ -529,16 +486,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.4375,
+     0.5625
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
+     0,
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
@@ -547,7 +504,7 @@
    }
   },
   {
-   "name": "lazy/ring_of_fire-nowheels",
+   "name": "lazy/molotov-nowheels",
    "player": {
     "body_id": "corsair",
     "parts": [
@@ -555,7 +512,7 @@
       "slot": [
        6
       ],
-      "part": "ring_of_fire"
+      "part": "molotov"
      }
     ]
    },
@@ -572,16 +529,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.5625,
+     0.6875
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
+     0,
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
@@ -590,7 +547,7 @@
    }
   },
   {
-   "name": "lazy/firebolt_launcher",
+   "name": "lazy/cannon",
    "player": {
     "body_id": "corsair",
     "parts": [
@@ -598,19 +555,19 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        6
       ],
-      "part": "firebolt_launcher"
+      "part": "cannon"
      }
     ]
    },
@@ -627,16 +584,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.875,
+     1.0
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
+     0,
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
@@ -645,7 +602,7 @@
    }
   },
   {
-   "name": "lazy/firebolt_launcher-nowheels",
+   "name": "lazy/cannon-nowheels",
    "player": {
     "body_id": "corsair",
     "parts": [
@@ -653,7 +610,7 @@
       "slot": [
        6
       ],
-      "part": "firebolt_launcher"
+      "part": "cannon"
      }
     ]
    },
@@ -670,114 +627,16 @@
    },
    "expect": {
     "win_rate": [
-     0,
-     0.125
+     0.6875,
+     0.8125
     ],
     "aborted": [
      0,
      0
     ],
     "enemy.hp_left": [
-     600,
-     1500
-    ],
-    "enemy.killed_by_hazard": [
      0,
-     0.25
-    ]
-   }
-  },
-  {
-   "name": "lazy/corsair_harpoon",
-   "player": {
-    "body_id": "corsair",
-    "parts": [
-     {
-      "slot": [
-       0
-      ],
-      "part": "wheel"
-     },
-     {
-      "slot": [
-       1
-      ],
-      "part": "wheel"
-     },
-     {
-      "slot": [
-       6
-      ],
-      "part": "corsair_harpoon"
-     }
-    ]
-   },
-   "enemy": {
-    "layout": "res://game/data/enemies/dozer_cook.tres"
-   },
-   "seeds": {
-    "from": 1,
-    "count": 16
-   },
-   "press": {
-    "player": "mash",
-    "enemy": "ai"
-   },
-   "expect": {
-    "win_rate": [
-     0,
-     0.125
-    ],
-    "aborted": [
-     0,
-     0
-    ],
-    "enemy.hp_left": [
-     600,
-     1500
-    ],
-    "enemy.killed_by_hazard": [
-     0,
-     0.25
-    ]
-   }
-  },
-  {
-   "name": "lazy/corsair_harpoon-nowheels",
-   "player": {
-    "body_id": "corsair",
-    "parts": [
-     {
-      "slot": [
-       6
-      ],
-      "part": "corsair_harpoon"
-     }
-    ]
-   },
-   "enemy": {
-    "layout": "res://game/data/enemies/dozer_cook.tres"
-   },
-   "seeds": {
-    "from": 1,
-    "count": 16
-   },
-   "press": {
-    "player": "mash",
-    "enemy": "ai"
-   },
-   "expect": {
-    "win_rate": [
-     0,
-     0.125
-    ],
-    "aborted": [
-     0,
-     0
-    ],
-    "enemy.hp_left": [
-     600,
-     1500
+     700
     ],
     "enemy.killed_by_hazard": [
      0,
