@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/stabiliser.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"stabiliser"
+behaviour = ExtResource("2_beh")
+display_name = "Stabiliser"
+tags = PackedStringArray("attack")
+rarity = &"uncommon"
+description = PackedStringArray("While you are not driving, neighbouring weapons gain 1 {speedup} every 3 seconds.")
+energy_cost = 0
+cooldown = 0.0
+mode = &"passive"
+energy_per_second = 0.0
+damage = 0
+integrity = 50
+proximity_range = 12.0
+reach = 0.0
+size = Vector2i(5,5)
+color = Color(0.55,0.62,0.72, 1)
