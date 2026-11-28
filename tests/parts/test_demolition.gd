@@ -186,7 +186,7 @@ func test_mine_outlives_its_layer() -> void:
 	_complete()
 
 
-# U47: 8 a tick, and while running a 3-wide column straight down under it, 4 cells deeper a cut.
+# U47: 8 a tick, and while running a 3-wide column straight down under it, a cell deeper a cut.
 func test_excavator_8_a_tick_and_digs_straight_down() -> void:
 	var ctx := await duel([[[7], &"excavator"]], [], 60.0)
 	var excavator := of(ctx, 0, &"excavator")
@@ -198,7 +198,8 @@ func test_excavator_8_a_tick_and_digs_straight_down() -> void:
 	await step(ctx, TICK, false, true)
 	assert_eq(before - foe.hp, 8, "one tick pays 8")
 	assert_eq(_paid(hits, excavator), [8], "8 damage a tick")
-	await step(ctx, 4.0, false, true)
+	# One row a cut: 24 rows to the arena floor, so this reaches solid ground and the cuts are seen.
+	await step(ctx, 14.0, false, true)
 	assert_true(dug.size() >= 2, "%d cuts reached the ground" % dug.size())
 	if dug.is_empty():
 		_complete()
@@ -206,9 +207,44 @@ func test_excavator_8_a_tick_and_digs_straight_down() -> void:
 	var first: Vector2 = dug[0].position
 	assert_eq(ctx.world.get_material_at(Vector2i(first) + Vector2i(1, 0)), &"air",
 		"the column is 3 cells wide")
-	for at in range(1, dug.size()):
-		assert_near(dug[at].position.x, first.x, 0.01, "the column is straight down")
-		assert_true(dug[at].position.y > dug[at - 1].position.y, "each cut is deeper")
+	# A cut covers each of the column's 3 cells, so one cut emits one event per cell: the events are
+	# grouped by row, and every cut is deeper than the one before it.
+	var anchor := excavator.anchor_world()
+	var depths: Array = []
+	for event in dug:
+		assert_near(event.position.x, anchor.x, 1.01, "the column is straight down")
+		if depths.is_empty() or event.position.y > depths[-1]:
+			depths.append(event.position.y)
+	assert_true(depths.size() >= 2, "%d cuts reached the ground" % depths.size())
+	for at in range(1, depths.size()):
+		assert_true(depths[at] > depths[at - 1], "each cut is deeper")
+	_complete()
+
+
+# U47: the column is a shaft, not a stack of sealed pockets. A radius-1 dig's ragged rim can leave a
+# cell solid, so a cut digs each of the column's 3 cells and every row is cut: nothing between the
+# anchor and the deepest cut stays solid, so the dig reaches the lava it opens the way to.
+func test_excavator_cuts_a_shaft_with_no_solid_plugs() -> void:
+	var ctx := await duel([[[3], &"excavator"]], [], 60.0)
+	var excavator := of(ctx, 0, &"excavator")
+	assert_true(excavator != null, "the excavator mounted")
+	# Solid rock in the column from just under the anchor, so the plugs the dig would otherwise leave
+	# between two cuts are visible.
+	var anchor := Vector2i(excavator.anchor_world())
+	var top := anchor.y + 1
+	ctx.world.fill_rect(Rect2i(anchor.x - 1, top, 3, 24), &"rock")
+	var dug := sink(ctx, ChEvent.CELLS_DUG)
+	await step(ctx, 8.0, false, true)
+	assert_true(dug.size() >= 2, "%d cuts reached the ground" % dug.size())
+	if dug.is_empty():
+		_complete()
+		return
+	var deepest: float = dug[0].position.y
+	for event in dug:
+		deepest = maxf(deepest, event.position.y)
+	assert_true(deepest > float(top + 4), "the cuts reached the rock")
+	assert_eq(_count(ctx, &"rock", Rect2i(anchor.x - 1, top, 3, roundi(deepest) - top + 1)), 0,
+		"no solid plug is left in the column down to the deepest cut")
 	_complete()
 
 
