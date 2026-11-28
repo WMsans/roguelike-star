@@ -92,7 +92,7 @@ func _layout(body_id: StringName, catalog: ChCatalog, weapon: StringName) -> ChC
 	var layout := ChChariotLayout.new()
 	layout.body_id = body_id
 	for index in wheels:
-		assert_true(layout.place(_typed_path([index]), &"wheel"), "%s wheel at slot %d" % [body_id, index])
+		assert_true(layout.place(_typed_path([index]), &"roller"), "%s wheel at slot %d" % [body_id, index])
 	if weapon != &"":
 		var front := _front_slot(body, wheels)
 		assert_true(layout.place(_typed_path([front]), weapon), "%s mounts %s at its front slot %d" % [body_id, weapon, front])

@@ -52,25 +52,25 @@ func _layout(body_id: StringName) -> ChChariotLayout:
 
 
 func test_drop_takes_from_inventory() -> void:
-	var inventory := _inventory([&"wheel", &"wheel", &"cutter_chainsaw"])
+	var inventory := _inventory([&"roller", &"roller", &"chainsaw"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
-	assert_true(garage.drop_part(&"wheel", [0]), "body slot 0 takes a wheel")
+	assert_true(garage.drop_part(&"roller", [0]), "body slot 0 takes a wheel")
 	# The layout the test holds IS the one the garage was handed, so the mount reads back there.
 	assert_true(layout.get_node([0]) != null, "so the wheel mounted")
-	assert_eq(layout.slots[0].part_id, &"wheel", "as the wheel")
+	assert_eq(layout.slots[0].part_id, &"roller", "as the wheel")
 	# ChInventory.take lifts the FIRST copy, so the list stays in its original order minus one.
-	assert_eq(inventory.part_ids, [&"wheel", &"cutter_chainsaw"], "one copy left, order kept")
+	assert_eq(inventory.part_ids, [&"roller", &"chainsaw"], "one copy left, order kept")
 	# A part the inventory does not carry cannot be dropped, and the inventory stays as it was.
-	assert_true(not garage.drop_part(&"cutter_rocket", [1]), "an id not carried is refused")
-	assert_eq(inventory.part_ids, [&"wheel", &"cutter_chainsaw"], "unchanged by the refusal")
+	assert_true(not garage.drop_part(&"rocket_pod", [1]), "an id not carried is refused")
+	assert_eq(inventory.part_ids, [&"roller", &"chainsaw"], "unchanged by the refusal")
 	# ChChariotLayout.place refuses a taken slot, so the garage loses nothing from the inventory.
-	assert_true(not garage.drop_part(&"wheel", [0]), "a taken slot refuses")
+	assert_true(not garage.drop_part(&"roller", [0]), "a taken slot refuses")
 	assert_true(layout.slots.size() == 1, "and the layout gained nothing")
-	assert_eq(inventory.part_ids, [&"wheel", &"cutter_chainsaw"], "so the part stayed carried")
+	assert_eq(inventory.part_ids, [&"roller", &"chainsaw"], "so the part stayed carried")
 	# Inherited from Task 4, and deliberately not hardened here: place accepts a slot index no
 	# def owns, so the garage adds no range rule of its own. Such a mount reads back no anchor.
-	assert_true(garage.drop_part(&"wheel", [9]), "an out-of-range index still mounts")
+	assert_true(garage.drop_part(&"roller", [9]), "an out-of-range index still mounts")
 	# shortcut: anchor_of is asserted rather than a refusal, because a range check belongs in
 	# Task 4's place(), which the brief says stays as it is.
 	assert_eq(layout.anchor_of([9], _catalog()), Vector2.ZERO, "and it has no anchor")
@@ -79,12 +79,12 @@ func test_drop_takes_from_inventory() -> void:
 
 
 func test_lift_returns_subtree() -> void:
-	var inventory := _inventory([&"strut", &"wheel"])
+	var inventory := _inventory([&"strut", &"roller"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
 	assert_true(garage.drop_part(&"strut", [1]), "the strut mounts with nothing under it")
 	# The strut's extension slot 0 is (0,-6), so a wheel bolted there is one path step deep.
-	assert_true(garage.drop_part(&"wheel", [1, 0]), "the wheel bolts onto the strut")
+	assert_true(garage.drop_part(&"roller", [1, 0]), "the wheel bolts onto the strut")
 	assert_true(inventory.part_ids.is_empty(), "both drops left the inventory empty")
 	assert_true(not garage.lift([3]), "an empty slot lifts nothing")
 	assert_true(garage.lift([1]), "lifting the strut takes its whole branch")
@@ -93,10 +93,10 @@ func test_lift_returns_subtree() -> void:
 	# supporting evidence that the branch rather than only its tip detached.
 	assert_true(layout.get_node([1]) == null, "the branch left the body slot")
 	assert_true(layout.slots.size() == 0, "nothing stays mounted, child included")
-	assert_true(inventory.has(&"strut") and inventory.has(&"wheel"), "both ids back in inventory")
+	assert_true(inventory.has(&"strut") and inventory.has(&"roller"), "both ids back in inventory")
 	assert_eq(inventory.part_ids.size(), 2, "so the strut and its wheel are carried again")
 	# The child's path has no parent now, so it cannot be re-dropped before its parent is.
-	assert_true(not garage.drop_part(&"wheel", [1, 0]), "a nested path needs its parent mounted")
+	assert_true(not garage.drop_part(&"roller", [1, 0]), "a nested path needs its parent mounted")
 	garage.free()
 	_complete()
 
@@ -107,14 +107,14 @@ func test_lift_returns_subtree() -> void:
 # The fit check is the whole rule, so the same lift lands once a slot is free.
 
 func test_lift_refused_when_branch_does_not_fit() -> void:
-	var inventory := _inventory([&"wheel", &"wheel", &"wheel", &"wheel"])
+	var inventory := _inventory([&"roller", &"roller", &"roller", &"roller"])
 	inventory.capacity = ChInventory.CAPACITY
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
 	# The branch is mounted through the layout so all four carried parts stay carried: four carried
 	# in five slots leaves one free, and the strut's branch is two ids.
 	assert_true(layout.place(_typed_path([1]), &"strut"), "the strut is mounted in slot 1")
-	assert_true(layout.place(_typed_path([1, 0]), &"wheel"), "with a wheel bolted on its extension 0")
+	assert_true(layout.place(_typed_path([1, 0]), &"roller"), "with a wheel bolted on its extension 0")
 	assert_eq(inventory.free_slots(), 1, "one slot is free")
 	assert_true(not garage.lift([1]), "two parts do not fit one slot, so the lift refuses")
 	assert_true(layout.get_node([1]) != null, "the strut is still mounted")
@@ -122,10 +122,10 @@ func test_lift_refused_when_branch_does_not_fit() -> void:
 	assert_eq(layout.slots.size(), 1, "nothing detached")
 	assert_eq(inventory.part_ids.size(), 4, "and the kit gained nothing")
 	# Make room and the very same lift lands, which pins that the refusal was the fit.
-	assert_eq(inventory.remove_at(0), &"wheel", "one wheel leaves the kit")
+	assert_eq(inventory.remove_at(0), &"roller", "one wheel leaves the kit")
 	assert_eq(inventory.free_slots(), 2, "so the branch fits")
 	assert_true(garage.lift([1]), "and the strut comes off with its wheel")
-	assert_eq(inventory.part_ids, [&"wheel", &"wheel", &"wheel", &"strut", &"wheel"],
+	assert_eq(inventory.part_ids, [&"roller", &"roller", &"roller", &"strut", &"roller"],
 		"the branch came back whole, parent first")
 	garage.free()
 	_complete()
@@ -135,13 +135,13 @@ func test_lift_refusal_shakes_the_piece() -> void:
 	# The refusal is felt: the piece keeps its node and takes the same rotation-only shake
 	# ChCard.refuse plays, rather than the pop a successful lift gives.
 	var catalog := _catalog()
-	var inventory := _inventory([&"wheel", &"wheel", &"wheel", &"wheel"])
+	var inventory := _inventory([&"roller", &"roller", &"roller", &"roller"])
 	inventory.capacity = ChInventory.CAPACITY
 	var layout := _layout(&"cutter")
 	# Mounted before the screen is built, so _sync_pit has a piece to draw (the bare test above
 	# mounts the same way: the branch is a fixture here, not the thing under test).
 	assert_true(layout.place(_typed_path([1]), &"strut"), "the strut is mounted in slot 1")
-	assert_true(layout.place(_typed_path([1, 0]), &"wheel"), "with a wheel under it")
+	assert_true(layout.place(_typed_path([1, 0]), &"roller"), "with a wheel under it")
 	var garage: ChGarage = _garage_scene(inventory, layout, catalog)
 	var strut: ChPitPiece = garage.piece_at(_typed_path([1]))
 	assert_true(strut != null, "the strut has a pit piece")
@@ -161,11 +161,11 @@ func test_lift_refusal_shakes_the_piece() -> void:
 
 func test_click_flips() -> void:
 	var catalog := _catalog()
-	var inventory := _inventory([&"long_arm", &"wheel", &"wheel"])
+	var inventory := _inventory([&"long_arm", &"roller", &"roller"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, catalog)
 	assert_true(garage.drop_part(&"long_arm", [1]), "the long arm takes cutter slot 1 at (9,4.5)")
-	assert_true(garage.drop_part(&"wheel", [1, 0]), "the wheel sits on the long arm's extension 0 at (30,0)")
+	assert_true(garage.drop_part(&"roller", [1, 0]), "the wheel sits on the long arm's extension 0 at (30,0)")
 	assert_eq(layout.anchor_of([1, 0], catalog), Vector2(39, 4.5), "unflipped parent: 9+30 across, 4.5 up")
 	garage.click_part([1])
 	# A flip turns the mount the other way, so the child's extension x negates: the anchor moves,
@@ -194,17 +194,17 @@ func test_click_flips() -> void:
 # screen does.
 
 func test_pick_and_place() -> void:
-	var inventory := _inventory([&"wheel", &"wheel"])
+	var inventory := _inventory([&"roller", &"roller"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
-	garage.hold(&"wheel")
-	assert_eq(garage.held_id, &"wheel", "a wheel is in hand")
+	garage.hold(&"roller")
+	assert_eq(garage.held_id, &"roller", "a wheel is in hand")
 	assert_eq(inventory.part_ids.size(), 2, "picking one up takes nothing out of the kit")
 	# The slot's own pixel: screen_of answers for a slot nothing is mounted in yet, which is what a
 	# click aimed at an empty marker needs.
 	garage.click_pit(garage.screen_of([0]))
 	assert_true(layout.get_node([0]) != null, "the second click mounted it in body slot 0")
-	assert_eq(layout.get_node([0]).part_id, &"wheel", "as the wheel that was in hand")
+	assert_eq(layout.get_node([0]).part_id, &"roller", "as the wheel that was in hand")
 	assert_eq(inventory.part_ids.size(), 1, "one wheel left carried")
 	assert_eq(garage.held_id, &"", "and nothing is held once it is down")
 	garage.free()
@@ -214,20 +214,20 @@ func test_pick_and_place() -> void:
 func test_hold_toggles() -> void:
 	# Holding what is already held puts it back, which is how a player changes their mind without a
 	# cancel button. The count check is gone with the strip: the bar owns whether a card can be pressed.
-	var garage: ChGarage = _garage(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
-	garage.hold(&"wheel")
-	assert_eq(garage.held_id, &"wheel", "the wheel is picked up")
-	garage.hold(&"wheel")
+	var garage: ChGarage = _garage(_inventory([&"roller"]), _layout(&"cutter"), _catalog())
+	garage.hold(&"roller")
+	assert_eq(garage.held_id, &"roller", "the wheel is picked up")
+	garage.hold(&"roller")
 	assert_eq(garage.held_id, &"", "and holding it again clears the hold")
 	garage.free()
 	_complete()
 
 
 func test_click_elsewhere_cancels() -> void:
-	var inventory := _inventory([&"wheel", &"wheel"])
+	var inventory := _inventory([&"roller", &"roller"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
-	garage.hold(&"wheel")
+	garage.hold(&"roller")
 	# (5,5) is the garage's top-left corner, nowhere near a marker.
 	garage.click_pit(Vector2(5, 5))
 	assert_eq(garage.held_id, &"", "a click away from every slot puts the part back")
@@ -239,11 +239,11 @@ func test_click_elsewhere_cancels() -> void:
 
 func test_click_mounted_lifts() -> void:
 	# A click with nothing in hand on a mounted part lifts it: the strut takes its wheel with it.
-	var inventory := _inventory([&"strut", &"wheel", &"wheel"])
+	var inventory := _inventory([&"strut", &"roller", &"roller"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
 	assert_true(garage.drop_part(&"strut", [1]), "the strut mounts in slot 1")
-	assert_true(garage.drop_part(&"wheel", [1, 0]), "with a wheel on its extension 0")
+	assert_true(garage.drop_part(&"roller", [1, 0]), "with a wheel on its extension 0")
 	garage.click_pit(garage.screen_of([1]))
 	assert_true(layout.get_node([1]) == null, "the strut came off the hull")
 	assert_eq(layout.slots.size(), 0, "and took its wheel with it")
@@ -272,14 +272,14 @@ func test_right_click_flips() -> void:
 func test_drop_onto_strut_extension() -> void:
 	# A free extension slot is a marker like any body slot, so the same click places into it: the
 	# strut at Cutter slot 2 (-6,-3) hangs its extension 0 one part up.
-	var inventory := _inventory([&"strut", &"cutter_chainsaw"])
+	var inventory := _inventory([&"strut", &"chainsaw"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
 	assert_true(garage.drop_part(&"strut", [2]), "the strut mounts in slot 2")
-	garage.hold(&"cutter_chainsaw")
+	garage.hold(&"chainsaw")
 	garage.click_pit(garage.screen_of([2, 0]))
 	assert_true(layout.get_node([2, 0]) != null, "the chainsaw bolted onto the strut's extension 0")
-	assert_eq(layout.get_node([2, 0]).part_id, &"cutter_chainsaw", "as the chainsaw")
+	assert_eq(layout.get_node([2, 0]).part_id, &"chainsaw", "as the chainsaw")
 	assert_eq(garage.held_id, &"", "with the hold cleared")
 	assert_true(inventory.part_ids.is_empty(), "and nothing left carried")
 	garage.free()
@@ -290,8 +290,8 @@ func test_copy_of_build() -> void:
 	# A deep copy of the build, so a caller can hand a fight a layout the fight cannot mutate
 	# (ChBattle mirrors whatever it is given).
 	var layout := _layout(&"cutter")
-	var garage: ChGarage = _garage(_inventory([&"wheel", &"wheel"]), layout, _catalog())
-	assert_true(garage.drop_part(&"wheel", [0]), "one mount, so the copy has a node to copy")
+	var garage: ChGarage = _garage(_inventory([&"roller", &"roller"]), layout, _catalog())
+	assert_true(garage.drop_part(&"roller", [0]), "one mount, so the copy has a node to copy")
 	var copy: ChChariotLayout = garage._copy_of_build()
 	assert_true(copy.get_instance_id() != layout.get_instance_id(), "not the garage's instance")
 	assert_true(copy.get_node([0]).get_instance_id() != layout.get_node([0]).get_instance_id(),
@@ -349,7 +349,7 @@ func _move(at: Vector2) -> void:
 func test_no_hint_labels() -> void:
 	# The brief's rule: no screen says how to play. The embeddable pit's only text is the part
 	# tooltip's, and the tooltip is hidden until something is hovered.
-	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), _layout(&"cutter"), _catalog())
+	var garage: ChGarage = _garage_scene(_inventory([&"roller"]), _layout(&"cutter"), _catalog())
 	var hints: Array = []
 	for node in garage.find_children("*", "Label", true, false):
 		var text: String = node.text
@@ -370,10 +370,10 @@ func test_no_hint_labels() -> void:
 
 func test_pit_pieces_match_layout() -> void:
 	var catalog := _catalog()
-	var garage: ChGarage = _garage_scene(_inventory([&"wheel", &"wheel"]), _layout(&"cutter"), catalog)
-	assert_true(garage.drop_part(&"wheel", [0]), "body slot 0 takes a wheel")
-	assert_true(garage.drop_part(&"wheel", [1]), "as the other")
-	var wheel: ChPartDef = catalog.part(&"wheel")
+	var garage: ChGarage = _garage_scene(_inventory([&"roller", &"roller"]), _layout(&"cutter"), catalog)
+	assert_true(garage.drop_part(&"roller", [0]), "body slot 0 takes a wheel")
+	assert_true(garage.drop_part(&"roller", [1]), "as the other")
+	var wheel: ChPartDef = catalog.part(&"roller")
 	for path in [[0], [1]]:
 		var typed := _typed_path(path)
 		var piece: ChPitPiece = garage.piece_at(typed)
@@ -392,9 +392,9 @@ func test_pit_pieces_match_layout() -> void:
 func test_piece_survives_unrelated_change() -> void:
 	# A part that did not change keeps its node, and with it the beat still in flight on it:
 	# a rebuild would silently drop a wobble that is still running.
-	var inventory := _inventory([&"wheel", &"wheel"])
+	var inventory := _inventory([&"roller", &"roller"])
 	var garage: ChGarage = _garage_scene(inventory, _layout(&"cutter"), _catalog())
-	assert_true(garage.drop_part(&"wheel", [0]), "the first wheel mounts")
+	assert_true(garage.drop_part(&"roller", [0]), "the first wheel mounts")
 	var first: ChPitPiece = garage.piece_at(_typed_path([0]))
 	assert_true(first != null, "its piece exists")
 	if first == null:
@@ -405,7 +405,7 @@ func test_piece_survives_unrelated_change() -> void:
 	juice.juice_up(0.2, 0.1)
 	juice.advance(PEAK_STEP)
 	var bent := juice.scale_value()
-	assert_true(garage.drop_part(&"wheel", [1]), "a second wheel lands in another slot")
+	assert_true(garage.drop_part(&"roller", [1]), "a second wheel lands in another slot")
 	assert_true(garage.piece_at(_typed_path([0])) == first,
 		"the first piece is the same instance after the second drop")
 	assert_eq(ChJuice.of(first).scale_value(), bent,
@@ -414,10 +414,10 @@ func test_piece_survives_unrelated_change() -> void:
 
 
 func test_lift_frees_subtree_pieces() -> void:
-	var inventory := _inventory([&"strut", &"wheel"])
+	var inventory := _inventory([&"strut", &"roller"])
 	var garage: ChGarage = _garage_scene(inventory, _layout(&"cutter"), _catalog())
 	assert_true(garage.drop_part(&"strut", [1]), "the strut mounts in slot 1")
-	assert_true(garage.drop_part(&"wheel", [1, 0]), "with a wheel on its extension 0")
+	assert_true(garage.drop_part(&"roller", [1, 0]), "with a wheel on its extension 0")
 	var strut: ChPitPiece = garage.piece_at(_typed_path([1]))
 	var wheel: ChPitPiece = garage.piece_at(_typed_path([1, 0]))
 	assert_true(strut != null and wheel != null, "the branch has a piece per part")
@@ -443,7 +443,7 @@ func test_pit_hull_follows_body() -> void:
 	# built here, because the swap itself is the shop's (Task 12) and no button cycles it any more.
 	var catalog := _catalog()
 	var layout := _layout(&"dozer")
-	var garage: ChGarage = _garage_scene(_inventory([&"wheel"]), layout, catalog)
+	var garage: ChGarage = _garage_scene(_inventory([&"roller"]), layout, catalog)
 	var hull: ChPitPiece = garage.hull_piece()
 	assert_true(hull != null, "the pit has a hull piece")
 	if hull == null:
@@ -451,14 +451,14 @@ func test_pit_hull_follows_body() -> void:
 		return
 	# Cutter 34x9 cells, Dozer 22x30: the piece shows the body the layout is on.
 	assert_eq(hull.body_def.size, catalog.body(&"dozer").size, "drawing the Dozer's hull")
-	assert_true(garage.drop_part(&"wheel", [0]), "a wheel mounts in Dozer slot 0")
+	assert_true(garage.drop_part(&"roller", [0]), "a wheel mounts in Dozer slot 0")
 	var piece: ChPitPiece = garage.piece_at(_typed_path([0]))
 	assert_true(piece != null, "the wheel has a piece")
 	if piece == null:
 		_complete()
 		return
 	assert_eq(piece.position,
-		garage._box_at(garage.screen_of(_typed_path([0])), catalog.part(&"wheel")).get_center(),
+		garage._box_at(garage.screen_of(_typed_path([0])), catalog.part(&"roller")).get_center(),
 		"and it sits where the layout's slot 0 is")
 	_complete()
 
@@ -498,11 +498,11 @@ func _ready_garage(ids: Array) -> ChGarage:
 func test_tooltip_hidden_while_held() -> void:
 	# A part in hand hides the tooltip: the pointer is carrying something, so naming what it is over
 	# would be the wrong thing to read. Putting it back lets the hull's hover show it again.
-	var garage: ChGarage = await _ready_garage([&"wheel", &"wheel"])
-	assert_true(garage.drop_part(&"wheel", [0]))
+	var garage: ChGarage = await _ready_garage([&"roller", &"roller"])
+	assert_true(garage.drop_part(&"roller", [0]))
 	_move(garage.get_global_position() + garage.screen_of([0]))
 	assert_true(garage.tooltip.visible, "hovering the mounted wheel shows it")
-	garage.hold(&"wheel")
+	garage.hold(&"roller")
 	assert_true(not garage.tooltip.visible, "a part in hand hides it")
 	_move(garage.get_global_position() + garage.screen_of([0]))
 	assert_true(not garage.tooltip.visible, "and it stays hidden while held")
@@ -512,19 +512,19 @@ func test_tooltip_hidden_while_held() -> void:
 
 
 func test_tooltip_on_hull_part() -> void:
-	var garage: ChGarage = await _ready_garage([&"wheel"])
-	assert_true(garage.drop_part(&"wheel", [0]))
+	var garage: ChGarage = await _ready_garage([&"roller"])
+	assert_true(garage.drop_part(&"roller", [0]))
 	var at := garage.get_global_position() + garage.screen_of([0])
 	_move(at)
 	assert_true(garage.tooltip.visible)
-	assert_eq(garage.tooltip.def.id, &"wheel")
+	assert_eq(garage.tooltip.def.id, &"roller")
 	_move(Vector2(100, 500))
 	assert_true(not garage.tooltip.visible, "moving off the hull hides it")
 	_complete()
 
 func test_tooltip_leaving_pit_clears_hull_hover() -> void:
-	var garage: ChGarage = await _ready_garage([&"wheel", &"wheel"])
-	assert_true(garage.drop_part(&"wheel", [0]))
+	var garage: ChGarage = await _ready_garage([&"roller", &"roller"])
+	assert_true(garage.drop_part(&"roller", [0]))
 	_move(garage.get_global_position() + garage.screen_of([0]))
 	garage.get_node("Pit").mouse_exited.emit()
 	assert_true(not garage.tooltip.visible, "leaving the pit drops the hull hover")
@@ -533,7 +533,7 @@ func test_tooltip_leaving_pit_clears_hull_hover() -> void:
 	_complete()
 
 func test_no_info_panel_left() -> void:
-	var garage: ChGarage = await _ready_garage([&"wheel"])
+	var garage: ChGarage = await _ready_garage([&"roller"])
 	assert_true(garage.get_node_or_null("Pit/InfoPanel") == null)
 	assert_true(not "hook_text" in ChPartDef.new(), "hook_text is gone")
 	_complete()
@@ -545,14 +545,14 @@ func test_no_info_panel_left() -> void:
 # which is the call Task 12 turns into a lift or a sell.
 
 func test_mount_from_inventory() -> void:
-	var inventory := _inventory([&"wheel", &"cutter_chainsaw"])
+	var inventory := _inventory([&"roller", &"chainsaw"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
 	assert_true(garage.mount_from_inventory(1, [0]), "the chainsaw at the bar's index 1 mounts")
-	assert_eq(layout.get_node([0]).part_id, &"cutter_chainsaw", "in body slot 0")
-	assert_eq(inventory.part_ids, [&"wheel"], "and that copy left the kit")
+	assert_eq(layout.get_node([0]).part_id, &"chainsaw", "in body slot 0")
+	assert_eq(inventory.part_ids, [&"roller"], "and that copy left the kit")
 	# The index is the handle, so the duplicate case takes the copy the bar pointed at, not the first.
-	var dupes := _inventory([&"wheel", &"wheel"])
+	var dupes := _inventory([&"roller", &"roller"])
 	var other := _layout(&"cutter")
 	var second: ChGarage = _garage(dupes, other, _catalog())
 	assert_true(second.mount_from_inventory(0, [1]), "index 0 mounts")
@@ -564,16 +564,16 @@ func test_mount_from_inventory() -> void:
 
 
 func test_mount_refused_restores() -> void:
-	var inventory := _inventory([&"wheel", &"strut"])
+	var inventory := _inventory([&"roller", &"strut"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage(inventory, layout, _catalog())
 	assert_true(layout.place(_typed_path([0]), &"strut"), "slot 0 is already taken")
 	assert_true(not garage.mount_from_inventory(0, [0]), "a taken slot refuses the mount")
-	assert_eq(inventory.part_ids, [&"wheel", &"strut"], "the kit is unchanged and in the same order")
+	assert_eq(inventory.part_ids, [&"roller", &"strut"], "the kit is unchanged and in the same order")
 	assert_eq(layout.get_node([0]).part_id, &"strut", "and the slot still holds what it held")
 	# Nothing in the hand of a bar that is out of range either.
 	assert_true(not garage.mount_from_inventory(9, [0]), "an index the kit has not got is refused")
-	assert_eq(inventory.part_ids, [&"wheel", &"strut"], "with the kit untouched")
+	assert_eq(inventory.part_ids, [&"roller", &"strut"], "with the kit untouched")
 	garage.free()
 	_complete()
 
@@ -647,7 +647,7 @@ func test_piece_drag_emits() -> void:
 func test_changed_after_every_change() -> void:
 	# The bar refreshes on `changed`, so every mount, lift and flip announces itself and a refusal
 	# does not: the bar has nothing to redraw for a state that did not move.
-	var inventory := _inventory([&"strut", &"wheel"])
+	var inventory := _inventory([&"strut", &"roller"])
 	var layout := _layout(&"cutter")
 	var garage: ChGarage = _garage_scene(inventory, layout, _catalog())
 	var seen: Array[int] = []
@@ -663,6 +663,6 @@ func test_changed_after_every_change() -> void:
 	assert_eq(seen.size(), 4, "the second mount announced itself too")
 	assert_true(not garage.mount_from_inventory(0, [1]), "the taken slot refuses")
 	assert_eq(seen.size(), 4, "and a refusal says nothing")
-	assert_true(garage.drop_part(&"wheel", [0]), "a drop mounts")
+	assert_true(garage.drop_part(&"roller", [0]), "a drop mounts")
 	assert_eq(seen.size(), 5, "and announced itself")
 	_complete()

@@ -117,7 +117,7 @@ func _part(id: StringName, cost: int, cooldown: float, integrity: int, extension
 	return def
 
 # A wheel: the tag is what makes it one (ChPartDef.is_wheel), and its energy_per_second is the
-# drive's price per second. The id is deliberately not "wheel", so a reader that matches on the
+# drive's price per second. The id is deliberately not "roller", so a reader that matches on the
 # old id instead of the tag finds no wheels at all.
 func _wheel_def() -> ChPartDef:
 	var def := ChPartDef.new()

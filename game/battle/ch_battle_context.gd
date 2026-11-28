@@ -5,8 +5,8 @@ class_name ChBattleContext extends RefCounted
 # part or ChDamage by itself:
 # - deal_hit is the single damage entry point. It builds the hit dict, asks every same-side passive
 #   whose def's proximity_range covers the source to change it, then the source's own behaviour,
-#   then applies ChDamage (after the target's Block), gives hit["freeze"] stacks of Freeze to the
-#   target part, emits HIT, and breaks the target part if its integrity reached 0.
+#   then applies ChDamage (after the target's Block), emits HIT, and breaks the target part if its
+#   integrity reached 0.
 # - tick runs one frame: hazards -> battery leaks -> the status clock (one _status_second per whole STATUS_SECOND)
 #   -> per chariot: cooldowns -> energy.tick (regen, then the drive) -> on a press, the volley
 #   (ready triggered parts paid dearest energy_cost first; each paid part fires, resets its
@@ -501,14 +501,9 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 	var hit := {
 		"source": source,
 		"target_part": target_part,
-		# The part a freeze lands on and a Shatter reads. Weapons mostly strike the hull, so a hull hit
-		# puts it on the target's part nearest the attacker.
-		# ponytail: nearest the source's anchor, not the impact point, which deal_hit is never given.
-		"freeze_part": target_part if target_part != null else _nearest_part(target_chariot, source.anchor_world()),
 		"target_chariot": target_chariot,
 		"damage": damage,
 		"multiplier": multiplier,
-		"freeze": 0,  # stacks of Freeze given to freeze_part
 		"block_mult": 1.0,  # what Block spends on the share it soaks; U23's Etching Ray is 2
 		"bonus": source.bonus_damage,  # part's bonus damage, modifiers may raise it
 	}
@@ -557,15 +552,6 @@ func deal_hit(source: ChPartRuntime, target_body: Object, damage: int, extra := 
 		# Block took part of the hit: the holder says so, and the attacker is named on both events.
 		_emit(ChEvent.BLOCK_ABSORBED, holder, {"amount": soaked, "attacker": source})
 	_block_used(holder, block, source if soaked > 0 else null)
-	# A modifier that asked for a thaw wins over the freeze: the Mace's Shatter ends the freeze it read
-	# "after the hit" (spec §5.6), so a Freeze Charge landing on the same shatter leaves the target at 0.
-	var freeze_part: ChPartRuntime = hit["freeze_part"]
-	if freeze_part != null and hit.get("thaw", false):
-		# Only the Shatter asks for a thaw, so feedback can break the ice rather than let it melt.
-		if freeze_part.statuses.clear(ChStatuses.FREEZE) > 0:
-			_emit(ChEvent.STATUS_LOST, freeze_part, {"status": ChStatuses.FREEZE, "shatter": true})
-	elif freeze_part != null and hit["freeze"] > 0:
-		give_status(freeze_part, ChStatuses.FREEZE, hit["freeze"])
 	# HIT announces the hit after it landed, so a listener reads the HP already paid. The source is
 	# the part that dealt it, which is what a proximity listener measures, and the payload carries
 	# what was hit and how much HP went: hp_damage is the damage dealt, not the HP actually lost.
@@ -585,15 +571,6 @@ func _player_fire(source: ChPartRuntime) -> bool:
 	# same tags the shop's themes roll on (Task 4), so "fire-tagged" is the shipped def's own word for it.
 	return source.side == 0 and source.def != null and source.def.tags.has("fire")
 
-
-func _nearest_part(chariot: ChChariotRuntime, from: Vector2) -> ChPartRuntime:
-	var best: ChPartRuntime = null
-	for part in chariot.parts:
-		if part.broken:
-			continue
-		if best == null or part.anchor_world().distance_to(from) < best.anchor_world().distance_to(from):
-			best = part
-	return best
 
 func _ask_behaviour(part: ChPartRuntime, hit: Dictionary) -> void:
 	var behaviour = part.behaviour

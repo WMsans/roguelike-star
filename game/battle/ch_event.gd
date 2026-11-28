@@ -26,8 +26,7 @@ const HP_LOST: StringName = &"hp_lost"  # data: amount, before, after, cause; so
 const INTEGRITY_LOST: StringName = &"integrity_lost"  # data: amount, cause; source = the part
 const BLOCK_ABSORBED: StringName = &"block_absorbed"  # data: amount, attacker; source = the holder
 const STATUS_GAINED: StringName = &"status_gained"  # data: status, amount, before, cause, from
-const STATUS_LOST: StringName = &"status_lost"  # data: status, shatter: true on a Shatter's thaw,
-	# attacker on a hit that spent the last Block
+const STATUS_LOST: StringName = &"status_lost"  # data: status; attacker on a hit that spent the last Block
 const STATUS_CANCELLED: StringName = &"status_cancelled"  # data: status, against, amount
 const STATUS_DOUBLED: StringName = &"status_doubled"  # data: status, amount
 const SHOCK_JUMPED: StringName = &"shock_jumped"  # data: from, amount

@@ -12,7 +12,7 @@ func _new_run(run_seed: int = 7) -> ChRun:
 func _saw_slot(layout: ChChariotLayout) -> int:
 	# Which slot the start kit's saw ended up on, so no test below hard-codes an index.
 	for path in layout.all_paths():
-		if layout.get_node(_typed_path(path)).part_id == &"cutter_chainsaw":
+		if layout.get_node(_typed_path(path)).part_id == &"chainsaw":
 			return path[0]
 	return -1
 
@@ -44,9 +44,9 @@ func test_start_kit() -> void:
 	var saws: Array[int] = []
 	for path in run.layout.all_paths():
 		var node: ChSlotNode = run.layout.get_node(_typed_path(path))
-		if node.part_id == &"wheel":
+		if node.part_id == &"roller":
 			wheels.append(path[0])
-		elif node.part_id == &"cutter_chainsaw":
+		elif node.part_id == &"chainsaw":
 			saws.append(path[0])
 		else:
 			assert_true(false, "the start kit holds only wheels and a saw, not %s" % node.part_id)

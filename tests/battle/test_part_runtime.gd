@@ -88,12 +88,12 @@ func test_frozen_pauses_cooldown() -> void:
 
 
 func test_sample_rect_covers_a_wheel() -> void:
-	# The reviewer's finding: a wheel-sized def (game/data/parts/wheel.tres is 12x12 cells) sampled
+	# The reviewer's finding: a wheel-sized def (game/data/parts/roller.tres is 12x12 cells) sampled
 	# with a box anchored at the anchor sits up to 11 cells off the body. The body's box is def.size
 	# cells centred on its position, turned by its rotation and mirrored by the slot flip.
-	# The real wheel def (game/data/parts/wheel.tres is 12x12 cells), handed to a part instead of the
+	# The real wheel def (game/data/parts/roller.tres is 12x12 cells), handed to a part instead of the
 	# 1x1 default ChPartDef._runtime builds.
-	var wheel: ChPartDef = load("res://game/data/parts/wheel.tres")
+	var wheel: ChPartDef = load("res://game/data/parts/roller.tres")
 	assert_eq(wheel.size, Vector2i(12, 12), "the wheel is 12 cells across")
 	var part := _runtime(0, 0.0, Vector2(100, 200), 100)
 	part.def = wheel

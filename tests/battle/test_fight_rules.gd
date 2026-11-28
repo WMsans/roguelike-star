@@ -121,12 +121,12 @@ func test_of_numbers() -> void:
 func test_fire_mult_on_player_fire_hit() -> void:
 	var world: PixelWorld = await make_world()
 	_ground(world)
-	var catalog := ChCatalog.from_defs([_loaded(&"flamethrower"), _loaded(&"cutter_chainsaw")],
+	var catalog := ChCatalog.from_defs([_loaded(&"flamethrower"), _loaded(&"chainsaw")],
 		[_rig()])
 	# Side 0 carries both a fire-tagged Flamethrower and a Chainsaw that is not, so the two hits differ
 	# only in the tag; side 1 carries a Flamethrower of its own.
 	var mine := ChChariotBuilder.build(world, _parent(),
-		_mount([[[0], &"flamethrower"], [[1], &"cutter_chainsaw"]]), catalog, 0, ORIGIN, false)
+		_mount([[[0], &"flamethrower"], [[1], &"chainsaw"]]), catalog, 0, ORIGIN, false)
 	var foe := ChChariotBuilder.build(world, _parent(), _mount([[[0], &"flamethrower"]]), catalog, 1,
 		FAR_ORIGIN, false)
 	var flame := _part_of(mine, [0])

@@ -35,6 +35,15 @@ func _tooltip() -> ChPartTooltip:
 func _def(id: StringName) -> ChPartDef:
 	return ChCatalog.load_default().part(id)
 
+# A hand-built def with this one description line, so a test can show a tooltip with more glossary
+# words than any one part carries (Task 6's descriptions are a single line, one word each).
+func _line_def(id: StringName, line: String) -> ChPartDef:
+	var def := ChPartDef.new()
+	def.id = id
+	def.display_name = "Fixture"
+	def.description = [line]
+	return def
+
 func _frames(n := 2) -> void:
 	for i in n:
 		await Engine.get_main_loop().process_frame
@@ -80,22 +89,24 @@ func test_show_builds_main_and_keyword_boxes() -> void:
 
 func test_passive_hides_cost_line() -> void:
 	var tip := _tooltip()
-	tip.show_part(_def(&"ember_battery"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	tip.show_part(_def(&"generator"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	await _frames()
 	assert_true(not tip.line_label().visible)
-	assert_eq(tip.keyword_keys(), [&"passive", &"flame", &"energy"])
+	assert_eq(tip.keyword_keys(), [&"energy"])
 	_complete()
 
 func test_switch_def_reuses_boxes_and_hide() -> void:
 	var tip := _tooltip()
-	tip.show_part(_def(&"ember_battery"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
-	# boxes()[1] is the Passive box for both parts, so the reuse is read on [2]: the ember's second
-	# keyword box, which the freeze charge must refill rather than rebuild.
+	tip.show_part(_line_def(&"words_a", "{passive} {proximity} {freeze}"),
+		Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	# boxes()[1] is the Passive box for both parts, so the reuse is read on [2]: the first part's
+	# second keyword box, which the second part must refill rather than rebuild.
 	var second_kw := tip.boxes()[2]
-	tip.show_part(_def(&"freeze_charge"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
-	assert_eq(tip.keyword_keys(), [&"passive", &"proximity", &"freeze"])
+	tip.show_part(_line_def(&"words_b", "{passive} {flame} {energy}"),
+		Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	assert_eq(tip.keyword_keys(), [&"passive", &"flame", &"energy"])
 	assert_eq(tip.boxes()[2], second_kw, "pooled box reused")
-	tip.show_part(_def(&"wheel"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	tip.show_part(_def(&"generator"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	assert_eq(tip.boxes().size(), 2, "extra keyword boxes hidden")
 	tip.hide_tooltip()
 	assert_true(not tip.visible and tip.def == null)
@@ -109,7 +120,7 @@ func test_pop_in_from_hidden_but_not_on_switch() -> void:
 	assert_true(juice.scale_spring.value < 1.0, "a fresh show pops in from small")
 	juice.scale_spring.value = 1.0
 	juice.scale_spring.velocity = 0.0
-	tip.show_part(_def(&"hearth"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	tip.show_part(_def(&"igniter"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	assert_eq(juice.scale_spring.value, 1.0, "a switch does not reset the spring")
 	juice.advance(PEAK_STEP)
 	# Two tooltip beats at the same age: the first show's (box 0 plays at once) and the switch's,
@@ -119,7 +130,7 @@ func test_pop_in_from_hidden_but_not_on_switch() -> void:
 
 func test_boxes_stack_without_overlap() -> void:
 	var tip := _tooltip()
-	tip.show_part(_def(&"ember_battery"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	tip.show_part(_def(&"generator"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	await _frames(3)
 	var boxes := tip.boxes()
 	for i in boxes.size() - 1:
@@ -129,7 +140,7 @@ func test_boxes_stack_without_overlap() -> void:
 
 func test_ignores_mouse_everywhere() -> void:
 	var tip := _tooltip()
-	tip.show_part(_def(&"freeze_charge"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	tip.show_part(_def(&"frost_sprayer"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	assert_eq(tip.mouse_filter, Control.MOUSE_FILTER_IGNORE)
 	for node in tip.find_children("*", "Control", true, false):
 		assert_eq(node.mouse_filter, Control.MOUSE_FILTER_IGNORE, "%s ignores the mouse" % node.name)
@@ -137,7 +148,8 @@ func test_ignores_mouse_everywhere() -> void:
 
 func test_keyword_bbcode_renders_clean() -> void:
 	var tip := _tooltip()
-	tip.show_part(_def(&"ice_cream_mace"), Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
+	tip.show_part(_line_def(&"words_c", "20 damage. 40 instead if the part hit has {freeze:frozen} ×3."),
+		Rect2(600, 600, 88, 132), ChPartTooltip.Side.ABOVE, BOUNDS)
 	await _frames()
 	var shown := tip.bullets_label().get_parsed_text()
 	assert_true(shown.contains("frozen"), "the keyword's word shows")

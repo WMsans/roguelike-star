@@ -53,8 +53,8 @@ A `SIDE` is one of:
 ```json
 {"layout": "res://game/data/enemies/dozer_cook.tres", "hp": 100000}
 {"body_id": "cutter", "hp": 800,
- "parts": [{"slot": [0], "part": "wheel"},
-           {"slot": [3], "part": "cutter_rocket", "flipped": false},
+ "parts": [{"slot": [0], "part": "roller"},
+           {"slot": [3], "part": "rocket_pod", "flipped": false},
            {"slot": [3, 0], "part": "strut"}]}
 ```
 
@@ -79,9 +79,9 @@ On every body the first two slots are the bottom wheel mounts. Today's bodies:
 
 | body | hp | slots `[0]`, `[1]`, ... |
 |---|---|---|
-| `cutter` | 450 | (-10, 4.5) (9, 4.5) · (-6, -3) rear-top · (6, -3) front, on the nose slope |
-| `dozer` | 700 | (-11, 15) (11, 15) · (-9, -3) rear · (9, -3) front · (-5, -15) rear-top · (5, -15) front-top |
-| `corsair` | 900 | (-21, 5) (21, 5) · then five top slots from rear (-20, -5) to front (22, -5) |
+| `cutter` | 750 | (-10, 4.5) (9, 4.5) · (-6, -3) rear-top · (6, -3) front, on the nose slope |
+| `dozer` | 900 | (-11, 15) (11, 15) · (-9, -3) rear · (9, -3) front · (-5, -15) rear-top · (5, -15) front-top |
+| `corsair` | 1000 | (-21, 5) (21, 5) · then five top slots from rear (-20, -5) to front (22, -5) |
 
 (Check the `.tres` for current numbers; this table is a guide.) A `layout` side uses the HP of its
 layout's body unless you give `hp`.
@@ -135,7 +135,7 @@ Per side:
 | `frozen` | times one of this chariot's parts froze |
 | `hazard_damage` | HP this chariot lost to material blasts (TNT, gunpowder) |
 | `killed_by_hazard` | true when a material blast took this chariot's HP to 0 (a mean over fights in the aggregates: the share killed) |
-| `parts` | per part, keyed `<part_id>@<slot path>`, e.g. `cutter_rocket@[3]` |
+| `parts` | per part, keyed `<part_id>@<slot path>`, e.g. `rocket_pod@[3]` |
 
 Per part:
 
@@ -153,8 +153,10 @@ Per part:
 
 ## Suites
 
-- `smoke`: the Cutter with wheels and a `cutter_rocket` against `dozer_cook.tres`, seeds 1–3, and
-  it fails if any fight aborts. A quick "does the runner work" check (~2 s).
+- `smoke`: the starting kit (Cutter, a Roller on each wheel slot, a Chainsaw on `[2]`, `press.player:
+  ai`) against `dozer_cook.tres` at the run's fight-0 HP, seeds 1–10. It fails if any fight aborts or
+  the kit wins fewer than 6 or more than 8 of the 10 — the HP ramp's aim, and the one suite whose win
+  rate is judged (~5 s).
 - `standalone`: each damaging part alone at the Cutter's `[3]`, AI-driven, against a dummy Corsair
   (two wheels, 100000 HP, drive `hold`), seeds 1–5. Both sides use `plain_hull`: with the shaped
   hulls the Cutter climbed the dummy and spent 11–46 s of each fight flipped, which measured the
@@ -170,10 +172,10 @@ Per part:
   to within one fight of the tuned result, and the Dozer's `flipped_seconds` against the Cutter (~2 min).
 - `bodies-box`: the same matrix with `"plain_hull": true` on both sides, the control that shows
   what the outlines add. No `expect`: compare it with `bodies` (~2 min).
-- `lazy`: each of the 8 damaging parts alone on a Corsair's `[6]` (`lazy/<part>`, and `-nowheels`
-  without the `[0]`/`[1]` wheels), `press.player: mash`, against the Cook, seeds 1-16. `expect` pins a
-  lazy build at 0-2 wins of 16, so it shows which one-weapon builds still beat the Cook (one pin is
-  wider; see Known-fail).
+- `lazy`: each damaging part alone on a Corsair's `[6]` (`lazy/<part>`, and `-nowheels` without the
+  `[0]`/`[1]` wheels), `press.player: mash`, against the Cook, seeds 1-16. `expect` pins each build's
+  win rate to within two fights of the measured value, so it shows which one-weapon builds beat the
+  Cook (the old 0-2-of-16 pin is void: see Known-fail).
 - `demo` also holds `vs-cook-<build>-nowheels` twins (no wheels, `ai` presses); read them with
   `analysis/summary.py --wheel-gap out.json`. 16 seeds per scenario. The five reference builds drive `ai` (written out in
   `demo.json`): `kite` lost more fights and cut them under 35 s for every build but artillery.
@@ -189,14 +191,14 @@ its range. Paths are dotted into the aggregate:
 ```json
 {
   "name": "rocket-stays-efficient",
-  "player": {"body_id": "cutter", "parts": [{"slot": [0], "part": "wheel"}, {"slot": [1], "part": "wheel"},
-                                            {"slot": [3], "part": "cutter_rocket"}]},
+  "player": {"body_id": "cutter", "parts": [{"slot": [0], "part": "roller"}, {"slot": [1], "part": "roller"},
+                                            {"slot": [3], "part": "rocket_pod"}]},
   "enemy": {"layout": "res://game/data/enemies/dozer_cook.tres"},
   "seeds": {"from": 1, "count": 10},
   "expect": {
     "win_rate": [0.6, 1.0],
     "aborted": [0, 0],
-    "player.parts.cutter_rocket@[3].damage_per_energy": [10, 20]
+    "player.parts.rocket_pod@[3].damage_per_energy": [10, 20]
   }
 }
 ```
@@ -207,7 +209,7 @@ pass by checking nothing.
 ## Gotchas
 
 - Speed: a 60-second fight takes about 1.5 s of wall time; budget a minute per 40 full-length fights.
-- Parts are referenced by slot path, not by name: the key `cutter_rocket@[3]` changes if you move
+- Parts are referenced by slot path, not by name: the key `rocket_pod@[3]` changes if you move
   the part.
 - The battle mirrors the enemy layout so it faces the player. Write every layout facing right
   (+x forward), the way the player's is written.
@@ -396,17 +398,48 @@ reference build is Rocket `[2]`, Freeze Charge `[4]`, Harpoon `[5]` in `demo`, `
 
 ## Known-fail (cook and arena)
 
-The suites pass (`ok: true`) while these Goals miss. Their `expect` ranges pin today's values so a
-change shows, not because the values are right. Values are row F2.
+`ok: true` still, but these Goals miss. Their `expect` ranges pin today's measured values so a change
+shows, not because the values are right. The rows above (the Task 9 and cook-and-arena logs) describe
+the retired 12 parts and the old 1500 HP cook; the spec's anti-goal voids those numbers, so the table
+below is the one to read. Values are the Task 7 runs (the parts retirement, the new bodies and the
+700 HP cook).
 
 | goal | bound | measured | why, measured | pins that encode it |
 |---|---|---|---|---|
-| G1 lazy builds lose | every `lazy/*` ≤ .125 (2 of 16) | `lazy/cutter_rocket-nowheels` and `lazy/flamethrower-nowheels` 3 of 16; every other lazy build 0-2; Cook median 949 of 1500 passes | against a chariot with no wheels the Cook deals 10-17 DPS (its Firebolts miss a low target), so a parked lazy build grinds it down in a 40-57 s fight, partly with the TNT under the Cook. Every HP cut that lifts the full builds lifts these too (R1); the crate 5 deep fixes G1 but costs G2 (R7) | `lazy`: those two at `win_rate` [0, 0.1875] |
-| G2 full builds | .40-.70 and ≥ 35 s | freeze .56 / 41 s and artillery .50 / 43 s pass; hotmelee .50 / 29 s (time short), selfburn .38 / 32 s (one fight short), sparks .12 / 28 s | sparks brawls with Chainsaws in contact and the two Hearths burn it down, `kite` included (.12); a recorded miss | `demo`: each `vs-cook-*` within one fight of the measured win rate, `mean_fight_seconds` ±5 s |
-| G3 moving matters | wheels − no wheels ≥ .25 | freeze +.25, artillery +.25, hotmelee +.44 pass; selfburn 0, sparks −.19 | parked: the Cook drives to you, so for a brawler standing still costs nothing | `demo`: the `-nowheels` twins' win-rate pins |
-| round-robin band | every build .35-.65 | freeze .77, artillery .22 (sparks .41, selfburn .56, hotmelee .55 pass) | the ranged freeze build holds off every brawler; artillery loses its Flamethrower edge (72 → 63) | `demo-matrix` pins only `aborted` and `matrix-never` |
-| standalone baseline | common weapons 10-20 DPS at about equal damage per energy | Flamethrower 18.9 (29.3 per energy) and Mace 10.2 (15.7) in range; Ring 9.1, Chainsaw 6.3, Hearth 4.8, Rocket 1.3, Harpoon 1.0, Firebolt 0.8 under | the dummy underrates ranged and lobbed parts (handoff open problem 4) | `standalone` (no `expect`) |
+| G1 lazy builds lose | every `lazy/*` ≤ .125 (2 of 16) | every lazy build wins 6-15 of 16; the no-wheels twins 11-15 | the cook is at the fight-0 HP (700), so one list weapon on a 1000 HP Corsair out-damages it; the parts that need no contact (Cannon, Flamethrower) do best | `lazy`: each build's `win_rate` within two fights of the measured value, `enemy.hp_left` in `[0, 700]` |
+| G2 full builds | .40-.70 and ≥ 35 s | sparks .94 / 26 s, freeze .75 / 42 s, selfburn 1.0 / 24 s, artillery .94 / 27 s, hotmelee .94 / 27 s | a full build is five list parts against the same 700 HP cook, so the fight ends before 35 s | `demo`: each `vs-cook-*` within one fight of the measured win rate, `mean_fight_seconds` ±5 s |
+| G3 moving matters | wheels − no wheels ≥ .25 | sparks 0, freeze −.06, selfburn 0, artillery 0, hotmelee −.06 | the cook drives to a parked build, so standing still costs a brawler nothing | `demo`: the `-nowheels` twins' win-rate pins |
+| round-robin band | every build .35-.65 | matrix scores 0-.75 a pair, every build wins some and loses some | the builds are now five parts each, so the pair result is the parts' matchup rather than the body's | `demo-matrix` pins only `aborted`, and `matrix-never` at `[0, 0.75]` |
+| the parked player wins | `matrix-never` 0 | 0-.75 a pair | a build that never presses still wins pairs: the cook's 700 HP is inside one build's damage over 60 s | `demo-matrix`: `matrix-never` `win_rate` `[0, 0.75]` |
+| standalone baseline | common weapons 10-20 DPS at about equal damage per energy | no `expect`: it measures | the dummy underrates ranged and lobbed parts (handoff open problem 4) | `standalone` |
 
-`mirror`: the player side wins 36 of 100 and the enemy 46 (18 draws), as before this task (the
-double knock-out goes to the enemy, see the handoff). Blasts killed 9 player-side and 9 enemy-side
-chariots, so the arena doesn't favour a side. `matrix-never` (the player never presses) wins 0.
+`mirror`: the player side wins 15 of 100 and the enemy 22 (63 draws), so the double knock-out still
+goes to the enemy (see the handoff). `matrix-never` (the player never presses) no longer wins 0.
+
+## Fight-0 HP ramp (Task 7)
+
+`ChRun.FIRST_HP` is the cook's HP at fight 0 and `dozer_cook.tres`'s `max_hp` is the same number, so
+the two move together. Measured with `tools/balance/run.sh --suite smoke`: the starting kit (Cutter,
+a Roller on each wheel slot, the Chainsaw on `[2]`, `press.player: ai`) against the cook over seeds
+1-10. Aim: the kit wins 6-8 of 10.
+
+| cook HP | wins of 10 | mean fight s | verdict |
+|---|---|---|---|
+| 1500 | 0 | 35.9 | the old cook's HP, kept for one run: the kit cannot finish it |
+| 1200 | 0 | 35.6 | |
+| 1100 | 0 | 35.9 | |
+| 1000 | 1 | 35.6 | |
+| 900 | 2 | 35.1 | |
+| 800 | 3 | 34.2 | |
+| 700 | 7 | 29.7 | **kept** |
+| 600 | 10 | 25.3 | the cook dies before it can use its parts |
+| 500 | 10 | 22.4 | |
+| 400 | 10 | 20.0 | |
+| 300 | 10 | 18.2 | |
+| 250 | 10 | 16.5 | |
+| 200 | 10 | 13.0 | |
+| 150 | 10 | 9.4 | |
+| 100 | 10 | 7.1 | |
+
+`LAST_HP` keeps the old ramp's top (1500, reached at the last elite; the boss is x1.5): the smoke
+suite measures fight 0 only, and a built run's fight 8 is not something it can measure.

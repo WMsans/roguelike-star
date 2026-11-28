@@ -2,7 +2,7 @@
   "name": "standalone",
   "scenarios": [
     {
-      "name": "standalone-cutter_rocket",
+      "name": "standalone-rocket_pod",
       "player": {
         "body_id": "cutter",
         "parts": [
@@ -10,19 +10,19 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               3
             ],
-            "part": "cutter_rocket"
+            "part": "rocket_pod"
           }
         ],
         "plain_hull": true
@@ -36,13 +36,13 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           }
         ]
       },
@@ -56,7 +56,7 @@
       }
     },
     {
-      "name": "standalone-cutter_chainsaw",
+      "name": "standalone-chainsaw",
       "player": {
         "body_id": "cutter",
         "parts": [
@@ -64,19 +64,19 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               3
             ],
-            "part": "cutter_chainsaw"
+            "part": "chainsaw"
           }
         ],
         "plain_hull": true
@@ -90,13 +90,13 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           }
         ]
       },
@@ -118,13 +118,13 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
@@ -144,13 +144,13 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           }
         ]
       },
@@ -164,7 +164,7 @@
       }
     },
     {
-      "name": "standalone-firebolt_launcher",
+      "name": "standalone-molotov",
       "player": {
         "body_id": "cutter",
         "parts": [
@@ -172,19 +172,19 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               3
             ],
-            "part": "firebolt_launcher"
+            "part": "molotov"
           }
         ],
         "plain_hull": true
@@ -198,13 +198,13 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           }
         ]
       },
@@ -218,7 +218,7 @@
       }
     },
     {
-      "name": "standalone-hearth",
+      "name": "standalone-igniter",
       "player": {
         "body_id": "cutter",
         "parts": [
@@ -226,19 +226,19 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               3
             ],
-            "part": "hearth"
+            "part": "igniter"
           }
         ],
         "plain_hull": true
@@ -252,13 +252,13 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           }
         ]
       },
@@ -272,7 +272,7 @@
       }
     },
     {
-      "name": "standalone-ice_cream_mace",
+      "name": "standalone-ice_pick",
       "player": {
         "body_id": "cutter",
         "parts": [
@@ -280,19 +280,19 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               3
             ],
-            "part": "ice_cream_mace"
+            "part": "ice_pick"
           }
         ],
         "plain_hull": true
@@ -306,13 +306,13 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           }
         ]
       },
@@ -326,7 +326,7 @@
       }
     },
     {
-      "name": "standalone-ring_of_fire",
+      "name": "standalone-cannon",
       "player": {
         "body_id": "cutter",
         "parts": [
@@ -334,19 +334,19 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               3
             ],
-            "part": "ring_of_fire"
+            "part": "cannon"
           }
         ],
         "plain_hull": true
@@ -360,67 +360,13 @@
             "slot": [
               0
             ],
-            "part": "wheel"
+            "part": "roller"
           },
           {
             "slot": [
               1
             ],
-            "part": "wheel"
-          }
-        ]
-      },
-      "seeds": {
-        "from": 1,
-        "count": 5
-      },
-      "drive": {
-        "player": "ai",
-        "enemy": "hold"
-      }
-    },
-    {
-      "name": "standalone-corsair_harpoon",
-      "player": {
-        "body_id": "cutter",
-        "parts": [
-          {
-            "slot": [
-              0
-            ],
-            "part": "wheel"
-          },
-          {
-            "slot": [
-              1
-            ],
-            "part": "wheel"
-          },
-          {
-            "slot": [
-              3
-            ],
-            "part": "corsair_harpoon"
-          }
-        ],
-        "plain_hull": true
-      },
-      "enemy": {
-        "body_id": "corsair",
-        "hp": 100000,
-        "plain_hull": true,
-        "parts": [
-          {
-            "slot": [
-              0
-            ],
-            "part": "wheel"
-          },
-          {
-            "slot": [
-              1
-            ],
-            "part": "wheel"
+            "part": "roller"
           }
         ]
       },

@@ -10,11 +10,6 @@ extends SceneTree
 const OUT := "res://textures/sprites/"
 
 const SPRITES := {
-	&"freeze_charge": [{"k": "1a1c2c", "d": "3b5dc9", "l": "73eff7", "w": "f4f4f4"}, [
-		".dd.",
-		"dwld",
-		"dlld",
-		".dd."]],
 	&"strut": [{"k": "1a1c2c", "h": "c2d3dc", "m": "94b0c2", "d": "566c86"}, [
 		"...",
 		"h.d",
@@ -24,26 +19,6 @@ const SPRITES := {
 		"hmd",
 		"h.d",
 		"..."]],
-	&"ember_battery": [{"k": "1a1c2c", "g": "566c86", "y": "ffcd75", "o": "ef7d57", "r": "b13e53"}, [
-		".ggg.",
-		"gyyog",
-		"gyorg",
-		"gorrg",
-		".ggg."]],
-	&"hearth": [{"k": "1a1c2c", "L": "d77355", "b": "a03c32", "y": "ffcd75", "o": "ef7d57"}, [
-		".LLLL.",
-		"LbLbLb",
-		"bkkkkb",
-		"bkyokb",
-		"bkookb",
-		".bbbb."]],
-	&"ring_of_fire": [{"k": "1a1c2c", "g": "566c86", "y": "ffcd75", "o": "ef7d57", "r": "b13e53"}, [
-		".goog.",
-		"goyyog",
-		"oykkyo",
-		"oykkro",
-		"gorrog",
-		".goog."]],
 	&"cutter_rocket": [{"k": "1a1c2c", "f": "333c57", "n": "566c86", "L": "e65a5a", "r": "b13e53", "d": "6d2433", "W": "f4f4f4", "g": "94b0c2"}, [
 		".fLLLLW.",
 		"nrrrrrWW",
@@ -57,21 +32,11 @@ const SPRITES := {
 		"OyOdhhhhhm",
 		"OOrdmmmmm.",
 		".rr..m.m.."]],
-	&"firebolt_launcher": [{"k": "1a1c2c", "y": "ffcd75", "O": "ef7d57", "r": "b13e53", "D": "29366f"}, [
-		".rOOOOO.",
-		"rOyyyyOD",
-		"rOOOOOOD",
-		".rrrrrr."]],
 	&"flamethrower": [{"k": "1a1c2c", "y": "ffcd75", "O": "ef7d57", "r": "b13e53", "h": "94b0c2", "d": "333c57", "f": "ffcd75"}, [
 		".yO.....",
 		"yOOrhhhf",
 		"OOrrddd.",
 		".rr....."]],
-	&"ice_cream_mace": [{"k": "1a1c2c", "c": "8a5a3a", "C": "d9a066", "P": "f5a3c0", "W": "fff0f5", "p": "c0507a"}, [
-		"....PPP.",
-		"cCcCPWPP",
-		"CcCcPPPp",
-		"....ppp."]],
 }
 
 

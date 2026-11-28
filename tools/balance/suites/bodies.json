@@ -10,25 +10,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        2
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        3
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -39,25 +39,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        2
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        3
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -75,8 +75,8 @@
    },
    "expect": {
     "win_rate": [
-     0.375,
-     0.625
+     0.125,
+     0.375
     ],
     "aborted": [
      0,
@@ -93,25 +93,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        2
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        3
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -122,25 +122,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        5
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        3
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -166,8 +166,8 @@
      0
     ],
     "enemy.flipped_seconds": [
-     1.7,
-     25.7
+     23.65,
+     47.65
     ]
    }
   },
@@ -180,25 +180,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        2
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        3
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -209,25 +209,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        5
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        6
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -245,8 +245,8 @@
    },
    "expect": {
     "win_rate": [
-     0.0,
-     0.125
+     0.3125,
+     0.4375
     ],
     "aborted": [
      0,
@@ -263,25 +263,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        5
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        3
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -292,25 +292,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        2
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        3
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -350,25 +350,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        5
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        3
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -379,25 +379,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        5
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        3
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -433,25 +433,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        5
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        3
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -462,25 +462,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        5
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        6
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -516,25 +516,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        5
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        6
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -545,25 +545,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        2
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        3
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -581,8 +581,8 @@
    },
    "expect": {
     "win_rate": [
-     0.5,
-     0.75
+     0.125,
+     0.375
     ],
     "aborted": [
      0,
@@ -599,25 +599,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        5
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        6
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -628,25 +628,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        5
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        3
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -682,25 +682,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        5
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        6
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },
@@ -711,25 +711,25 @@
       "slot": [
        0
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        1
       ],
-      "part": "wheel"
+      "part": "roller"
      },
      {
       "slot": [
        5
       ],
-      "part": "cutter_rocket"
+      "part": "rocket_pod"
      },
      {
       "slot": [
        6
       ],
-      "part": "cutter_chainsaw"
+      "part": "chainsaw"
      }
     ]
    },

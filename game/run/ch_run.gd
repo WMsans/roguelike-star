@@ -4,10 +4,14 @@ class_name ChRun extends RefCounted
 # No nodes and no screens: the shop phase (Task 7), the fight rules (Task 8) and the main loop
 # (Task 13) all read this one object.
 
-# Enemy HP at fight 0. Tuned with tools/balance/run.sh: the starting kit (Cutter, two wheels, the
-# chainsaw on [2]) against the cook at this HP, seeds 1-10, player press mash, enemy AI - 500 won 0 of
-# 10, 150 won 6, 65 won 8 (the two losses leave the cook at 5 HP).
-const FIRST_HP := 65
+# Enemy HP at fight 0, and the ramp's top at the last elite (the boss is LAST_HP x1.5). Tuned with
+# tools/balance/run.sh --suite smoke: the starting kit (Cutter, a Roller on each wheel slot, the
+# Chainsaw on [2], player press ai) against the cook at this HP over seeds 1-10. The cook's HP is
+# dozer_cook.tres's max_hp, so the two move together. Tried: 1500 0/10, 1200 0, 1100 0, 1000 1,
+# 900 2, 800 3, 700 7 (kept), 600 10, 500 10, 400 10, 300 10, 250 10, 200 10, 150 10, 100 10.
+# The smoke suite measures fight 0 only, so LAST_HP keeps the old ramp's top: the brief's aim is the
+# fight-0 win rate, and a built run's fight 8 is not something this suite can measure.
+const FIRST_HP := 700
 const LAST_HP := 1500  # the ramp's top, reached at the last elite, before that fight's x1.25
 const LAST_INDEX := 9  # a run is 10 fights, 0-based, and the last one is the boss
 const ELITE_INDEXES := [2, 5, 8]
@@ -51,11 +55,11 @@ static func start(seed: int, catalog: ChCatalog) -> ChRun:
 		order.sort_custom(func(a: int, b: int) -> bool: return body.slots[a].y > body.slots[b].y)
 		var mounts: Array[int] = order.slice(0, 2)
 		for mount in mounts:
-			run.layout.place([mount], &"wheel")
+			run.layout.place([mount], &"roller")
 		for i in body.slots.size():
 			if not mounts.has(i):
 				# The first slot that is not a wheel mount, i.e. the first one a weapon can use.
-				run.layout.place([i], &"cutter_chainsaw")
+				run.layout.place([i], &"chainsaw")
 				break
 	for index in ELITE_INDEXES + [LAST_INDEX]:
 		run.modifiers[index] = MODIFIERS[run.rng.randi_range(0, MODIFIERS.size() - 1)]

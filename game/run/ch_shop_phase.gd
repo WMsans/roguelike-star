@@ -7,14 +7,23 @@ class_name ChShopPhase extends RefCounted
 # Every draw comes off run.rng, so a run seed replays the same shop.
 
 # A theme is a tag a part carries, and it is in play only when enough distinct items match it, which is
-# what keeps Defence, Ice, Attack and the rest out until there are parts to fill them. `body` has no
-# tag because bodies carry none: the theme is the fact that they are bodies.
+# what keeps Defence, Ice, Attack and the rest out until there are parts to fill them. `passive` and
+# `triggered` are the firing modes rather than tags (spec §Shop themes), and `body` has no tag because
+# bodies carry none: the theme is the fact that they are bodies.
 const THEMES := {
 	&"weapon": [&"weapon"],
-	&"fire": [&"fire"],
+	&"defence": [&"defence"],
 	&"tricky": [&"tricky"],
-	&"passive": [&"passive"],
-	&"triggered": [&"triggered"],
+	&"attack": [&"attack"],
+	&"fire": [&"fire"],
+	&"ice": [&"ice"],
+	&"wind": [&"wind"],
+	&"earth": [&"earth"],
+	&"electric": [&"electric"],
+	&"acid": [&"acid"],
+	&"stats": [&"stats"],
+	&"passive": [],
+	&"triggered": [],
 	&"body": [],
 }
 const MIN_MATCHING := 3  # the spec's threshold for a theme appearing at all
@@ -226,6 +235,15 @@ func _pool(theme: StringName) -> Array:
 		for id in catalog.bodies:
 			bodies.append(catalog.bodies[id])
 		return bodies
+	if theme == &"passive" or theme == &"triggered":
+		# The two mode themes: a passive is the mode, and triggered is every other mode, wheels
+		# included (the spec's rule, so a wheel is a triggered part the shop can offer).
+		var by_mode: Array = []
+		for id in catalog.parts:
+			var part: ChPartDef = catalog.parts[id]
+			if (part.mode == ChPartDef.MODE_PASSIVE) == (theme == &"passive"):
+				by_mode.append(part)
+		return by_mode
 	var out: Array = []
 	for id in catalog.parts:
 		var part: ChPartDef = catalog.parts[id]

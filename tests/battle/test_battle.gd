@@ -37,27 +37,27 @@ func test_ai_approaches_then_holds() -> void:
 	assert_eq(ai.decide(420.0, 426.5, 6.0), 1.0, "one hair past reach: close in")
 	assert_eq(ai.decide(100.0, 100.0, 0.0), 0.0, "no range to close: hold still")
 	# The reach table ChBattle hands that parameter: a weapon's reach is ChPartDef.reach in cells
-	# (ChBehaviour._reach_box), and the Harpoon's 120 cells are its own field now.
+	# (ChBehaviour._reach_box), and the Laser's 120 cells are its own field now.
 	var catalog := ChCatalog.load_default()
-	var mace := ChPartRuntime.new()
-	mace.def = catalog.part(&"ice_cream_mace")
-	mace.cooldown_left = mace.def.cooldown
-	var harpoon := ChPartRuntime.new()
-	harpoon.def = catalog.part(&"corsair_harpoon")
-	harpoon.cooldown_left = harpoon.def.cooldown
-	var parts: Array[ChPartRuntime] = [mace, harpoon]
+	var pick := ChPartRuntime.new()
+	pick.def = catalog.part(&"ice_pick")
+	pick.cooldown_left = pick.def.cooldown
+	var laser := ChPartRuntime.new()
+	laser.def = catalog.part(&"laser")
+	laser.cooldown_left = laser.def.cooldown
+	var parts: Array[ChPartRuntime] = [pick, laser]
 	var rig := ChChariotRuntime.new()
 	rig.parts = parts
-	assert_near(ai.reach(rig), 6.0, 0.001, "the shortest reach the Dozer can bring to bear is the Mace's 6")
-	# The Harpoon's 120 cells count while it is on cooldown too (Task 1's ruling: the special case
-	# goes away), so a lone Harpoon still gives the driver a range to close.
+	assert_near(ai.reach(rig), 24.0, 0.001, "the shortest reach the Dozer can bring to bear is the Ice Pick's 24")
+	# The Laser's 120 cells count while it is on cooldown too (Task 1's ruling: the special case
+	# goes away), so a lone Laser still gives the driver a range to close.
 	var ranged := ChChariotRuntime.new()
-	var only: Array[ChPartRuntime] = [harpoon]
+	var only: Array[ChPartRuntime] = [laser]
 	ranged.parts = only
-	assert_near(ai.reach(ranged), 120.0, 0.001, "a Harpoon counts at its own 120 cells, ready or not")
+	assert_near(ai.reach(ranged), 120.0, 0.001, "a Laser counts at its own 120 cells, ready or not")
 	assert_eq(ai.decide(60.0, 420.0, ai.reach(ranged)), 1.0, "so it closes in")
-	harpoon.cooldown_left = 0.0
-	assert_near(ai.reach(rig), 6.0, 0.001, "and the Mace is still the shortest reach")
+	laser.cooldown_left = 0.0
+	assert_near(ai.reach(rig), 24.0, 0.001, "and the Ice Pick is still the shortest reach")
 	_complete()
 
 
@@ -454,90 +454,28 @@ func _hear_all(battle: Node2D, heard: Array) -> void:
 		}))
 
 
-# Chain 1 (spec 5.5): the Chainsaw cuts, something ignites, the Ember Battery pays energy. Over a real
-# fight the cut lands on the Chainsaw's own 0.5 s cooldown, its sparks set something alight, and the
-# battery pays for that catch. The chainsaw sits on the Corsair's front slot, so its 14-cell reach
-# clears the hull's own edge and the sparks land outside it; the asserts below are the chain in order -
-# a cut with sparks, a catch after it, the battery paying after that catch, and the enemy's parts
-# catching too.
-# WHICH side catches first is not pinned: at the Task 4 spawns both hulls sit in the burning sand the
-# saw cuts, so the first catch after the cut was the player's own saw in most runs (measured: event 30
-# on side 0, eight runs) and the enemy's wheel in one run of fifteen - which of the two catches first
-# turns on frame timing (the world steps on real time), not on the rule. What is stable, and what the
-# count below pins, is that the enemy's parts catch many times after the saw's cut (measured 8-40 in
-# 16 runs, counted from the cut onward), so the spec's "the target keeps burning" shows *because of
-# this chain*: the enemy's own Hearth burns the same sand, so a count over the whole fight would pass
-# with a saw that never cut. The order is the evidence, not the count: a caught fire carries no
-# igniter (STATUS_GAINED), so a catch after the saw's cut in the same fight is the causal link
-# this fight can show.
-func test_chain1_cut_ignites_and_pays_energy_in_a_real_fight() -> void:
-	var battle := _battle_scene()
-	var heard: Array = []
-	var layout := _garage_built(&"corsair", [[[0], &"wheel"], [[1], &"wheel"],
-		[[6], &"cutter_chainsaw"], [[3], &"ember_battery"]])
-	_start_fight(battle, layout, _enemy_layout())
-	_hear_all(battle, heard)
-	var driven := await _drive_fight_out(battle)
-	var min_gap: float = driven["min_gap"]
-	var cut := -1
-	var caught := -1
-	var paid := -1
-	var enemy_catches := 0
-	for at in heard.size():
-		var entry: Dictionary = heard[at]
-		if cut < 0 and entry["type"] == ChEvent.CELLS_CUT \
-				and entry["source"] == &"cutter_chainsaw" and int(entry["sparks"]) >= 1:
-			cut = at
-		elif cut >= 0 and caught < 0 and entry["type"] == &"caught":
-			caught = at
-		elif caught >= 0 and paid < 0 and entry["type"] == ChEvent.ENERGY_GAINED \
-				and entry["source"] == &"ember_battery":
-			paid = at
-		# Only catches *after* the cut: the enemy's Hearth burns the same sand the saw cuts, so a count
-		# over the whole fight would pass with a saw that never cut (cut stays -1 here, and then no
-		# entry is after it).
-		if cut >= 0 and at > cut and entry["type"] == &"caught" \
-				and int(entry["side"]) == 1:
-			enemy_catches += 1
-	assert_true(cut >= 0, "the Chainsaw cut cells and threw sparks (heard %d events)" % heard.size())
-	assert_true(caught > cut, "something caught fire after that cut")
-	assert_true(paid > caught, "and the Ember Battery paid energy for the catch")
-	# The chain does not need contact: the sparks fly, the sand burns, and the battery pays. The count
-	# below is the spec's "the target keeps burning", and it is the stable form of the claim the first
-	# catch's side cannot carry (see the note above).
-	assert_true(enemy_catches >= 4,
-		"the enemy's parts kept catching fire after the saw's cut (measured 8-40, got %d)"
-			% enemy_catches)
-	# The spawn gap is 140 cells now, so this only holds if the fight closes it: measured 39. The old
-	# spawns were 360 apart, and this build's narrowest measured 130-183 cells there.
-	assert_true(min_gap < 140.0,
-		"and the two chariots closed the spawn gap (narrowest %.0f)" % min_gap)
-	battle.free()
-	_complete()
-
-
-# Chain 2 (spec 5.5): the Freeze Charge's freeze on a Mace hit, then the Shatter's x3 on the frozen
-# part. This is the harness the final review asked for - the plan's own build (a Mace and a Harpoon on
-# the Corsair's front slots) fought for real through ChBattle, built by the garage's own drop path. It
+# Chain 2 (spec 5.5): the Frost Sprayer's freeze on an Ice Pick hit. This is the harness the final
+# review asked for - a build of list parts (an Ice Pick, a Frost Sprayer and a Cannon on the Corsair's
+# front slots) fought for real through ChBattle, built by the garage's own drop path. It
 # pins the two things that are stable run to run:
 #   - the player's chariot drives off its spawn. That is what the wheel mounts buy (see
 #     ChBodyDef): a loaded chariot used to sit with its motors on and the hulls could never meet,
 #     which is the state this test used to pin as "min_gap > 100".
-#   - the Mace swings on its own cooldown, so the fight pays it through ChBattleContext's loop.
+#   - the Ice Pick swings on its own cooldown, so the fight pays it through ChBattleContext's loop.
 # What it does NOT pin: how close the two hulls get. With the wheel mounts fixed they met (38 cells,
 # the two hulls touching) in three runs of this build and stayed 186 apart in a fourth, because
 # whether the sand and the two pools let the player across varies run to run; the fight resolves
 # either way, at its own result or at its frame budget. Measured again at the Task 4 spawns: the two
 # hulls got to 39 cells apart and the fight resolved as a win.
-# The freeze lands. A Mace hits the Dozer's chassis almost every swing (its wheels hang below a
+# The freeze lands. An Ice Pick hits the Dozer's chassis almost every swing (its wheels hang below a
 # Corsair's top slots), and the design call in the demo balance pass was that a hull hit puts its
 # freeze on the target's part nearest the attacker (ChBattleContext.deal_hit), which then holds frozen
 # while its Freeze stacks decay. Before that call this test pinned "nothing froze".
 func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 	var battle := _battle_scene()
 	var heard: Array = []
-	var layout := _garage_built(&"corsair", [[[0], &"wheel"], [[1], &"wheel"],
-		[[6], &"ice_cream_mace"], [[5], &"freeze_charge"], [[4], &"corsair_harpoon"]])
+	var layout := _garage_built(&"corsair", [[[0], &"roller"], [[1], &"roller"],
+		[[6], &"ice_pick"], [[5], &"frost_sprayer"], [[4], &"cannon"]])
 	_start_fight(battle, layout, _enemy_layout())
 	_hear_all(battle, heard)
 	var driven := await _drive_fight_out(battle)
@@ -545,11 +483,11 @@ func test_chain2_melee_build_drives_out_of_its_corner() -> void:
 	var swung := 0
 	var frozen := 0
 	for entry in heard:
-		if entry["type"] == ChEvent.PART_FIRED and entry["source"] == &"ice_cream_mace":
+		if entry["type"] == ChEvent.PART_FIRED and entry["source"] == &"ice_pick":
 			swung += 1
 		elif entry["type"] == &"frozen":
 			frozen += 1
-	assert_true(swung > 0, "the fight paid the Mace, so it swung on its own cooldown")
+	assert_true(swung > 0, "the fight paid the Ice Pick, so it swung on its own cooldown")
 	# Measured on the Barge 3 s in, with the cook still 90 cells away: the player's hull sat at x 186,
 	# 16 cells off its 170 spawn (2 s in on the old box Corsair it was x 184-191, i.e. 14-21 cells off), under nothing but its own wheels. That is the pin - not where the
 	# fight leaves it: the Dozer comes to meet it at x ~206 and the pair shove each other from there, so
@@ -622,12 +560,12 @@ func test_held_key_fires_once() -> void:
 	var battle := _battle_scene()
 	battle.pressers[0] = Callable()  # the real key
 	battle.pressers[1] = func(_b, _s): return false
-	var layout := _garage_built(&"corsair", [[[6], &"cutter_chainsaw"]])
+	var layout := _garage_built(&"corsair", [[[6], &"rocket_pod"]])
 	_start_fight(battle, layout, _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP))
 	await _frames_ready(battle)
 	var counts := [0, 0]
 	_count_fired(battle, counts)
-	# Parts start on a full cooldown; ready the saw so the press has something to fire (a press
+	# Parts start on a full cooldown; ready the pod so the press has something to fire (a press
 	# at tick 1 would be a dud, and a held key never presses again).
 	for part in battle.player.parts:
 		part.cooldown_left = 0.0
@@ -635,7 +573,7 @@ func test_held_key_fires_once() -> void:
 	for _i in 120:
 		await Engine.get_main_loop().process_frame
 	Input.action_release(&"fire")
-	assert_eq(counts[0], 1, "Space held for 120 ticks is one press: one volley, the Chainsaw once")
+	assert_eq(counts[0], 1, "Space held for 120 ticks is one press: one volley, the Rocket Pod once")
 	battle.free()
 	_complete()
 
@@ -663,7 +601,7 @@ func test_outline_shows_while_ready() -> void:
 	await _frames_ready(battle)
 	var rocket: ChPartRuntime = null
 	for part in battle.player.parts:
-		if part.def.id == &"cutter_rocket":
+		if part.def.id == &"rocket_pod":
 			rocket = part
 	assert_true(rocket != null and rocket.outline != null, "the player has a Rocket with an outline")
 	rocket.cooldown_left = 0.0
@@ -721,7 +659,7 @@ func _runner_layout() -> ChChariotLayout:
 	# The player's Cutter with its two wheels and the fixture in the front slot (3), facing +x.
 	var layout := ChChariotLayout.new()
 	layout.body_id = &"cutter"
-	for mount in [[[0], &"wheel"], [[1], &"wheel"], [[3], &"test_melee"]]:
+	for mount in [[[0], &"roller"], [[1], &"roller"], [[3], &"test_melee"]]:
 		assert_true(layout.place(_typed_path(mount[0]), mount[1]), "%s mounts" % [_typed_path(mount[0])])
 	return layout
 

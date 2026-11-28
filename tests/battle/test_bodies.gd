@@ -41,7 +41,7 @@ func _run(body_id: StringName, drive: float, ticks: int, later_mass: float = 0.0
 			ctx.chariots[1].hp = 0)
 	var layout := ChChariotLayout.new()
 	layout.body_id = body_id
-	assert_true(layout.place(_typed_path([0]), &"wheel") and layout.place(_typed_path([1]), &"wheel"),
+	assert_true(layout.place(_typed_path([0]), &"roller") and layout.place(_typed_path([1]), &"roller"),
 		"%s takes two wheels" % body_id)
 	await battle.start(layout, _enemy_layout(), _fight_catalog(TALL_HP, TALL_HP), 12345)
 	battle.free()

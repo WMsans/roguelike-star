@@ -105,7 +105,7 @@ func _player_layout() -> ChChariotLayout:
 	# Rocket in slot 3 (6, -3), unflipped so it fires +x, which is the way the player faces.
 	var layout := ChChariotLayout.new()
 	layout.body_id = &"cutter"
-	for mount in [[[0], &"wheel"], [[1], &"wheel"], [[3], &"cutter_rocket"]]:
+	for mount in [[[0], &"roller"], [[1], &"roller"], [[3], &"rocket_pod"]]:
 		assert_true(layout.place(_typed_path(mount[0]), mount[1]), "%s mounts" % [_typed_path(mount[0])])
 	return layout
 

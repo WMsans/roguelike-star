@@ -61,9 +61,9 @@ func test_new_run_resets() -> void:
 	var main := _main()
 	var run: ChRun = main.run
 	run.gold = 3
-	assert_true(run.inventory.add(&"wheel"), "a run can carry a bought part")
+	assert_true(run.inventory.add(&"roller"), "a run can carry a bought part")
 	run.hp_bonus = 100
-	assert_true(run.layout.place(_typed_path([3]), &"cutter_rocket"), "and mount a bought weapon")
+	assert_true(run.layout.place(_typed_path([3]), &"rocket_pod"), "and mount a bought weapon")
 	main._on_finished(&"loss", main.battle)
 	assert_eq(main.result_panel.title.text, "Run over", "a loss names the run over")
 	main.result_panel.back.pressed.emit()

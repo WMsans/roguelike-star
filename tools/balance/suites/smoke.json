@@ -1,14 +1,51 @@
 {
-  "name": "smoke",
-  "scenarios": [
-    {
-      "name": "smoke-cutter-rocket-vs-dozer-cook",
-      "player": {"body_id": "cutter", "parts": [
-        {"slot": [0], "part": "wheel"}, {"slot": [1], "part": "wheel"},
-        {"slot": [2], "part": "cutter_rocket"}]},
-      "enemy": {"layout": "res://game/data/enemies/dozer_cook.tres"},
-      "seeds": {"from": 1, "count": 3},
-      "expect": {"aborted": [0, 0]}
-    }
-  ]
+ "name": "smoke",
+ "scenarios": [
+  {
+   "name": "smoke-cutter-chainsaw-vs-dozer-cook",
+   "player": {
+    "body_id": "cutter",
+    "parts": [
+     {
+      "slot": [
+       0
+      ],
+      "part": "roller"
+     },
+     {
+      "slot": [
+       1
+      ],
+      "part": "roller"
+     },
+     {
+      "slot": [
+       2
+      ],
+      "part": "chainsaw"
+     }
+    ]
+   },
+   "enemy": {
+    "layout": "res://game/data/enemies/dozer_cook.tres"
+   },
+   "seeds": {
+    "from": 1,
+    "count": 10
+   },
+   "press": {
+    "player": "ai"
+   },
+   "expect": {
+    "win_rate": [
+     0.6,
+     0.8
+    ],
+    "aborted": [
+     0,
+     0
+    ]
+   }
+  }
+ ]
 }

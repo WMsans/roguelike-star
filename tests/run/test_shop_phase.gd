@@ -107,9 +107,11 @@ func test_themes_threshold() -> void:
 	var phase := _phase()
 	var themes: Array[StringName] = phase.available_themes()
 	themes.sort()
-	# The six the spec lands on with the 12 parts and 3 bodies on disk. Defence, Ice, Wind, Earth,
-	# Electric, Acid, Relics, Stats and Attack stay out because too few items match them.
-	var expected: Array[StringName] = [&"body", &"fire", &"passive", &"triggered", &"tricky", &"weapon"]
+	# Every theme with at least MIN_MATCHING distinct items on disk. Tricky and Acid stay out: no part
+	# on disk carries the tricky tag, and only two carry acid (the builds that need them land in
+	# Tasks 8-24).
+	var expected: Array[StringName] = [&"attack", &"body", &"defence", &"earth", &"electric",
+		&"fire", &"ice", &"passive", &"stats", &"triggered", &"weapon", &"wind"]
 	expected.sort()
 	assert_eq(themes, expected, "every theme with at least 3 matching items, and no other")
 	_complete()
@@ -143,10 +145,10 @@ func test_buy_refused_when_full() -> void:
 	var run: ChRun = phase.run
 	# The card is built here rather than rolled: what is under test is the inventory rule, and a
 	# rolled part costs 2 or 6, so a hand-built card keeps the gold arithmetic exact.
-	phase.items = [{"id": &"cutter_chainsaw", "is_body": false, "rarity": &"common", "price": 2, "taken": false}]
+	phase.items = [{"id": &"chainsaw", "is_body": false, "rarity": &"common", "price": 2, "taken": false}]
 	run.gold = 20
 	for i in ChInventory.CAPACITY:
-		assert_true(run.inventory.add(&"wheel"), "carry %d" % i)
+		assert_true(run.inventory.add(&"roller"), "carry %d" % i)
 	assert_eq(run.inventory.free_slots(), 0, "the inventory is full")
 	assert_true(not phase.buy(0), "a part cannot be bought into a full inventory")
 	assert_eq(run.gold, 20, "and nothing is charged")
@@ -154,7 +156,7 @@ func test_buy_refused_when_full() -> void:
 	# Selling makes room, which is the way out the spec pins.
 	assert_eq(phase.sell(0), 1, "selling a carried common pays 1")
 	assert_true(phase.buy(0), "and the same buy goes through with a free slot")
-	assert_true(run.inventory.has(&"cutter_chainsaw"), "and the part lands in the freed slot")
+	assert_true(run.inventory.has(&"chainsaw"), "and the part lands in the freed slot")
 	_complete()
 
 
@@ -265,18 +267,32 @@ func test_reroll_once() -> void:
 	_complete()
 
 
+# A part def at this rarity, so a test can price a rarity no part on disk carries (Task 7 leaves every
+# part common; the uncommons and rares land in Tasks 8-24).
+func _def(id: StringName, rarity: StringName) -> ChPartDef:
+	var def := ChPartDef.new()
+	def.id = id
+	def.display_name = "Fixture"
+	def.rarity = rarity
+	return def
+
+
 func test_sell_half() -> void:
 	var phase := _phase()
 	var run: ChRun = phase.run
-	# ring_of_fire is the rare part on disk (12 gold), so its sell value is the plan's 6.
-	assert_true(run.inventory.add(&"wheel"), "a common goes first so the free-slot change shows")
-	assert_true(run.inventory.add(&"ring_of_fire"), "and the rare part with it")
+	var catalog: ChCatalog = phase.catalog
+	var rare := _def(&"test_rare", &"rare")
+	var uncommon := _def(&"test_uncommon", &"uncommon")
+	catalog.parts[rare.id] = rare
+	catalog.parts[uncommon.id] = uncommon
+	assert_true(run.inventory.add(&"roller"), "a common goes first so the free-slot change shows")
+	assert_true(run.inventory.add(rare.id), "and the rare part with it")
 	var before := run.gold
 	var slots_before := run.inventory.free_slots()
 	assert_eq(phase.sell(1), 6, "selling a rare part adds 6")
 	assert_eq(run.gold, before + 6, "and the gold is on the run")
 	assert_eq(run.inventory.free_slots(), slots_before + 1, "and it frees a slot")
-	assert_true(not run.inventory.has(&"ring_of_fire"), "and the part is gone")
+	assert_true(not run.inventory.has(rare.id), "and the part is gone")
 	assert_eq(phase.sell(0), 1, "a common sells for 1")
 	# Selling is not a shop-only action: it works with no stage picked, and on a done phase.
 	assert_true(phase.picked.is_empty(), "with nothing picked at all")
@@ -284,7 +300,7 @@ func test_sell_half() -> void:
 	phase.next()
 	phase.next()
 	assert_true(phase.done(), "the phase is over")
-	assert_true(run.inventory.add(&"hearth"), "a carried part is still sellable")
+	assert_true(run.inventory.add(uncommon.id), "a carried part is still sellable")
 	assert_eq(phase.sell(run.inventory.part_ids.size() - 1), 3, "an uncommon still sells for 3")
 	assert_eq(phase.sell(99), 0, "and an index with nothing in it gains nothing")
 	_complete()
@@ -299,7 +315,7 @@ func test_body_swap_overflow_sold() -> void:
 	# card is written here rather than rolled: what is under test is what the shop does with the
 	# overflow a swap hands back, not how the swap itself works (test_layout.gd pins that).
 	run.layout.swap_body(catalog.body(&"dozer"), catalog)
-	_mount_all_slots(run, &"wheel")
+	_mount_all_slots(run, &"roller")
 	var mounted_before := _mounted_count(run.layout)
 	assert_eq(mounted_before, 6, "the Dozer build fills all six top-level slots")
 	for i in ChInventory.CAPACITY:
@@ -336,11 +352,11 @@ func test_body_swap_overflow_fills_free_slots_first() -> void:
 	var run: ChRun = phase.run
 	var catalog: ChCatalog = phase.catalog
 	run.layout.swap_body(catalog.body(&"dozer"), catalog)
-	_mount_all_slots(run, &"wheel")
+	_mount_all_slots(run, &"roller")
 	var mounted_before := _mounted_count(run.layout)
 	assert_eq(mounted_before, 6, "the Dozer build fills all six top-level slots")
 	# An overflow of two subtrees against one free slot, so exactly one of them has to be carried.
-	for id in [&"strut", &"hearth", &"ring_of_fire", &"ember_battery"]:
+	for id in [&"strut", &"igniter", &"molotov", &"generator"]:
 		assert_true(run.inventory.add(id), "carry %s" % id)
 	var carried_before := run.inventory.part_ids.size()
 	assert_eq(run.inventory.free_slots(), 1, "one slot is free")
@@ -377,7 +393,7 @@ func test_auto_sold_keeps_every_swap_in_the_stage() -> void:
 	# Corsair (7 slots) then Dozer (6) then Cutter (4), with the inventory full: each swap detaches
 	# subtrees that find no seat, so both swaps sell parts and both piles have to be readable.
 	run.layout.swap_body(catalog.body(&"corsair"), catalog)
-	_mount_all_slots(run, &"wheel")
+	_mount_all_slots(run, &"roller")
 	var mounted_before := _mounted_count(run.layout)
 	assert_eq(mounted_before, 7, "the Corsair build fills all seven top-level slots")
 	for i in ChInventory.CAPACITY:
