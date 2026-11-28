@@ -651,6 +651,28 @@ func _emit_skipped(part: ChPartRuntime, cost: int) -> void:
 	bus.emit(event)
 
 
+func force_fire(part: ChPartRuntime, by: ChPartRuntime) -> void:
+	# A forced fire (the spec's "makes another part fire"): the part fires without a press, so it pays
+	# nothing and its cooldown and tick timer stay where they were. It still counts as firing for every
+	# trigger, so it emits PART_FIRED like any other firing, with the part that forced it in the payload.
+	if part == null or part.broken or part.is_frozen() or part.behaviour == null or part.def == null:
+		return
+	var behaviour = part.behaviour
+	if part.def.is_continuous():
+		# The continuous step's own rule: a tick that lands is a firing, a tick that finds nothing is not.
+		if not behaviour.continuous_tick(self):
+			return
+	else:
+		behaviour.fire(self)
+	var event := ChEvent.new()
+	event.type = ChEvent.PART_FIRED
+	event.side = part.side
+	event.source = part
+	event.position = part.anchor_world()
+	event.data = {"forced": true, "by": by}
+	bus.emit(event)
+
+
 func volley_cost(chariot: ChChariotRuntime) -> int:
 	# What a press would cost if every ready part could pay: the HUD's and the enemy's read.
 	var total := 0

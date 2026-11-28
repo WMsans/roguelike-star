@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/rotary_drill.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"rotary_drill"
+behaviour = ExtResource("2_beh")
+display_name = "Rotary Drill"
+tags = PackedStringArray("weapon", "melee", "earth")
+rarity = &"uncommon"
+description = PackedStringArray("12 damage per tick. Digs up to hardness 7. Gains 1 {block} per cell dug.")
+energy_cost = 0
+cooldown = 0.0
+mode = &"melee"
+energy_per_second = 2.0
+damage = 12
+integrity = 70
+proximity_range = 0.0
+reach = 24.0
+size = Vector2i(8,4)
+color = Color(0.6,0.55,0.45, 1)

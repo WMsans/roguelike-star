@@ -18,6 +18,9 @@ func test_every_part_fights_without_erroring() -> void:
 	var catalog := ChCatalog.load_default()
 	for id in _ids(catalog):
 		await _sweep(catalog, id, false)
+		# One arena alive at a time: 112 worlds held to the end of the test smashed the native
+		# allocator once the suite had already built everything before it.
+		_free_tracked()
 	_complete()
 
 
@@ -25,6 +28,7 @@ func test_every_part_fights_a_target_that_dies() -> void:
 	var catalog := ChCatalog.load_default()
 	for id in _ids(catalog):
 		await _sweep(catalog, id, true)
+		_free_tracked()
 	_complete()
 
 
