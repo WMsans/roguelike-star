@@ -53,6 +53,9 @@ const PART_IDS: Array[StringName] = [
 	# Task 19's Demolition parts (U42-U47, R20-R22).
 	&"tnt_launcher", &"detonator", &"blast_shield", &"demolition_charge", &"mine_layer",
 	&"excavator", &"chain_detonator", &"earthquake", &"blast_amplifier",
+	# Task 20's Gale parts (U48-U52, R23-R24).
+	&"gust_cannon", &"smokestack", &"turbine", &"steam_vent", &"weather_vane",
+	&"toxic_tempest", &"stormfront",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 
