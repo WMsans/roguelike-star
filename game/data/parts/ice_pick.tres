@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/ice_pick.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"ice_pick"
+behaviour = ExtResource("2_beh")
+display_name = "Ice Pick"
+tags = PackedStringArray("weapon", "ice", "melee")
+rarity = &"common"
+description = PackedStringArray("20 damage. 40 instead if the part hit has {freeze:Freeze}.")
+energy_cost = 2
+cooldown = 2.0
+mode = &"cooldown"
+energy_per_second = 0.0
+damage = 20
+integrity = 50
+proximity_range = 0.0
+reach = 24.0
+size = Vector2i(8,3)
+color = Color(0.7,0.85,0.95, 1)

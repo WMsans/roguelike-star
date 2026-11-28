@@ -15,6 +15,11 @@ const PART_IDS: Array[StringName] = [
 	&"laser", &"shotgun", &"minigun", &"bayonet", &"steel_plate", &"shield_generator",
 	&"bumper", &"plating_rig", &"first_aid_kit", &"spare_cell", &"generator",
 	&"reinforced_frame", &"roller", &"bigfoot", &"sticky_tire", &"long_arm",
+	# Task 6's common elemental and support parts (C16-C35).
+	&"molotov", &"igniter", &"frost_sprayer", &"water_cannon", &"ice_pick",
+	&"zap_gun", &"battery_dropper", &"lightning_rod", &"acid_squirter", &"acid_dripper",
+	&"dynamite_toss", &"gunpowder_hopper", &"sandbag", &"fan", &"smoke_bomb",
+	&"turbo_booster", &"targeting_computer", &"sharpener", &"heavy_rounds",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 
@@ -89,8 +94,8 @@ func test_every_part_has_rarity_and_tags() -> void:
 	var flame: ChPartDef = catalog.part(&"flamethrower")
 	assert_true(flame != null, "the Flamethrower def loads")
 	if flame != null:
-		assert_eq(flame.rarity, &"uncommon", "the Flamethrower is uncommon")
-		for tag in ["fire", "weapon", "triggered"]:
+		assert_eq(flame.rarity, &"common", "the Flamethrower is common")
+		for tag in ["fire", "weapon", "beam"]:
 			assert_true(flame.tags.has(tag), "the Flamethrower is tagged %s" % tag)
 	var rocket: ChPartDef = catalog.part(&"cutter_rocket")
 	assert_true(rocket != null, "the Rocket def loads")
@@ -330,7 +335,7 @@ func test_every_part_described() -> void:
 		for line in def.description:
 			assert_eq(ChKeywords.parse(line).unknown, [], "%s: every tag resolves" % id)
 			assert_true(not line.begins_with("•"), "%s: the tooltip adds the bullet" % id)
-	assert_eq(ChKeywords.keys_of(catalog.part(&"flamethrower").description), [&"press", &"flame"])
+	assert_eq(ChKeywords.keys_of(catalog.part(&"flamethrower").description), [&"flame"])
 	assert_eq(ChKeywords.keys_of(catalog.part(&"freeze_charge").description), [&"passive", &"proximity", &"freeze"])
 	assert_eq(ChKeywords.keys_of(catalog.part(&"ember_battery").description), [&"passive", &"flame", &"energy"])
 	_complete()

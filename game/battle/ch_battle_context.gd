@@ -31,6 +31,9 @@ var time: float = 0.0  # the fight's clock, which a timed behaviour counts again
 var rules: ChFightRules = ChFightRules.new()
 var hazards := ChHazards.new()  # blast ownership lives here, so it is per fight
 var sparks := ChSparks.new()  # the fight's batteries
+# Fuses a part lit (Dynamite Toss): {part, at, left, size, damage, dig}. The list belongs to the fight
+# rather than the part, so a thrower broken mid-fuse still explodes (Review Focus 3).
+var fuses: Array = []
 var status_clock: float = 0.0  # time since the last status second
 var _status_seconds := 0  # status seconds run so far; Oil drips on the even ones
 var _battle_started: bool = false  # BATTLE_STARTED emitted once by the first tick
@@ -640,6 +643,7 @@ func tick(delta: float, drive_input: Array[float], press_input: Array = [], hold
 		event.type = ChEvent.BATTLE_STARTED
 		bus.emit(event)
 	time += delta
+	_tick_fuses(delta)
 	if world != null:
 		hazards.apply(self, world.take_blasts())
 		sparks.tick(self)
@@ -660,6 +664,23 @@ func tick(delta: float, drive_input: Array[float], press_input: Array = [], hold
 		var held: bool = bool(hold_input[at]) if at < hold_input.size() else false
 		fired.append(_tick_chariot(chariot, delta, direction, pressed, held))
 	return fired
+
+func _tick_fuses(delta: float) -> void:
+	# One tick of every lit fuse: the ones still burning stay, the ones that ran out explode where they
+	# landed. The entry carries the blast, so the context needs no knowledge of the part that lit it.
+	if fuses.is_empty():
+		return
+	var live: Array = []
+	for fuse in fuses:
+		var left: float = float(fuse["left"]) - delta
+		if left > 0.0:
+			fuse["left"] = left
+			live.append(fuse)
+			continue
+		var source: ChPartRuntime = fuse["part"]
+		if source != null:
+			explode(source, fuse["at"], fuse["size"], int(fuse["damage"]), int(fuse["dig"]))
+	fuses = live
 
 func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pressed: bool,
 		held: bool) -> int:

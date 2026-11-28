@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/molotov.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"molotov"
+behaviour = ExtResource("2_beh")
+display_name = "Molotov"
+tags = PackedStringArray("weapon", "fire")
+rarity = &"common"
+description = PackedStringArray("Lob a bottle: 30 damage, bursts into a patch of {flame:fire}.")
+energy_cost = 4
+cooldown = 6.0
+mode = &"cooldown"
+energy_per_second = 0.0
+damage = 30
+integrity = 40
+proximity_range = 0.0
+reach = 0.0
+size = Vector2i(4,4)
+color = Color(0.9,0.5,0.2, 1)

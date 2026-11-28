@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/water_cannon.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"water_cannon"
+behaviour = ExtResource("2_beh")
+display_name = "Water Cannon"
+tags = PackedStringArray("weapon", "ice")
+rarity = &"common"
+description = PackedStringArray("A jet of water: 10 damage, pushes the enemy back. Spawns water cells.")
+energy_cost = 3
+cooldown = 4.0
+mode = &"cooldown"
+energy_per_second = 0.0
+damage = 10
+integrity = 60
+proximity_range = 0.0
+reach = 0.0
+size = Vector2i(8,4)
+color = Color(0.35,0.55,0.85, 1)

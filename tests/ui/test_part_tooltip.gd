@@ -69,12 +69,12 @@ func test_show_builds_main_and_keyword_boxes() -> void:
 	await _frames()
 	assert_true(tip.visible)
 	assert_eq(tip.name_label().text, "Flamethrower")
-	assert_eq(tip.line_label().text, "Cost 2 · Cooldown 3.0s")
-	assert_eq(tip.keyword_keys(), [&"press", &"flame"])
-	assert_eq(tip.boxes().size(), 3, "main + Press + Burning")
-	var style := tip.boxes()[2].get_theme_stylebox("panel") as StyleBoxFlat
+	assert_eq(tip.line_label().text, "2.0/s · Beam")
+	assert_eq(tip.keyword_keys(), [&"flame"])
+	assert_eq(tip.boxes().size(), 2, "main + Burning")
+	var style := tip.boxes()[1].get_theme_stylebox("panel") as StyleBoxFlat
 	assert_eq(style.border_color, ChKeywords.color_of(&"flame"), "the keyword box rim wears its colour")
-	var title := tip.boxes()[2].get_child(0).get_child(0) as Label
+	var title := tip.boxes()[1].get_child(0).get_child(0) as Label
 	assert_eq(title.get_theme_color("font_color"), ChKeywords.color_of(&"flame"), "and so does its title")
 	_complete()
 
