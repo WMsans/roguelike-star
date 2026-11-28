@@ -186,7 +186,7 @@ func test_mine_outlives_its_layer() -> void:
 	_complete()
 
 
-# U47: 8 a tick, and while running a 3-wide column straight down under it, a cell deeper a cut.
+# U47: 8 a tick, and while running a 3-wide column straight down under it, 4 cells more a cut.
 func test_excavator_8_a_tick_and_digs_straight_down() -> void:
 	var ctx := await duel([[[7], &"excavator"]], [], 60.0)
 	var excavator := of(ctx, 0, &"excavator")
@@ -198,18 +198,16 @@ func test_excavator_8_a_tick_and_digs_straight_down() -> void:
 	await step(ctx, TICK, false, true)
 	assert_eq(before - foe.hp, 8, "one tick pays 8")
 	assert_eq(_paid(hits, excavator), [8], "8 damage a tick")
-	# One row a cut: 24 rows to the arena floor, so this reaches solid ground and the cuts are seen.
-	await step(ctx, 14.0, false, true)
-	assert_true(dug.size() >= 2, "%d cuts reached the ground" % dug.size())
-	if dug.is_empty():
-		_complete()
-		return
-	var first: Vector2 = dug[0].position
-	assert_eq(ctx.world.get_material_at(Vector2i(first) + Vector2i(1, 0)), &"air",
-		"the column is 3 cells wide")
-	# A cut covers each of the column's 3 cells, so one cut emits one event per cell: the events are
-	# grouped by row, and every cut is deeper than the one before it.
+	# At the brief's cadence (a cut every 0.5 s, 4 cells each) ~3 s reaches the arena floor; this drive
+	# leaves a margin. The floor is measured under the column before the cuts, not named.
 	var anchor := excavator.anchor_world()
+	var floor_row := roundi(anchor.y)
+	while ctx.world.get_material_at(Vector2i(roundi(anchor.x), floor_row)) == &"air" \
+			and floor_row < roundi(anchor.y) + 60:
+		floor_row += 1
+	await step(ctx, 4.5, false, true)
+	# A cut covers each of the column's 3 cells over its 4 rows, so the events are grouped by row and
+	# every cut is deeper than the one before it.
 	var depths: Array = []
 	for event in dug:
 		assert_near(event.position.x, anchor.x, 1.01, "the column is straight down")
@@ -218,6 +216,10 @@ func test_excavator_8_a_tick_and_digs_straight_down() -> void:
 	assert_true(depths.size() >= 2, "%d cuts reached the ground" % depths.size())
 	for at in range(1, depths.size()):
 		assert_true(depths[at] > depths[at - 1], "each cut is deeper")
+	var first: Vector2 = dug[0].position
+	assert_eq(ctx.world.get_material_at(Vector2i(first) + Vector2i(1, 0)), &"air",
+		"the column is 3 cells wide")
+	assert_true(depths[-1] >= float(floor_row), "the cuts reached the arena floor")
 	_complete()
 
 
@@ -234,12 +236,8 @@ func test_excavator_cuts_a_shaft_with_no_solid_plugs() -> void:
 	var top := anchor.y + 1
 	ctx.world.fill_rect(Rect2i(anchor.x - 1, top, 3, 24), &"rock")
 	var dug := sink(ctx, ChEvent.CELLS_DUG)
-	await step(ctx, 8.0, false, true)
-	assert_true(dug.size() >= 2, "%d cuts reached the ground" % dug.size())
-	if dug.is_empty():
-		_complete()
-		return
-	var deepest: float = dug[0].position.y
+	await step(ctx, 2.0, false, true)
+	var deepest: float = float(top)
 	for event in dug:
 		deepest = maxf(deepest, event.position.y)
 	assert_true(deepest > float(top + 4), "the cuts reached the rock")
