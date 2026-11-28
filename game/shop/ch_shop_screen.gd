@@ -55,7 +55,7 @@ func _init() -> void:
 	# arena and its chariots show through behind the stage row and the gold readout. A parent draws
 	# under its children, so the garage and the cards stay on top.
 	add_child(ChBackdrop.new())
-	add_child(ChWash.new(ChWash.SHOP_ALPHA))
+	# add_child(ChWash.new(ChWash.SHOP_ALPHA))
 	gold_label = Label.new()
 	gold_label.name = "GoldLabel"
 	gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -597,4 +597,3 @@ class PackItemCard extends ChPartCard:
 	func _init(def_in: ChPartDef, on_click: Callable) -> void:
 		super(def_in, on_click)
 		show_cost = false
-

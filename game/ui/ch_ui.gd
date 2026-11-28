@@ -163,4 +163,3 @@ static func draw_plaque(canvas: CanvasItem, centre: Vector2, text: String) -> Re
 
 static func draw_group_label(canvas: CanvasItem, bottom_left: Vector2, text: String) -> void:
 	canvas.draw_string(FONT, bottom_left, text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, LABEL)
-
