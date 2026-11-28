@@ -24,7 +24,7 @@ const DRAG_SCALE := 1.1
 const SWAY := deg_to_rad(1.0)
 const SWAY_HZ := 0.4
 const FOLLOW_STIFFNESS := 500.0
-const FOLLOW_DAMPING := 42.0
+const FOLLOW_DAMPING := 22.0
 const DRAG_Z := 50
 # The hover lean reaches this at the card's edge (the cursor a half-width off centre).
 const HOVER_LEAN := deg_to_rad(4.0)
