@@ -11,7 +11,7 @@ class_name ChPartCard extends ChCard
 # plays its own beats on its own Juice, so there is no Feedback.attach_button here.
 
 const ZOOM := ChGarage.ZOOM  # the pit's zoom, so a card and the hull show a part at one scale
-const MIN_WIDTH := 112.0  # "Flamethrower", the longest word a name has, is 96 px in the one font
+const MIN_WIDTH := 124.0  # "Superconductor", the longest word a name has, is 108 px in the one font
 const HEIGHT := 132.0
 const PAD := 8.0
 const FONT := ChUi.FONT_SIZE

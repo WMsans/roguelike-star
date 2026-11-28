@@ -50,6 +50,7 @@ const STAT_ACID_DAMAGE := &"acid_damage"
 const STAT_SHOCK_DAMAGE := &"shock_damage"
 const STAT_DECAY_FREEZE := &"decay_freeze"
 const STAT_DECAY_FLAME := &"decay_flame"
+const STAT_SHOCK_HOPS := &"shock_hops"  # how many times a Shock gain jumps on (R07)
 
 # The decay stat name for a status; STAT_DECAY_FREEZE is one of these. The rest are built rather than
 # spelled out, because the decaying statuses are ChStatuses.DECAYS and grow with it.
@@ -249,13 +250,16 @@ func give_status(target: Object, status: StringName, amount: int, hops := 1, fro
 	if puff and world != null:
 		world.spawn_particles(&"steam", target.anchor_world(), Vector2.ZERO, STEAM_PUFF, 0.0)
 	var half := added / 2
-	if status == ChStatuses.SHOCK and half > 0 \
-			and (hops > 0 or (hops == 0 and target.statuses.count(ChStatuses.WET) > 0)):
-		for other in touching(target):
-			if other == from:
-				continue
-			_emit(ChEvent.SHOCK_JUMPED, other, {"from": target, "amount": half})
-			give_status(other, ChStatuses.SHOCK, half, hops - 1, target, &"jump")
+	if status == ChStatuses.SHOCK and half > 0:
+		# The jump budget is a stat (R07's Storm Core gives an enemy holder 99), and the halving above
+		# is what ends it: a jump of less than one stack is no jump.
+		var jumps := roundi(stat(target, STAT_SHOCK_HOPS, hops))
+		if jumps > 0 or (jumps == 0 and target.statuses.count(ChStatuses.WET) > 0):
+			for other in touching(target):
+				if other == from:
+					continue
+				_emit(ChEvent.SHOCK_JUMPED, other, {"from": target, "amount": half})
+				give_status(other, ChStatuses.SHOCK, half, jumps - 1, target, &"jump")
 	return added
 
 # The gain hook, folded the way stat folds modify_stat: every unbroken part on both chariots, in
