@@ -59,6 +59,9 @@ const PART_IDS: Array[StringName] = [
 	# Task 21's Overclock parts (U53-U58, R25-R26).
 	&"overclocker", &"gear_linkage", &"momentum_hammer", &"coolant_pump", &"pulse_gun",
 	&"static_gears", &"perpetual_gear", &"overdrive",
+	# Task 22's Reactor parts (U59-U63, R27-R28).
+	&"overflow_valve", &"priority_relay", &"dynamo_wheel", &"power_siphon", &"surge_cannon",
+	&"fusion_core", &"blood_cell",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 

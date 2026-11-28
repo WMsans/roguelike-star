@@ -351,7 +351,7 @@ More powerful and leaning towards a build. Price 6 gold.
 | U60 | Priority Relay | Tricky | 0 | — | 40 | S | — | Neighbours are paid first in a volley, ahead of the dearest-first order. | R: energy queue order |
 | U61 | Dynamo Wheel | Wheel, Stats | 1/s | — | 60 | — | — | A wheel. While driving, gain 2 energy per second. | R: driving cost |
 | U62 | Power Siphon | Electric, Tricky | 4 | 6 | 40 | — | — | 20 damage. If the part hit has Shock, gain 3 energy. | C: Zap Gun (C22) + energy |
-| U63 | Surge Cannon | Weapon | all | 8 | 50 | — | — | Spend all your energy: deal 15 damage per energy spent. | A: Noita Mana To Damage |
+| U63 | Surge Cannon | Weapon | 1 (all) | 8 | 50 | — | — | Spend all your energy: deal 15 damage per energy spent. | A: Noita Mana To Damage |
 
 ### 4.12 Merchant (Stats / Tricky)
 

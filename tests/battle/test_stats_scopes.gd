@@ -143,7 +143,7 @@ func test_stat_folds_both_sides_in_mount_order() -> void:
 	var plus_part := _part_of(player, [1])
 	var double_part := _part_of(enemy, [0])
 	assert_true(gun_part != null and plus_part != null and double_part != null, "the three parts mounted")
-	_stat_behaviour(plus_part, &"add")
+	_stat_behaviour(plus_part, &"add_cost")
 	_stat_behaviour(double_part, &"double")
 	var rigs: Array[ChChariotRuntime] = [player, enemy]
 	var ctx: ChBattleContext = _battle(world, catalog, rigs)
@@ -164,7 +164,7 @@ func test_broken_part_stops_modifying() -> void:
 	var double_part := _part_of(player, [2])
 	assert_true(gun_part != null and double_part != null, "the gun and its doubler mounted")
 	var plus_part := _part_of(player, [1])
-	_stat_behaviour(plus_part, &"add")
+	_stat_behaviour(plus_part, &"add_cost")
 	_stat_behaviour(double_part, &"double")
 	var rigs: Array[ChChariotRuntime] = [player]
 	var ctx: ChBattleContext = _battle(world, catalog, rigs)
@@ -185,7 +185,7 @@ func test_volley_pays_the_modified_cost() -> void:
 	var plus_part := _part_of(rig, [1])
 	assert_true(gun_part != null and plus_part != null, "both parts mounted")
 	gun_part.cooldown_left = 0.0  # ready at once
-	_stat_behaviour(plus_part, &"add")  # the gun's cost becomes 3
+	_stat_behaviour(plus_part, &"add_cost")  # the gun's cost becomes 3
 	var rigs: Array[ChChariotRuntime] = [rig]
 	var ctx: ChBattleContext = _battle(world, catalog, rigs)
 	var skipped: Array[ChEvent] = []

@@ -9,8 +9,9 @@ class_name ChBattleContext extends RefCounted
 #   integrity reached 0.
 # - tick runs one frame: hazards -> battery leaks -> the status clock (one _status_second per whole STATUS_SECOND)
 #   -> per chariot: cooldowns -> energy.tick (regen, then the drive) -> on a press, the volley
-#   (ready triggered parts paid dearest energy_cost first; each paid part fires, resets its
-#   cooldown, spends a charge, emits PART_FIRED; a part the pool refuses emits PART_SKIPPED)
+#   (ready triggered parts paid by volley_priority, then dearest energy_cost, then mount order; each
+#   paid part fires, resets its cooldown, spends a charge, emits PART_FIRED; a part the pool refuses
+#   emits PART_SKIPPED unless blood_pay lets it pay the shortfall in HP instead)
 #   -> the held button's continuous step (every part that can run, paid energy_per_second * delta
 #   dearest first, ticks one a second of running) -> behaviour.process -> drive. Before any of that,
 #   the fight's own checks run on its clock: a new hull contact at RAM_SPEED emits RAMMED, and a
@@ -24,6 +25,7 @@ const ACID_EATS: Array[StringName] = [&"sand", &"dirt", &"wood", &"coal", &"gunp
 const STEAM_PUFF := 4  # steam particles when Flame and Wet cancel
 const RAM_SPEED := 20.0  # cells/s toward the other hull that a touching contact needs to count as a ram
 const LANDED_AFTER := 0.2  # seconds airborne before touching down again counts as a landing
+const BLOOD_PER_ENERGY := 10  # HP a refused part's shortfall costs per energy when blood_pay is on (R28)
 
 var world: PixelWorld = null
 var bus: ChEventBus = null
@@ -69,6 +71,8 @@ const STAT_ACID_TO_HP := &"acid_to_hp"  # 1 pays Acid on a part to its chariot's
 const STAT_BLAST_SIZE := &"blast_size"  # steps a blast's size up: small -> medium -> large (R22)
 const STAT_OWN_BLAST_TAKEN := &"own_blast_taken"  # share of a blast the side itself laid that lands (R22)
 const STAT_ENV_BLAST_TAKEN := &"env_blast_taken"  # share of an unowned terrain blast that lands (R22)
+const STAT_VOLLEY_PRIORITY := &"volley_priority"  # the volley's first sort key, descending (U60)
+const STAT_BLOOD_PAY := &"blood_pay"  # 1 lets a refused part pay its shortfall in HP (R28)
 
 # The decay stat name for a status; STAT_DECAY_FREEZE is one of these. The rest are built rather than
 # spelled out, because the decaying statuses are ChStatuses.DECAYS and grow with it.
@@ -900,18 +904,23 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 	chariot.driving = result["drove"]
 	var fired_count := 0
 	if pressed:
-		# The volley: ready triggered parts, dearest first so the big weapons get the energy before
-		# the small ones can eat it. A part that does not fit is skipped and a cheaper one after it
-		# can still pay; the skipped part stays ready and nothing is remembered to the next press.
+		# The volley: ready triggered parts, the highest volley_priority first (U60's relay), then
+		# dearest first so the big weapons get the energy before the small ones can eat it. A part that
+		# does not fit is skipped and a cheaper one after it can still pay; the skipped part stays ready
+		# and nothing is remembered to the next press.
 		var volley: Array[ChPartRuntime] = []
+		var priority: Dictionary = {}
 		for part in chariot.parts:
 			if part.is_ready():
 				volley.append(part)
+				priority[part] = stat(part, STAT_VOLLEY_PRIORITY, 0.0)
 		# sort_custom is not stable, so ties break on mount order (index in chariot.parts) here.
 		var order: Dictionary = {}
 		for at in chariot.parts.size():
 			order[chariot.parts[at]] = at
 		volley.sort_custom(func(a: ChPartRuntime, b: ChPartRuntime) -> bool:
+			if priority[a] != priority[b]:
+				return priority[a] > priority[b]
 			if a.cost != b.cost:
 				return a.cost > b.cost
 			return order[a] < order[b])
@@ -921,8 +930,15 @@ func _tick_chariot(chariot: ChChariotRuntime, delta: float, direction: float, pr
 			if not part.is_ready():
 				continue
 			if not chariot.energy.try_pay(part.cost):
-				_emit_skipped(part, part.cost)
-				continue
+				if stat(part, STAT_BLOOD_PAY, 0.0) <= 0.0:
+					_emit_skipped(part, part.cost)
+					continue
+				# R28: the part pays in blood. It spends the whole pool and buys the shortfall with HP,
+				# then fires as any paid part does, with no PART_SKIPPED.
+				var short := part.cost - chariot.energy.value
+				chariot.energy.spent += chariot.energy.value
+				chariot.energy.value = 0.0
+				lose_hp(chariot, roundi(BLOOD_PER_ENERGY * short), &"blood", part)
 			var behaviour = part.behaviour
 			if behaviour != null:
 				behaviour.fire(self)
