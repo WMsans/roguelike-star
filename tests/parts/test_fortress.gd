@@ -4,7 +4,7 @@ extends ChPartTest
 # asserting the number its row in docs/design-doc/parts-list.md gives.
 # Block, Speedup and Slow are the three statuses a part may put on directly, so every assertion here
 # reads ChPartRuntime.statuses / ChChariotRuntime.statuses. The Bunker Frame's run-level slot and the
-# Shield Battery's own loop are the two named review tests.
+# Shield Battery's own and two-battery loops are the named review tests.
 
 # U25: deal damage equal to the body's Block.
 func test_spiked_shield_damage_equals_body_block() -> void:
@@ -38,6 +38,23 @@ func test_shield_battery_does_not_feed_itself() -> void:
 	await step(ctx, 10.0)
 	assert_eq(neighbour.statuses.count(ChStatuses.BLOCK), 13, "and the extra 3 never feeds back")
 	assert_near(ctx.time, 10.0, 0.05, "ten seconds of fight ran")
+	_complete()
+
+
+# Review Focus 4, two batteries: duplicates are sellable and both sit in range of one neighbour, so
+# each top-up must be a gain the other Battery does not answer. A gain of 10 takes 3 from each of the
+# two and stops there; a chain left open runs to the bus's 256-delivery cap (about +380).
+func test_two_shield_batteries_do_not_feed_each_other() -> void:
+	var ctx := await duel([[[5], &"shield_battery"], [[6], &"reinforced_frame"],
+		[[7], &"shield_battery"]])
+	var neighbour := of(ctx, 0, &"reinforced_frame")
+	assert_true(neighbour != null, "the neighbour mounted")
+	ctx.give_status(neighbour, ChStatuses.BLOCK, 10)
+	assert_true(not ctx.bus.capped, "the two batteries do not open a chain the bus has to cap")
+	assert_eq(neighbour.statuses.count(ChStatuses.BLOCK), 16,
+		"the 10 gains 3 from each battery and the chain stops")
+	await step(ctx, 10.0)
+	assert_eq(neighbour.statuses.count(ChStatuses.BLOCK), 16, "and the two top-ups never feed back")
 	_complete()
 
 
