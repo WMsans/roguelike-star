@@ -18,6 +18,8 @@ var state: Dictionary = {}
 # so no scope, proximity test or body walk ever returns it; only the stat and gain/hit hooks ask it.
 var benched: bool = false
 var flipped: bool = false  # the slot's left/right flip (ChariotLayout.toggle_flip)
+# Set while a part is fired the other way (U86 Turret Mount): facing() is negated while this is on.
+var reversed: bool = false
 var integrity: int = 0  # wear left; the builder (Task 9) seeds it from def.integrity
 var cooldown_left: float = 0.0  # seconds until ready; 0 means ready
 var tick_left: float = 0.0  # seconds until a continuous part's next tick; 0 swings at once
@@ -68,7 +70,7 @@ func facing() -> Vector2:
 	if body != null and is_instance_valid(body):
 		last_facing = body.global_rotation
 	var dir := Vector2.RIGHT.rotated(last_facing)
-	return -dir if flipped else dir
+	return -dir if flipped != reversed else dir
 
 
 func status_box() -> Rect2:

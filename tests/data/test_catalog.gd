@@ -65,6 +65,8 @@ const PART_IDS: Array[StringName] = [
 	# Task 23's Merchant parts (U64-U68, R29-R30).
 	&"piggy_bank", &"scrap_cannon", &"safe", &"trade_in_coupon", &"collectors_shelf",
 	&"golden_gear", &"bench_warmer",
+	# Task 24's frames and Mimic (U86-U88, R37-R38).
+	&"turret_mount", &"gantry", &"hub_frame", &"mimic_module", &"exo_frame",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 

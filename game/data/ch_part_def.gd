@@ -44,6 +44,17 @@ var behaviour: Script
 var description: PackedStringArray = []  # one tagged bullet per entry ({key} / {key:shown}, see ChKeywords)
 
 
+func copy() -> ChPartDef:
+	# Field by field: duplicate() drops a script resource's own (non-exported) properties on this
+	# build (the copy answers empty tags and 0 damage). Walking the script variables keeps a field
+	# added later from being forgotten here. The Mimic (R37) is the one caller.
+	var out := ChPartDef.new()
+	for prop in get_property_list():
+		if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			out.set(prop.name, get(prop.name))
+	return out
+
+
 func is_wheel() -> bool:
 	# The tag is the wheel, so a wheel set is data rather than a part id (the builder's old WHEEL_ID).
 	return tags.has("wheel")

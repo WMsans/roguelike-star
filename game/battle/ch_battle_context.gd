@@ -91,11 +91,21 @@ func stat(target: Object, stat: StringName, base: float) -> float:
 	return value
 
 # Calls every part's setup and caches the behaviours whose own script declares a hook: the one place
-# behaviours subscribe (Mimic and the bench hook in later tasks), and the hooks' list.
+# behaviours subscribe (a Mimic's resolution runs first, and the bench is set up here too), and the
+# hooks' list.
 func setup_all() -> void:
 	_modifiers.clear()
 	if bus != null:
 		bus.near = Callable(self, "near")
+	# The Mimic (R37) reads the part in front of it before any setup runs: the behaviour it copies is
+	# the one that then has to subscribe, so resolving after the setup loop would subscribe nothing.
+	for chariot in chariots:
+		if chariot == null:
+			continue
+		for part in chariot.parts:
+			var resolver = part.behaviour
+			if resolver != null and resolver.has_method("resolve"):
+				resolver.resolve(self)
 	for chariot in chariots:
 		if chariot == null:
 			continue

@@ -21,7 +21,7 @@ func test_every_def_on_disk_matches_its_row() -> void:
 		var row := _parse_row(line)
 		if row.size() == 0:
 			continue
-		var id := String(row.get("name")).to_lower().replace(" ", "_")
+		var id := _id_of(String(row.get("name")))
 		var path: String = "%s%s.tres" % [DIR, id]
 		var def: ChPartDef = ResourceLoader.load(path) as ChPartDef
 		if def == null:
@@ -42,6 +42,11 @@ func test_every_def_on_disk_matches_its_row() -> void:
 	else:
 		print("parts list: %d def(s) on disk match their rows" % checked)
 	_complete()
+
+# The id is the snake_case of the Name column: spaces and hyphens become underscores and an
+# apostrophe is dropped, which is how Trade-In Coupon and Collector's Shelf got their ids.
+func _id_of(name: String) -> String:
+	return name.to_lower().replace(" ", "_").replace("-", "_").replace("'", "")
 
 func _parse_row(line: String) -> Dictionary:
 	var cells := line.split("|")
@@ -171,6 +176,32 @@ func _strip_markup(text: String) -> String:
 			out += ChKeywords.name_of(StringName(m.get_string(1)))
 	out += text.substr(at)
 	return out
+
+# Task 24: every row in the list has its def and a behaviour, so the list is whole at 169.
+func test_every_listed_part_exists() -> void:
+	var f := FileAccess.open(LIST, FileAccess.READ)
+	var bytes := f.get_buffer(f.get_length())
+	f.close()
+	var text := bytes.get_string_from_utf8()
+	var missing: Array = []
+	var seen := {}
+	for line in text.split("\n"):
+		var row := _parse_row(line)
+		if row.size() == 0:
+			continue
+		var id := _id_of(String(row.get("name")))
+		seen[id] = true
+		var path: String = "%s%s.tres" % [DIR, id]
+		if not ResourceLoader.exists(path):
+			missing.append("%s: no %s" % [id, path])
+			continue
+		var def: ChPartDef = ResourceLoader.load(path) as ChPartDef
+		if def == null or def.behaviour == null:
+			missing.append("%s: no behaviour" % id)
+	assert_eq(missing, [], "every listed part has a def and a behaviour")
+	assert_eq(seen.size(), 169, "the list names 169 parts")
+	_complete()
+
 
 # Task 1: a wheel's def sets the motor rad/s at full drive.
 func test_wheel_reads_its_speed() -> void:
