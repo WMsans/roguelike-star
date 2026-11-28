@@ -10,14 +10,15 @@ class_name ChGarage extends Control
 # ChChariotLayout what is. The click methods on top call these same rules, so a test that drives them
 # drives the screen's own rules, with or without a scene.
 # Deliberately thin: add never dedupes and place accepts a slot index no def owns, so the garage adds
-# no rule of its own beyond the fit check lift shares with a body swap, the one rule that stops a full
-# inventory from losing a branch - lifted off the hull or orphaned by a body swap. drop_part checks
-# the carry before it places, which is the one order that cannot lose a part on a refused place; a
-# mount from the bar takes the copy by index and removes it only after the place landed. The tooltip
-# reads the DEF, never a runtime: no fight has run yet, so cooldown_left, integrity and charges_left
-# do not exist here.
+# no rule of its own beyond the fit check a lift makes, the one rule that stops a full inventory from
+# losing a branch. drop_part checks the carry before it places, which is the one order that cannot lose
+# a part on a refused place; a mount from the bar takes the copy by index and removes it only after the
+# place landed. The tooltip reads the DEF, never a runtime: no fight has run yet, so cooldown_left,
+# integrity and charges_left do not exist here.
 # Nothing leaves the inventory on a pick: a part in hand is only an id and its index, so a fight asked
-# for or a hold cancelled mid-way can lose nothing (both clear the hold first).
+# for or a hold cancelled mid-way can lose nothing (both clear the hold first). A body in hand is not
+# the pit's to swap: the hull answers a drop through hull_at and the click through body_requested, and
+# the owner applies it (a body swap can sell the parts it cannot seat, which is the shop's rule).
 
 # After any mount, lift or flip: the bar refreshes its cards from it. Not on a refusal, where nothing
 # changed. Same-tick duplicates are fine - the bar just redraws.
@@ -26,6 +27,10 @@ signal changed
 # at: the owner compares that against its own drop zones, decides, and calls lift() or sells it. The
 # pit leaves the piece mounted until the owner says what the drop means.
 signal piece_dropped(path: Array[int], at: Vector2)
+# A carried BODY let go on the hull, as the id the bar handed in and the copy's index: the owner does
+# the swap, because the parts a new body cannot seat are sold and the gold is the shop's to pay. The
+# hold has already been cleared when this arrives.
+signal body_requested(id: StringName, index: int)
 
 const ZOOM := 6.0  # cells -> pixels: the hull, the parts and the one in hand all read at this scale
 const CHARIOT_AT := Vector2(640, 250)  # the hull's centre, in garage-local pixels
@@ -212,12 +217,29 @@ func slot_at(global: Vector2) -> Array:
 	return _slot_near(_to_local(global))
 
 
+func hull_at(global: Vector2) -> bool:
+	# The hull's own drop zone, the twin of slot_at: a carried body is swapped in here and nowhere
+	# else, so a drop on the body is what the bar's release is tested against.
+	return _on_hull(_to_local(global))
+
+
+func refresh() -> void:
+	# The owner changed the build without the pit (a body swap is the shop's rule): the hull and the
+	# parts are re-read from the layout. Every change the pit makes itself syncs as it lands.
+	_sync_pit()
+
+
 func click_pit(pointer: Vector2) -> void:
 	# Click, then click: with a part in hand this is the place click, which drops it into the nearest
 	# free slot within reach and hands it over. Anywhere else puts it back - nothing left the inventory
 	# when it was picked up, so a miss costs nothing. With nothing in hand, a click on a mounted part
-	# lifts that part's whole branch.
+	# lifts that part's whole branch. A body in hand is the one other case: the hull is its slot.
 	if held_id != &"":
+		if _held_body() != null:
+			if _on_hull(pointer):
+				body_requested.emit(held_id, held_index)
+			cancel_hold()
+			return
 		var slot := _slot_near(pointer)
 		if slot.is_empty():
 			cancel_hold()
@@ -309,6 +331,26 @@ func _free_slots() -> Array:
 			step.append(slot)
 			out.append([step, layout.cells_of(step, catalog)])
 	return out
+
+
+func _held_body() -> ChBodyDef:
+	# The carried thing in hand when it is a body rather than a part: a body is swapped in on the hull
+	# and never mounted in a slot, so the two flows read this one answer.
+	if catalog == null or held_id == &"":
+		return null
+	return catalog.body(held_id)
+
+
+func _on_hull(at: Vector2) -> bool:
+	# The hull's box in garage pixels: its size in cells at ZOOM around CHARIOT_AT, the box the pit
+	# draws. A garage with no def for its body answers false rather than a 1x1 box.
+	if layout == null or catalog == null:
+		return false
+	var body_def: ChBodyDef = catalog.body(layout.body_id)
+	if body_def == null:
+		return false
+	var box := Vector2(maxi(1, body_def.size.x), maxi(1, body_def.size.y)) * ZOOM
+	return Rect2(CHARIOT_AT - box * 0.5, box).has_point(at)
 
 
 func _slot_near(pointer: Vector2) -> Array:
@@ -645,7 +687,7 @@ func _draw_markers() -> void:
 	# The free slot markers, between the hull and the parts. A free slot is a dashed empty square;
 	# while a part is in hand, the one a click would drop into is filled, which is the only
 	# instruction the screen gives.
-	var near := _slot_near(_pointer) if held_id != &"" else []
+	var near := _slot_near(_pointer) if held_id != &"" and _held_body() == null else []
 	for entry in _free_slots():
 		var marker := Rect2(CHARIOT_AT + entry[1] * ZOOM - Vector2(MARK_PX, MARK_PX) * 0.5,
 			Vector2(MARK_PX, MARK_PX))
@@ -693,12 +735,17 @@ func _dashed_line(canvas: CanvasItem, from: Vector2, to: Vector2, color: Color) 
 
 
 func _draw_held() -> void:
-	# The part in hand, at the pointer and at the pit's zoom, so it reads as the thing that will be
+	# The thing in hand, at the pointer and at the pit's zoom, so it reads as the piece that will be
 	# dropped rather than a thumbnail of it. The pointer is read at draw time because that is the only
 	# position that cannot be stale: a motion the strip's cards swallow still moved the mouse.
+	# A body draws as its hull: it is the shape the drop will put under the parts.
 	if held_id == &"" or catalog == null:
 		return
+	var at := _held_layer.get_local_mouse_position()
 	var def: ChPartDef = catalog.part(held_id)
-	if def == null:
+	if def != null:
+		ChPartCard.paint(_held_layer, at, def, ZOOM)
 		return
-	ChPartCard.paint(_held_layer, _held_layer.get_local_mouse_position(), def, ZOOM)
+	var body: ChBodyDef = catalog.body(held_id)
+	if body != null:
+		ChBodyCard.paint_hull(_held_layer, at, body, ZOOM)

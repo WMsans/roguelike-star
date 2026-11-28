@@ -686,3 +686,41 @@ func test_changed_after_every_change() -> void:
 	assert_true(garage.drop_part(&"roller", [0]), "a drop mounts")
 	assert_eq(seen.size(), 5, "and announced itself")
 	_complete()
+
+
+func test_hull_is_a_bodys_drop_zone() -> void:
+	# A carried body is swapped in on the hull, never in a slot: the pit answers the hull's own drop
+	# zone (hull_at) and hands the swap to its owner (the shop), because the parts a new body cannot
+	# seat are sold and the gold is the shop's to pay. The pit changes no body itself.
+	var inventory := _inventory([&"dozer"])
+	var layout := _layout(&"cutter")
+	var garage: ChGarage = _garage_scene(inventory, layout, _catalog())
+	# Off the origin, so a hull_at that forgot the way back would pass on equal numbers.
+	garage.position = Vector2(37, 23)
+	var hull: Vector2 = garage.get_global_position() + ChGarage.CHARIOT_AT
+	assert_true(garage.hull_at(hull), "the hull's centre is its own drop zone")
+	assert_true(not garage.hull_at(hull + Vector2(0, 400)), "400 px below the hull is sand")
+	var asked: Array = []
+	garage.body_requested.connect(func(id: StringName, index: int) -> void: asked.append([id, index]))
+	garage.hold(&"dozer", 0)
+	assert_eq(garage.held_id, &"dozer", "the carried body is in hand")
+	garage.click_pit(ChGarage.CHARIOT_AT)
+	assert_eq(asked.size(), 1, "a click on the hull asks the owner to swap the body in")
+	if not asked.is_empty():
+		assert_eq(asked[0][0], &"dozer", "with the body the bar handed in")
+		assert_eq(asked[0][1], 0, "and its index in the inventory")
+	assert_eq(garage.held_id, &"", "and the hold is cleared")
+	assert_eq(layout.body_id, &"cutter", "while the pit itself changed no body")
+	# A body in hand never lands in a slot: a click on a free marker's own pixels asks for the swap (the
+	# marker is on the hull) and mounts nothing as a part.
+	garage.hold(&"dozer", 0)
+	garage.click_pit(garage.screen_of([1]))
+	assert_true(layout.all_paths().is_empty(), "a body in hand mounts into no slot")
+	assert_eq(garage.held_id, &"", "and the hold is cleared there too")
+	# A click away from the hull is a miss: nothing asked for, the body goes back in the bar.
+	asked.clear()
+	garage.hold(&"dozer", 0)
+	garage.click_pit(ChGarage.CHARIOT_AT + Vector2(0, 300))
+	assert_eq(asked.size(), 0, "a click on sand asks for nothing")
+	assert_eq(garage.held_id, &"", "and the body goes back")
+	_complete()

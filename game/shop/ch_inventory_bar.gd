@@ -2,15 +2,18 @@ class_name ChInventoryBar extends PanelContainer
 
 # Task 11: the inventory bar. The bottom strip of the 1280x720 screen (the garage's pit ends at y 540,
 # so this is the 172 px under it): five slot rects on the left, the SELL zone on the right, and one
-# ChPartCard per carried part standing in its slot. It is its own Control because the shop screen
-# embeds it, and it reads the inventory the run owns rather than keeping one.
+# card per carried thing standing in its slot - a ChPartCard for a part, a ChBodyCard for a body. It is
+# its own Control because the shop screen embeds it, and it reads the inventory the run owns rather
+# than keeping one.
 # The bar owns no rule the shop or the garage has: a click says which part index it means, a drop says
 # which index and where it was let go, and the screen routes that. The only thing it decides is where
 # its own rects are.
 # A card is a child of the layer, not of a container, so refresh() can place it in its slot; the card's
 # follow spring eases any move, which is why a reorder glides instead of snapping.
 # _cards is the inventory's order and refresh() keeps it so: the click and drop handlers read a card's
-# index off it at event time, so no handler ever carries a stale slot.
+# index off it at event time, so no handler ever carries a stale slot. A body is a carried thing like a
+# part, so it takes a slot and gets a card; it is the shop's swap rule that puts it on the chariot, and
+# the bar knows nothing of that.
 
 signal card_clicked(index: int)
 # The global (screen) point it was let go at: the screen tests its own drop zones against it.
@@ -30,8 +33,8 @@ var catalog: ChCatalog = null
 var sell_label: Label = null
 var tooltip: ChPartTooltip = null  # a carried card's part, above the bar while it is hovered
 
-# One card per carried part, in inventory order (see the header).
-var _cards: Array[ChPartCard] = []
+# One card per carried thing, in inventory order (see the header).
+var _cards: Array[ChCard] = []
 # The five slot rects and the sell zone, in _layer's own pixels; the two hit tests convert into it.
 var _slots: Array[Rect2] = []
 var _sell := Rect2()
@@ -39,7 +42,7 @@ var _sell := Rect2()
 # Container would fit every child to the whole bar and a card has to sit in its own slot.
 var _layer: Control = null
 var _drag_def: ChPartDef = null  # the part a drag carries, while the accepting zones are rimmed
-var _drag_card: ChPartCard = null  # set only for a BAR card's drag: the bar follows the label then
+var _drag_card: ChCard = null  # set only for a BAR card's drag: the bar follows the label then
 var _highlighted := false  # rims are up: a shop item carries no def, so this is its own flag
 var _sellable := true  # false while a shop/pack item is dragged: it has no sell price
 
@@ -95,21 +98,21 @@ func refresh() -> void:
 	if inventory != null:
 		ids = inventory.part_ids
 	var spare := _cards.duplicate()
-	var cards: Array[ChPartCard] = []
+	var cards: Array[ChCard] = []
 	for id in ids:
-		var card: ChPartCard = null
+		var card: ChCard = null
 		for index in spare.size():
-			if spare[index].part_id == id:
+			if id_of(spare[index]) == id:
 				card = spare[index]
 				spare.remove_at(index)
 				break
 		if card == null:
-			var def: ChPartDef = catalog.part(id) if catalog != null else null
-			# shortcut: an id with no def draws no card, which shifts the cards after it up a slot; the
-			# shop and the garage only ever add ids the catalog holds, so upgrade if a save may not.
-			if def == null:
+			# shortcut: an id with no def of either kind draws no card, which shifts the cards after it
+			# up a slot; the shop and the garage only ever add ids the catalog holds, so upgrade if a save
+			# may not.
+			card = _make_card(id)
+			if card == null:
 				continue
-			card = _make_card(def)
 		cards.append(card)
 	for card in spare:
 		# A freed card never sends its own exit, so a hovered one is put back down first: it must not
@@ -146,7 +149,8 @@ func over_sell(global: Vector2) -> bool:
 func highlight(card_def: ChPartDef = null, sellable := true) -> void:
 	# While a card is dragged, the zones that would accept it get an ACCENT rim. The def is kept
 	# because it is what the sell zone prices when the pointer is over it; a shelf card carries none
-	# (a shop item is bought, never sold back), so SELL stays unrimmed and its label rests.
+	# (a shop item is bought, never sold back) and neither does a body card (a body is swapped out, not
+	# sold), so SELL stays unrimmed and its label rests for those.
 	_highlighted = true
 	_drag_def = card_def
 	_sellable = sellable
@@ -166,41 +170,73 @@ func clear_highlight() -> void:
 	_layer.queue_redraw()
 
 
-func _make_card(def: ChPartDef) -> ChPartCard:
-	# ChPartCard connects its own pick in its constructor, but the handler needs the card, which does
-	# not exist yet: the one-element array carries it to the Callable.
-	var holder: Array[ChPartCard] = []
-	var card := ChPartCard.new(def, func() -> void: card_clicked.emit(_index_of(holder[0])))
-	holder.append(card)
-	# One card per carried part: there is no "×n" to read, and the play a card makes is its own.
-	card.show_count = false
-	card.set_count(1)
+static func id_of(card: ChCard) -> StringName:
+	# What a card stands for: a part's id or a body's. The bar holds both, so every read of "which
+	# carried thing is this" goes through here.
+	if card is ChPartCard:
+		return (card as ChPartCard).part_id
+	return (card as ChBodyCard).body_id
+
+
+static func def_of(card: ChCard) -> ChPartDef:
+	# A card's part def, null for a body card: a body has no cost, mode or tags, and the tooltip and
+	# the sell zone both read what a part is through here.
+	return (card as ChPartCard).def if card is ChPartCard else null
+
+
+func _make_card(id: StringName) -> ChCard:
+	# ChPartCard and ChBodyCard both connect their own pick in their constructor, but the handler needs
+	# the card, which does not exist yet: the one-element array carries it to the Callable.
+	if catalog == null:
+		return null
+	var def: ChPartDef = catalog.part(id)
+	if def != null:
+		var holder: Array[ChPartCard] = []
+		var card := ChPartCard.new(def, func() -> void: card_clicked.emit(_index_of(holder[0])))
+		holder.append(card)
+		# One card per carried part: there is no "×n" to read, and the play a card makes is its own.
+		card.show_count = false
+		card.set_count(1)
+		return _wire(card)
+	var body: ChBodyDef = catalog.body(id)
+	if body == null:
+		return null
+	var bodies: Array[ChBodyCard] = []
+	var body_card := ChBodyCard.new(body, func() -> void: card_clicked.emit(_index_of(bodies[0])))
+	bodies.append(body_card)
+	return _wire(body_card)
+
+
+func _wire(card: ChCard) -> ChCard:
+	# The three connections every carried card has: its own drag, its drop and its hover.
 	card.drag_started.connect(_on_card_drag_started.bind(card))
 	card.dropped.connect(_on_card_dropped.bind(card))
 	card.hover_changed.connect(_on_card_hover.bind(card))
 	return card
 
 
-func _on_card_hover(entered: bool, card: ChPartCard) -> void:
-	# The rest of the tooltip wiring: the hovered card's own def names what is carried. The card's rect
-	# is taken layer-local because place() writes a position in the tooltip parent's pixels.
+func _on_card_hover(entered: bool, card: ChCard) -> void:
+	# The rest of the tooltip wiring: the hovered card's own def names what is carried. A body card has
+	# no part to name, so it shows nothing. The card's rect is taken layer-local because place() writes
+	# a position in the tooltip parent's pixels.
 	if tooltip == null:
 		return
-	if not entered or card.def == null:
+	var def := def_of(card)
+	if not entered or def == null:
 		tooltip.hide_tooltip()
 		return
-	tooltip.show_part(card.def, Rect2(card.position, card.size), ChPartTooltip.Side.ABOVE,
+	tooltip.show_part(def, Rect2(card.position, card.size), ChPartTooltip.Side.ABOVE,
 		Rect2(Vector2.ZERO, _layer.size))
 
 
-func _on_card_drag_started(card: ChPartCard) -> void:
+func _on_card_drag_started(card: ChCard) -> void:
 	_drag_card = card
 	if tooltip != null:
 		tooltip.hide_tooltip()
-	highlight(card.def)
+	highlight(def_of(card))
 
 
-func _on_card_dropped(at: Vector2, card: ChPartCard) -> void:
+func _on_card_dropped(at: Vector2, card: ChCard) -> void:
 	# The index is read before the screen hears the drop: its handler sells or reorders the part, and
 	# after that there would be no card left to find. The label and the rims go first for the same reason
 	# - the bar's own state must not depend on the card still being carried.
@@ -239,7 +275,7 @@ func _input(event: InputEvent) -> void:
 		_update_sell_label((event as InputEventMouseMotion).global_position)
 
 
-func _index_of(card: ChPartCard) -> int:
+func _index_of(card: ChCard) -> int:
 	# Read at event time: _cards is the inventory's order, so a card's place in it is the slot it means.
 	return _cards.find(card)
 

@@ -108,14 +108,18 @@ func test_auto_sold_counts_parts_sold() -> void:
 	run.layout.swap_body(catalog.body(&"dozer"), catalog)
 	for slot in catalog.body(&"dozer").slots.size():
 		run.layout.place(_typed_path([slot]), &"roller")
-	for i in ChInventory.CAPACITY:
+	# One free slot for the body being bought: the swap then ends with the kit full, so the two
+	# subtrees the Cutter cannot seat are sold.
+	for i in ChInventory.CAPACITY - 1:
 		assert_true(run.inventory.add(&"strut"), "the inventory carries %d" % i)
 	var phase := ChShopPhase.new(run, catalog)
 	phase.picked = {&"kind": &"shop"}
 	phase.items = [{"id": &"cutter", "is_body": true, "rarity": &"common",
 		"price": 2, "taken": false}]
 	run.gold = 2
-	assert_true(phase.buy(0), "the Cutter is swapped in over a full Dozer build")
+	assert_true(phase.buy(0), "the Cutter is bought into the free slot")
+	assert_true(phase.equip_body(run.inventory.part_ids.find(&"cutter")),
+		"and swapped in over a full Dozer build")
 	assert_eq(phase.auto_sold.size(), 2, "two subtrees found no seat")
 	assert_eq(run.parts_sold, phase.auto_sold.size(),
 		"each auto-sold part is counted in parts_sold")
@@ -137,24 +141,25 @@ func test_auto_sold_announces_the_sale() -> void:
 		run.layout.remove(path)
 	for slot in catalog.body(&"dozer").slots.size():
 		assert_true(run.layout.place(_typed_path([slot]), &"safe"), "a Safe in slot %d" % slot)
-	# The cannon is carried with its own state and hears the others' sales; the rest fills the kit so
-	# the swap's overflow has nowhere to land.
+	# The cannon is carried with its own state and hears the others' sales; the rest fills the kit but
+	# for the one slot the bought Cutter takes, so the swap's overflow has nowhere to land.
 	assert_true(run.inventory.add(&"scrap_cannon"), "the cannon is carried")
 	run.refresh_capacity()
 	for i in 32:
-		if run.inventory.free_slots() <= 0:
+		if run.inventory.free_slots() <= 1:
 			break
 		assert_true(run.inventory.add(&"strut"), "fill carried slot %d" % i)
-	assert_eq(run.inventory.free_slots(), 0, "the kit is full")
-	var carried_before := run.inventory.part_ids.size()
 	var phase := ChShopPhase.new(run, catalog)
 	phase.picked = {&"kind": &"shop"}
 	phase.items = [{"id": &"cutter", "is_body": true, "rarity": &"common",
 		"price": 2, "taken": false}]
 	run.gold = 2
-	assert_true(phase.buy(0), "the Cutter is swapped in")
+	assert_true(phase.buy(0), "the Cutter is bought into the last free slot")
+	assert_eq(run.inventory.free_slots(), 0, "the kit is full")
+	var carried_before := run.inventory.part_ids.size()
+	assert_true(phase.equip_body(run.inventory.part_ids.find(&"cutter")), "the Cutter goes on")
 	assert_eq(phase.auto_sold.size(), 2, "two Safes found no seat")
-	assert_eq(run.inventory.part_ids.size(), carried_before, "the full kit takes nothing")
+	assert_eq(run.inventory.part_ids.size(), carried_before, "the full kit takes nothing new")
 	assert_eq(run.parts_sold, 2, "both auto-sells are counted")
 	assert_eq(int(run.inventory.states[0].get(&"damage_bonus", 0)), 10,
 		"the carried cannon heard both sales")

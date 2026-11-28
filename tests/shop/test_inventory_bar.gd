@@ -35,7 +35,7 @@ func _global(bar: ChInventoryBar, local: Vector2) -> Vector2:
 
 
 # The card's own centre in screen space: the point a press or a release lands on.
-func _centre_of(card: ChPartCard) -> Vector2:
+func _centre_of(card: ChCard) -> Vector2:
 	return card.get_global_transform_with_canvas() * (card.size * 0.5)
 
 
@@ -198,4 +198,26 @@ func test_refresh_keeps_nodes() -> void:
 	bar.refresh()
 	assert_true(bar._cards[0] == before[1], "a second refresh changes nothing")
 	assert_eq(bar._cards.size(), 3, "and still frees nothing")
+	_complete()
+
+
+func test_a_carried_body_gets_a_card() -> void:
+	# A body is carried like a part: it takes a slot and gets its own card, so the player can see what
+	# they bought. It is swapped out on the hull, never sold, so its drag prices nothing.
+	var bar := _bar([&"roller", &"dozer"])
+	assert_eq(bar._cards.size(), 2, "the body is a carried thing with a card")
+	assert_true(bar._cards[1] is ChBodyCard, "drawn as a body")
+	assert_eq(ChInventoryBar.id_of(bar._cards[1]), &"dozer", "standing for the body it carries")
+	assert_eq(ChInventoryBar.def_of(bar._cards[1]), null, "which has no part def")
+	assert_eq(ChInventoryBar.id_of(bar._cards[0]), &"roller", "and a part still reads its own id")
+	var card := bar._cards[1]
+	var p := _centre_of(card)
+	card.press(p)
+	card.move(p + Vector2(0, 10))
+	assert_true(card.dragging, "a body card drags like any other card")
+	assert_eq(bar._drag_def, null, "with no part def, so SELL is not rimmed for it")
+	bar._input(_motion(_global(bar, bar._sell.get_center())))
+	assert_eq(bar.sell_label.text, "SELL", "and the label never prices a body")
+	card.release(_global(bar, bar._sell.get_center()))
+	assert_true(bar._drag_card == null, "the drop ends the bar's own follow")
 	_complete()

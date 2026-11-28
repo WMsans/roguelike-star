@@ -349,3 +349,93 @@ func test_shop_chrome_lets_clicks_through() -> void:
 	screen._on_toggle()
 	assert_true(not screen.stage_panel.is_visible_in_tree(), "the panel and plaque go with the shop view")
 	_complete()
+
+
+func _force_body_shop(screen: ChShopScreen, id := &"dozer", rarity := &"uncommon") -> void:
+	# A body stage with one real card: the price and rarity are the phase's own rule, not a literal.
+	screen.phase.picked = {&"kind": &"shop", &"theme": &"body", &"resource": &""}
+	screen.phase.items.clear()
+	screen.phase.items.append({
+		&"id": id,
+		&"is_body": true,
+		&"rarity": rarity,
+		&"price": ChPrices.price(rarity),
+		&"taken": false,
+	})
+	screen._render_stage()
+
+
+func test_buying_a_body_carries_it() -> void:
+	# A body is bought into the inventory like a part: the chariot keeps the body it has until the
+	# player swaps the new one in from the bar.
+	var screen := _screen()
+	_force_body_shop(screen)
+	var gold_before := screen.run.gold
+	var price: int = screen.phase.items[0][&"price"]
+	screen._on_item_clicked(0)
+	assert_eq(screen.run.gold, gold_before - price, "the body's price is paid")
+	assert_true(screen.run.inventory.has(&"dozer"), "and the body is carried")
+	assert_eq(screen.run.layout.body_id, &"cutter", "the chariot keeps its body")
+	assert_eq(screen.bar._cards.size(), 1, "the bought body has a card in the bar")
+	assert_true(ChInventoryBar.id_of(screen.bar._cards[0]) == &"dozer", "which is the body itself")
+	_complete()
+
+
+func test_body_dropped_on_the_hull_swaps_and_the_old_body_comes_home() -> void:
+	# The one body drop zone is the hull, and the swap is the phase's rule: the old body is not sold,
+	# it goes into the slot the new body left.
+	var screen := _screen()
+	_force_body_shop(screen)
+	screen._on_item_clicked(0)
+	screen._on_toggle()  # the garage is the view the build is edited in
+	assert_true(screen.garage.visible, "the garage is showing")
+	var at := screen.garage.get_global_transform_with_canvas() * ChGarage.CHARIOT_AT
+	screen._on_bar_dropped(0, at)
+	assert_eq(screen.run.layout.body_id, &"dozer", "the dropped body goes on the hull")
+	assert_true(screen.run.inventory.has(&"cutter"), "the Cutter it replaced is carried")
+	assert_eq(screen.bar._cards.size(), 1, "the bar shows the body that came home")
+	assert_true(ChInventoryBar.id_of(screen.bar._cards[0]) == &"cutter", "which is the Cutter")
+	assert_eq(screen.garage.hull_piece().body_def.id, &"dozer", "and the pit draws the new hull")
+	_complete()
+
+
+func test_body_dropped_off_the_hull_stays_carried() -> void:
+	var screen := _screen()
+	_force_body_shop(screen)
+	screen._on_item_clicked(0)
+	screen._on_toggle()
+	screen._on_bar_dropped(0, Vector2(40, 40))
+	assert_eq(screen.run.layout.body_id, &"cutter", "a drop on sand swaps nothing")
+	assert_true(screen.run.inventory.has(&"dozer"), "and the body is still carried")
+	_complete()
+
+
+func test_held_body_click_on_the_hull_swaps_it() -> void:
+	# The bar's click puts the body in hand, and the pit hands the hull click to the screen: the same
+	# swap as the drag, through the click path.
+	var screen := _screen()
+	_force_body_shop(screen)
+	screen._on_item_clicked(0)
+	screen._on_toggle()
+	screen._on_bar_clicked(0)
+	assert_eq(screen.garage.held_id, &"dozer", "the click puts the carried body in hand")
+	screen.garage.click_pit(ChGarage.CHARIOT_AT)
+	assert_eq(screen.run.layout.body_id, &"dozer", "a click on the hull swaps it in")
+	assert_true(screen.run.inventory.has(&"cutter"), "and the Cutter comes home")
+	assert_eq(screen.garage.held_id, &"", "the hold is cleared")
+	_complete()
+
+
+func test_body_shelf_card_buys_once() -> void:
+	# The shelf card's own click is wired once: ChBodyCard connects the handler in its constructor, so
+	# a second connect at the screen would buy the body and then shake it as already taken.
+	var screen := _screen()
+	_force_body_shop(screen)
+	var cards := _stage_item_cards(screen)
+	assert_eq(cards.size(), 1, "the body is the stage's one card")
+	var gold_before := screen.run.gold
+	cards[0].clicked.emit()
+	assert_eq(screen.run.gold, gold_before - ChPrices.price(&"uncommon"), "one click pays one price")
+	assert_eq(screen.run.inventory.part_ids.count(&"dozer"), 1, "and buys one body")
+	assert_true(screen.phase.items[0][&"taken"], "so the card is spent")
+	_complete()

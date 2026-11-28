@@ -137,6 +137,7 @@ func setup(run_in: ChRun, catalog_in: ChCatalog) -> void:
 	garage.setup(run.inventory, run.layout, catalog)
 	middle.add_child(garage)
 	garage.piece_dropped.connect(_on_piece_dropped)
+	garage.body_requested.connect(_on_body_requested)
 	# Any mount, lift or flip changes the inventory, and the bar is the one place that is drawn.
 	garage.changed.connect(bar.refresh)
 	garage.hide()
@@ -273,7 +274,7 @@ func _on_bar_clicked(index: int) -> void:
 
 func _on_bar_dropped(index: int, at: Vector2) -> void:
 	# The bar's drop routing, in the one order that keeps a part: SELL first (it owns the right end),
-	# then a slot, then the garage's free markers while the garage is showing.
+	# then a slot, then the garage's own zones while the garage is showing.
 	if phase == null or bar == null:
 		return
 	if bar.over_sell(at):
@@ -288,12 +289,20 @@ func _on_bar_dropped(index: int, at: Vector2) -> void:
 			run.inventory.move(index, slot)
 		bar.refresh()
 		return
-	if garage != null and garage.visible:
-		# slot_at answers [path, body cells], the same entry _free_slots builds.
-		var free_slot: Array = garage.slot_at(at)
-		if not free_slot.is_empty():
-			# The garage's changed signal refreshes the bar; a refusal leaves the card gliding home.
-			garage.mount_from_inventory(index, free_slot[0])
+	if garage == null or not garage.visible:
+		return
+	var id: StringName = run.inventory.part_ids[index] if index >= 0 \
+		and index < run.inventory.part_ids.size() else &""
+	if catalog.body(id) != null:
+		# A body is not a slot part: the hull is its one drop zone, and the swap is the shop's rule.
+		if garage.hull_at(at):
+			_equip_body(index)
+		return
+	# slot_at answers [path, body cells], the same entry _free_slots builds.
+	var free_slot: Array = garage.slot_at(at)
+	if not free_slot.is_empty():
+		# The garage's changed signal refreshes the bar; a refusal leaves the card gliding home.
+		garage.mount_from_inventory(index, free_slot[0])
 
 
 func _on_piece_dropped(path, at: Vector2) -> void:
@@ -302,6 +311,27 @@ func _on_piece_dropped(path, at: Vector2) -> void:
 	if bar == null or bar.slot_index_at(at) < 0 or garage == null:
 		return
 	garage.lift(path)
+
+
+func _on_body_requested(id: StringName, index: int) -> void:
+	# The garage's held-body click: the hold names its copy, and an index the inventory no longer
+	# answers with this id falls back to the first copy, the way the garage's drop_part does.
+	if index < 0 or index >= run.inventory.part_ids.size() \
+			or run.inventory.part_ids[index] != id:
+		index = run.inventory.part_ids.find(id)
+	_equip_body(index)
+
+
+func _equip_body(index: int) -> void:
+	# The swap, paid for by the shop: the bought body goes on the hull and the body it replaced goes
+	# home to the inventory (see ChShopPhase.equip_body). The pit is redrawn here because the change is
+	# the phase's, not the garage's, so the garage's own sync never ran.
+	if phase == null or not phase.equip_body(index):
+		return
+	bar.refresh()
+	garage.refresh()
+	_refresh_gold()
+	_pop_auto_sold()
 
 
 func _on_next() -> void:
@@ -378,13 +408,11 @@ func _make_item_card(index: int, show_price: bool) -> ChCard:
 		var body_def: ChBodyDef = catalog.body(item[&"id"])
 		if body_def == null:
 			return null
-		var body_card := BodyItemCard.new()
-		body_card.body_def = body_def
+		var body_card := ChBodyCard.new(body_def, _on_item_clicked.bind(index))
 		body_card.price = int(item[&"price"]) if show_price else -1
 		body_card.custom_minimum_size = Vector2(
 			maxf(OPTION_W, body_def.size.x * ChGarage.ZOOM + 16.0), BODY_H)
 		body_card.size = body_card.custom_minimum_size
-		body_card.clicked.connect(_on_item_clicked.bind(index))
 		body_card.dropped.connect(func(at: Vector2) -> void: _on_item_dropped(index, at))
 		return body_card
 	var def: ChPartDef = catalog.part(item[&"id"])
@@ -494,10 +522,11 @@ func _option_text(option: Dictionary) -> String:
 	return theme_name + (" shop" if kind == &"shop" else " pack")
 
 
-func _bar_card(id: StringName) -> ChPartCard:
-	# The bar's card for a part just bought or taken, which is the node the placed beat kicks.
+func _bar_card(id: StringName) -> ChCard:
+	# The bar's card for a thing just bought or taken, which is the node the placed beat kicks: a part's
+	# card or a body's.
 	for card in bar._cards:
-		if card.part_id == id:
+		if ChInventoryBar.id_of(card) == id:
 			return card
 	return null
 
@@ -552,43 +581,6 @@ class OptionCard extends ChCard:
 		var baseline := (size.y - line_h) * 0.5 + font.get_ascent(ChUi.FONT_SIZE)
 		draw_string(font, Vector2(8.0, baseline), card_text, HORIZONTAL_ALIGNMENT_CENTER,
 			size.x - 16.0, ChUi.FONT_SIZE, ChUi.TEXT)
-
-
-# A body on the shelf: its name, its price and the hull at the pit's zoom. The hull is drawn the way
-# ChPitPiece.show_hull draws it (texture, else outline polygon, else colour box) so a body reads the same
-# in the shop as it does mounted.
-class BodyItemCard extends ChCard:
-	var body_def: ChBodyDef = null
-	var price := -1
-
-	func _init() -> void:
-		super()
-
-	func _paint_face() -> void:
-		super()
-		if body_def == null:
-			return
-		var inner := size.x - 16.0
-		draw_string(ChUi.FONT, Vector2(8.0, 24.0), body_def.display_name,
-			HORIZONTAL_ALIGNMENT_LEFT, inner, ChUi.FONT_SIZE, ChUi.TEXT)
-		ChUi.draw_socket(self, Rect2(4.0, 32.0, size.x - 8.0, size.y - 36.0))
-		var centre := Vector2(size.x * 0.5, 32.0 + (size.y - 36.0) * 0.5)
-		var hull := Vector2(maxi(1, body_def.size.x), maxi(1, body_def.size.y)) * ChGarage.ZOOM
-		if body_def.texture != null:
-			draw_texture_rect(body_def.texture, Rect2(ChUi.snap(centre - hull * 0.5), hull), false)
-		elif body_def.outline.size() >= 3:
-			var shape := PackedVector2Array()
-			for point in body_def.outline:
-				shape.append(ChUi.snap(centre) + point * ChGarage.ZOOM)
-			draw_colored_polygon(shape, body_def.color)
-			draw_polyline(shape + PackedVector2Array([shape[0]]),
-				body_def.color.darkened(0.3), ChUi.PX)
-		else:
-			draw_rect(Rect2(ChUi.snap(centre - hull * 0.5), hull), body_def.color)
-		# After the hull: a tall hull (the dozer's 30 cells) overhangs the card's foot, and the price
-		# is what the player reads off it.
-		if price >= 0:
-			ChUi.draw_pill(self, Vector2(size.x * 0.5, size.y), "$%d" % price)
 
 
 # A part in a pack: the part at the pit's zoom and its name, with no price row because the pack was

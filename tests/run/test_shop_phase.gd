@@ -37,8 +37,8 @@ func _pack_index(phase: ChShopPhase) -> int:
 
 
 func _pack_phase(run_seed: int = SEED) -> ChShopPhase:
-	# A phase on an unpicked stage that shows a pack at a part theme: a body pack swaps the hull instead
-	# of filling the inventory, which test_body_swap_overflow_sold covers instead.
+	# A phase on an unpicked stage that shows a pack at a part theme: a body pack lands in the
+	# inventory like any other card, and test_body_swap_overflow_sold covers the swap instead.
 	for attempt in 20:
 		var phase := _phase(run_seed + attempt)
 		while not phase.done():
@@ -126,7 +126,7 @@ func test_buy_exact_gold() -> void:
 	assert_eq(run.gold, 0, "and it lands on 0, never below")
 	assert_true(bool(first["taken"]), "the bought card reads taken")
 	if bool(first["is_body"]):
-		assert_eq(run.layout.body_id, first["id"], "a bought body is swapped in at once")
+		assert_true(run.inventory.has(first["id"]), "a bought body is carried, not swapped in")
 	else:
 		assert_true(run.inventory.has(first["id"]), "a bought part is carried")
 	assert_true(not phase.buy(0), "and one card cannot be taken twice")
@@ -142,14 +142,18 @@ func test_buy_exact_gold() -> void:
 func test_buy_refused_when_full() -> void:
 	var phase := _shop_phase()
 	var run: ChRun = phase.run
-	# The card is built here rather than rolled: what is under test is the inventory rule, and a
+	# The cards are built here rather than rolled: what is under test is the inventory rule, and a
 	# rolled part costs 2 or 6, so a hand-built card keeps the gold arithmetic exact.
-	phase.items = [{"id": &"chainsaw", "is_body": false, "rarity": &"common", "price": 2, "taken": false}]
+	phase.items = [
+		{"id": &"chainsaw", "is_body": false, "rarity": &"common", "price": 2, "taken": false},
+		{"id": &"dozer", "is_body": true, "rarity": &"uncommon", "price": 6, "taken": false},
+	]
 	run.gold = 20
 	for i in ChInventory.CAPACITY:
 		assert_true(run.inventory.add(&"roller"), "carry %d" % i)
 	assert_eq(run.inventory.free_slots(), 0, "the inventory is full")
 	assert_true(not phase.buy(0), "a part cannot be bought into a full inventory")
+	assert_true(not phase.buy(1), "and neither can a body: it is carried like a part")
 	assert_eq(run.gold, 20, "and nothing is charged")
 	assert_eq(run.inventory.part_ids.size(), ChInventory.CAPACITY, "and nothing is added")
 	# Selling makes room, which is the way out the spec pins.
@@ -317,35 +321,42 @@ func test_body_swap_overflow_sold() -> void:
 	_mount_all_slots(run, &"roller")
 	var mounted_before := _mounted_count(run.layout)
 	assert_eq(mounted_before, 6, "the Dozer build fills all six top-level slots")
-	for i in ChInventory.CAPACITY:
+	# A body is carried like a part, so the buy takes the kit's one free slot and equip_body is what
+	# swaps it in. Four carried parts leave that slot; the Cutter then fills the kit, so the swap has
+	# nowhere to put the two subtrees it detaches.
+	for i in ChInventory.CAPACITY - 1:
 		assert_true(run.inventory.add(&"strut"), "and the inventory carries %d" % i)
 	# The stage is a picked shop, so this is the counter; the card is the Cutter, common at 2 gold, the
 	# cheapest way to reach a swap.
 	phase.items = [{"id": &"cutter", "is_body": true, "rarity": &"common", "price": 2, "taken": false}]
 	run.gold = 2
-	var carried_before := run.inventory.part_ids.size()
+	var parts_before := mounted_before + 4  # four Struts are parts; the Cutter is a body
 	var gold_before := run.gold
-	assert_true(phase.buy(0), "a body is bought with no free slot, because a body needs none")
+	assert_true(phase.buy(0), "a body is bought into a free slot")
+	assert_eq(run.layout.body_id, &"dozer", "and buying it swaps nothing: it is carried")
+	assert_eq(run.inventory.free_slots(), 0, "the card took the last slot")
+	assert_true(phase.equip_body(run.inventory.part_ids.find(&"cutter")), "the carried body goes on")
 	assert_eq(run.layout.body_id, &"cutter", "and it is swapped in")
 	var sold: Array[StringName] = phase.auto_sold.duplicate()
 	assert_eq(sold.size(), 2, "two subtrees found no seat")
 	for id in sold:
 		assert_true(catalog.part(id) != null, "%s is an id the catalog can price" % id)
-	# The invariant the plan pins: nothing the build held disappears in the swap.
-	assert_eq(_mounted_count(run.layout) + run.inventory.part_ids.size() + sold.size(),
-		mounted_before + carried_before,
-		"mounted + carried + sold equals the parts before the buy")
+	# The invariant the plan pins: nothing the build held disappears in the swap, and the body the
+	# Cutter replaced comes home as a carried thing like any other.
+	assert_eq(_mounted_count(run.layout) + _carried_part_count(run) + sold.size(), parts_before,
+		"mounted + carried + sold equals the parts before the swap")
+	assert_true(run.inventory.has(&"dozer"), "the Dozer the Cutter replaced is carried")
+	assert_eq(run.inventory.free_slots(), 0, "and it took the slot the Cutter left")
 	var gained := 0
 	for id in sold:
 		gained += ChPrices.sell_value(catalog.part(id).rarity)
 	assert_eq(run.gold, gold_before - 2 + gained, "gold rose by the sum of the sell values (%d)" % gained)
-	assert_eq(run.inventory.part_ids.size(), carried_before, "a full inventory carries nothing new")
 	_complete()
 
 
 func test_body_swap_overflow_fills_free_slots_first() -> void:
 	# The other half of the overflow rule: what a swap detaches goes into the inventory until it is
-	# full, and only the rest is sold. test_body_swap_overflow_sold starts with no free slot, so it
+	# full, and only the rest is sold. test_body_swap_overflow_sold ends with no free slot, so it
 	# cannot see that order at all: always selling passes every assert there.
 	var phase := _shop_phase()
 	var run: ChRun = phase.run
@@ -354,19 +365,22 @@ func test_body_swap_overflow_fills_free_slots_first() -> void:
 	_mount_all_slots(run, &"roller")
 	var mounted_before := _mounted_count(run.layout)
 	assert_eq(mounted_before, 6, "the Dozer build fills all six top-level slots")
-	# An overflow of two subtrees against one free slot, so exactly one of them has to be carried.
-	for id in [&"strut", &"igniter", &"molotov", &"generator"]:
+	# Three carried parts leave two free slots; the bought Cutter takes one, so the swap (Cutter out,
+	# Dozer home) still has the one slot that holds exactly one of the two detached subtrees.
+	for id in [&"strut", &"igniter", &"molotov"]:
 		assert_true(run.inventory.add(id), "carry %s" % id)
 	var carried_before := run.inventory.part_ids.size()
-	assert_eq(run.inventory.free_slots(), 1, "one slot is free")
+	assert_eq(run.inventory.free_slots(), 2, "two slots are free")
 	phase.items = [{"id": &"cutter", "is_body": true, "rarity": &"common", "price": 2, "taken": false}]
 	run.gold = 2
 	var gold_before := run.gold
 	assert_true(phase.buy(0), "the Cutter is bought")
+	assert_eq(run.inventory.free_slots(), 1, "and carried, leaving one slot free")
+	assert_true(phase.equip_body(run.inventory.part_ids.find(&"cutter")), "the Cutter goes on")
 	assert_eq(run.layout.body_id, &"cutter", "and it is swapped in")
 	var sold: Array[StringName] = phase.auto_sold.duplicate()
 	assert_eq(sold.size(), 1, "only the overflow the inventory had no room for is sold")
-	assert_eq(run.inventory.part_ids.size(), carried_before + 1, "the free slot filled from the overflow")
+	assert_eq(_carried_part_count(run), carried_before + 1, "the free slot filled from the overflow")
 	assert_eq(run.inventory.free_slots(), 0, "and the inventory is full again")
 	# The split is read as counts, not by asking has(): both overflow subtrees are Wheels here, so the
 	# sold id is also a carried id, and ChInventory.has answers presence rather than count.
@@ -376,50 +390,68 @@ func test_body_swap_overflow_fills_free_slots_first() -> void:
 	for id in sold:
 		gained += ChPrices.sell_value(catalog.part(id).rarity)
 	assert_eq(run.gold, gold_before - 2 + gained, "gold rose by the sell value of what was sold")
-	assert_eq(_mounted_count(run.layout) + run.inventory.part_ids.size() + sold.size(),
+	assert_eq(_mounted_count(run.layout) + _carried_part_count(run) + sold.size(),
 		mounted_before + carried_before,
-		"mounted + carried + sold equals the parts before the buy")
+		"mounted + carried + sold equals the parts before the swap")
 	_complete()
 
 
 func test_auto_sold_keeps_every_swap_in_the_stage() -> void:
-	# The Task 12 screen reads auto_sold after a body buy to beat the parts it sold, so the list has to
+	# The Task 12 screen reads auto_sold after a body swap to beat the parts it sold, so the list has to
 	# hold every swap the stage made, not just the last one, and start empty for the next stage. Two
-	# bodies in one stage is legal: a body needs no free slot.
+	# swaps in one stage is legal: each body is bought into a free slot and then equipped.
 	var phase := _shop_phase()
 	var run: ChRun = phase.run
 	var catalog: ChCatalog = phase.catalog
-	# Corsair (7 slots) then Dozer (6) then Cutter (4), with the inventory full: each swap detaches
-	# subtrees that find no seat, so both swaps sell parts and both piles have to be readable.
+	# Corsair (7 slots) then Dozer (6) then Cutter (4): each swap detaches subtrees that find no seat,
+	# so both swaps sell parts and both piles have to be readable.
 	run.layout.swap_body(catalog.body(&"corsair"), catalog)
 	_mount_all_slots(run, &"roller")
 	var mounted_before := _mounted_count(run.layout)
 	assert_eq(mounted_before, 7, "the Corsair build fills all seven top-level slots")
-	for i in ChInventory.CAPACITY:
+	# Four carried parts leave the one slot the first body takes; the Corsair it replaces fills the kit
+	# again, which is why the second body needs a sale first.
+	for i in ChInventory.CAPACITY - 1:
 		assert_true(run.inventory.add(&"strut"), "carry %d" % i)
 	phase.items = [
 		{"id": &"dozer", "is_body": true, "rarity": &"uncommon", "price": 6, "taken": false},
 		{"id": &"cutter", "is_body": true, "rarity": &"common", "price": 2, "taken": false},
 	]
-	run.gold = 8
+	var parts_before := mounted_before + ChInventory.CAPACITY - 1  # the Corsair's mount plus four Struts
+	run.gold = 20
 	var gold_before := run.gold
 	assert_true(phase.buy(0), "the first body is bought")
+	assert_true(phase.equip_body(run.inventory.part_ids.find(&"dozer")), "and swapped in")
 	var first_sold: Array[StringName] = phase.auto_sold.duplicate()
 	assert_eq(first_sold.size(), 1, "one Corsair subtree found no seat on the Dozer")
+	assert_eq(phase.sell(0), 1, "a carried common sold frees a slot for the second body")
 	assert_true(phase.buy(1), "a second body in the same stage is allowed")
+	assert_true(phase.equip_body(run.inventory.part_ids.find(&"cutter")), "and swapped in too")
 	var sold: Array[StringName] = phase.auto_sold.duplicate()
 	assert_eq(sold.size(), 3, "both swaps' overflow is listed, 1 + 2")
 	for id in first_sold:
-		assert_true(sold.has(id), "the first swap's %s is still listed after the second buy" % id)
+		assert_true(sold.has(id), "the first swap's %s is still listed after the second swap" % id)
 	var gained := 0
 	for id in sold:
 		gained += ChPrices.sell_value(catalog.part(id).rarity)
-	assert_eq(run.gold, gold_before - 8 + gained, "gold rose by the sell values of both swaps")
-	assert_eq(_mounted_count(run.layout) + run.inventory.part_ids.size() + sold.size(),
-		mounted_before + ChInventory.CAPACITY, "nothing the build held disappeared")
+	assert_eq(run.gold, gold_before - 6 - 2 + 1 + gained, "gold rose by both sell values and the Strut")
+	assert_eq(_mounted_count(run.layout) + _carried_part_count(run) + sold.size(),
+		parts_before - 1, "nothing the build held disappeared; the sold Strut is the one part gone")
+	assert_true(run.inventory.has(&"corsair") and run.inventory.has(&"dozer"),
+		"both replaced bodies are carried")
 	phase.next()
 	assert_eq(phase.auto_sold.size(), 0, "Next empties the list for the next stage")
 	_complete()
+
+
+func _carried_part_count(run: ChRun) -> int:
+	# The carried PART ids, so a carried body is not counted as a part: the overflow ledger and the
+	# bodies the swaps hand back are different kinds of thing, and only parts were in the build.
+	var total := 0
+	for id in run.inventory.part_ids:
+		if run.catalog.part(id) != null:
+			total += 1
+	return total
 
 
 func _mounted_count(layout: ChChariotLayout) -> int:

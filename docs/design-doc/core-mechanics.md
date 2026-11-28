@@ -133,6 +133,9 @@ References:
 - Swapping bodies keeps as many parts as it can, so picking a new body doesn't mean rebuilding
   from scratch. Parts move to the nearest slot by position, and each part takes everything
   mounted on it along. Parts that don't fit go back to inventory.
+- A bought body is carried in the inventory like a part, and swapped in by dropping it on the hull
+  in the garage. The body it replaces comes home to the slot it left; if the inventory is full, the
+  parts that found no slot are sold.
 - Wheels are not necessary. They are ordinary parts, and like other parts they come in many types.
 - The enemy chariot is mirrored so that its parts face the player.
 

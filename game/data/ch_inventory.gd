@@ -1,6 +1,8 @@
 class_name ChInventory extends Resource
 
 # Parts carried but not mounted. capacity -1 means unlimited; the run's inventory is CAPACITY.
+# A body id is carried here too, in the same list: a bought body takes a slot and a card until the
+# garage swaps it onto the hull (ChShopPhase.equip_body), and the catalog says which ids are bodies.
 
 # The run's five carried parts: the shop, the inventory bar and a lift all size themselves off this.
 const CAPACITY := 5

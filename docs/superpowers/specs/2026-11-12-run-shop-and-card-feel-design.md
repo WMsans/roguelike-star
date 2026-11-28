@@ -255,8 +255,10 @@ Rarity sets price: common 2, uncommon 6, rare 12. Sell value is floor(price / 2)
   - **Pack:** costs 3 to open, then shows 3 items. Take one free. No reroll.
   - **Resource:** granted at once, with a juice-up.
 - **Next** leaves the stage, whether or not anything was picked. After stage 4 it reads **Fight**.
-- **Buying a body** swaps it in at once with `swap_body`. The old body is gone, not sold. Parts that don't
-  fit go to the inventory; if the inventory is full, the overflow is sold automatically, each with a sell
+- **Buying a body** carries it like a part: it takes an inventory slot and shows as a card in the bar.
+  Dropping that card on the hull in the garage (or clicking the hull with it in hand) swaps it in with
+  `swap_body`, and the body it replaces goes back into the slot the new one left. Parts that don't fit
+  go to the inventory; if the inventory is full, the overflow is sold automatically, each with a sell
   beat.
 - **Inventory full:** a buy or pack pick into a full inventory is refused with a refusal shake, and the card glides back.
   Selling makes room.
@@ -294,7 +296,8 @@ Rarity sets price: common 2, uncommon 6, rare 12. Sell value is floor(price / 2)
    - The 60/30/10 roll weights.
    - Duplicates allowed.
    - The theme threshold of 3 or more items, and Attack dropped.
-5. A bought body replaces the old one with no refund. Overflow parts are auto-sold when the inventory is full.
+5. A bought body is carried in the inventory and swapped in on the hull, and the body it replaces goes back
+   to the inventory. Overflow parts are auto-sold when the inventory is full.
 6. The cook's HP curve, tuned in the balance runner.
 7. Picking an option commits the stage. Next always skips forward.
 8. Lifting a branch from the pit (by drag or by click) is refused when its parts don't all fit in the free

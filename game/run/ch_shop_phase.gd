@@ -96,24 +96,19 @@ func pick(index: int) -> bool:
 
 
 func buy(item_index: int) -> bool:
-	# The shop's action: pay the price, take the card. A part needs a free slot; a body needs none, and
-	# the swap it triggers can push parts off the hull (see _mount_body).
+	# The shop's action: pay the price, take the card. A body is carried like a part - it takes a
+	# slot and is swapped in from the garage (see equip_body) - so both need one free slot.
 	var item := _offer(item_index)
 	if item.is_empty() or picked.get(&"kind") != &"shop" or item[&"taken"]:
 		return false
 	var price: int = item[&"price"]
 	# Gold exactly equal to the price is the allowed edge and lands on 0; one short is refused, so gold
 	# never goes negative.
-	if run.gold < price:
-		return false
-	if not item[&"is_body"] and run.inventory.free_slots() < 1:
+	if run.gold < price or run.inventory.free_slots() < 1:
 		return false
 	run.gold -= price
 	item[&"taken"] = true
-	if item[&"is_body"]:
-		_mount_body(item[&"id"])
-	else:
-		run.inventory.add(item[&"id"])
+	run.inventory.add(item[&"id"])
 	run.refresh_capacity()
 	return true
 
@@ -127,13 +122,27 @@ func take(item_index: int) -> bool:
 	for offered in items:
 		if offered[&"taken"]:
 			return false  # a pack grants one card, and any taken card says it already did
-	if not item[&"is_body"] and run.inventory.free_slots() < 1:
+	if run.inventory.free_slots() < 1:
 		return false
 	item[&"taken"] = true
-	if item[&"is_body"]:
-		_mount_body(item[&"id"])
-	else:
-		run.inventory.add(item[&"id"])
+	run.inventory.add(item[&"id"])
+	run.refresh_capacity()
+	return true
+
+
+func equip_body(index: int) -> bool:
+	# The garage's body drop: the body carried at `index` goes onto the chariot. It leaves the
+	# inventory first, so the slot it frees is the one the replaced body comes home into, and only the
+	# parts that lost their seat can overflow.
+	if run == null or catalog == null:
+		return false
+	if index < 0 or index >= run.inventory.part_ids.size():
+		return false
+	var id: StringName = run.inventory.part_ids[index]
+	if catalog.body(id) == null:
+		return false
+	run.inventory.remove_entry(index)
+	_swap_in(id)
 	run.refresh_capacity()
 	return true
 
@@ -280,12 +289,17 @@ func _offer(item_index: int) -> Dictionary:
 	return items[item_index]
 
 
-func _mount_body(id: StringName) -> void:
-	# A bought body goes in at once. swap_body reseats what fits and hands back the subtrees that found
-	# no slot, already detached, so every part of the old build is in exactly one pile afterwards:
-	# what it detached lands in the inventory until it is full, and the rest is sold on the spot.
-	# auto_sold is not cleared here: a stage can buy two bodies, and the screen reads one list holding
-	# both swaps.
+func _swap_in(id: StringName) -> void:
+	# swap_body reseats what fits and hands back the subtrees that found no slot, already detached, so
+	# every part of the old build is in exactly one pile afterwards: the old body goes home into the
+	# slot the new body left, the detached parts land in the inventory while it has room, and the rest
+	# is sold on the spot. The body goes home first, so it is the body and not a part that takes the
+	# freed slot.
+	# auto_sold is not cleared here: a visit can swap twice, and the screen reads one list holding
+	# every swap.
+	var old_id: StringName = run.layout.body_id
+	if old_id != &"":
+		run.inventory.add(old_id)
 	for branch in run.layout.swap_body(catalog.body(id), catalog):
 		for entry in run.layout.subtree_entries(branch):
 			var part_id: StringName = entry[&"id"]
@@ -307,4 +321,3 @@ func _mount_body(id: StringName) -> void:
 			# An auto-sold part is sold, so it counts toward the run's sales (R29).
 			run.parts_sold += 1
 			auto_sold.append(part_id)
-	run.refresh_capacity()
