@@ -57,6 +57,26 @@ func test_focus_lens_30_in_the_beam_first_second() -> void:
 	_complete()
 
 
+# U38: two beams switching on both keep their own window; the second switch-on does not cancel the
+# first one's still-live second.
+func test_focus_lens_keeps_a_window_for_each_beam() -> void:
+	var ctx := await duel([[[3], &"laser"], [[4], &"focus_lens"], [[5], &"laser"]], [], 60.0)
+	var lasers: Array = []
+	for part in ctx.chariots[0].parts:
+		if part.def != null and part.def.id == &"laser":
+			lasers.append(part)
+	assert_eq(lasers.size(), 2, "the lens sits between two beams")
+	# Speedup makes each beam tick twice a second, so two of its hits land inside its own 1 s window
+	# (at its own rate the next tick is exactly a second later, just past the window's close).
+	for laser in lasers:
+		ctx.give_status(laser, ChStatuses.SPEEDUP, 1)
+	var hits := sink(ctx, ChEvent.HIT)
+	await step(ctx, 0.6, false, true)
+	for at in lasers.size():
+		assert_eq(_paid(hits, lasers[at]), [42, 42], "beam %d keeps its own +30 window" % at)
+	_complete()
+
+
 # U39: a weapon neighbour's hit gets +1 for every 10 cells between the chariots; this gap is 40.
 func test_rangefinder_1_a_hit_per_10_cells() -> void:
 	var ctx := await duel([[[6], &"rangefinder"], [[7], &"stinger"]], [], 40.0)
@@ -85,6 +105,20 @@ func test_stabiliser_speedup_every_3_seconds_while_not_driving() -> void:
 	if speedups.size() == 1:
 		assert_eq(int(speedups[0].data["amount"]), 1, "1 Speedup")
 		assert_true(speedups[0].source == stinger, "to the weapon neighbour")
+	_complete()
+
+
+# U40: the periods spent driving are dropped, not paid out in a burst on the release.
+func test_stabiliser_drops_the_periods_it_spent_driving() -> void:
+	var ctx := await duel([[[6], &"stabiliser"], [[7], &"stinger"]], [], 60.0)
+	var stinger := of(ctx, 0, &"stinger")
+	assert_true(stinger != null and of(ctx, 0, &"stabiliser") != null,
+		"the stabiliser and its weapon neighbour mounted")
+	var gains := sink(ctx, ChEvent.STATUS_GAINED)
+	await step(ctx, 10.0, false, false, 1.0)  # driving past three whole periods
+	assert_eq(_gains(gains, ChStatuses.SPEEDUP).size(), 0, "driving gains nothing")
+	await step(ctx, 1.0)  # the second after the release
+	assert_eq(_gains(gains, ChStatuses.SPEEDUP).size(), 1, "the missed periods are dropped, not paid out")
 	_complete()
 
 

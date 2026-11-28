@@ -12,6 +12,8 @@ func process(ctx: ChBattleContext, _delta: float) -> void:
 	var own := ctx.own(part)
 	if own == null or own.driving or ctx.time < _next:
 		return
-	_next += PERIOD
+	# A period missed while driving is dropped rather than banked, so a release never pays out the
+	# whole backlog in consecutive frames; the next gain is a whole period after this one.
+	_next = ctx.time + PERIOD
 	for other in _neighbours(ctx, "weapon"):
 		ctx.give_status(other, ChStatuses.SPEEDUP, SPEEDUP)
