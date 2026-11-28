@@ -1,15 +1,11 @@
 extends ChBehaviour
 
-# The Mimic Module (R37): before any behaviour's setup, it becomes the part in the slot immediately
-# in front of it (the side it faces) — running the front def's behaviour with the front def's
-# numbers, but keeping its own id, integrity, size, texture, colour and description.
+# The Mimic Module (R37): before any behaviour's setup, it becomes the part in the nearest occupied
+# slot ahead of it (the side it faces), never a wheel — running the front def's behaviour with the
+# front def's numbers, but keeping its own id, integrity, size, texture, colour and description.
 # A Mimic whose front slot holds another Mimic, or nothing, stays inert (parts-list §6: two Mimics
 # facing each other do nothing). Its own id is what lets the next Mimic see it as one.
 const ID := &"mimic_module"
-# One slot ahead is six cells: the rig's body slots and the frames' extension slots are six apart.
-# shortcut: corsair and dozer space their body slots 9-18 cells apart, so a Mimic copies nothing on
-# them; read the body's own slot spacing when a Mimic is expected to work on those bodies.
-const SLOT_SPACING := 6.0
 
 
 func resolve(ctx: ChBattleContext) -> void:
@@ -35,20 +31,19 @@ func resolve(ctx: ChBattleContext) -> void:
 	part.cooldown = copied.cooldown
 
 
-# The own part in the slot immediately in front, or null. A wheel is not a part in a slot ahead to
-# copy: its slot sits off the row, so copying it would put wheel tags and mode on the Mimic.
+# The nearest own part ahead along facing(), never a wheel. A wheel is on the bottom edge and is not
+# a part in a slot ahead to copy: copying it would put wheel tags and mode on the Mimic. Slots vary
+# in spacing from body to body, so the nearest part ahead is the next occupied slot ahead.
 func _front_slot(ctx: ChBattleContext) -> ChPartRuntime:
 	var anchor := part.anchor_world()
 	var facing := part.facing()
 	var front: ChPartRuntime = null
-	# +0.001: the joints can leave an adjacent slot a hair short of its six cells.
-	var best := SLOT_SPACING + 0.001
+	var best := 0.0
 	for other in _own_parts(ctx):
-		if other.def == null or other.def.is_wheel():
+		if other.def == null or other.def.is_wheel() or other.def.mode == ChPartDef.MODE_WHEEL:
 			continue
 		var d := (other.anchor_world() - anchor).dot(facing)
-		if d <= 0.0 or d > best:
-			continue
-		front = other
-		best = d
+		if d > 0.0 and (front == null or d < best):
+			front = other
+			best = d
 	return front

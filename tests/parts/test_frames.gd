@@ -185,21 +185,61 @@ func test_mimic_with_a_wheel_ahead_stays_inert() -> void:
 	_complete()
 
 
-# R37: the Mimic copies the slot immediately ahead, not the next part along its facing. A chainsaw
-# two slots ahead with slot 3 empty is out of reach.
-func test_mimic_with_a_gap_ahead_stays_inert() -> void:
+# R37: the front part is the next occupied slot ahead, so a gap between the slots does not matter.
+# A chainsaw two slots along with slot 3 empty is still the part in front of the Mimic.
+func test_mimic_copies_the_next_occupied_slot_ahead() -> void:
 	var ctx := await duel([[[2], &"mimic_module"], [[4], &"chainsaw"]])
 	var mimic := of(ctx, 0, &"mimic_module")
-	assert_true(mimic != null, "the Mimic mounted")
-	if mimic == null:
+	var saw := of(ctx, 0, &"chainsaw")
+	assert_true(mimic != null and saw != null, "the Mimic and the chainsaw mounted")
+	if mimic == null or saw == null:
 		_complete()
 		return
 	ctx.setup_all()
 	assert_eq(mimic.def.id, &"mimic_module", "the Mimic keeps its own id")
-	assert_eq(mimic.def.damage, 0, "a part two slots ahead is not copied")
-	assert_eq(mimic.def.mode, ChPartDef.MODE_PASSIVE, "so it stays passive")
-	assert_true(mimic.behaviour != null and mimic.behaviour.has_method("resolve"),
-		"with no copy taken")
+	assert_eq(mimic.def.damage, saw.def.damage, "the next occupied slot ahead is copied")
+	assert_eq(mimic.def.mode, ChPartDef.MODE_MELEE, "with its firing mode")
+	assert_true(mimic.behaviour != null and not mimic.behaviour.has_method("resolve"),
+		"and a fresh behaviour")
+	_complete()
+
+
+# R37: the shipping bodies space their slots wider than the rig. The Dozer's top slots are 18 cells
+# apart (the widest of the three), and the next occupied slot ahead is still the part in front.
+func test_mimic_copies_the_front_part_on_a_real_body() -> void:
+	var world: PixelWorld = await make_world()
+	world.fill_rect(Rect2i(0, GROUND_TOP, 480, 20), &"rock")
+	var catalog := ChCatalog.load_default()
+	var layout := ChChariotLayout.new()
+	layout.body_id = &"dozer"
+	for mount in [[[2], &"mimic_module"], [[3], &"chainsaw"]]:
+		var path: Array[int] = []
+		for step in mount[0]:
+			path.append(step)
+		assert_true(layout.place(path, mount[1]), "%s mounts" % [path])
+	var runtime := ChChariotBuilder.build(world, _parent(), layout, catalog, 0, Vector2(160, 140), false)
+	assert_true(runtime != null, "the Dozer builds")
+	if runtime == null:
+		_complete()
+		return
+	var ctx := ChBattleContext.new()
+	ctx.world = world
+	ctx.bus = ChEventBus.new()
+	ctx.catalog = catalog
+	ctx.chariots = [runtime]
+	ctx.setup_all()
+	var mimic := of(ctx, 0, &"mimic_module")
+	var saw := of(ctx, 0, &"chainsaw")
+	assert_true(mimic != null and saw != null, "the Mimic and the chainsaw mounted")
+	if mimic == null or saw == null:
+		_complete()
+		return
+	assert_near((saw.anchor_world() - mimic.anchor_world()).dot(mimic.facing()), 18.0, 0.001,
+		"the Dozer's top slots are 18 cells apart")
+	assert_eq(mimic.def.damage, saw.def.damage, "the front part across the wider slot is copied")
+	assert_eq(mimic.def.mode, ChPartDef.MODE_MELEE, "with its firing mode")
+	assert_true(mimic.behaviour != null and not mimic.behaviour.has_method("resolve"),
+		"and a fresh behaviour")
 	_complete()
 
 
