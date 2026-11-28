@@ -51,6 +51,7 @@ const STAT_SHOCK_DAMAGE := &"shock_damage"
 const STAT_DECAY_FREEZE := &"decay_freeze"
 const STAT_DECAY_FLAME := &"decay_flame"
 const STAT_SHOCK_HOPS := &"shock_hops"  # how many times a Shock gain jumps on (R07)
+const STAT_ACID_TO_HP := &"acid_to_hp"  # 1 pays Acid on a part to its chariot's HP too (R10)
 
 # The decay stat name for a status; STAT_DECAY_FREEZE is one of these. The rest are built rather than
 # spelled out, because the decaying statuses are ChStatuses.DECAYS and grow with it.
@@ -863,7 +864,10 @@ func _status_damage(chariot: ChChariotRuntime, holder: Object) -> void:
 	var flame := roundi(s.count(ChStatuses.FLAME) * flame_mult * stat(holder, STAT_FLAME_DAMAGE, 1.0))
 	var acid := roundi(s.count(ChStatuses.ACID) * stat(holder, STAT_ACID_DAMAGE, 1.0))
 	var shock := roundi(s.count(ChStatuses.SHOCK) * stat(holder, STAT_SHOCK_DAMAGE, 1.0))
-	var damage := flame + acid - s.absorb(acid) + shock
+	# The Acid the holder's Block let through is the Acid its integrity wears, and the amount R10
+	# pays to the chariot's HP as well.
+	var acid_damage := acid - s.absorb(acid)
+	var damage := flame + acid_damage + shock
 	_block_used(holder, block)
 	if damage <= 0:
 		return
@@ -872,6 +876,8 @@ func _status_damage(chariot: ChChariotRuntime, holder: Object) -> void:
 		holder.integrity = maxi(0, holder.integrity - damage)
 		if before > holder.integrity:
 			_emit(ChEvent.INTEGRITY_LOST, holder, {"amount": before - holder.integrity, "cause": &"status"})
+		if acid_damage > 0 and stat(holder, STAT_ACID_TO_HP, 0.0) >= 1.0:
+			lose_hp(chariot, acid_damage, &"status")
 		if holder.integrity <= 0:
 			chariot.break_part(holder, self)
 	else:

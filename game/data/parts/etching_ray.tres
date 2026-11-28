@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_classes=1 load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/data/ch_part_def.gd" id="1_part"]
+[ext_resource type="Script" path="res://game/battle/behaviours/parts/etching_ray.gd" id="2_beh"]
+
+[resource]
+script = ExtResource("1_part")
+id = &"etching_ray"
+behaviour = ExtResource("2_beh")
+display_name = "Etching Ray"
+tags = PackedStringArray("weapon", "acid", "beam")
+rarity = &"uncommon"
+description = PackedStringArray("6 damage per second. Damage to {block:Block} is doubled.")
+energy_cost = 0
+cooldown = 0.0
+mode = &"beam"
+energy_per_second = 3.0
+damage = 6
+integrity = 40
+proximity_range = 0.0
+reach = 80.0
+size = Vector2i(10,3)
+color = Color(0.55,0.9,0.35, 1)

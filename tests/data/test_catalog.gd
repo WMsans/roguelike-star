@@ -30,6 +30,9 @@ const PART_IDS: Array[StringName] = [
 	# Task 11's Shock Chain parts (U14-U19, R07-R09).
 	&"tesla_coil", &"chain_lightning", &"ball_lightning", &"capacitor", &"wet_wire",
 	&"grounding_spike", &"storm_core", &"lightning_bolt", &"superconductor",
+	# Task 12's Acid Eater parts (U20-U24, R10-R11).
+	&"acid_cannon", &"corroder", &"acid_gas_vent", &"etching_ray", &"sinkhole_flask",
+	&"universal_solvent", &"matter_eater",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 
