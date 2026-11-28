@@ -203,6 +203,22 @@ func test_meshing_gearbox_forces_a_weapon_once_a_tick() -> void:
 	var hits := sink(ctx, ChEvent.HIT)
 	await step(ctx, TICK, true, true)  # the press fires one stinger, the hold ticks the saw
 	assert_eq(_paid(hits, other), [25], "two firings in one tick force the stinger once")
+	_free_tracked()
+	# Two gearboxes, each with a firing neighbour of its own, both in range of one weapon: the
+	# marker belongs to the fight, not to a gearbox, so the second gearbox's forcing in the same
+	# tick is refused too.
+	ctx = await duel([[[3], &"stinger"], [[4], &"meshing_gearbox"], [[5], &"stinger"],
+		[[6], &"meshing_gearbox"], [[7], &"stinger"]], [], 60.0)
+	var forced := _at(ctx, 0, 5)
+	assert_true(forced != null, "the weapon between the two gearboxes mounted")
+	if forced == null:
+		_complete()
+		return
+	forced.cooldown_left = 99.0
+	var twice := sink(ctx, ChEvent.HIT)
+	await step(ctx, 2.1)  # both stingers' own 2 s cooldown, so the press fires them
+	await step(ctx, TICK, true, false)  # one press, so both gearboxes ask in the same tick
+	assert_eq(_paid(twice, forced), [25], "two gearboxes force the stinger once, not twice")
 	_complete()
 
 

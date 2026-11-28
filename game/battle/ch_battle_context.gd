@@ -37,6 +37,9 @@ var fuses: Array = []
 var status_clock: float = 0.0  # time since the last status second
 var _status_seconds := 0  # status seconds run so far; Oil drips on the even ones
 var _battle_started: bool = false  # BATTLE_STARTED emitted once by the first tick
+# The ctx.time value force_fire last forced each part at: the fight's marker, so "once per tick" holds
+# across every part that forces (R15: two gearboxes in range of one weapon force it once).
+var _forced_at := {}  # part -> ctx.time
 var _modifiers: Array = []  # behaviours whose own script declares modify_stat or modify_gain, in side/mount order
 
 # Stat names ChBattleContext.stat asks about: a behaviour's modify_stat is handed one of these.
@@ -651,12 +654,18 @@ func _emit_skipped(part: ChPartRuntime, cost: int) -> void:
 	bus.emit(event)
 
 
-func force_fire(part: ChPartRuntime, by: ChPartRuntime) -> void:
+func force_fire(part: ChPartRuntime, by: ChPartRuntime, once := false) -> void:
 	# A forced fire (the spec's "makes another part fire"): the part fires without a press, so it pays
 	# nothing and its cooldown and tick timer stay where they were. It still counts as firing for every
 	# trigger, so it emits PART_FIRED like any other firing, with the part that forced it in the payload.
+	# "once" is for a rule that says a weapon is forced at most once per tick (R15): the marker is the
+	# context's, so it holds even when two parts force the same weapon in the same tick.
 	if part == null or part.broken or part.is_frozen() or part.behaviour == null or part.def == null:
 		return
+	if once:
+		if _forced_at.get(part) == time:
+			return
+		_forced_at[part] = time
 	var behaviour = part.behaviour
 	if part.def.is_continuous():
 		# The continuous step's own rule: a tick that lands is a firing, a tick that finds nothing is not.
