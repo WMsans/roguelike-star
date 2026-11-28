@@ -19,6 +19,9 @@ const PART_IDS: Array[StringName] = [
 	&"turbo_booster", &"targeting_computer", &"sharpener", &"heavy_rounds",
 	# The two whose ids the retired parts also used: the C42 Strut and the C16 Flamethrower.
 	&"strut", &"flamethrower",
+	# Task 8's Inferno parts (U01-U06, R01-R03).
+	&"oil_sprayer", &"fuel_line", &"heat_shield", &"incinerator", &"napalm_launcher",
+	&"bellows", &"inferno_core", &"eternal_flame", &"pyre",
 ]
 const BODY_IDS: Array[StringName] = [&"cutter", &"dozer", &"corsair"]
 

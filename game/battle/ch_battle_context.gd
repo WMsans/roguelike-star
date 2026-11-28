@@ -49,6 +49,7 @@ const STAT_FLAME_DAMAGE := &"flame_damage"
 const STAT_ACID_DAMAGE := &"acid_damage"
 const STAT_SHOCK_DAMAGE := &"shock_damage"
 const STAT_DECAY_FREEZE := &"decay_freeze"
+const STAT_DECAY_FLAME := &"decay_flame"
 
 # The decay stat name for a status; STAT_DECAY_FREEZE is one of these. The rest are built rather than
 # spelled out, because the decaying statuses are ChStatuses.DECAYS and grow with it.
